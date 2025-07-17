@@ -10,6 +10,7 @@ import {
   Activity,
   BookOpen,
   Home,
+  Brain,
 } from "lucide-react";
 
 export const categories = {
@@ -90,11 +91,17 @@ export const navigation = [
 
   // Tools
   {
+    name: "AI & MCP",
+    href: "/dashboard/ai",
+    icon: Brain,
+    category: "tools",
+    badge: "New",
+  },
+  {
     name: "API Test",
     href: "/dashboard/api-test",
     icon: Code,
     category: "tools",
-    badge: "New",
   },
   {
     name: "Documentation",

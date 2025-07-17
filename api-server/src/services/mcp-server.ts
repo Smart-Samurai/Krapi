@@ -129,7 +129,7 @@ export class McpServer {
   /**
    * Handle MCP requests
    */
-  private async handleRequest(request: McpRequest): Promise<McpResponse> {
+  async handleRequest(request: McpRequest): Promise<McpResponse> {
     try {
       switch (request.method) {
         case "initialize":
@@ -212,7 +212,7 @@ export class McpServer {
   /**
    * Handle tool call request
    */
-  private async handleCallTool(request: McpRequest): Promise<McpResponse> {
+  async handleCallTool(request: McpRequest): Promise<McpResponse> {
     const { name, arguments: args } = request.params as {
       name: string;
       arguments: Record<string, unknown>;

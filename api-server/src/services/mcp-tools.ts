@@ -1,9 +1,5 @@
 import { McpToolDefinition, McpToolResult, AppStateContext } from "../types/mcp";
-import { ContentService } from "./content";
-import { UserService } from "./users";
-import { RoutesService } from "./routes";
-import { SchemasService } from "./schemas";
-import { FilesService } from "./files";
+import database from "./database";
 
 /**
  * Get current application state context
@@ -11,11 +7,11 @@ import { FilesService } from "./files";
 async function getAppStateContext(): Promise<AppStateContext> {
   try {
     const [contentItems, users, routes, schemas, files] = await Promise.all([
-      ContentService.getAllContent(),
-      UserService.getAllUsers(),
-      RoutesService.getAllRoutes(),
-      SchemasService.getAllSchemas(),
-      FilesService.getAllFiles(),
+      Promise.resolve(database.getAllContent()),
+      Promise.resolve(database.getAllUsers()),
+      Promise.resolve(database.getAllRoutes()),
+      Promise.resolve(database.getAllSchemas()),
+      Promise.resolve(database.getAllFiles()),
     ]);
 
     return {
@@ -33,7 +29,7 @@ async function getAppStateContext(): Promise<AppStateContext> {
         username: user.username,
         email: user.email,
         role: user.role,
-        is_active: user.is_active,
+        is_active: user.active,
         created_at: user.created_at,
         last_login: user.last_login,
       })),
@@ -175,12 +171,13 @@ const createContentTool: McpToolDefinition = {
   },
   handler: async (args) => {
     try {
-      const result = await ContentService.createContent({
+      const result = database.createContent({
         key: args.key as string,
         data: args.data,
         content_type: args.content_type as string,
         route_path: args.route_path as string,
         description: args.description as string | undefined,
+        schema: undefined, // Optional schema
       });
 
       return {
@@ -213,17 +210,13 @@ const createContentTool: McpToolDefinition = {
  */
 const updateContentTool: McpToolDefinition = {
   name: "update_content",
-  description: "Update an existing content item by ID",
+  description: "Update an existing content item by key",
   inputSchema: {
     type: "object",
     properties: {
-      id: {
-        type: "number",
-        description: "ID of the content item to update"
-      },
       key: {
         type: "string",
-        description: "New key for the content item"
+        description: "Key of the content item to update"
       },
       data: {
         description: "New content data"
@@ -237,17 +230,16 @@ const updateContentTool: McpToolDefinition = {
         description: "New description"
       }
     },
-    required: ["id"]
+    required: ["key"]
   },
   handler: async (args) => {
     try {
       const updateData: Record<string, unknown> = {};
-      if (args.key) updateData.key = args.key;
       if (args.data !== undefined) updateData.data = args.data;
       if (args.content_type) updateData.content_type = args.content_type;
       if (args.description) updateData.description = args.description;
 
-      const result = await ContentService.updateContentById(args.id as number, updateData);
+      const result = database.updateContent(args.key as string, updateData);
 
       return {
         content: [{
@@ -279,20 +271,33 @@ const updateContentTool: McpToolDefinition = {
  */
 const deleteContentTool: McpToolDefinition = {
   name: "delete_content",
-  description: "Delete a content item by ID",
+  description: "Delete a content item by key",
   inputSchema: {
     type: "object",
     properties: {
-      id: {
-        type: "number",
-        description: "ID of the content item to delete"
+      key: {
+        type: "string",
+        description: "Key of the content item to delete"
       }
     },
-    required: ["id"]
+    required: ["key"]
   },
   handler: async (args) => {
     try {
-      await ContentService.deleteContentById(args.id as number);
+      const deleted = database.deleteContent(args.key as string);
+
+      if (!deleted) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: "Content not found or could not be deleted"
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
 
       return {
         content: [{
@@ -375,6 +380,87 @@ const getUsersTool: McpToolDefinition = {
 };
 
 /**
+ * MCP Tool: Create User
+ */
+const createUserTool: McpToolDefinition = {
+  name: "create_user",
+  description: "Create a new user account",
+  inputSchema: {
+    type: "object",
+    properties: {
+      username: {
+        type: "string",
+        description: "Username for the new user"
+      },
+      password: {
+        type: "string",
+        description: "Password for the new user"
+      },
+      email: {
+        type: "string",
+        description: "Email address for the new user"
+      },
+      role: {
+        type: "string",
+        description: "Role for the new user (admin, editor, viewer)"
+      }
+    },
+    required: ["username", "password", "email"]
+  },
+  handler: async (args) => {
+    try {
+      const result = database.createUser({
+        username: args.username as string,
+        password: args.password as string,
+        email: args.email as string,
+        role: (args.role as string) || "viewer",
+        permissions: "[]",
+        active: true,
+      });
+
+      if (!result) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: "Failed to create user (username may already exist)"
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+
+      // Remove password from response
+      const safeResult = { ...result };
+      delete (safeResult as any).password;
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            success: true,
+            message: "User created successfully",
+            data: safeResult
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error"
+          }, null, 2)
+        }],
+        isError: true
+      };
+    }
+  }
+};
+
+/**
  * MCP Tool: Get Routes
  */
 const getRoutesTool: McpToolDefinition = {
@@ -404,6 +490,69 @@ const getRoutesTool: McpToolDefinition = {
             success: true,
             count: routes.length,
             data: routes
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error"
+          }, null, 2)
+        }],
+        isError: true
+      };
+    }
+  }
+};
+
+/**
+ * MCP Tool: Create Route
+ */
+const createRouteTool: McpToolDefinition = {
+  name: "create_route",
+  description: "Create a new route in the system",
+  inputSchema: {
+    type: "object",
+    properties: {
+      path: {
+        type: "string",
+        description: "Route path (e.g., '/about', '/blog')"
+      },
+      name: {
+        type: "string",
+        description: "Display name for the route"
+      },
+      description: {
+        type: "string",
+        description: "Optional description of the route"
+      },
+      parent_id: {
+        type: "number",
+        description: "Optional parent route ID"
+      }
+    },
+    required: ["path", "name"]
+  },
+  handler: async (args) => {
+    try {
+      const result = database.createRoute({
+        path: args.path as string,
+        name: args.name as string,
+        description: args.description as string,
+        schema: undefined,
+        parent_id: args.parent_id as number | undefined,
+      });
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            success: true,
+            message: "Route created successfully",
+            data: result
           }, null, 2)
         }]
       };
@@ -454,68 +603,6 @@ const getSchemasTool: McpToolDefinition = {
             success: true,
             count: schemas.length,
             data: schemas
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Create Route
- */
-const createRouteTool: McpToolDefinition = {
-  name: "create_route",
-  description: "Create a new route in the system",
-  inputSchema: {
-    type: "object",
-    properties: {
-      path: {
-        type: "string",
-        description: "Route path (e.g., '/about', '/blog')"
-      },
-      name: {
-        type: "string",
-        description: "Display name for the route"
-      },
-      description: {
-        type: "string",
-        description: "Optional description of the route"
-      },
-      parent_id: {
-        type: "number",
-        description: "Optional parent route ID"
-      }
-    },
-    required: ["path", "name"]
-  },
-  handler: async (args) => {
-    try {
-      const result = await RoutesService.createRoute({
-        path: args.path as string,
-        name: args.name as string,
-        description: args.description as string | undefined,
-        parent_id: args.parent_id as number | undefined,
-      });
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            message: "Route created successfully",
-            data: result
           }, null, 2)
         }]
       };
@@ -596,9 +683,10 @@ export const mcpTools: McpToolDefinition[] = [
   updateContentTool,
   deleteContentTool,
   getUsersTool,
+  createUserTool,
   getRoutesTool,
-  getSchemasTool,
   createRouteTool,
+  getSchemasTool,
   getStatsTool,
 ];
 
