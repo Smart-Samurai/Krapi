@@ -1,3 +1,25 @@
+/**
+ * DEPRECATED: This web-based control panel has been replaced
+ * with a new Desktop Application Manager.
+ * 
+ * Please use: StartManager.bat (Windows) or ./StartManager.sh (Linux/Mac)
+ * 
+ * The new manager provides better functionality:
+ * - Native desktop GUI or web interface as fallback
+ * - Better process management and dependency checking
+ * - Real-time monitoring and comprehensive logging
+ */
+
+console.log("=".repeat(60));
+console.log("DEPRECATION NOTICE");
+console.log("=".repeat(60));
+console.log("This web control panel is deprecated.");
+console.log("Please use the new Desktop Application Manager:");
+console.log("- Windows: StartManager.bat");
+console.log("- Linux/Mac: ./StartManager.sh");
+console.log("=".repeat(60));
+console.log("");
+
 const express = require("express");
 const { spawn, exec } = require("child_process");
 const fs = require("fs");
