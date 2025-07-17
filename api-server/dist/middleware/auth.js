@@ -9,6 +9,8 @@ const database_1 = __importDefault(require("../services/database"));
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    console.log("Auth middleware - token:", token ? "present" : "missing");
+    console.log("Auth middleware - headers:", req.headers);
     if (!token) {
         const response = {
             success: false,

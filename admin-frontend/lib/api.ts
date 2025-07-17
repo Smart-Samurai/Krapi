@@ -29,6 +29,12 @@ api.interceptors.request.use((config) => {
   // Only add token if we're in a browser environment
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("auth_token");
+    console.log(
+      "API Request:",
+      config.url,
+      "Token:",
+      token ? "present" : "missing"
+    );
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -154,18 +154,31 @@ class DatabaseService {
     `);
         // Create notifications table
         this.db.exec(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        title TEXT NOT NULL,
-        message TEXT NOT NULL,
-        read BOOLEAN DEFAULT 0,
-        data TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      );
-    `);
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      read BOOLEAN DEFAULT 0,
+      data TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+  `);
+        // Create login_logs table
+        this.db.exec(`
+    CREATE TABLE IF NOT EXISTS login_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      ip_address TEXT NOT NULL,
+      user_agent TEXT,
+      success BOOLEAN NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      location TEXT,
+      failure_reason TEXT
+    );
+  `);
         // Create email settings table
         this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_settings (
@@ -2175,6 +2188,59 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
         catch (error) {
             console.error("Error creating activity notification:", error);
         }
+    }
+    // Login logs management
+    getLoginLogs(page = 1, limit = 50) {
+        try {
+            // Get total count
+            const totalResult = this.db
+                .prepare("SELECT COUNT(*) as count FROM login_logs")
+                .get();
+            // Get paginated logs
+            const offset = (page - 1) * limit;
+            const logs = this.db
+                .prepare("SELECT * FROM login_logs ORDER BY timestamp DESC LIMIT ? OFFSET ?")
+                .all(limit, offset);
+            return {
+                logs: logs.map((log) => ({
+                    id: log.id,
+                    username: log.username,
+                    ip_address: log.ip_address,
+                    user_agent: log.user_agent,
+                    success: log.success === 1,
+                    timestamp: log.timestamp,
+                    location: log.location,
+                    failure_reason: log.failure_reason,
+                })),
+                total: totalResult.count,
+                page,
+                limit,
+            };
+        }
+        catch (error) {
+            console.error("Error getting login logs:", error);
+            return {
+                logs: [],
+                total: 0,
+                page,
+                limit,
+            };
+        }
+    }
+    createLoginLog(log) {
+        try {
+            const stmt = this.db.prepare("INSERT INTO login_logs (username, ip_address, user_agent, success, location, failure_reason) VALUES (?, ?, ?, ?, ?, ?)");
+            stmt.run(log.username, log.ip_address, log.user_agent || null, log.success ? 1 : 0, log.location || null, log.failure_reason || null);
+        }
+        catch (error) {
+            console.error("Error creating login log:", error);
+        }
+    }
+    // Session management
+    getActiveSessions() {
+        // For now, return empty array since we don't have session tracking implemented
+        // In a real implementation, this would query a sessions table
+        return [];
     }
 }
 exports.default = new DatabaseService();

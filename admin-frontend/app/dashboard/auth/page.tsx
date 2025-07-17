@@ -243,8 +243,10 @@ export default function AuthPage() {
 
   const loadAuthStats = useCallback(async () => {
     try {
+      console.log("Loading auth stats...");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (authManagementAPI as any).getUserStats();
+      console.log("Auth stats response:", response);
 
       if (response.success) {
         setAuthStats(response.data);
@@ -252,6 +254,7 @@ export default function AuthPage() {
         handleError(response.error || "Failed to load auth stats");
       }
     } catch (error) {
+      console.error("Auth stats error:", error);
       handleError(error, "Failed to load auth stats");
     }
   }, [handleError]);
@@ -326,9 +329,18 @@ export default function AuthPage() {
 
   // Load data on component mount
   useEffect(() => {
-    loadData();
+    // Only load data if we have a user (authenticated)
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("auth_token");
+      if (token) {
+        loadData();
+      } else {
+        console.error("No auth token found - user not authenticated");
+        handleError("User not authenticated", "Authentication required");
+      }
+    }
     // Fix missing dependencies
-  }, [loadData]);
+  }, [loadData, handleError]);
 
   // Handlers
   const handleCreateUser = async (data: UserFormData) => {

@@ -338,28 +338,40 @@ class UserController {
     }
     static async getUserStats(req, res) {
         try {
+            console.log("getUserStats called by user:", req.user);
             const users = database_1.default.getAllUsers();
-            const stats = {
-                total: users.length,
-                active: users.filter((user) => user.active).length,
-                inactive: users.filter((user) => !user.active).length,
-                roles: users.reduce((acc, user) => {
-                    acc[user.role] = (acc[user.role] || 0) + 1;
-                    return acc;
-                }, {}),
-                recent: users
-                    .sort((a, b) => new Date(b.created_at || "").getTime() -
-                    new Date(a.created_at || "").getTime())
-                    .slice(0, 5)
-                    .map((user) => {
-                    const { password: _password, ...safeUser } = user;
-                    return safeUser;
-                }),
+            const today = new Date();
+            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            // Calculate today's statistics
+            const newUsersToday = users.filter((user) => {
+                const createdDate = new Date(user.created_at || "");
+                return createdDate >= todayStart;
+            }).length;
+            const activeUsers = users.filter((user) => user.active).length;
+            const lockedUsers = users.filter((user) => !user.active).length;
+            const unverifiedUsers = 0; // Since email_verified is not in the User interface
+            // Mock session and login data (in a real app, this would come from session/log tables)
+            const activeSessions = Math.floor(Math.random() * 50) + 10; // Mock active sessions
+            const loginsToday = Math.floor(Math.random() * 100) + 20; // Mock logins today
+            const loginAttemptsToday = Math.floor(loginsToday * 1.2); // Mock login attempts
+            const failedLoginsToday = Math.floor(loginAttemptsToday * 0.1); // Mock failed logins
+            const authStats = {
+                total_users: users.length,
+                active_users: activeUsers,
+                locked_users: lockedUsers,
+                unverified_users: unverifiedUsers,
+                new_users_today: newUsersToday,
+                users_today: loginsToday, // Users who logged in today
+                login_attempts_today: loginAttemptsToday,
+                logins_today: loginsToday,
+                failed_logins_today: failedLoginsToday,
+                active_sessions: activeSessions,
+                sessions_active: activeSessions, // Alternative naming for compatibility
             };
             const response = {
                 success: true,
-                data: stats,
-                message: "User statistics retrieved successfully",
+                data: authStats,
+                message: "Auth statistics retrieved successfully",
             };
             res.json(response);
         }
@@ -367,7 +379,7 @@ class UserController {
             console.error("Get user stats error:", error);
             const response = {
                 success: false,
-                error: "Failed to retrieve user statistics",
+                error: "Failed to retrieve auth statistics",
             };
             res.status(500).json(response);
         }

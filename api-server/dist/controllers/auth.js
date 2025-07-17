@@ -19,6 +19,15 @@ class AuthController {
                 return;
             }
             const result = await auth_1.AuthService.login(username, password);
+            // Log the login attempt
+            database_1.default.createLoginLog({
+                username,
+                ip_address: req.ip || req.connection.remoteAddress || "unknown",
+                user_agent: req.headers["user-agent"],
+                success: !!result,
+                location: "Local Network", // In a real app, you'd geolocate this
+                failure_reason: result ? undefined : "Invalid credentials",
+            });
             if (!result) {
                 const response = {
                     success: false,
@@ -235,23 +244,23 @@ class AuthController {
     }
     static async getSecuritySettings(req, res) {
         try {
-            // Mock security settings for now
+            // Get real security settings from database or environment
             const response = {
                 success: true,
                 data: {
-                    password_min_length: 8,
-                    password_require_uppercase: true,
-                    password_require_lowercase: true,
-                    password_require_numbers: true,
-                    password_require_symbols: false,
-                    session_timeout: 60,
-                    max_login_attempts: 5,
-                    lockout_duration: 15,
-                    require_email_verification: true,
-                    allow_user_registration: true,
-                    two_factor_required: false,
-                    jwt_expiry: 60,
-                    refresh_token_expiry: 7,
+                    password_min_length: parseInt(process.env.PASSWORD_MIN_LENGTH || "8"),
+                    password_require_uppercase: process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
+                    password_require_lowercase: process.env.PASSWORD_REQUIRE_LOWERCASE !== "false",
+                    password_require_numbers: process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
+                    password_require_symbols: process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
+                    session_timeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
+                    max_login_attempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
+                    lockout_duration: parseInt(process.env.LOCKOUT_DURATION || "15"),
+                    require_email_verification: process.env.REQUIRE_EMAIL_VERIFICATION !== "false",
+                    allow_user_registration: process.env.ALLOW_USER_REGISTRATION === "true",
+                    two_factor_required: process.env.TWO_FACTOR_REQUIRED === "true",
+                    jwt_expiry: parseInt(process.env.JWT_EXPIRES_IN || "60"),
+                    refresh_token_expiry: parseInt(process.env.REFRESH_TOKEN_EXPIRY || "7"),
                 },
             };
             res.json(response);
@@ -287,35 +296,11 @@ class AuthController {
         try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 50;
-            // Mock login logs for now
+            // Get real login logs from database
+            const logs = database_1.default.getLoginLogs(page, limit);
             const response = {
                 success: true,
-                data: {
-                    logs: [
-                        {
-                            id: 1,
-                            username: "admin",
-                            ip_address: "192.168.1.100",
-                            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                            success: true,
-                            timestamp: "2024-07-03T12:00:00Z",
-                            location: "Local Network",
-                        },
-                        {
-                            id: 2,
-                            username: "admin",
-                            ip_address: "192.168.1.100",
-                            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                            success: false,
-                            timestamp: "2024-07-03T11:55:00Z",
-                            location: "Local Network",
-                            failure_reason: "Invalid password",
-                        },
-                    ],
-                    total: 2,
-                    page,
-                    limit,
-                },
+                data: logs,
             };
             res.json(response);
         }
@@ -330,22 +315,11 @@ class AuthController {
     }
     static async getActiveSessions(req, res) {
         try {
-            // Mock active sessions for now
+            // Get real active sessions from database
+            const sessions = database_1.default.getActiveSessions();
             const response = {
                 success: true,
-                data: [
-                    {
-                        id: "session1",
-                        user_id: 1,
-                        username: "admin",
-                        ip_address: "192.168.1.100",
-                        user_agent: "Mozilla/5.0...",
-                        created_at: "2024-07-03T10:00:00Z",
-                        last_activity: "2024-07-03T12:00:00Z",
-                        expires_at: "2024-07-04T10:00:00Z",
-                        active: true,
-                    },
-                ],
+                data: sessions,
             };
             res.json(response);
         }

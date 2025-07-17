@@ -1,0 +1,111 @@
+version: "3.8"
+
+services:
+  # API Server
+  api:
+    build:
+      context: ./api-server
+      dockerfile: Dockerfile
+    container_name: krapi-api
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - DB_PATH=/app/data/app.db
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
+      - PORT=3001
+    volumes:
+      - api_data:/app/data
+      - api_uploads:/app/uploads
+    networks:
+      - krapi_network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/api/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Frontend (Admin Dashboard)
+  frontend:
+    build:
+      context: ./admin-frontend
+      dockerfile: Dockerfile
+    container_name: krapi-frontend
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=/api
+    networks:
+      - krapi_network
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Nginx Reverse Proxy
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: krapi-nginx
+    ports:
+      - "8428:80"
+      - "8424:443"
+    networks:
+      - krapi_network
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  # Persistent volume for API data (SQLite database)
+  api_data:
+    driver: local
+  # Persistent volume for uploaded files
+  api_uploads:
+    driver: local
+
+networks:
+  krapi_network:
+    driver: bridge

@@ -160,6 +160,40 @@ declare class DatabaseService {
     markAllNotificationsAsRead(userId: number): number;
     deleteNotification(notificationId: number, userId: number): boolean;
     createActivityNotification(type: string, title: string, message: string, data?: Record<string, unknown>): void;
+    getLoginLogs(page?: number, limit?: number): {
+        logs: Array<{
+            id: number;
+            username: string;
+            ip_address: string;
+            user_agent: string;
+            success: boolean;
+            timestamp: string;
+            location?: string;
+            failure_reason?: string;
+        }>;
+        total: number;
+        page: number;
+        limit: number;
+    };
+    createLoginLog(log: {
+        username: string;
+        ip_address: string;
+        user_agent?: string;
+        success: boolean;
+        location?: string;
+        failure_reason?: string;
+    }): void;
+    getActiveSessions(): Array<{
+        id: string;
+        user_id: number;
+        username: string;
+        ip_address: string;
+        user_agent: string;
+        created_at: string;
+        last_activity: string;
+        expires_at: string;
+        active: boolean;
+    }>;
 }
 declare const _default: DatabaseService;
 export default _default;
