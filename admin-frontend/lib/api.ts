@@ -502,5 +502,205 @@ export const databaseAPI = {
   },
 };
 
+// Health API
+export const healthAPI = {
+  check: async () => {
+    const response = await api.get("/health");
+    return response.data;
+  },
+};
+
+// Email API
+export const emailAPI = {
+  getConfiguration: async () => {
+    const response = await api.get("/admin/email/config");
+    return response.data;
+  },
+  updateConfiguration: async (config: any) => {
+    const response = await api.put("/admin/email/config", config);
+    return response.data;
+  },
+  testConnection: async () => {
+    const response = await api.post("/admin/email/test");
+    return response.data;
+  },
+  sendEmail: async (emailData: any) => {
+    const response = await api.post("/admin/email/send", emailData);
+    return response.data;
+  },
+  getAllTemplates: async () => {
+    const response = await api.get("/admin/email/templates");
+    return response.data;
+  },
+  createTemplate: async (template: any) => {
+    const response = await api.post("/admin/email/templates", template);
+    return response.data;
+  },
+  getTemplateById: async (id: number) => {
+    const response = await api.get(`/admin/email/templates/${id}`);
+    return response.data;
+  },
+  updateTemplate: async (id: number, template: any) => {
+    const response = await api.put(`/admin/email/templates/${id}`, template);
+    return response.data;
+  },
+  deleteTemplate: async (id: number) => {
+    const response = await api.delete(`/admin/email/templates/${id}`);
+    return response.data;
+  },
+  getLogs: async (page?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.append("page", page.toString());
+    if (limit) params.append("limit", limit.toString());
+    const response = await api.get(`/admin/email/logs?${params.toString()}`);
+    return response.data;
+  },
+  getStats: async () => {
+    const response = await api.get("/admin/email/stats");
+    return response.data;
+  },
+  getPreferences: async () => {
+    const response = await api.get("/admin/email/preferences");
+    return response.data;
+  },
+  updatePreferences: async (preferences: any) => {
+    const response = await api.put("/admin/email/preferences", preferences);
+    return response.data;
+  },
+};
+
+// API Management API
+export const apiManagementAPI = {
+  getApiStats: async () => {
+    const response = await api.get("/admin/api/stats");
+    return response.data;
+  },
+  getApiKeys: async () => {
+    const response = await api.get("/admin/api/keys");
+    return response.data;
+  },
+  createApiKey: async (keyData: any) => {
+    const response = await api.post("/admin/api/keys", keyData);
+    return response.data;
+  },
+  updateApiKey: async (id: number, keyData: any) => {
+    const response = await api.put(`/admin/api/keys/${id}`, keyData);
+    return response.data;
+  },
+  deleteApiKey: async (id: number) => {
+    const response = await api.delete(`/admin/api/keys/${id}`);
+    return response.data;
+  },
+  toggleApiKey: async (id: number) => {
+    const response = await api.patch(`/admin/api/keys/${id}/toggle`);
+    return response.data;
+  },
+  getEndpoints: async () => {
+    const response = await api.get("/admin/api/endpoints");
+    return response.data;
+  },
+  updateEndpoint: async (endpoint: string, data: any) => {
+    const response = await api.put(`/admin/api/endpoints/${endpoint}`, data);
+    return response.data;
+  },
+  getRateLimits: async () => {
+    const response = await api.get("/admin/api/rate-limits");
+    return response.data;
+  },
+  updateRateLimit: async (id: number, data: any) => {
+    const response = await api.put(`/admin/api/rate-limits/${id}`, data);
+    return response.data;
+  },
+};
+
+// Auth Management API
+export const authManagementAPI = {
+  getUsers: async (page?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.append("page", page.toString());
+    if (limit) params.append("limit", limit.toString());
+    const response = await api.get(`/admin/users?${params.toString()}`);
+    return response.data;
+  },
+  getUserStats: async () => {
+    const response = await api.get("/admin/users/stats");
+    return response.data;
+  },
+  getSecuritySettings: async () => {
+    const response = await api.get("/admin/auth/security-settings");
+    return response.data;
+  },
+  updateSecuritySettings: async (settings: any) => {
+    const response = await api.put("/admin/auth/security-settings", settings);
+    return response.data;
+  },
+  getSessions: async (filters?: any) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    const response = await api.get(`/admin/auth/sessions?${params.toString()}`);
+    return response.data;
+  },
+  terminateSession: async (sessionId: string) => {
+    const response = await api.delete(`/admin/auth/sessions/${sessionId}`);
+    return response.data;
+  },
+  getLoginLogs: async () => {
+    const response = await api.get("/admin/auth/login-logs");
+    return response.data;
+  },
+  createUser: async (userData: any) => {
+    const response = await api.post("/admin/users", userData);
+    return response.data;
+  },
+  updateUser: async (id: number, userData: any) => {
+    const response = await api.put(`/admin/users/${id}`, userData);
+    return response.data;
+  },
+  deleteUser: async (id: number) => {
+    const response = await api.delete(`/admin/users/${id}`);
+    return response.data;
+  },
+};
+
+// Notifications API
+export const notificationAPI = {
+  getUserNotifications: async (limit?: number) => {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    const response = await api.get(`/notifications?${params.toString()}`);
+    return response.data;
+  },
+  markNotificationAsRead: async (id: number) => {
+    const response = await api.patch(`/notifications/${id}/read`);
+    return response.data;
+  },
+  markAllNotificationsAsRead: async () => {
+    const response = await api.patch("/notifications/mark-all-read");
+    return response.data;
+  },
+  deleteNotification: async (id: number) => {
+    const response = await api.delete(`/notifications/${id}`);
+    return response.data;
+  },
+  getNotificationPreferences: async () => {
+    const response = await api.get("/notifications/preferences");
+    return response.data;
+  },
+  updateNotificationPreferences: async (preferences: any) => {
+    const response = await api.put("/notifications/preferences", preferences);
+    return response.data;
+  },
+  getUnreadCount: async () => {
+    const response = await api.get("/notifications/unread-count");
+    return response.data;
+  },
+};
+
 // Export the base API instance for direct use if needed
 export default api;

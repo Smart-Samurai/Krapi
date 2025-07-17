@@ -234,7 +234,7 @@ export default function Header({
     setIsSearching(true);
     setSearchError(null); // Clear previous errors
     try {
-      const response = await searchAPI.search(query);
+      const response = await searchAPI.searchAll(query);
       if (response.success) {
         const searchData = response.data as SearchResponse;
         setSearchResults(searchData.results);

@@ -251,7 +251,7 @@ export default function ApiManagementPage() {
     if (!editingKey) return;
 
     try {
-      const response = await apiManagementAPI.updateApiKey(editingKey.id, {
+      const response = await apiManagementAPI.updateApiKey(Number(editingKey.id), {
         name: data.name,
         permissions: data.permissions,
         rate_limit: data.rate_limit,
@@ -281,7 +281,7 @@ export default function ApiManagementPage() {
       return;
 
     try {
-      const response = await apiManagementAPI.deleteApiKey(id);
+      const response = await apiManagementAPI.deleteApiKey(Number(id));
       if (response.success) {
         showSuccess("API key deleted successfully");
         await loadApiKeys();

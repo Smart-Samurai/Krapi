@@ -83,8 +83,8 @@ const SidebarContent = ({
                         | "/dashboard/health"
                         | "/dashboard/api-test"
                         | "/dashboard/docs"
+                        | "/dashboard/ai"
                         | "/dashboard/routes"
-                        | "/dashboard/routes-content"
                     }
                     onClick={onLinkClick}
                     className={cn(

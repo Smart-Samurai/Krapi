@@ -164,8 +164,7 @@ export default function EmailManagementPage() {
     try {
       const response = await emailAPI.getLogs(
         logsPage,
-        20,
-        logsStatus || undefined
+        20
       );
       if (response.success) {
         setLogs(response.data.logs);

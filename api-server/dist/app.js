@@ -46,6 +46,7 @@ const routes_1 = __importDefault(require("./routes"));
 // Removed express-ws in favor of ws
 const auth_1 = require("./services/auth");
 const email_1 = require("./services/email");
+const mcp_1 = require("./controllers/mcp");
 const http = __importStar(require("http"));
 const ws_1 = __importStar(require("ws"));
 const url_1 = require("url");
@@ -194,7 +195,7 @@ function broadcastToAll(message) {
     console.log(`Broadcast complete: ${sent} sent, ${failed} failed`);
 }
 // Start HTTP and WebSocket server
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`📝 API docs: http://localhost:${PORT}/`);
@@ -202,6 +203,19 @@ server.listen(PORT, () => {
     // Initialize email service with WebSocket broadcast function
     (0, email_1.setBroadcastFunction)(broadcastToAll);
     console.log(`📧 Email service initialized with WebSocket broadcasting`);
+    // Initialize MCP server with Ollama integration
+    await (0, mcp_1.initializeMcpServer)();
+});
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('📖 Shutting down MCP server...');
+    await (0, mcp_1.shutdownMcpServer)();
+    process.exit(0);
+});
+process.on('SIGINT', async () => {
+    console.log('📖 Shutting down MCP server...');
+    await (0, mcp_1.shutdownMcpServer)();
+    process.exit(0);
 });
 exports.default = app;
 //# sourceMappingURL=app.js.map

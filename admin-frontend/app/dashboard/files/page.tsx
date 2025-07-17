@@ -73,7 +73,6 @@ export default function FilesPage() {
 
       const response: ApiResponse<FileMetadata> = await filesAPI.uploadFile(
         data.file,
-        data.access_level,
         data.description
       );
 
@@ -98,7 +97,7 @@ export default function FilesPage() {
       const response: ApiResponse<FileMetadata> = await filesAPI.updateFile(
         editingFile.id,
         {
-          access_level: editingFile.access_level,
+          filename: editingFile.filename,
           description: editingFile.description,
         }
       );
