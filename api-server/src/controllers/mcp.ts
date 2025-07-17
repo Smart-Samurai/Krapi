@@ -1,0 +1,397 @@
+import express from "express";
+import { McpServer } from "../services/mcp-server";
+import { getAppStateContext } from "../services/mcp-tools";
+import { OllamaMessage } from "../types/mcp";
+
+// Global MCP server instance
+let mcpServerInstance: McpServer | null = null;
+
+/**
+ * Get or create MCP server instance
+ */
+function getMcpServer(): McpServer {
+  if (!mcpServerInstance) {
+    mcpServerInstance = new McpServer();
+  }
+  return mcpServerInstance;
+}
+
+export class McpController {
+  /**
+   * Get MCP server information
+   */
+  static async getServerInfo(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const mcpServer = getMcpServer();
+      const config = mcpServer.getConfig();
+      const ollamaService = mcpServer.getOllamaService();
+
+      const info = {
+        server: config,
+        enabled: mcpServer.isServerEnabled(),
+        ollama: {
+          baseUrl: ollamaService.getBaseUrl(),
+          defaultModel: ollamaService.getDefaultModel(),
+          healthy: await ollamaService.healthCheck(),
+        },
+      };
+
+      res.json({
+        success: true,
+        data: info,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * List available MCP tools
+   */
+  static async listTools(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const mcpServer = getMcpServer();
+      const response = mcpServer.handleRequest({
+        method: "tools/list",
+        id: Date.now(),
+      });
+
+      res.json({
+        success: true,
+        data: (await response).result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Execute an MCP tool
+   */
+  static async callTool(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const { name, arguments: args } = req.body;
+
+      if (!name) {
+        res.status(400).json({
+          success: false,
+          error: "Tool name is required",
+        });
+        return;
+      }
+
+      const mcpServer = getMcpServer();
+      const response = await (mcpServer as any).handleRequest({
+        method: "tools/call",
+        params: {
+          name,
+          arguments: args || {},
+        },
+        id: Date.now(),
+      });
+
+      if (response.error) {
+        res.status(400).json({
+          success: false,
+          error: response.error.message,
+          code: response.error.code,
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: response.result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Chat with Ollama through MCP
+   */
+  static async ollamaChat(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const { 
+        messages, 
+        model, 
+        tools = true, 
+        temperature = 0.7,
+        max_tokens = 2000 
+      } = req.body;
+
+      if (!messages || !Array.isArray(messages)) {
+        res.status(400).json({
+          success: false,
+          error: "Messages array is required",
+        });
+        return;
+      }
+
+      const mcpServer = getMcpServer();
+      const response = await (mcpServer as any).handleRequest({
+        method: "ollama/chat",
+        params: {
+          messages: messages as OllamaMessage[],
+          model,
+          tools,
+          options: {
+            temperature,
+            max_tokens,
+          },
+        },
+        id: Date.now(),
+      });
+
+      if (response.error) {
+        res.status(400).json({
+          success: false,
+          error: response.error.message,
+          code: response.error.code,
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: response.result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * List available Ollama models
+   */
+  static async listModels(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const mcpServer = getMcpServer();
+      const response = await (mcpServer as any).handleRequest({
+        method: "ollama/models",
+        id: Date.now(),
+      });
+
+      if (response.error) {
+        res.status(400).json({
+          success: false,
+          error: response.error.message,
+          code: response.error.code,
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: response.result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Pull an Ollama model
+   */
+  static async pullModel(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const { model } = req.body;
+
+      if (!model) {
+        res.status(400).json({
+          success: false,
+          error: "Model name is required",
+        });
+        return;
+      }
+
+      const mcpServer = getMcpServer();
+      const response = await (mcpServer as any).handleRequest({
+        method: "ollama/pull",
+        params: { model },
+        id: Date.now(),
+      });
+
+      if (response.error) {
+        res.status(400).json({
+          success: false,
+          error: response.error.message,
+          code: response.error.code,
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: response.result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Get current application state context
+   */
+  static async getAppState(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const context = await getAppStateContext();
+
+      res.json({
+        success: true,
+        data: context,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Generate a simple text completion
+   */
+  static async generate(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const { prompt, model, temperature, max_tokens } = req.body;
+
+      if (!prompt) {
+        res.status(400).json({
+          success: false,
+          error: "Prompt is required",
+        });
+        return;
+      }
+
+      const mcpServer = getMcpServer();
+      const ollamaService = mcpServer.getOllamaService();
+
+      const result = await ollamaService.generate(prompt, {
+        model,
+        temperature,
+        max_tokens,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          text: result,
+          prompt,
+          model: model || ollamaService.getDefaultModel(),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Health check for both MCP and Ollama
+   */
+  static async healthCheck(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const mcpServer = getMcpServer();
+      const ollamaService = mcpServer.getOllamaService();
+
+      const [ollamaHealthy, models] = await Promise.all([
+        ollamaService.healthCheck(),
+        ollamaService.listModels().catch(() => []),
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          mcp: {
+            enabled: mcpServer.isServerEnabled(),
+            server: mcpServer.getConfig(),
+          },
+          ollama: {
+            healthy: ollamaHealthy,
+            baseUrl: ollamaService.getBaseUrl(),
+            defaultModel: ollamaService.getDefaultModel(),
+            availableModels: models,
+          },
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+}
+
+/**
+ * Initialize MCP server
+ */
+export async function initializeMcpServer(): Promise<void> {
+  try {
+    const mcpServer = getMcpServer();
+    if (mcpServer.isServerEnabled()) {
+      await mcpServer.start();
+    }
+  } catch (error) {
+    console.error("Failed to initialize MCP server:", error);
+  }
+}
+
+/**
+ * Shutdown MCP server
+ */
+export async function shutdownMcpServer(): Promise<void> {
+  if (mcpServerInstance) {
+    await mcpServerInstance.stop();
+    mcpServerInstance = null;
+  }
+}

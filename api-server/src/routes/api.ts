@@ -10,6 +10,7 @@ import { NotificationsController } from "../controllers/notifications";
 import { SearchController } from "../controllers/search";
 import { ApiManagementController } from "../controllers/api-management";
 import { DatabaseController } from "../controllers/database";
+import { McpController } from "../controllers/mcp";
 import { authenticateToken } from "../middleware/auth";
 
 const router = express.Router();
@@ -38,6 +39,19 @@ router.get("/auth/verify", AuthController.verify);
 router.get("/auth/profile", AuthController.getProfile);
 router.put("/auth/profile", AuthController.updateProfile);
 router.post("/auth/change-password", AuthController.changePassword);
+
+// MCP Routes (Ollama + AI Integration)
+router.get("/mcp/info", McpController.getServerInfo);
+router.get("/mcp/health", McpController.healthCheck);
+router.get("/mcp/tools", McpController.listTools);
+router.post("/mcp/tools/call", McpController.callTool);
+router.get("/mcp/app-state", McpController.getAppState);
+
+// Ollama Integration
+router.get("/ollama/models", McpController.listModels);
+router.post("/ollama/models/pull", McpController.pullModel);
+router.post("/ollama/chat", McpController.ollamaChat);
+router.post("/ollama/generate", McpController.generate);
 
 // API Management routes
 router.get("/admin/api/stats", ApiManagementController.getApiStats);
