@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+---
+
+# Krapi CMS - Core Development Principles
+
+## Project Overview
+
+Krapi CMS is a modern, TypeScript-based headless CMS with a React admin panel. This project requires production-quality code with no placeholders or fake implementations.
+
+## 🚫 ABSOLUTELY FORBIDDEN
+
+- **NO PLACEHOLDERS**: Every button, feature, and function must be fully implemented
+- **NO FAKE DATA**: All data must come from real API endpoints or database queries
+- **NO TODO COMMENTS**: Replace with actual implementations immediately
+- **NO LINTER ERRORS**: All TypeScript, ESLint, and other linting errors must be fixed before proceeding
+- **NO BROKEN FUNCTIONALITY**: Every feature must work end-to-end
+
+## ✅ REQUIRED STANDARDS
+
+- **Full Implementation**: Every UI element must have complete backend support
+- **Real Data Flow**: All data must flow from database → API → frontend
+- **Working Buttons**: Every button must perform its intended action
+- **Error Handling**: Proper error states and user feedback for all operations
+- **TypeScript Strict**: No `any` types, proper interfaces and type safety
+- **Responsive Design**: All UI must work on desktop and mobile
+
+## Technology Stack
+
+### Backend (Express.js + TypeScript)
+
+- **Database**: SQLite with better-sqlite3
+- **Authentication**: JWT tokens with proper validation
+- **API Design**: RESTful endpoints with consistent response formats
+- **Error Handling**: Proper HTTP status codes and error messages
+- **Validation**: Input validation on all endpoints
+- **Security**: SQL injection prevention, input sanitization
+
+### Frontend (Next.js + React + TypeScript)
+
+- **Routing**: App Router with proper page structure
+- **State Management**: React hooks and context for auth
+- **API Calls**: Axios with proper error handling
+- **Forms**: React Hook Form with Zod validation
+- **Styling**: Tailwind CSS with responsive design
+- **Components**: Reusable, properly typed components
+
+### Development Environment
+
+- **Single Launcher**: Use `UnifiedDev.bat` for starting all services
+- **Port Management**: API (3001), Frontend (3000), Control Panel (4000)
+- **Logging**: Proper error logging and debugging information
+
+---
+
+**Remember: Every feature must work completely. No exceptions, no placeholders, no "TODO" items. If you implement it, it must work end-to-end.**

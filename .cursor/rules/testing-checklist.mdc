@@ -1,0 +1,149 @@
+---
+alwaysApply: true
+---
+
+# Testing and Implementation Checklist
+
+## Before marking any feature "complete":
+
+- [ ] Backend API endpoint exists and works
+- [ ] Database operations are implemented
+- [ ] Frontend makes real API calls
+- [ ] Error states are handled
+- [ ] Loading states are implemented
+- [ ] Success feedback is provided
+- [ ] All TypeScript types are defined
+- [ ] No linter errors exist
+- [ ] Manual testing confirms functionality
+
+## UI Component Requirements
+
+- [ ] All buttons perform their stated actions
+- [ ] Forms submit real data to backend
+- [ ] Tables display real data from database
+- [ ] Modals open/close properly
+- [ ] Navigation works between all pages
+- [ ] Responsive design on all screen sizes
+
+## API Integration Requirements
+
+- [ ] All endpoints return consistent response format
+- [ ] Authentication is properly implemented
+- [ ] CRUD operations work end-to-end
+- [ ] Error responses include helpful messages
+- [ ] Input validation prevents invalid data
+
+## Manual Testing Requirements
+
+- Test every button and form in the UI
+- Verify data persists after page refresh
+- Test error scenarios (invalid input, network failures)
+- Verify authentication flows work properly
+- Test responsive design on different screen sizes
+
+## Development Testing
+
+- Use browser dev tools to verify API calls
+- Check database directly to confirm data changes
+- Monitor console for any JavaScript errors
+- Verify WebSocket connections in control panel
+
+## Error Boundary Pattern
+
+```typescript
+// Always wrap async operations
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState("");
+
+const handleAction = async () => {
+  setLoading(true);
+  setError("");
+  try {
+    await performAction();
+    showSuccessMessage();
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+};
+
+```
+
+```
+
+# Testing and Implementation Checklist
+
+## Before marking any feature "complete":
+
+- [ ] Backend API endpoint exists and works
+- [ ] Database operations are implemented
+- [ ] Frontend makes real API calls
+- [ ] Error states are handled
+- [ ] Loading states are implemented
+- [ ] Success feedback is provided
+- [ ] All TypeScript types are defined
+- [ ] No linter errors exist
+- [ ] Manual testing confirms functionality
+
+## UI Component Requirements
+
+- [ ] All buttons perform their stated actions
+- [ ] Forms submit real data to backend
+- [ ] Tables display real data from database
+- [ ] Modals open/close properly
+- [ ] Navigation works between all pages
+- [ ] Responsive design on all screen sizes
+
+## API Integration Requirements
+
+- [ ] All endpoints return consistent response format
+- [ ] Authentication is properly implemented
+- [ ] CRUD operations work end-to-end
+- [ ] Error responses include helpful messages
+- [ ] Input validation prevents invalid data
+
+## Manual Testing Requirements
+
+- Test every button and form in the UI
+- Verify data persists after page refresh
+- Test error scenarios (invalid input, network failures)
+- Verify authentication flows work properly
+- Test responsive design on different screen sizes
+
+## Development Testing
+
+- Use browser dev tools to verify API calls
+- Check database directly to confirm data changes
+- Monitor console for any JavaScript errors
+- Verify WebSocket connections in control panel
+
+## Error Boundary Pattern
+
+```typescript
+// Always wrap async operations
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState("");
+
+const handleAction = async () => {
+  setLoading(true);
+  setError("");
+  try {
+    await performAction();
+    showSuccessMessage();
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+};
+
+```
+
+```

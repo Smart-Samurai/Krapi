@@ -1,0 +1,20 @@
+{
+  "homepage-hero": {
+    "title": "Welcome to My Website",
+    "subtitle": "Building amazing things with modern technology",
+    "buttonText": "Get Started",
+    "buttonLink": "/about"
+  },
+  "navigation-links": [
+    { "name": "Home", "url": "/", "order": 1 },
+    { "name": "About", "url": "/about", "order": 2 },
+    { "name": "Services", "url": "/services", "order": 3 },
+    { "name": "Contact", "url": "/contact", "order": 4 }
+  ],
+  "company-info": {
+    "name": "My Company",
+    "email": "contact@mycompany.com",
+    "phone": "+1-234-567-8900",
+    "address": "123 Main St, City, State 12345"
+  }
+}
