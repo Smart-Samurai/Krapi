@@ -21,14 +21,30 @@ if %errorlevel% neq 0 (
   exit /b 1
 )
 
+:: Check if virtual environment exists, create if not
+if not exist "manager-env" (
+  echo Creating Python virtual environment...
+  python -m venv manager-env
+  if %errorlevel% neq 0 (
+    echo ERROR: Failed to create virtual environment.
+    echo Please ensure python-venv is installed.
+    echo.
+    pause
+    exit /b 1
+  )
+)
+
+:: Activate virtual environment and install dependencies
+echo Activating virtual environment...
+call manager-env\Scripts\activate.bat
+
 :: Check if psutil is installed, install if not
 python -c "import psutil" >nul 2>&1
 if %errorlevel% neq 0 (
   echo Installing required Python dependencies...
-  python -m pip install -r requirements.txt
+  pip install -r requirements.txt
   if %errorlevel% neq 0 (
     echo ERROR: Failed to install Python dependencies.
-    echo Please run: python -m pip install psutil
     echo.
     pause
     exit /b 1
