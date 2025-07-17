@@ -2,8 +2,23 @@ const { spawn, exec } = require("child_process");
 const path = require("path");
 
 console.log("================================================");
-console.log("      KRAPI CMS - STARTING ALL SERVICES");
+console.log("             DEPRECATION NOTICE");
 console.log("================================================");
+console.log("");
+console.log("This Node.js launcher has been replaced with a");
+console.log("new Desktop Application Manager.");
+console.log("");
+console.log("Please use: StartManager.bat (Windows)");
+console.log("       or:  ./StartManager.sh (Linux/Mac)");
+console.log("");
+console.log("The new manager provides:");
+console.log("- Modern desktop GUI interface");
+console.log("- Real-time service monitoring");
+console.log("- Automatic dependency management");
+console.log("- Individual service controls");
+console.log("- Comprehensive logging");
+console.log("");
+console.log("Continuing with legacy launcher...");
 console.log("");
 
 let apiProcess, frontendProcess, controlProcess;
