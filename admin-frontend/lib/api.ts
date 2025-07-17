@@ -11,8 +11,8 @@ import {
   ContentSchema,
 } from "../types";
 
-// Use explicit URL to the API server
-const API_BASE_URL = "http://localhost:3001/api";
+// Use environment variable or fallback to localhost
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 // Create axios instance
 const api = axios.create({
@@ -20,7 +20,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 10000, // 10 second timeout
+  timeout: 30000, // Increased timeout for AI operations
   withCredentials: false, // Don't send cookies
 });
 
@@ -49,7 +49,7 @@ api.interceptors.response.use(
     console.error("API Error:", error.message);
     if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
       console.error(
-        "Cannot connect to API server. Make sure the application is properly configured and running."
+        "Cannot connect to API server. Make sure the backend server is running on the correct port."
       );
     }
     if (error.response?.status === 401) {
@@ -85,6 +85,90 @@ export const authAPI = {
   },
   changePassword: async (data: ChangePasswordData) => {
     const response = await api.post("/auth/change-password", data);
+    return response.data;
+  },
+};
+
+// MCP API (Model Context Protocol with Ollama)
+export const mcpAPI = {
+  // Get MCP server information
+  getInfo: async () => {
+    const response = await api.get("/mcp/info");
+    return response.data;
+  },
+  
+  // Health check for MCP and Ollama
+  healthCheck: async () => {
+    const response = await api.get("/mcp/health");
+    return response.data;
+  },
+
+  // List available MCP tools
+  listTools: async () => {
+    const response = await api.get("/mcp/tools");
+    return response.data;
+  },
+
+  // Call an MCP tool
+  callTool: async (name: string, args: Record<string, unknown> = {}) => {
+    const response = await api.post("/mcp/tools/call", {
+      name,
+      arguments: args,
+    });
+    return response.data;
+  },
+
+  // Get current application state
+  getAppState: async () => {
+    const response = await api.get("/mcp/app-state");
+    return response.data;
+  },
+};
+
+// Ollama API
+export const ollamaAPI = {
+  // List available models
+  listModels: async () => {
+    const response = await api.get("/ollama/models");
+    return response.data;
+  },
+
+  // Pull a model
+  pullModel: async (model: string) => {
+    const response = await api.post("/ollama/models/pull", { model });
+    return response.data;
+  },
+
+  // Chat with Ollama
+  chat: async (
+    messages: Array<{ role: string; content: string }>,
+    options: {
+      model?: string;
+      tools?: boolean;
+      temperature?: number;
+      max_tokens?: number;
+    } = {}
+  ) => {
+    const response = await api.post("/ollama/chat", {
+      messages,
+      ...options,
+    });
+    return response.data;
+  },
+
+  // Generate text completion
+  generate: async (
+    prompt: string,
+    options: {
+      model?: string;
+      temperature?: number;
+      max_tokens?: number;
+    } = {}
+  ) => {
+    const response = await api.post("/ollama/generate", {
+      prompt,
+      ...options,
+    });
     return response.data;
   },
 };
@@ -198,22 +282,20 @@ export const schemasAPI = {
   createSchema: async (schema: {
     name: string;
     description?: string;
-    schema: Record<string, unknown>;
-    version?: string;
+    definition: Record<string, unknown>;
   }) => {
     const response = await api.post("/admin/schemas", schema);
     return response.data;
   },
   updateSchema: async (
     id: number,
-    updates: {
+    schema: {
       name?: string;
       description?: string;
-      schema?: Record<string, unknown>;
-      version?: string;
+      definition?: Record<string, unknown>;
     }
   ) => {
-    const response = await api.put(`/admin/schemas/${id}`, updates);
+    const response = await api.put(`/admin/schemas/${id}`, schema);
     return response.data;
   },
   deleteSchema: async (id: number) => {
@@ -240,38 +322,29 @@ export const routesAPI = {
     const response = await api.get(`/admin/routes/${id}`);
     return response.data;
   },
-  createRoute: async (data: {
+  createRoute: async (route: {
     path: string;
     name: string;
     description?: string;
-    schema?: ContentSchema;
-    access_level?: "public" | "protected" | "private";
     parent_id?: number;
   }) => {
-    const response = await api.post("/admin/routes", data);
+    const response = await api.post("/admin/routes", route);
     return response.data;
   },
   updateRoute: async (
-    path: string,
-    data: {
+    id: number,
+    route: {
       path?: string;
       name?: string;
       description?: string;
-      schema?: ContentSchema;
-      access_level?: "public" | "protected" | "private";
       parent_id?: number;
     }
   ) => {
-    const response = await api.put(
-      `/admin/routes/${encodeURIComponent(path)}`,
-      data
-    );
+    const response = await api.put(`/admin/routes/${id}`, route);
     return response.data;
   },
-  deleteRoute: async (path: string) => {
-    const response = await api.delete(
-      `/admin/routes/${encodeURIComponent(path)}`
-    );
+  deleteRoute: async (id: number) => {
+    const response = await api.delete(`/admin/routes/${id}`);
     return response.data;
   },
   getRouteTree: async () => {
@@ -298,12 +371,12 @@ export const usersAPI = {
     const response = await api.get(`/admin/users/${id}`);
     return response.data;
   },
-  createUser: async (data: CreateUserData) => {
-    const response = await api.post("/admin/users", data);
+  createUser: async (user: CreateUserData) => {
+    const response = await api.post("/admin/users", user);
     return response.data;
   },
-  updateUser: async (id: number, data: UpdateUserData) => {
-    const response = await api.put(`/admin/users/${id}`, data);
+  updateUser: async (id: number, user: UpdateUserData) => {
+    const response = await api.put(`/admin/users/${id}`, user);
     return response.data;
   },
   deleteUser: async (id: number) => {
@@ -312,6 +385,10 @@ export const usersAPI = {
   },
   toggleUserStatus: async (id: number) => {
     const response = await api.patch(`/admin/users/${id}/toggle-status`);
+    return response.data;
+  },
+  getUserStats: async () => {
+    const response = await api.get("/admin/users/stats");
     return response.data;
   },
 };
@@ -334,27 +411,11 @@ export const filesAPI = {
     const response = await api.get(`/admin/files/${id}`);
     return response.data;
   },
-  uploadFile: async (
-    file: File,
-    access_level?: "public" | "protected" | "private",
-    description?: string
-  ) => {
-    console.log("API uploadFile called with:", {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      accessLevel: access_level,
-      description: description,
-    });
-
+  uploadFile: async (file: File, description?: string) => {
     const formData = new FormData();
     formData.append("file", file);
-    if (access_level) formData.append("access_level", access_level);
-    if (description) formData.append("description", description);
-
-    console.log("FormData entries:");
-    for (const [key, value] of formData.entries()) {
-      console.log(key, value);
+    if (description) {
+      formData.append("description", description);
     }
 
     const response = await api.post("/admin/files/upload", formData, {
@@ -366,10 +427,7 @@ export const filesAPI = {
   },
   updateFile: async (
     id: number,
-    data: {
-      access_level?: "public" | "protected" | "private";
-      description?: string;
-    }
+    data: { filename?: string; description?: string }
   ) => {
     const response = await api.put(`/admin/files/${id}`, data);
     return response.data;
@@ -384,7 +442,6 @@ export const filesAPI = {
     });
     return response;
   },
-  // Public routes
   getPublicFile: async (filename: string) => {
     const response = await api.get(`/files/${filename}`, {
       responseType: "blob",
@@ -393,206 +450,38 @@ export const filesAPI = {
   },
 };
 
-// Email API
-export const emailAPI = {
-  // Email configuration
-  getConfiguration: async () => {
-    const response = await api.get("/admin/email/config");
-    return response.data;
-  },
-  updateConfiguration: async (config: {
-    smtp_host: string;
-    smtp_port: number;
-    smtp_secure: boolean;
-    smtp_user: string;
-    smtp_pass: string;
-    smtp_from: string;
-    smtp_reply_to?: string;
-  }) => {
-    const response = await api.put("/admin/email/config", config);
-    return response.data;
-  },
-  testConnection: async () => {
-    const response = await api.post("/admin/email/test");
-    return response.data;
-  },
-
-  // Send email
-  sendEmail: async (data: {
-    template_name?: string;
-    to: string | string[];
-    cc?: string | string[];
-    bcc?: string | string[];
-    subject?: string;
-    html?: string;
-    text?: string;
-    variables?: Record<string, unknown>;
-    from?: string;
-    reply_to?: string;
-  }) => {
-    const response = await api.post("/admin/email/send", data);
-    return response.data;
-  },
-
-  // Email templates
-  getAllTemplates: async () => {
-    const response = await api.get("/admin/email/templates");
-    return response.data;
-  },
-  getTemplateById: async (id: number) => {
-    const response = await api.get(`/admin/email/templates/${id}`);
-    return response.data;
-  },
-  createTemplate: async (template: {
-    name: string;
-    subject: string;
-    template_html: string;
-    template_text?: string;
-    variables?: string[];
-    description?: string;
-    active?: boolean;
-  }) => {
-    const response = await api.post("/admin/email/templates", template);
-    return response.data;
-  },
-  updateTemplate: async (
-    id: number,
-    updates: {
-      name?: string;
-      subject?: string;
-      template_html?: string;
-      template_text?: string;
-      variables?: string[];
-      description?: string;
-      active?: boolean;
-    }
-  ) => {
-    const response = await api.put(`/admin/email/templates/${id}`, updates);
-    return response.data;
-  },
-  deleteTemplate: async (id: number) => {
-    const response = await api.delete(`/admin/email/templates/${id}`);
-    return response.data;
-  },
-
-  // Email logs and analytics
-  getLogs: async (page = 1, limit = 50, status?: string) => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-    if (status) {
-      params.append("status", status);
-    }
-    const response = await api.get(`/admin/email/logs?${params.toString()}`);
-    return response.data;
-  },
-  getStats: async (startDate?: string, endDate?: string) => {
-    const params = new URLSearchParams();
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
-    const response = await api.get(`/admin/email/stats?${params.toString()}`);
-    return response.data;
-  },
-
-  // Notification preferences
-  getPreferences: async () => {
-    const response = await api.get("/admin/email/preferences");
-    return response.data;
-  },
-  updatePreferences: async (preferences: {
-    email_notifications?: boolean;
-    content_updates?: boolean;
-    user_management?: boolean;
-    system_alerts?: boolean;
-    marketing_emails?: boolean;
-  }) => {
-    const response = await api.put("/admin/email/preferences", preferences);
-    return response.data;
-  },
-};
-
-// Notification API
-export const notificationAPI = {
-  getUserNotifications: async (limit = 10) => {
-    const response = await api.get(`/notifications?limit=${limit}`);
-    return response.data;
-  },
-  markNotificationAsRead: async (notificationId: number) => {
-    const response = await api.patch(`/notifications/${notificationId}/read`);
-    return response.data;
-  },
-  markAllNotificationsAsRead: async () => {
-    const response = await api.patch("/notifications/mark-all-read");
-    return response.data;
-  },
-  deleteNotification: async (notificationId: number) => {
-    const response = await api.delete(`/notifications/${notificationId}`);
-    return response.data;
-  },
-  getUnreadCount: async () => {
-    const response = await api.get("/notifications/unread-count");
-    return response.data;
-  },
-};
-
 // Search API
 export const searchAPI = {
-  search: async (query: string) => {
-    const response = await api.get(`/search?q=${encodeURIComponent(query)}`);
+  searchAll: async (query: string, filters?: { type?: string }) => {
+    const params = new URLSearchParams();
+    params.append("q", query);
+    if (filters?.type) {
+      params.append("type", filters.type);
+    }
+    const response = await api.get(`/search?${params.toString()}`);
     return response.data;
   },
 };
 
-// Health check
-export const healthAPI = {
-  check: async () => {
-    const response = await api.get("/health");
-    return response.data;
-  },
-};
-
-// Database API (extend existing functionality)
+// Database API
 export const databaseAPI = {
-  getTables: async () => {
-    const response = await api.get("/admin/content/tables");
-    return response.data;
-  },
-  createTable: async (data: {
-    name: string;
-    schema: Record<string, unknown>;
-    collection_name?: string;
-  }) => {
-    const response = await api.post("/admin/content/tables", data);
-    return response.data;
-  },
-  getDocuments: async (tableId: string, page = 1, limit = 50) => {
-    const response = await api.get(
-      `/admin/content/get?route_id=${tableId}&page=${page}&limit=${limit}`
-    );
-    return response.data;
-  },
-  createDocument: async (tableId: string, data: Record<string, unknown>) => {
-    const response = await api.post("/admin/content/create", {
-      ...data,
-      route_id: tableId,
-    });
-    return response.data;
-  },
-  updateDocument: async (id: number, data: Record<string, unknown>) => {
-    const response = await api.put(`/admin/content/modify/id/${id}`, data);
-    return response.data;
-  },
-  deleteDocument: async (id: number) => {
-    const response = await api.delete(`/admin/content/delete/id/${id}`);
-    return response.data;
-  },
   getStats: async () => {
     const response = await api.get("/admin/database/stats");
     return response.data;
   },
   getDatabaseInfo: async () => {
     const response = await api.get("/admin/database/info");
+    return response.data;
+  },
+  getTables: async () => {
+    const response = await api.get("/admin/content/tables");
+    return response.data;
+  },
+  createTable: async (tableName: string, schema: Record<string, unknown>) => {
+    const response = await api.post("/admin/content/tables", {
+      tableName,
+      schema,
+    });
     return response.data;
   },
   getTableData: async (tableName: string) => {
@@ -604,10 +493,8 @@ export const databaseAPI = {
     return response.data;
   },
   exportDatabase: async () => {
-    const response = await api.get("/admin/database/export", {
-      responseType: "blob",
-    });
-    return response;
+    const response = await api.get("/admin/database/export");
+    return response.data;
   },
   resetDatabase: async () => {
     const response = await api.post("/admin/database/reset");
@@ -615,15 +502,123 @@ export const databaseAPI = {
   },
 };
 
-// Auth Management API (for managing authentication settings)
+// Health API
+export const healthAPI = {
+  check: async () => {
+    const response = await api.get("/health");
+    return response.data;
+  },
+};
+
+// Email API
+export const emailAPI = {
+  getConfiguration: async () => {
+    const response = await api.get("/admin/email/config");
+    return response.data;
+  },
+  updateConfiguration: async (config: any) => {
+    const response = await api.put("/admin/email/config", config);
+    return response.data;
+  },
+  testConnection: async () => {
+    const response = await api.post("/admin/email/test");
+    return response.data;
+  },
+  sendEmail: async (emailData: any) => {
+    const response = await api.post("/admin/email/send", emailData);
+    return response.data;
+  },
+  getAllTemplates: async () => {
+    const response = await api.get("/admin/email/templates");
+    return response.data;
+  },
+  createTemplate: async (template: any) => {
+    const response = await api.post("/admin/email/templates", template);
+    return response.data;
+  },
+  getTemplateById: async (id: number) => {
+    const response = await api.get(`/admin/email/templates/${id}`);
+    return response.data;
+  },
+  updateTemplate: async (id: number, template: any) => {
+    const response = await api.put(`/admin/email/templates/${id}`, template);
+    return response.data;
+  },
+  deleteTemplate: async (id: number) => {
+    const response = await api.delete(`/admin/email/templates/${id}`);
+    return response.data;
+  },
+  getLogs: async (page?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.append("page", page.toString());
+    if (limit) params.append("limit", limit.toString());
+    const response = await api.get(`/admin/email/logs?${params.toString()}`);
+    return response.data;
+  },
+  getStats: async () => {
+    const response = await api.get("/admin/email/stats");
+    return response.data;
+  },
+  getPreferences: async () => {
+    const response = await api.get("/admin/email/preferences");
+    return response.data;
+  },
+  updatePreferences: async (preferences: any) => {
+    const response = await api.put("/admin/email/preferences", preferences);
+    return response.data;
+  },
+};
+
+// API Management API
+export const apiManagementAPI = {
+  getApiStats: async () => {
+    const response = await api.get("/admin/api/stats");
+    return response.data;
+  },
+  getApiKeys: async () => {
+    const response = await api.get("/admin/api/keys");
+    return response.data;
+  },
+  createApiKey: async (keyData: any) => {
+    const response = await api.post("/admin/api/keys", keyData);
+    return response.data;
+  },
+  updateApiKey: async (id: number, keyData: any) => {
+    const response = await api.put(`/admin/api/keys/${id}`, keyData);
+    return response.data;
+  },
+  deleteApiKey: async (id: number) => {
+    const response = await api.delete(`/admin/api/keys/${id}`);
+    return response.data;
+  },
+  toggleApiKey: async (id: number) => {
+    const response = await api.patch(`/admin/api/keys/${id}/toggle`);
+    return response.data;
+  },
+  getEndpoints: async () => {
+    const response = await api.get("/admin/api/endpoints");
+    return response.data;
+  },
+  updateEndpoint: async (endpoint: string, data: any) => {
+    const response = await api.put(`/admin/api/endpoints/${endpoint}`, data);
+    return response.data;
+  },
+  getRateLimits: async () => {
+    const response = await api.get("/admin/api/rate-limits");
+    return response.data;
+  },
+  updateRateLimit: async (id: number, data: any) => {
+    const response = await api.put(`/admin/api/rate-limits/${id}`, data);
+    return response.data;
+  },
+};
+
+// Auth Management API
 export const authManagementAPI = {
-  getUsers: async (page = 1, limit = 50, search?: string, role?: string) => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-    if (search) params.append("search", search);
-    if (role) params.append("role", role);
+  getUsers: async (page?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (page) params.append("page", page.toString());
+    if (limit) params.append("limit", limit.toString());
     const response = await api.get(`/admin/users?${params.toString()}`);
     return response.data;
   },
@@ -635,117 +630,77 @@ export const authManagementAPI = {
     const response = await api.get("/admin/auth/security-settings");
     return response.data;
   },
-  updateSecuritySettings: async (settings: Record<string, unknown>) => {
+  updateSecuritySettings: async (settings: any) => {
     const response = await api.put("/admin/auth/security-settings", settings);
     return response.data;
   },
-  getLoginLogs: async (page = 1, limit = 50) => {
-    const response = await api.get(
-      `/admin/auth/login-logs?page=${page}&limit=${limit}`
-    );
-    return response.data;
-  },
-  getActiveSessions: async () => {
-    const response = await api.get("/admin/auth/sessions");
+  getSessions: async (filters?: any) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    const response = await api.get(`/admin/auth/sessions?${params.toString()}`);
     return response.data;
   },
   terminateSession: async (sessionId: string) => {
     const response = await api.delete(`/admin/auth/sessions/${sessionId}`);
     return response.data;
   },
-  createUser: async (data: Record<string, unknown>) => {
-    const response = await api.post("/admin/users", data);
+  getLoginLogs: async () => {
+    const response = await api.get("/admin/auth/login-logs");
     return response.data;
   },
-  updateUser: async (id: number, data: Record<string, unknown>) => {
-    const response = await api.put(`/admin/users/${id}`, data);
+  createUser: async (userData: any) => {
+    const response = await api.post("/admin/users", userData);
+    return response.data;
+  },
+  updateUser: async (id: number, userData: any) => {
+    const response = await api.put(`/admin/users/${id}`, userData);
     return response.data;
   },
   deleteUser: async (id: number) => {
     const response = await api.delete(`/admin/users/${id}`);
     return response.data;
   },
-  getSessions: async (params?: { page?: number; limit?: number }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append("page", params.page.toString());
-    if (params?.limit) queryParams.append("limit", params.limit.toString());
-    const response = await api.get(
-      `/admin/auth/sessions?${queryParams.toString()}`
-    );
-    return response.data;
-  },
 };
 
-// API Management API
-export const apiManagementAPI = {
-  getApiKeys: async () => {
-    const response = await api.get("/admin/api/keys");
-    return response.data;
-  },
-  createApiKey: async (data: {
-    name: string;
-    permissions: string[];
-    expires_at?: string;
-    rate_limit?: number;
-  }) => {
-    const response = await api.post("/admin/api/keys", data);
-    return response.data;
-  },
-  updateApiKey: async (
-    id: string,
-    data: {
-      name?: string;
-      permissions?: string[];
-      expires_at?: string;
-      rate_limit?: number;
-      active?: boolean;
-    }
-  ) => {
-    const response = await api.put(`/admin/api/keys/${id}`, data);
-    return response.data;
-  },
-  deleteApiKey: async (id: string) => {
-    const response = await api.delete(`/admin/api/keys/${id}`);
-    return response.data;
-  },
-  getEndpoints: async () => {
-    const response = await api.get("/admin/api/endpoints");
-    return response.data;
-  },
-  updateEndpoint: async (
-    path: string,
-    data: {
-      rate_limit?: number;
-      auth_required?: boolean;
-      permissions?: string[];
-      enabled?: boolean;
-    }
-  ) => {
-    const response = await api.put(`/admin/api/endpoints${path}`, data);
-    return response.data;
-  },
-  getApiStats: async (startDate?: string, endDate?: string) => {
+// Notifications API
+export const notificationAPI = {
+  getUserNotifications: async (limit?: number) => {
     const params = new URLSearchParams();
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
-    const response = await api.get(`/admin/api/stats?${params.toString()}`);
+    if (limit) params.append("limit", limit.toString());
+    const response = await api.get(`/notifications?${params.toString()}`);
     return response.data;
   },
-  getRateLimits: async () => {
-    const response = await api.get("/admin/api/rate-limits");
+  markNotificationAsRead: async (id: number) => {
+    const response = await api.patch(`/notifications/${id}/read`);
     return response.data;
   },
-  updateRateLimit: async (
-    id: string,
-    data: {
-      requests_per_minute?: number;
-      requests_per_hour?: number;
-      requests_per_day?: number;
-    }
-  ) => {
-    const response = await api.put(`/admin/api/rate-limits/${id}`, data);
+  markAllNotificationsAsRead: async () => {
+    const response = await api.patch("/notifications/mark-all-read");
+    return response.data;
+  },
+  deleteNotification: async (id: number) => {
+    const response = await api.delete(`/notifications/${id}`);
+    return response.data;
+  },
+  getNotificationPreferences: async () => {
+    const response = await api.get("/notifications/preferences");
+    return response.data;
+  },
+  updateNotificationPreferences: async (preferences: any) => {
+    const response = await api.put("/notifications/preferences", preferences);
+    return response.data;
+  },
+  getUnreadCount: async () => {
+    const response = await api.get("/notifications/unread-count");
     return response.data;
   },
 };
 
+// Export the base API instance for direct use if needed
 export default api;

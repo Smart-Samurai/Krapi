@@ -105,7 +105,7 @@ export default function RoutesPage() {
 
     try {
       const response: ApiResponse<ContentRoute> = await routesAPI.updateRoute(
-        editingRoute.id.toString(),
+        editingRoute.id,
         data
       );
       if (response.success) {
@@ -133,7 +133,7 @@ export default function RoutesPage() {
     }
 
     try {
-      const response: ApiResponse = await routesAPI.deleteRoute(id.toString());
+      const response: ApiResponse = await routesAPI.deleteRoute(id);
       if (response.success) {
         setRoutes(routes.filter((r) => r.id !== id));
       } else {

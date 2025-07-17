@@ -15,6 +15,7 @@ const notifications_1 = require("../controllers/notifications");
 const search_1 = require("../controllers/search");
 const api_management_1 = require("../controllers/api-management");
 const database_1 = require("../controllers/database");
+const mcp_1 = require("../controllers/mcp");
 const auth_2 = require("../middleware/auth");
 const router = express_1.default.Router();
 // Public routes
@@ -38,6 +39,17 @@ router.get("/auth/verify", auth_1.AuthController.verify);
 router.get("/auth/profile", auth_1.AuthController.getProfile);
 router.put("/auth/profile", auth_1.AuthController.updateProfile);
 router.post("/auth/change-password", auth_1.AuthController.changePassword);
+// MCP Routes (Ollama + AI Integration)
+router.get("/mcp/info", mcp_1.McpController.getServerInfo);
+router.get("/mcp/health", mcp_1.McpController.healthCheck);
+router.get("/mcp/tools", mcp_1.McpController.listTools);
+router.post("/mcp/tools/call", mcp_1.McpController.callTool);
+router.get("/mcp/app-state", mcp_1.McpController.getAppState);
+// Ollama Integration
+router.get("/ollama/models", mcp_1.McpController.listModels);
+router.post("/ollama/models/pull", mcp_1.McpController.pullModel);
+router.post("/ollama/chat", mcp_1.McpController.ollamaChat);
+router.post("/ollama/generate", mcp_1.McpController.generate);
 // API Management routes
 router.get("/admin/api/stats", api_management_1.ApiManagementController.getApiStats);
 router.get("/admin/api/keys", api_management_1.ApiManagementController.getApiKeys);
