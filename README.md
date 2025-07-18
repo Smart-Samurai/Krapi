@@ -19,7 +19,33 @@ A modern, TypeScript-based headless CMS with a React admin panel. This project p
    cd krapi-cms
    ```
 
-2. **Start the development manager:**
+2. **Run the setup script (recommended):**
+
+   **Linux/macOS:**
+   ```bash
+   ./setup.sh
+   ```
+
+   **Windows:**
+   ```cmd
+   setup.bat
+   ```
+
+   This will automatically:
+   - Create environment files from samples
+   - Install Python and Node.js dependencies
+   - Create necessary directories
+   - Set up the database directory
+
+3. **Manual setup (alternative):**
+   
+   If you prefer to set up manually:
+   - Copy `api-server/.env.sample` to `api-server/.env`
+   - Copy `admin-frontend/.env.sample` to `admin-frontend/.env.local`
+   - Review and update these files as needed
+   - Install dependencies: `pip install psutil` and `pnpm install` in both directories
+
+4. **Start the development manager:**
 
    **Windows:**
 
