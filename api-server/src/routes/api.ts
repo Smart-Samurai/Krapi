@@ -13,7 +13,7 @@ import { DatabaseController } from "../controllers/database";
 import { McpController } from "../controllers/mcp";
 import { authenticateToken } from "../middleware/auth";
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // Public routes
 router.post("/auth/login", AuthController.login);

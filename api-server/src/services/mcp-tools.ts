@@ -16,47 +16,47 @@ async function getAppStateContext(): Promise<AppStateContext> {
 
     return {
       contentItems: contentItems.map((item) => ({
-        id: item.id,
+        id: item.id || 0,
         key: item.key,
         value: item.data,
         type: item.content_type,
         route_path: item.route_path,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
+        created_at: item.created_at || '',
+        updated_at: item.updated_at || '',
       })),
       users: users.map((user) => ({
-        id: user.id,
+        id: user.id || 0,
         username: user.username,
-        email: user.email,
+        email: user.email || '',
         role: user.role,
         is_active: user.active,
-        created_at: user.created_at,
-        last_login: user.last_login,
+        created_at: user.created_at || '',
+        last_login: undefined,
       })),
       routes: routes.map((route) => ({
-        id: route.id,
+        id: route.id || 0,
         path: route.path,
         name: route.name,
         description: route.description,
         parent_id: route.parent_id,
-        created_at: route.created_at,
+        created_at: route.created_at || '',
       })),
       schemas: schemas.map((schema) => ({
         id: schema.id,
         name: schema.name,
         description: schema.description,
-        definition: schema.definition,
+        definition: schema.schema || '',
         created_at: schema.created_at,
       })),
       files: files.map((file) => ({
-        id: file.id,
+        id: file.id || 0,
         filename: file.filename,
         original_name: file.original_name,
         size: file.size,
-        mimetype: file.mimetype,
+        mimetype: file.mime_type || '',
         path: file.path,
         uploaded_by: file.uploaded_by,
-        created_at: file.created_at,
+        created_at: file.created_at || '',
       })),
     };
   } catch (error) {
@@ -413,8 +413,8 @@ const createUserTool: McpToolDefinition = {
         username: args.username as string,
         password: args.password as string,
         email: args.email as string,
-        role: (args.role as string) || "viewer",
-        permissions: "[]",
+        role: (args.role as "admin" | "editor" | "viewer") || "viewer",
+        permissions: [],
         active: true,
       });
 
@@ -543,6 +543,7 @@ const createRouteTool: McpToolDefinition = {
         name: args.name as string,
         description: args.description as string,
         schema: undefined,
+        access_level: "public" as "public" | "protected" | "private",
         parent_id: args.parent_id as number | undefined,
       });
 

@@ -6,7 +6,7 @@
  * It's designed to be self-contained and easily testable.
  */
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import DatabaseConnection from "../../../shared/database/connection";
@@ -267,7 +267,7 @@ export class AuthService {
       permissions: this.getUserPermissions(user.role)
     };
 
-    return jwt.sign(payload, this.JWT_SECRET, { expiresIn });
+    return jwt.sign(payload, this.JWT_SECRET, { expiresIn } as jwt.SignOptions);
   }
 
   private static getUserPermissions(role: string): string[] {
@@ -344,7 +344,7 @@ export class AuthService {
   private static async getSessionByToken(token: string): Promise<SessionInfo | null> {
     const db = DatabaseConnection.getInstance();
     const stmt = db.prepare("SELECT * FROM user_sessions WHERE token = ? AND expires_at > ?");
-    const session = stmt.get(token, new Date().toISOString());
+    const session = stmt.get(token, new Date().toISOString()) as SessionInfo | undefined;
     return session || null;
   }
 

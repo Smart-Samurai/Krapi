@@ -5,10 +5,10 @@
  * It connects the Express router to the AuthController methods.
  */
 
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { AuthController } from '../controllers/AuthController';
 
-const router = Router();
+const router: express.Router = Router();
 
 /**
  * Public authentication routes (no auth required)
