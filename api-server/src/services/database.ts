@@ -55,16 +55,41 @@ class DatabaseService {
   }
 
   constructor() {
-    const dbPath = path.join(__dirname, "../../data/app.db");
-    this.db = new Database(dbPath);
-    this.initializeTables();
-    this.seedDefaultData();
-    this.seedDefaultApiData();
-    this.seedSampleNotifications();
+    try {
+      const dbPath = path.join(__dirname, "../../data/app.db");
+      
+      // Ensure data directory exists
+      const dataDir = path.dirname(dbPath);
+      if (!require("fs").existsSync(dataDir)) {
+        require("fs").mkdirSync(dataDir, { recursive: true });
+      }
+      
+      console.log(`📊 Initializing database at: ${dbPath}`);
+      this.db = new Database(dbPath, {
+        verbose: process.env.NODE_ENV === 'development' ? console.log : undefined
+      });
+      
+      // Enable WAL mode for better concurrency
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('foreign_keys = ON');
+      
+      this.initializeTables();
+      this.seedDefaultData();
+      this.seedDefaultApiData();
+      this.seedSampleNotifications();
+      
+      console.log("✅ Database initialized successfully");
+    } catch (error) {
+      console.error("❌ Failed to initialize database:", error);
+      throw error;
+    }
   }
 
   private initializeTables() {
-    // Create roles table
+    try {
+      console.log("📊 Creating database tables...");
+      
+      // Create roles table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -415,6 +440,12 @@ class DatabaseService {
     this.db.exec(
       `CREATE INDEX IF NOT EXISTS idx_routes_parent_id ON content_routes(parent_id);`
     );
+    
+    console.log("✅ Database tables created successfully");
+    } catch (error) {
+      console.error("❌ Error initializing database tables:", error);
+      throw error;
+    }
   }
 
   private seedDefaultData() {

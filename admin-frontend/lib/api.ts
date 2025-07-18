@@ -10,10 +10,10 @@ import {
   UserFilters,
   ContentSchema,
 } from "../types";
+import { config } from "./config";
 
-// Use environment variable or fallback to localhost
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/api";
+// Use centralized configuration
+const API_BASE_URL = config.api.baseUrl;
 
 // Create axios instance
 const api = axios.create({
@@ -21,7 +21,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000, // Increased timeout for AI operations
+  timeout: config.api.timeout, // Configurable timeout
   withCredentials: false, // Don't send cookies
 });
 
