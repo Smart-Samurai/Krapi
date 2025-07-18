@@ -74,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Send initial heartbeat
         const heartbeat = () => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "heartbeat" }));
+            try {
+              ws.send(JSON.stringify({ type: "heartbeat" }));
+            } catch (error) {
+              console.warn("Failed to send heartbeat:", error);
+            }
           }
         };
         
@@ -97,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       ws.onerror = (err) => {
         console.error("❌ WebSocket error:", err);
+        // Don't attempt to use the connection after an error
       };
 
       ws.onclose = (event) => {
@@ -108,7 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // Only attempt reconnection if token is still valid and connection wasn't intentionally closed
-        if (token && event.code !== 1000 && reconnectAttempts < config.websocket.maxReconnectAttempts) {
+        // Also check that we're still authenticated to prevent unnecessary reconnection attempts
+        if (token && user && event.code !== 1000 && reconnectAttempts < config.websocket.maxReconnectAttempts) {
           const delay = Math.min(
             config.websocket.reconnectDelay.initial * Math.pow(config.websocket.reconnectDelay.multiplier, reconnectAttempts), 
             config.websocket.reconnectDelay.max
@@ -116,14 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log(`🔄 Attempting WebSocket reconnection #${reconnectAttempts + 1} in ${delay/1000} seconds...`);
           
           setTimeout(() => {
-            if (token) {
+            if (token && user) { // Double-check we're still authenticated
               setReconnectAttempts(prev => prev + 1);
               // Trigger re-effect by updating a state variable
               setSocket(null);
             }
           }, delay);
         } else if (reconnectAttempts >= config.websocket.maxReconnectAttempts) {
-          console.error("❌ Maximum reconnection attempts reached. Please refresh the page.");
+          console.error("❌ Maximum reconnection attempts reached. WebSocket will not reconnect automatically.");
         }
       };
 

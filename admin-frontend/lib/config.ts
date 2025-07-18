@@ -9,13 +9,13 @@ const baseConfig = {
   // WebSocket Configuration
   websocket: {
     url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3470/ws',
-    heartbeatInterval: 30000, // 30 seconds
+    heartbeatInterval: 15000, // Reduced from 30 seconds to 15 seconds
     reconnectDelay: {
       initial: 1000,    // 1 second
-      max: 30000,       // 30 seconds
+      max: 15000,       // Reduced from 30 seconds to 15 seconds
       multiplier: 2,    // Exponential backoff
     },
-    maxReconnectAttempts: 5,
+    maxReconnectAttempts: 3, // Reduced from 5 to 3 attempts
   },
   
   // Environment

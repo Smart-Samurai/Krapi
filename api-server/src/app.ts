@@ -268,8 +268,11 @@ server.listen(PORT, async () => {
   setBroadcastFunction(broadcastToAll);
   console.log(`📧 Email service initialized with WebSocket broadcasting`);
 
-  // Initialize MCP server with Ollama integration
-  await initializeMcpServer();
+  // Initialize MCP server with Ollama integration (non-blocking)
+  // Don't await this to prevent blocking server startup
+  initializeMcpServer().catch(error => {
+    console.warn("MCP server initialization failed (this is normal if MCP is disabled or Ollama is not available):", error.message);
+  });
 });
 
 // Error handling for unhandled promises and exceptions
