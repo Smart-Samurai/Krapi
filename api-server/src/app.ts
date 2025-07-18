@@ -32,11 +32,13 @@ app.use(
     origin:
       process.env.NODE_ENV === "production"
         ? "*" // Allow all origins in production since nginx handles the routing
-        : [
-            "http://localhost:3469",
-            "http://localhost:3470",
-            "http://localhost",
-          ], // Allow Next.js dev server and nginx
+        : process.env.ALLOWED_ORIGINS 
+          ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+          : [
+              "http://localhost:3469", // Frontend dev server
+              "http://localhost:3000",  // Alternative frontend port
+              "http://localhost",       // Local development
+            ],
     credentials: false, // Set to false since we're using JWT tokens in headers
   })
 );

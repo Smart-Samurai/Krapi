@@ -119,6 +119,9 @@ class KrapiCMSManager:
         # Ensure logs directory exists
         self.logs_path.mkdir(exist_ok=True)
         
+        # Check and create environment files if missing
+        self.check_environment_files()
+        
         if self.use_web:
             self.setup_web_interface()
         else:
@@ -175,6 +178,52 @@ class KrapiCMSManager:
             self.dependencies_status_var.set(self.dependencies_status)
         
         return all_good
+    
+    def check_environment_files(self):
+        """Check for environment files and create them from samples if missing"""
+        self.log_message("Checking environment files...")
+        
+        env_configs = [
+            {
+                'name': 'API Server Environment',
+                'env_file': self.api_path / '.env',
+                'sample_file': self.api_path / '.env.sample',
+                'required': True
+            },
+            {
+                'name': 'Frontend Environment',
+                'env_file': self.frontend_path / '.env.local',
+                'sample_file': self.frontend_path / '.env.sample',
+                'required': True
+            }
+        ]
+        
+        created_files = []
+        
+        for config in env_configs:
+            env_file = config['env_file']
+            sample_file = config['sample_file']
+            name = config['name']
+            
+            if not env_file.exists():
+                if sample_file.exists():
+                    try:
+                        # Copy sample to actual env file
+                        shutil.copy2(sample_file, env_file)
+                        self.log_message(f"✓ Created {name} from sample: {env_file.name}")
+                        created_files.append(env_file.name)
+                    except Exception as e:
+                        self.log_message(f"✗ Failed to create {name}: {str(e)}")
+                else:
+                    self.log_message(f"⚠ Missing {name} and sample file: {sample_file.name}")
+            else:
+                self.log_message(f"✓ {name} exists: {env_file.name}")
+        
+        if created_files:
+            self.log_message(f"Environment files created: {', '.join(created_files)}")
+            self.log_message("Please review the created files and update them as needed.")
+        
+        return len(created_files) > 0
     
     def check_running_processes(self):
         """Check if services are already running"""
