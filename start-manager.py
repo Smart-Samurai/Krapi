@@ -58,15 +58,17 @@ class CrossPlatformUtils:
     
     @staticmethod
     def get_npm_cmd():
-        """Get the correct npm command for this system"""
-        cmd = 'npm.cmd' if platform.system() == 'Windows' else 'npm'
-        try:
-            result = subprocess.run([cmd, '--version'], 
-                                  capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                return cmd
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+        """Get the correct package manager command for this system"""
+        # Check for pnpm first (preferred for this project)
+        for pm in ['pnpm', 'npm']:
+            cmd = f'{pm}.cmd' if platform.system() == 'Windows' else pm
+            try:
+                result = subprocess.run([cmd, '--version'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    return cmd
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
         return None
     
     @staticmethod
@@ -150,7 +152,7 @@ class KrapiCMSManager:
         
         dependencies = {
             'Python': self.python_cmd is not None,
-            'npm': self.npm_cmd is not None,
+            'Package Manager (pnpm/npm)': self.npm_cmd is not None,
             'Node.js API': (self.api_path / "package.json").exists(),
             'React Frontend': (self.frontend_path / "package.json").exists()
         }
@@ -443,7 +445,7 @@ class KrapiCMSManager:
             return
         
         if not self.npm_cmd:
-            self.log_message("Error: npm not found. Please install Node.js")
+            self.log_message("Error: Package manager (pnpm/npm) not found. Please install Node.js and pnpm")
             return
         
         if not (self.api_path / "package.json").exists():
@@ -452,14 +454,14 @@ class KrapiCMSManager:
         
         self.log_message("Starting API server...")
         try:
-            # Check if node_modules exists, run npm install if not
-            if not (self.api_path / "node_modules").exists():
-                self.log_message("Installing API dependencies...")
-                install_process = subprocess.run([self.npm_cmd, "install"], 
-                                               cwd=self.api_path, capture_output=True, text=True)
-                if install_process.returncode != 0:
-                    self.log_message(f"Error installing API dependencies: {install_process.stderr}")
-                    return
+            # Always install/update dependencies to ensure they are current
+            self.log_message("Installing/updating API dependencies...")
+            install_process = subprocess.run([self.npm_cmd, "install"], 
+                                           cwd=self.api_path, capture_output=True, text=True)
+            if install_process.returncode != 0:
+                self.log_message(f"Error installing API dependencies: {install_process.stderr}")
+                return
+            self.log_message("Dependencies installed successfully")
             
             # Set environment variables for the API
             env = os.environ.copy()
@@ -495,7 +497,7 @@ class KrapiCMSManager:
             return
         
         if not self.npm_cmd:
-            self.log_message("Error: npm not found. Please install Node.js")
+            self.log_message("Error: Package manager (pnpm/npm) not found. Please install Node.js and pnpm")
             return
         
         if not (self.frontend_path / "package.json").exists():
@@ -504,14 +506,14 @@ class KrapiCMSManager:
         
         self.log_message("Starting frontend server...")
         try:
-            # Check if node_modules exists, run npm install if not
-            if not (self.frontend_path / "node_modules").exists():
-                self.log_message("Installing frontend dependencies...")
-                install_process = subprocess.run([self.npm_cmd, "install"], 
-                                               cwd=self.frontend_path, capture_output=True, text=True)
-                if install_process.returncode != 0:
-                    self.log_message(f"Error installing frontend dependencies: {install_process.stderr}")
-                    return
+            # Always install/update dependencies to ensure they are current
+            self.log_message("Installing/updating frontend dependencies...")
+            install_process = subprocess.run([self.npm_cmd, "install"], 
+                                           cwd=self.frontend_path, capture_output=True, text=True)
+            if install_process.returncode != 0:
+                self.log_message(f"Error installing frontend dependencies: {install_process.stderr}")
+                return
+            self.log_message("Dependencies installed successfully")
             
             # Set environment variables for the frontend
             env = os.environ.copy()
@@ -833,7 +835,7 @@ class KrapiCMSManager:
                 <h3>📦 Dependencies</h3>
                 <p><strong>Status:</strong> {self.dependencies_status}</p>
                 <p><strong>Python:</strong> {'✓' if self.python_cmd else '✗'} {self.python_cmd or 'Not found'}</p>
-                <p><strong>npm:</strong> {'✓' if self.npm_cmd else '✗'} {self.npm_cmd or 'Not found'}</p>
+                <p><strong>Package Manager:</strong> {'✓' if self.npm_cmd else '✗'} {self.npm_cmd or 'Not found (pnpm/npm)'}</p>
             </div>
         </div>
         
