@@ -95,10 +95,25 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Database files
+# Database files - SQLite (anywhere in project)
 *.db
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+
+# But allow sample database files and documentation
+!*sample*.db
+!*sample*.sqlite
+!*sample*.sqlite3
+
+# Data directory - ignore all files but allow specific ones
+data/*
+!data/.gitkeep
+!data/README.md
+!data/sample-data.json
+!data/*.sample.json
 
 # Upload directories
 uploads/
