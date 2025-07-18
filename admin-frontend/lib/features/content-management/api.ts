@@ -1,15 +1,16 @@
 /**
  * Content Management API Client
- * 
+ *
  * This module handles all API calls related to content management functionality.
  * It provides a clean interface for the frontend components to interact with
  * the content backend services.
  */
 
-import axios from 'axios';
+import axios from "axios";
 
 // Use environment variable or fallback to localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/api";
 
 // Create axios instance specifically for content management
 const contentAxios = axios.create({
@@ -37,14 +38,14 @@ contentAxios.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error("Content API Error:", error.message);
-    
+
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("auth_token");
         window.location.href = "/login";
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -104,7 +105,7 @@ export interface ContentFilters {
   page?: number;
   limit?: number;
   sort_by?: string;
-  sort_order?: 'asc' | 'desc';
+  sort_order?: "asc" | "desc";
   created_after?: string;
   created_before?: string;
 }
@@ -142,10 +143,12 @@ export const contentManagementAPI = {
   /**
    * Get all content items with optional filtering
    */
-  getAllContent: async (filters?: ContentFilters): Promise<ContentListResponse> => {
+  getAllContent: async (
+    filters?: ContentFilters
+  ): Promise<ContentListResponse> => {
     try {
       const params = new URLSearchParams();
-      
+
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
@@ -156,12 +159,11 @@ export const contentManagementAPI = {
 
       const response = await contentAxios.get(`/?${params.toString()}`);
       return response.data;
-      
     } catch (error: any) {
       console.error("Get all content error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to fetch content"
+        error: error.response?.data?.error || "Failed to fetch content",
       };
     }
   },
@@ -173,12 +175,11 @@ export const contentManagementAPI = {
     try {
       const response = await contentAxios.get(`/get/${id}`);
       return response.data;
-      
     } catch (error: any) {
       console.error("Get content by ID error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to fetch content item"
+        error: error.response?.data?.error || "Failed to fetch content item",
       };
     }
   },
@@ -186,16 +187,18 @@ export const contentManagementAPI = {
   /**
    * Get content items by route path
    */
-  getContentByRoute: async (routePath: string): Promise<ContentListResponse> => {
+  getContentByRoute: async (
+    routePath: string
+  ): Promise<ContentListResponse> => {
     try {
       const filters: ContentFilters = { route_path: routePath };
       return await contentManagementAPI.getAllContent(filters);
-      
     } catch (error: any) {
       console.error("Get content by route error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to fetch content for route"
+        error:
+          error.response?.data?.error || "Failed to fetch content for route",
       };
     }
   },
@@ -205,14 +208,13 @@ export const contentManagementAPI = {
    */
   createContent: async (data: CreateContentData): Promise<ContentResponse> => {
     try {
-      const response = await contentAxios.post('/create', data);
+      const response = await contentAxios.post("/create", data);
       return response.data;
-      
     } catch (error: any) {
       console.error("Create content error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to create content"
+        error: error.response?.data?.error || "Failed to create content",
       };
     }
   },
@@ -220,16 +222,18 @@ export const contentManagementAPI = {
   /**
    * Update content item
    */
-  updateContent: async (id: number, data: UpdateContentData): Promise<ContentResponse> => {
+  updateContent: async (
+    id: number,
+    data: UpdateContentData
+  ): Promise<ContentResponse> => {
     try {
       const response = await contentAxios.put(`/modify/id/${id}`, data);
       return response.data;
-      
     } catch (error: any) {
       console.error("Update content error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to update content"
+        error: error.response?.data?.error || "Failed to update content",
       };
     }
   },
@@ -237,16 +241,17 @@ export const contentManagementAPI = {
   /**
    * Delete content item
    */
-  deleteContent: async (id: number): Promise<{ success: boolean; message?: string; error?: string }> => {
+  deleteContent: async (
+    id: number
+  ): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
       const response = await contentAxios.delete(`/delete/id/${id}`);
       return response.data;
-      
     } catch (error: any) {
       console.error("Delete content error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to delete content"
+        error: error.response?.data?.error || "Failed to delete content",
       };
     }
   },
@@ -254,34 +259,36 @@ export const contentManagementAPI = {
   /**
    * Bulk delete content items
    */
-  bulkDeleteContent: async (ids: number[]): Promise<{ success: boolean; deleted: number; errors: string[] }> => {
+  bulkDeleteContent: async (
+    ids: number[]
+  ): Promise<{ success: boolean; deleted: number; errors: string[] }> => {
     try {
       const results = await Promise.allSettled(
-        ids.map(id => contentManagementAPI.deleteContent(id))
+        ids.map((id) => contentManagementAPI.deleteContent(id))
       );
 
       let deleted = 0;
       const errors: string[] = [];
 
       results.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value.success) {
+        if (result.status === "fulfilled" && result.value.success) {
           deleted++;
         } else {
-          const error = result.status === 'rejected' 
-            ? result.reason?.error || 'Unknown error'
-            : 'Failed to delete';
+          const error =
+            result.status === "rejected"
+              ? result.reason?.error || "Unknown error"
+              : "Failed to delete";
           errors.push(`ID ${ids[index]}: ${error}`);
         }
       });
 
       return { success: true, deleted, errors };
-      
     } catch (error: any) {
       console.error("Bulk delete content error:", error);
       throw {
         success: false,
         deleted: 0,
-        errors: ["Bulk delete operation failed"]
+        errors: ["Bulk delete operation failed"],
       };
     }
   },
@@ -289,20 +296,22 @@ export const contentManagementAPI = {
   /**
    * Search content items
    */
-  searchContent: async (query: string, filters?: Partial<ContentFilters>): Promise<ContentListResponse> => {
+  searchContent: async (
+    query: string,
+    filters?: Partial<ContentFilters>
+  ): Promise<ContentListResponse> => {
     try {
       const searchFilters: ContentFilters = {
         search: query,
-        ...filters
+        ...filters,
       };
 
       return await contentManagementAPI.getAllContent(searchFilters);
-      
     } catch (error: any) {
       console.error("Search content error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to search content"
+        error: error.response?.data?.error || "Failed to search content",
       };
     }
   },
@@ -310,35 +319,46 @@ export const contentManagementAPI = {
   /**
    * Get content statistics
    */
-  getContentStats: async (): Promise<{ success: boolean; data?: ContentStats; error?: string }> => {
+  getContentStats: async (): Promise<{
+    success: boolean;
+    data?: ContentStats;
+    error?: string;
+  }> => {
     try {
       // For now, we'll calculate stats from the content list
       // In the future, this should be a dedicated endpoint
-      const allContent = await contentManagementAPI.getAllContent({ limit: 1000 });
-      
+      const allContent = await contentManagementAPI.getAllContent({
+        limit: 1000,
+      });
+
       if (!allContent.success || !allContent.data) {
         throw new Error("Failed to fetch content for stats");
       }
 
       const { items } = allContent.data;
-      
+
       // Calculate statistics
       const totalContent = items.length;
-      
+
       const contentByType: Record<string, number> = {};
       const contentByRoute: Record<string, number> = {};
-      
-      items.forEach(item => {
+
+      items.forEach((item) => {
         // Count by type
-        contentByType[item.content_type] = (contentByType[item.content_type] || 0) + 1;
-        
+        contentByType[item.content_type] =
+          (contentByType[item.content_type] || 0) + 1;
+
         // Count by route
-        contentByRoute[item.route_path] = (contentByRoute[item.route_path] || 0) + 1;
+        contentByRoute[item.route_path] =
+          (contentByRoute[item.route_path] || 0) + 1;
       });
 
       // Get recent content (last 10)
       const recentContent = items
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
         .slice(0, 10);
 
       const stats: ContentStats = {
@@ -346,16 +366,16 @@ export const contentManagementAPI = {
         contentByType,
         contentByRoute,
         recentContent,
-        popularContent: [] // TODO: Implement view tracking
+        popularContent: [], // TODO: Implement view tracking
       };
 
       return { success: true, data: stats };
-      
     } catch (error: any) {
       console.error("Get content stats error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to get content statistics"
+        error:
+          error.response?.data?.error || "Failed to get content statistics",
       };
     }
   },
@@ -364,9 +384,9 @@ export const contentManagementAPI = {
    * Validate content data
    */
   validateContent: async (
-    data: any, 
-    contentType: string, 
-    schemaId?: number
+    data: any,
+    contentType: string,
+    _schemaId?: number
   ): Promise<{ valid: boolean; errors: string[]; warnings?: string[] }> => {
     try {
       // Client-side validation
@@ -380,8 +400,8 @@ export const contentManagementAPI = {
 
       // Content type specific validation
       switch (contentType) {
-        case 'json':
-          if (typeof data !== 'object') {
+        case "json":
+          if (typeof data !== "object") {
             errors.push("JSON content must be an object");
           } else {
             try {
@@ -392,11 +412,13 @@ export const contentManagementAPI = {
           }
           break;
 
-        case 'text':
-        case 'html':
-        case 'markdown':
-          if (typeof data !== 'string') {
-            errors.push(`${contentType.toUpperCase()} content must be a string`);
+        case "text":
+        case "html":
+        case "markdown":
+          if (typeof data !== "string") {
+            errors.push(
+              `${contentType.toUpperCase()} content must be a string`
+            );
           }
           break;
 
@@ -415,18 +437,17 @@ export const contentManagementAPI = {
       }
 
       // TODO: Schema validation if schemaId is provided
-      
+
       return {
         valid: errors.length === 0,
         errors,
-        warnings
+        warnings,
       };
-      
     } catch (error: any) {
       console.error("Validate content error:", error);
       return {
         valid: false,
-        errors: ["Validation failed"]
+        errors: ["Validation failed"],
       };
     }
   },
@@ -434,11 +455,14 @@ export const contentManagementAPI = {
   /**
    * Duplicate content item
    */
-  duplicateContent: async (id: number, newKey: string): Promise<ContentResponse> => {
+  duplicateContent: async (
+    id: number,
+    newKey: string
+  ): Promise<ContentResponse> => {
     try {
       // Get original content
       const original = await contentManagementAPI.getContentById(id);
-      
+
       if (!original.success || !original.data) {
         throw new Error("Original content not found");
       }
@@ -448,21 +472,22 @@ export const contentManagementAPI = {
         key: newKey,
         data: original.data.data,
         content_type: original.data.content_type,
-        description: `Copy of ${original.data.description || original.data.key}`,
+        description: `Copy of ${
+          original.data.description || original.data.key
+        }`,
         route_path: original.data.route_path,
-        schema_id: original.data.schema_id
+        schema_id: original.data.schema_id,
       };
 
       return await contentManagementAPI.createContent(duplicateData);
-      
     } catch (error: any) {
       console.error("Duplicate content error:", error);
       throw {
         success: false,
-        error: error.response?.data?.error || "Failed to duplicate content"
+        error: error.response?.data?.error || "Failed to duplicate content",
       };
     }
-  }
+  },
 };
 
 export default contentManagementAPI;

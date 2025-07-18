@@ -86,11 +86,13 @@ class KrapiCMSManager:
         # Process references
         self.api_process = None
         self.frontend_process = None
+        self.websocket_process = None
         self.processes = {}
         
         # Status variables
         self.api_status = "Stopped"
         self.frontend_status = "Stopped"
+        self.websocket_status = "Stopped"
         self.dependencies_status = "Checking..."
         
         # Project paths
@@ -108,7 +110,8 @@ class KrapiCMSManager:
         self.logs = {
             'combined': [],
             'api': [],
-            'frontend': []
+            'frontend': [],
+            'websocket': []
         }
         
         # Ensure logs directory exists
@@ -175,20 +178,34 @@ class KrapiCMSManager:
         """Check if services are already running"""
         self.log_message("Checking for running services...")
         
-        # Check for API server (port 3001)
-        api_running = self.is_port_in_use(3001)
+        # Check for API server (port 3470)
+        api_running = self.is_port_in_use(3470)
         if api_running:
             self.api_status = "Running (External)"
-            self.log_message("API Server is already running on port 3001")
+            self.log_message("API Server is already running on port 3470")
         
-        # Check for frontend (port 3000)
-        frontend_running = self.is_port_in_use(3000)
+        # Check for WebSocket server (port 3471)
+        websocket_running = self.is_port_in_use(3471)
+        if websocket_running:
+            self.websocket_status = "Running (External)"
+            self.log_message("WebSocket Server is already running on port 3471")
+        
+        # Check for frontend (port 3469, or fallback ports)
+        frontend_running = False
+        frontend_port = None
+        for port in [3469, 3000, 3001, 3002, 3003]:
+            if self.is_port_in_use(port):
+                frontend_running = True
+                frontend_port = port
+                break
+        
         if frontend_running:
-            self.frontend_status = "Running (External)"
-            self.log_message("Frontend is already running on port 3000")
+            self.frontend_status = f"Running (External - Port {frontend_port})"
+            self.log_message(f"Frontend is already running on port {frontend_port}")
         
         if not self.use_web:
             self.api_status_var.set(self.api_status)
+            self.websocket_status_var.set(self.websocket_status)
             self.frontend_status_var.set(self.frontend_status)
     
     def is_port_in_use(self, port):
@@ -215,6 +232,7 @@ class KrapiCMSManager:
         # Create status variables for GUI
         self.api_status_var = tk.StringVar(value=self.api_status)
         self.frontend_status_var = tk.StringVar(value=self.frontend_status)
+        self.websocket_status_var = tk.StringVar(value=self.websocket_status)
         self.dependencies_status_var = tk.StringVar(value=self.dependencies_status)
         
         self.create_widgets()
@@ -265,19 +283,24 @@ class KrapiCMSManager:
         status_frame.columnconfigure(1, weight=1)
         
         # API Server Status
-        ttk.Label(status_frame, text="API Server (Port 3001):").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(status_frame, text="API Server (Port 3470):").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         api_status_label = ttk.Label(status_frame, textvariable=self.api_status_var, font=('Arial', 10, 'bold'))
         api_status_label.grid(row=0, column=1, sticky=tk.W)
         
+        # WebSocket Server Status
+        ttk.Label(status_frame, text="WebSocket (Port 3471):").grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
+        websocket_status_label = ttk.Label(status_frame, textvariable=self.websocket_status_var, font=('Arial', 10, 'bold'))
+        websocket_status_label.grid(row=1, column=1, sticky=tk.W)
+        
         # Frontend Status
-        ttk.Label(status_frame, text="Frontend (Port 3000):").grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(status_frame, text="Frontend (Port 3469):").grid(row=2, column=0, sticky=tk.W, padx=(0, 10))
         frontend_status_label = ttk.Label(status_frame, textvariable=self.frontend_status_var, font=('Arial', 10, 'bold'))
-        frontend_status_label.grid(row=1, column=1, sticky=tk.W)
+        frontend_status_label.grid(row=2, column=1, sticky=tk.W)
         
         # Dependencies Status
-        ttk.Label(status_frame, text="Dependencies:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(status_frame, text="Dependencies:").grid(row=3, column=0, sticky=tk.W, padx=(0, 10))
         deps_status_label = ttk.Label(status_frame, textvariable=self.dependencies_status_var, font=('Arial', 10, 'bold'))
-        deps_status_label.grid(row=2, column=1, sticky=tk.W)
+        deps_status_label.grid(row=3, column=1, sticky=tk.W)
         
     def create_control_panel(self, parent):
         """Create control buttons panel"""
@@ -306,26 +329,35 @@ class KrapiCMSManager:
                                       command=self.stop_api_server)
         self.stop_api_btn.grid(row=3, column=1, sticky=(tk.W, tk.E), padx=(2, 0))
         
+        # WebSocket controls
+        self.start_websocket_btn = ttk.Button(control_frame, text="Start WebSocket", 
+                                            command=self.start_websocket_server)
+        self.start_websocket_btn.grid(row=4, column=0, sticky=(tk.W, tk.E), padx=(0, 2), pady=(5, 0))
+        
+        self.stop_websocket_btn = ttk.Button(control_frame, text="Stop WebSocket", 
+                                           command=self.stop_websocket_server)
+        self.stop_websocket_btn.grid(row=4, column=1, sticky=(tk.W, tk.E), padx=(2, 0), pady=(5, 0))
+        
         # Frontend controls
         self.start_frontend_btn = ttk.Button(control_frame, text="Start Frontend", 
                                            command=self.start_frontend_server)
-        self.start_frontend_btn.grid(row=4, column=0, sticky=(tk.W, tk.E), padx=(0, 2), pady=(5, 0))
+        self.start_frontend_btn.grid(row=5, column=0, sticky=(tk.W, tk.E), padx=(0, 2), pady=(5, 0))
         
         self.stop_frontend_btn = ttk.Button(control_frame, text="Stop Frontend", 
                                           command=self.stop_frontend_server)
-        self.stop_frontend_btn.grid(row=4, column=1, sticky=(tk.W, tk.E), padx=(2, 0), pady=(5, 0))
+        self.stop_frontend_btn.grid(row=5, column=1, sticky=(tk.W, tk.E), padx=(2, 0), pady=(5, 0))
         
         # Quick access buttons
-        ttk.Label(control_frame, text="Quick Access:").grid(row=5, column=0, columnspan=2, pady=(15, 5))
+        ttk.Label(control_frame, text="Quick Access:").grid(row=6, column=0, columnspan=2, pady=(15, 5))
         
-        ttk.Button(control_frame, text="Open API (3001)", 
-                  command=lambda: webbrowser.open("http://localhost:3001")).grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
+        ttk.Button(control_frame, text="Open Frontend (3469)",
+                  command=lambda: webbrowser.open("http://localhost:3469")).grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
         
-        ttk.Button(control_frame, text="Open Frontend (3000)", 
-                  command=lambda: webbrowser.open("http://localhost:3000")).grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
+        ttk.Button(control_frame, text="Open API (3470)",
+                  command=lambda: webbrowser.open("http://localhost:3470")).grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
         
         ttk.Button(control_frame, text="Open Logs Folder", 
-                  command=self.open_logs_folder).grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
+                  command=self.open_logs_folder).grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 2))
         
         # Configure column weights
         control_frame.columnconfigure(0, weight=1)
@@ -346,7 +378,7 @@ class KrapiCMSManager:
         
         self.log_type_var = tk.StringVar(value="combined")
         log_type_combo = ttk.Combobox(log_type_frame, textvariable=self.log_type_var, 
-                                     values=["combined", "api", "frontend"], state="readonly")
+                                     values=["combined", "api", "frontend", "websocket"], state="readonly")
         log_type_combo.grid(row=0, column=1, padx=(0, 10))
         log_type_combo.bind('<<ComboboxSelected>>', self.on_log_type_changed)
         
@@ -396,12 +428,15 @@ class KrapiCMSManager:
         self.log_message("Starting all services...")
         self.start_api_server()
         time.sleep(2)  # Give API time to start
+        self.start_websocket_server()
+        time.sleep(1)  # Give WebSocket time to start
         self.start_frontend_server()
     
     def stop_all_services(self):
         """Stop all services"""
         self.log_message("Stopping all services...")
         self.stop_api_server()
+        self.stop_websocket_server()
         self.stop_frontend_server()
     
     def start_api_server(self):
@@ -429,13 +464,19 @@ class KrapiCMSManager:
                     self.log_message(f"Error installing API dependencies: {install_process.stderr}")
                     return
             
-            # Start the API server
-            self.api_process = subprocess.Popen([self.npm_cmd, "start"], 
+            # Set environment variables for the API
+            env = os.environ.copy()
+            env['PORT'] = '3470'
+            env['NODE_ENV'] = 'development'
+            
+            # Start the API server in development mode
+            self.api_process = subprocess.Popen([self.npm_cmd, "run", "dev"], 
                                               cwd=self.api_path, 
                                               stdout=subprocess.PIPE, 
                                               stderr=subprocess.STDOUT, 
                                               text=True, bufsize=1, 
-                                              universal_newlines=True)
+                                              universal_newlines=True,
+                                              env=env)
             
             # Start logging thread
             threading.Thread(target=self.log_api_output, daemon=True).start()
@@ -475,13 +516,20 @@ class KrapiCMSManager:
                     self.log_message(f"Error installing frontend dependencies: {install_process.stderr}")
                     return
             
-            # Start the frontend server
+            # Set environment variables for the frontend
+            env = os.environ.copy()
+            env['PORT'] = '3469'
+            env['NEXT_PUBLIC_API_URL'] = 'http://localhost:3470/api'
+            env['NEXT_PUBLIC_WS_URL'] = 'ws://localhost:3471/ws'
+            
+            # Start the frontend server with custom port
             self.frontend_process = subprocess.Popen([self.npm_cmd, "run", "dev"], 
                                                    cwd=self.frontend_path, 
                                                    stdout=subprocess.PIPE, 
                                                    stderr=subprocess.STDOUT, 
                                                    text=True, bufsize=1, 
-                                                   universal_newlines=True)
+                                                   universal_newlines=True,
+                                                   env=env)
             
             # Start logging thread
             threading.Thread(target=self.log_frontend_output, daemon=True).start()
@@ -495,6 +543,49 @@ class KrapiCMSManager:
             
         except Exception as e:
             self.log_message(f"Error starting frontend server: {e}")
+    
+    def start_websocket_server(self):
+        """Start the WebSocket server"""
+        if self.websocket_process and self.websocket_process.poll() is None:
+            self.log_message("WebSocket server is already running")
+            return
+        
+        if not self.npm_cmd:
+            self.log_message("Error: npm not found. Please install Node.js")
+            return
+        
+        if not (self.api_path / "package.json").exists():
+            self.log_message("Error: API server package.json not found")
+            return
+        
+        self.log_message("Starting WebSocket server...")
+        try:
+            # Set environment variables for the WebSocket server
+            env = os.environ.copy()
+            env['WS_PORT'] = '3471'
+            env['NODE_ENV'] = 'development'
+            
+            # Start the WebSocket server
+            self.websocket_process = subprocess.Popen([self.npm_cmd, "exec", "ts-node", "src/websocket-server.ts"], 
+                                                    cwd=self.api_path, 
+                                                    stdout=subprocess.PIPE, 
+                                                    stderr=subprocess.STDOUT, 
+                                                    text=True, bufsize=1, 
+                                                    universal_newlines=True,
+                                                    env=env)
+            
+            # Start logging thread
+            threading.Thread(target=self.log_websocket_output, daemon=True).start()
+            
+            self.websocket_status = "Starting..."
+            if not self.use_web:
+                self.websocket_status_var.set(self.websocket_status)
+            
+            # Check if it started successfully after a delay
+            threading.Thread(target=self.check_websocket_startup, daemon=True).start()
+            
+        except Exception as e:
+            self.log_message(f"Error starting WebSocket server: {e}")
     
     def stop_api_server(self):
         """Stop the API server"""
@@ -526,6 +617,21 @@ class KrapiCMSManager:
                 self.frontend_status_var.set(self.frontend_status)
             self.log_message("Frontend server stopped")
     
+    def stop_websocket_server(self):
+        """Stop the WebSocket server"""
+        if self.websocket_process:
+            self.log_message("Stopping WebSocket server...")
+            try:
+                self.websocket_process.terminate()
+                self.websocket_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.websocket_process.kill()
+            self.websocket_process = None
+            self.websocket_status = "Stopped"
+            if not self.use_web:
+                self.websocket_status_var.set(self.websocket_status)
+            self.log_message("WebSocket server stopped")
+    
     def log_api_output(self):
         """Log API server output"""
         if not self.api_process:
@@ -534,7 +640,25 @@ class KrapiCMSManager:
         try:
             for line in iter(self.api_process.stdout.readline, ''):
                 if line:
-                    self.log_message(f"[API] {line.strip()}", 'api')
+                    # Handle encoding issues by using utf-8 with error handling
+                    try:
+                        # Try to decode as utf-8 first
+                        if isinstance(line, bytes):
+                            decoded_line = line.decode('utf-8', errors='replace')
+                        else:
+                            decoded_line = line
+                        self.log_message(f"[API] {decoded_line.strip()}", 'api')
+                    except (UnicodeError, UnicodeDecodeError):
+                        # Fallback to ascii with replacement
+                        try:
+                            if isinstance(line, bytes):
+                                safe_line = line.decode('ascii', errors='replace')
+                            else:
+                                safe_line = line.encode('ascii', errors='replace').decode('ascii')
+                            self.log_message(f"[API] {safe_line.strip()}", 'api')
+                        except Exception:
+                            # Last resort - just log the error
+                            self.log_message(f"[API] [Encoding error in output]", 'api')
                 if self.api_process.poll() is not None:
                     break
         except Exception as e:
@@ -548,18 +672,68 @@ class KrapiCMSManager:
         try:
             for line in iter(self.frontend_process.stdout.readline, ''):
                 if line:
-                    self.log_message(f"[Frontend] {line.strip()}", 'frontend')
+                    # Handle encoding issues by using utf-8 with error handling
+                    try:
+                        # Try to decode as utf-8 first
+                        if isinstance(line, bytes):
+                            decoded_line = line.decode('utf-8', errors='replace')
+                        else:
+                            decoded_line = line
+                        self.log_message(f"[Frontend] {decoded_line.strip()}", 'frontend')
+                    except (UnicodeError, UnicodeDecodeError):
+                        # Fallback to ascii with replacement
+                        try:
+                            if isinstance(line, bytes):
+                                safe_line = line.decode('ascii', errors='replace')
+                            else:
+                                safe_line = line.encode('ascii', errors='replace').decode('ascii')
+                            self.log_message(f"[Frontend] {safe_line.strip()}", 'frontend')
+                        except Exception:
+                            # Last resort - just log the error
+                            self.log_message(f"[Frontend] [Encoding error in output]", 'frontend')
                 if self.frontend_process.poll() is not None:
                     break
         except Exception as e:
             self.log_message(f"Error reading frontend output: {e}")
     
+    def log_websocket_output(self):
+        """Log WebSocket server output"""
+        if not self.websocket_process:
+            return
+        
+        try:
+            for line in iter(self.websocket_process.stdout.readline, ''):
+                if line:
+                    # Handle encoding issues by using utf-8 with error handling
+                    try:
+                        # Try to decode as utf-8 first
+                        if isinstance(line, bytes):
+                            decoded_line = line.decode('utf-8', errors='replace')
+                        else:
+                            decoded_line = line
+                        self.log_message(f"[WebSocket] {decoded_line.strip()}", 'websocket')
+                    except (UnicodeError, UnicodeDecodeError):
+                        # Fallback to ascii with replacement
+                        try:
+                            if isinstance(line, bytes):
+                                safe_line = line.decode('ascii', errors='replace')
+                            else:
+                                safe_line = line.encode('ascii', errors='replace').decode('ascii')
+                            self.log_message(f"[WebSocket] {safe_line.strip()}", 'websocket')
+                        except Exception:
+                            # Last resort - just log the error
+                            self.log_message(f"[WebSocket] [Encoding error in output]", 'websocket')
+                if self.websocket_process.poll() is not None:
+                    break
+        except Exception as e:
+            self.log_message(f"Error reading WebSocket output: {e}")
+    
     def check_api_startup(self):
         """Check if API server started successfully"""
         time.sleep(5)
-        if self.is_port_in_use(3001):
+        if self.is_port_in_use(3470):
             self.api_status = "Running"
-            self.log_message("✓ API server started successfully on port 3001")
+            self.log_message("✓ API server started successfully on port 3470")
         else:
             self.api_status = "Failed to start"
             self.log_message("✗ API server failed to start")
@@ -570,15 +744,35 @@ class KrapiCMSManager:
     def check_frontend_startup(self):
         """Check if frontend server started successfully"""
         time.sleep(10)  # Frontend takes longer to start
-        if self.is_port_in_use(3000):
+        if self.is_port_in_use(3469):
             self.frontend_status = "Running"
-            self.log_message("✓ Frontend server started successfully on port 3000")
+            self.log_message("✓ Frontend server started successfully on port 3469")
         else:
-            self.frontend_status = "Failed to start"
-            self.log_message("✗ Frontend server failed to start")
+            # Check if it's running on a different port (Next.js fallback)
+            for port in [3000, 3001, 3002, 3003]:
+                if self.is_port_in_use(port):
+                    self.frontend_status = f"Running (Port {port})"
+                    self.log_message(f"⚠ Frontend server started on port {port} instead of 3469")
+                    break
+            else:
+                self.frontend_status = "Failed to start"
+                self.log_message("✗ Frontend server failed to start")
         
         if not self.use_web:
             self.frontend_status_var.set(self.frontend_status)
+    
+    def check_websocket_startup(self):
+        """Check if WebSocket server started successfully"""
+        time.sleep(3)
+        if self.is_port_in_use(3471):
+            self.websocket_status = "Running"
+            self.log_message("✓ WebSocket server started successfully on port 3471")
+        else:
+            self.websocket_status = "Failed to start"
+            self.log_message("✗ WebSocket server failed to start")
+        
+        if not self.use_web:
+            self.websocket_status_var.set(self.websocket_status)
     
     def on_closing(self):
         """Handle application closing"""
@@ -667,14 +861,14 @@ class KrapiCMSManager:
             <div class="status-card status-{'running' if self.api_status == 'Running' else 'stopped'}">
                 <h3>🔧 API Server</h3>
                 <p><strong>Status:</strong> {self.api_status}</p>
-                <p><strong>Port:</strong> 3001</p>
+                <p><strong>Port:</strong> 3469</p>
                 <p><strong>Path:</strong> {self.api_path}</p>
             </div>
             
             <div class="status-card status-{'running' if self.frontend_status == 'Running' else 'stopped'}">
                 <h3>🎨 Frontend Server</h3>
                 <p><strong>Status:</strong> {self.frontend_status}</p>
-                <p><strong>Port:</strong> 3000</p>
+                <p><strong>Port:</strong> 3470</p>
                 <p><strong>Path:</strong> {self.frontend_path}</p>
             </div>
             
@@ -689,8 +883,8 @@ class KrapiCMSManager:
         <div class="buttons">
             <button class="btn btn-success" onclick="startAll()">🚀 Start All Services</button>
             <button class="btn btn-danger" onclick="stopAll()">🛑 Stop All Services</button>
-            <a href="http://localhost:3001" target="_blank" class="btn btn-primary">🔧 Open API (3001)</a>
-            <a href="http://localhost:3000" target="_blank" class="btn btn-primary">🎨 Open Frontend (3000)</a>
+                            <a href="http://localhost:3469" target="_blank" class="btn btn-primary">🔧 Open API (3469)</a>
+                <a href="http://localhost:3470" target="_blank" class="btn btn-primary">🎨 Open Frontend (3470)</a>
             <button class="btn btn-primary" onclick="refreshStatus()">🔄 Refresh Status</button>
         </div>
         

@@ -73,7 +73,7 @@ echo.
 echo Starting Krapi CMS Development Manager...
 echo.
 
-python StartManager.py
+python start-manager.py
 if !errorlevel! neq 0 (
   echo.
   echo ERROR: Failed to start Development Manager.

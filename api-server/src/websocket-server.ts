@@ -1,83 +1,16 @@
-import express from "express";
-import cors from "cors";
-import helmet from "helmet";
-import morgan from "morgan";
-import dotenv from "dotenv";
-import routes from "./routes";
-// Removed express-ws in favor of ws
-import { AuthService } from "./services/auth";
-import { setBroadcastFunction } from "./services/email";
-import { initializeMcpServer, shutdownMcpServer } from "./controllers/mcp";
-import * as http from "http";
-import { IncomingMessage } from "http";
 import WebSocket, { WebSocketServer } from "ws";
+import { IncomingMessage } from "http";
 import { URLSearchParams } from "url";
+import { AuthService } from "./services/auth";
 
-// Load environment variables
-dotenv.config();
-
-const app = express();
-// Create HTTP server and WebSocket server
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: "/ws" });
-const PORT = process.env.PORT || 3470;
+// Create WebSocket server on port 3471
 const WS_PORT = process.env.WS_PORT || 3471;
+const wss = new WebSocketServer({ port: WS_PORT, path: "/ws" });
 
-// Security middleware
-app.use(helmet());
-
-// CORS configuration
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === "production"
-        ? "*" // Allow all origins in production since nginx handles the routing
-        : [
-            "http://localhost:3469",
-            "http://localhost:3470",
-            "http://localhost",
-          ], // Allow Next.js dev server and nginx
-    credentials: false, // Set to false since we're using JWT tokens in headers
-  })
-);
-
-// Logging
-app.use(morgan("combined"));
-
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Routes
-app.use("/", routes);
-
-// Error handling middleware
-app.use(
-  (
-    err: unknown,
-    req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction
-  ) => {
-    console.error("Error:", err);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-    });
-  }
-);
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "Route not found",
-  });
-});
-
-// WebSocket connection handling
 // Store active connections for broadcasting
 const activeConnections = new Map<string, WebSocket>();
+
+console.log(`🔌 WebSocket server starting on port ${WS_PORT}...`);
 
 wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   console.log("New WebSocket connection attempt");
@@ -208,33 +141,18 @@ function broadcastToAll(message: Record<string, unknown>) {
 // Export broadcast function for use in other modules
 export { broadcastToAll };
 
-// Start HTTP and WebSocket server
-server.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📝 API docs: http://localhost:${PORT}/`);
-  console.log(`🔌 WebSocket: ws://localhost:${WS_PORT}/ws`);
-  console.log(`👤 Default admin user: admin/admin123`);
-
-  // Initialize email service with WebSocket broadcast function
-  setBroadcastFunction(broadcastToAll);
-  console.log(`📧 Email service initialized with WebSocket broadcasting`);
-
-  // Initialize MCP server with Ollama integration
-  await initializeMcpServer();
-});
+console.log(`🔌 WebSocket server running on port ${WS_PORT}`);
+console.log(`📡 WebSocket endpoint: ws://localhost:${WS_PORT}/ws`);
 
 // Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("📖 Shutting down server...");
-  await shutdownMcpServer();
+process.on("SIGTERM", () => {
+  console.log("📖 Shutting down WebSocket server...");
+  wss.close();
   process.exit(0);
 });
 
-process.on("SIGINT", async () => {
-  console.log("📖 Shutting down server...");
-  await shutdownMcpServer();
+process.on("SIGINT", () => {
+  console.log("📖 Shutting down WebSocket server...");
+  wss.close();
   process.exit(0);
 });
-
-export default app;

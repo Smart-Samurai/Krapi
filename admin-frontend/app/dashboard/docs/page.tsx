@@ -121,7 +121,7 @@ export default function DocumentationPage() {
         <h2 className="text-2xl font-semibold mb-4">Base URL</h2>
         <CodeBlock label="base-url">
           {`# Development
-http://localhost:3001/api
+http://localhost:3469/api
 
 # Production
 https://your-domain.com/api`}
@@ -533,7 +533,7 @@ export class KrapiClient {
 }
 
 // Usage
-const krapi = new KrapiClient('http://localhost:3001/api');`}
+const krapi = new KrapiClient('http://localhost:3469/api');`}
             </CodeBlock>
           </div>
 

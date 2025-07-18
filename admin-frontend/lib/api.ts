@@ -12,7 +12,8 @@ import {
 } from "../types";
 
 // Use environment variable or fallback to localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/api";
 
 // Create axios instance
 const api = axios.create({
@@ -96,7 +97,7 @@ export const mcpAPI = {
     const response = await api.get("/mcp/info");
     return response.data;
   },
-  
+
   // Health check for MCP and Ollama
   healthCheck: async () => {
     const response = await api.get("/mcp/health");

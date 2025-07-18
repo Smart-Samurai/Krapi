@@ -13,6 +13,7 @@ A modern, TypeScript-based headless CMS with a React admin panel. This project p
 ### Installation & Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repository-url>
    cd krapi-cms
@@ -21,31 +22,35 @@ A modern, TypeScript-based headless CMS with a React admin panel. This project p
 2. **Start the development manager:**
 
    **Windows:**
+
    ```cmd
    start-manager.bat
    ```
 
    **Linux/macOS:**
+
    ```bash
    ./start-manager.sh
    ```
 
    **Direct Python (any platform):**
+
    ```bash
    python3 start-manager.py
    ```
 
 3. **Access the application:**
-   - **API Server:** http://localhost:3001
-   - **Admin Frontend:** http://localhost:3000
-   - **Manager Interface:** http://localhost:8080 (if GUI unavailable)
+   - **API Server:** http://localhost:3469
+
+- **Admin Frontend:** http://localhost:3470
+  - **Manager Interface:** http://localhost:8080 (if GUI unavailable)
 
 ## 📁 Project Structure
 
 ```
 krapi-cms/
 ├── api-server/          # Backend Express.js application
-├── admin-frontend/      # Frontend Next.js application  
+├── admin-frontend/      # Frontend Next.js application
 ├── development/         # Development tools and utilities
 ├── docs/               # Project documentation
 ├── logs/               # Application logs
@@ -70,6 +75,7 @@ The Python-based development manager provides:
 ### Manager Interfaces
 
 1. **Desktop GUI** (preferred - requires tkinter)
+
    - Full-featured interface with real-time updates
    - Service controls and monitoring
    - Integrated log viewer
@@ -81,12 +87,14 @@ The Python-based development manager provides:
 
 ## 📊 Services
 
-### API Server (Port 3001)
+### API Server (Port 3469)
+
 - **Technology:** Express.js + TypeScript
 - **Database:** SQLite with better-sqlite3
 - **Features:** RESTful APIs, JWT authentication, input validation
 
-### Admin Frontend (Port 3000)
+### Admin Frontend (Port 3470)
+
 - **Technology:** Next.js + React + TypeScript
 - **Styling:** Tailwind CSS
 - **Features:** Responsive design, form validation, real-time updates
@@ -94,16 +102,19 @@ The Python-based development manager provides:
 ## 🔧 Development Workflow
 
 ### Starting Development
+
 1. Run the appropriate launcher script for your platform
 2. Wait for all services to start (green status indicators)
-3. Open http://localhost:3000 to access the admin panel
+3. Open http://localhost:3470 to access the admin panel
 
 ### Stopping Services
+
 - Use the "Stop All Services" button in the manager
 - Or press Ctrl+C in the terminal
 - Or close the manager window (will prompt to stop services)
 
 ### Viewing Logs
+
 - **Desktop GUI:** Built-in log viewer with filtering
 - **Web Interface:** Basic log display
 - **File System:** Check the `logs/` directory
@@ -113,18 +124,22 @@ The Python-based development manager provides:
 ### Common Issues
 
 1. **"Python not found"**
+
    - Install Python 3.8+ from https://python.org/
    - Ensure Python is added to your system PATH
 
 2. **"npm not found"**
+
    - Install Node.js from https://nodejs.org/
    - Restart your terminal after installation
 
 3. **Virtual environment creation fails**
+
    - Linux/Ubuntu: `sudo apt install python3-venv`
    - macOS: Virtual environments should be included with Python
 
 4. **GUI not available**
+
    - The manager will automatically use the web interface
    - Linux/Ubuntu: Install tkinter with `sudo apt install python3-tk`
 
@@ -136,6 +151,7 @@ The Python-based development manager provides:
 ### Debug Mode
 
 Run with additional debugging:
+
 ```bash
 python3 start-manager.py --web  # Force web interface
 python3 start-manager.py        # Try GUI first, fallback to web

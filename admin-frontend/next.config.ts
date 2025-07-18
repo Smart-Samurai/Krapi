@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3001/api/:path*",
+        destination: "http://localhost:3470/api/:path*",
       },
     ];
   },
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
   staticPageGenerationTimeout: 120,
   // Environment variables
   env: {
-    NEXT_PUBLIC_API_URL: "http://localhost:3001/api",
+    NEXT_PUBLIC_API_URL: "http://localhost:3470/api",
   },
 };
 

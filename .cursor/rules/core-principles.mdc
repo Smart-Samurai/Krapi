@@ -48,7 +48,7 @@ Krapi CMS is a modern, TypeScript-based headless CMS with a React admin panel. T
 ### Development Environment
 
 - **Single Launcher**: Use `UnifiedDev.bat` for starting all services
-- **Port Management**: API (3001), Frontend (3000), Control Panel (4000)
+- **Port Management**: API (3469), Frontend (3470), Control Panel (3471)
 - **Logging**: Proper error logging and debugging information
 
 ---

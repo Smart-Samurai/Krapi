@@ -59,11 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Open WebSocket when authenticated
   useEffect(() => {
     if (token) {
-      // Build WS URL - use backend port for development
+      // Build WS URL - use separate WebSocket port
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const isDev = process.env.NODE_ENV !== "production";
       const wsUrl = isDev
-        ? `${protocol}//localhost:3001/ws?token=${token}`
+        ? `${protocol}//localhost:3471/ws?token=${token}`
         : `${protocol}//${window.location.host}/ws?token=${token}`;
 
       const ws = new WebSocket(wsUrl);

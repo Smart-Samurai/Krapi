@@ -1,0 +1,190 @@
+---
+alwaysApply: true
+---
+
+# Krapi CMS Development Environment
+
+## Project Structure
+
+```
+Krapi/
+├── api-server/          # Backend Express.js + TypeScript
+├── admin-frontend/      # Frontend Next.js + React
+├── development/         # Development tools
+├── docs/               # Documentation
+├── logs/               # Application logs
+└── .cursor/rules/      # Cursor rules
+```
+
+## Port Configuration
+
+### ✅ CORRECT Port Setup
+
+- **Frontend**: Port 3469
+- **API Server**: Port 3470
+- **WebSocket**: Port 3471 (separate port)
+- **Control Panel**: Port 3472 (if used)
+
+### Environment Variables
+
+```bash
+# API Server
+PORT=3470
+NODE_ENV=development
+
+# Frontend
+PORT=3469
+NEXT_PUBLIC_API_URL=http://localhost:3470/api
+NEXT_PUBLIC_WS_URL=ws://localhost:3471/ws
+```
+
+## Development Workflow
+
+### Starting Services
+
+1. **API Server**: `npm run dev` (uses nodemon for auto-reload)
+2. **Frontend**: `npm run dev` (Next.js development server)
+3. **Start Manager**: `python start-manager.py` (manages both services)
+
+### Dependencies
+
+- **Python**: 3.8+ with psutil
+- **Node.js**: 18+ with npm
+- **TypeScript**: Installed locally in api-server
+- **Next.js**: 15+ for frontend
+
+## Common Issues & Solutions
+
+### PowerShell Syntax Issues
+
+```powershell
+# ❌ Wrong - bash syntax
+cd api-server && npm run build
+
+# ✅ Correct - PowerShell syntax
+cd api-server; npm run build
+# or
+cd api-server
+npm run build
+```
+
+### TypeScript Compilation Issues
+
+```bash
+# ❌ Wrong - trying to build with errors
+npm run build
+
+# ✅ Correct - use development mode
+npm run dev
+```
+
+### Port Conflicts
+
+```bash
+# Check if ports are in use
+netstat -ano | findstr :3469
+netstat -ano | findstr :3470
+
+# Kill processes if needed
+taskkill /PID <process_id> /F
+```
+
+## Development Commands
+
+### API Server
+
+```bash
+cd api-server
+npm install          # Install dependencies
+npm run dev          # Start development server
+npm run build        # Build for production
+npm test             # Run tests
+```
+
+### Frontend
+
+```bash
+cd admin-frontend
+npm install          # Install dependencies
+npm run dev          # Start development server
+npm run build        # Build for production
+npm test             # Run tests
+```
+
+### Start Manager
+
+```bash
+# Install Python dependencies
+pip install psutil
+
+# Start the manager
+python start-manager.py
+
+# Or use the batch file
+start-krapi.bat
+```
+
+## Testing
+
+### Manual Testing Checklist
+
+- [ ] API server starts on port 3469
+- [ ] Frontend starts on port 3470
+- [ ] API endpoints respond correctly
+- [ ] Frontend can connect to API
+- [ ] WebSocket connections work
+- [ ] Database operations function
+- [ ] Authentication flows work
+
+### Automated Testing
+
+```bash
+# API tests
+cd api-server
+npm test
+
+# Frontend tests
+cd admin-frontend
+npm test
+```
+
+## Debugging
+
+### Logs Location
+
+- API logs: `logs/api-server.log`
+- Frontend logs: `logs/frontend.log`
+- Combined logs: `logs/combined.log`
+
+### Common Debug Commands
+
+```powershell
+# Check running processes
+Get-Process | Where-Object { $_.ProcessName -like "*node*" }
+
+# Check port usage
+netstat -ano | findstr :3469
+
+# Check environment variables
+Get-ChildItem Env: | Where-Object { $_.Name -like "*PORT*" }
+```
+
+## Production Deployment
+
+### Build Process
+
+1. API: `npm run build` → `dist/` folder
+2. Frontend: `npm run build` → `.next/` folder
+3. Use `npm start` for production
+
+### Environment Configuration
+
+- Set `NODE_ENV=production`
+- Configure database connections
+- Set up proper CORS origins
+- Configure SSL certificates
+  description:
+  globs:
+  alwaysApply: false
+
+---

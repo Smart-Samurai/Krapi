@@ -8,8 +8,8 @@ param(
 )
 
 # Configuration
-$API_PORT = 3001
-$FRONTEND_PORT = 3000
+$API_PORT = 3469
+$FRONTEND_PORT = 3470
 $LOG_DIR = "logs"
 $API_LOG = "$LOG_DIR\api-server.log"
 $FRONTEND_LOG = "$LOG_DIR\frontend.log"

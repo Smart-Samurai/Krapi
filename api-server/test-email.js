@@ -1,7 +1,7 @@
 // Test script for email functionality
 const fetch = require("node-fetch");
 
-const BASE_URL = "http://localhost:3001/api";
+const BASE_URL = "http://localhost:3469/api";
 
 async function testEmailEndpoints() {
   console.log("🧪 Testing Email Management Endpoints...\n");

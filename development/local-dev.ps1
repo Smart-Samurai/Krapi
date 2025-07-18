@@ -5,8 +5,8 @@ param(
     [string]$Action
 )
 
-$API_PORT = 3001
-$FRONTEND_PORT = 3000
+$API_PORT = 3469
+$FRONTEND_PORT = 3470
 
 function Write-Success { param($Message) Write-Host $Message -ForegroundColor Green }
 function Write-Error { param($Message) Write-Host $Message -ForegroundColor Red }

@@ -1,20 +1,12 @@
-# Dependencies - ALL node_modules directories
+# Dependencies - ALL node_modules
 node_modules/
 **/node_modules/
-admin-frontend/node_modules/
-api-server/node_modules/
-.pnpm-store/
-.pnpm-debug.log*
 
 # Build outputs
 dist/
 build/
-.next/
-out/
 **/dist/
 **/build/
-**/.next/
-**/out/
 
 # Environment variables
 .env
@@ -56,6 +48,7 @@ jspm_packages/
 
 # Optional eslint cache
 .eslintcache
+**/.eslintcache
 
 # Microbundle cache
 .rpt2_cache/
@@ -75,20 +68,6 @@ jspm_packages/
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-
-# Gatsby files
-.cache/
-public
-
-# Storybook build outputs
-.out
-.storybook-out
 
 # Temporary folders
 tmp/
@@ -117,7 +96,6 @@ Thumbs.db
 
 # Upload directories
 uploads/
-public/uploads/
 **/uploads/
 
 # Test files
@@ -125,33 +103,9 @@ test-results/
 playwright-report/
 test-results.xml
 
-# Docker
-.dockerignore
-
 # TypeScript
 *.tsbuildinfo
 **/*.tsbuildinfo
-
-# Vercel
-.vercel
-
-# Turbo
-.turbo
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-.venv/
-.venv.bak/
-manager-env/
 
 # Package manager files
 package-lock.json
@@ -168,14 +122,20 @@ test-*.ts
 **/test-*.js
 **/test-*.ts
 
-# SWC cache
-.swc/
-**/.swc/
-
 # ESLint cache
 .eslintcache
 **/.eslintcache
 
-# Next.js
-next-env.d.ts
-**/next-env.d.ts 
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Process files
+*.pid
+*.pid.lock
+
+# Debug files
+.debug/
+debug.log 

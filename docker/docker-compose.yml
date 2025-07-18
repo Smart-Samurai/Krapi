@@ -14,7 +14,7 @@ services:
       - DB_PATH=/app/data/app.db
       - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
-      - PORT=3001
+      - PORT=3469
     volumes:
       - api_data:/app/data
       - api_uploads:/app/uploads
@@ -29,7 +29,7 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:3001/api/health",
+          "http://localhost:3469/api/health",
         ]
       interval: 30s
       timeout: 10s
@@ -59,7 +59,7 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:3000",
+          "http://localhost:3470",
         ]
       interval: 30s
       timeout: 10s

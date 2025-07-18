@@ -38,7 +38,7 @@ async function testWebSocketWithAuth() {
 
   const loginOptions = {
     hostname: "localhost",
-    port: 3001,
+    port: 3469,
     path: "/api/auth/login",
     method: "POST",
     headers: {
@@ -77,7 +77,7 @@ async function testWebSocketWithAuth() {
       "\nStep 2: Testing WebSocket without token (should be rejected)..."
     );
 
-    const wsWithoutToken = new WebSocket("ws://localhost:3001/ws");
+    const wsWithoutToken = new WebSocket("ws://localhost:3469/ws");
 
     wsWithoutToken.on("close", (code, reason) => {
       console.log(
@@ -90,7 +90,7 @@ async function testWebSocketWithAuth() {
       );
 
       const wsWithBadToken = new WebSocket(
-        "ws://localhost:3001/ws?token=invalid-token"
+        "ws://localhost:3469/ws?token=invalid-token"
       );
 
       wsWithBadToken.on("close", (code, reason) => {
@@ -102,7 +102,7 @@ async function testWebSocketWithAuth() {
         console.log("\nStep 4: Testing WebSocket with valid JWT token...");
 
         const wsWithValidToken = new WebSocket(
-          `ws://localhost:3001/ws?token=${token}`
+          `ws://localhost:3469/ws?token=${token}`
         );
 
         wsWithValidToken.on("open", () => {

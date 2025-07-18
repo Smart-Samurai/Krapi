@@ -23,7 +23,7 @@ RUN mkdir -p /app/data /app/uploads && chown -R node:node /app/data /app/uploads
 USER node
 
 # Expose port
-EXPOSE 3001
+EXPOSE 3469
 
 # Start the application with ts-node using npm
 CMD ["npx", "ts-node", "src/app.ts"]

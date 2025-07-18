@@ -1,9 +1,9 @@
 /**
  * DEPRECATED: This web-based control panel has been replaced
  * with a new Desktop Application Manager.
- * 
+ *
  * Please use: StartManager.bat (Windows) or ./StartManager.sh (Linux/Mac)
- * 
+ *
  * The new manager provides better functionality:
  * - Native desktop GUI or web interface as fallback
  * - Better process management and dependency checking
@@ -28,7 +28,7 @@ const WebSocket = require("ws");
 const cors = require("cors");
 
 const app = express();
-const PORT = 4000;
+const PORT = 3471;
 
 app.use(cors());
 app.use(express.json());
@@ -44,7 +44,7 @@ let logStreams = {
 };
 
 // WebSocket server for real-time logs
-const wss = new WebSocket.Server({ port: 4001 });
+const wss = new WebSocket.Server({ port: 3472 });
 
 // Broadcast to all connected WebSocket clients
 function broadcastToClients(data) {
@@ -174,11 +174,11 @@ async function startApiServer() {
     return false;
   }
 
-  const apiInUse = await isPortInUse(3001);
+  const apiInUse = await isPortInUse(3469);
   if (apiInUse) {
-    log("Port 3001 is already in use", "error", "api");
-    await killProcessOnPort(3001);
-    log("Killed existing process on port 3001", "info", "api");
+    log("Port 3469 is already in use", "error", "api");
+    await killProcessOnPort(3469);
+    log("Killed existing process on port 3469", "info", "api");
   }
 
   log("Starting API server...", "info", "api");
@@ -234,9 +234,9 @@ async function startApiServer() {
   // Wait a bit and check if it started
   return new Promise((resolve) => {
     setTimeout(async () => {
-      const started = await isPortInUse(3001);
+      const started = await isPortInUse(3469);
       if (started) {
-        log("API server started successfully on port 3001", "success", "api");
+        log("API server started successfully on port 3469", "success", "api");
         resolve(true);
       } else {
         log("API server failed to start", "error", "api");
@@ -253,11 +253,11 @@ async function startFrontendServer() {
     return false;
   }
 
-  const frontendInUse = await isPortInUse(3000);
+  const frontendInUse = await isPortInUse(3470);
   if (frontendInUse) {
-    log("Port 3000 is already in use", "error", "frontend");
-    await killProcessOnPort(3000);
-    log("Killed existing process on port 3000", "info", "frontend");
+    log("Port 3470 is already in use", "error", "frontend");
+    await killProcessOnPort(3470);
+    log("Killed existing process on port 3470", "info", "frontend");
   }
 
   log("Starting frontend server...", "info", "frontend");
@@ -269,7 +269,7 @@ async function startFrontendServer() {
     env: {
       ...process.env,
       NODE_ENV: "development",
-      NEXT_PUBLIC_API_URL: "http://localhost:3001",
+      NEXT_PUBLIC_API_URL: "http://localhost:3469",
     },
   });
 
@@ -310,10 +310,10 @@ async function startFrontendServer() {
   // Wait a bit and check if it started
   return new Promise((resolve) => {
     setTimeout(async () => {
-      const started = await isPortInUse(3000);
+      const started = await isPortInUse(3470);
       if (started) {
         log(
-          "Frontend server started successfully on port 3000",
+          "Frontend server started successfully on port 3470",
           "success",
           "frontend"
         );
@@ -335,19 +335,19 @@ async function stopApiServer() {
 
     // Make sure the port is released
     setTimeout(async () => {
-      const stillRunning = await isPortInUse(3001);
+      const stillRunning = await isPortInUse(3469);
       if (stillRunning) {
-        await killProcessOnPort(3001);
+        await killProcessOnPort(3469);
         log("Forcefully killed API server process", "info", "api");
       }
     }, 2000);
 
     return true;
   } else {
-    // Try to kill any process on port 3001
-    const killed = await killProcessOnPort(3001);
+    // Try to kill any process on port 3469
+    const killed = await killProcessOnPort(3469);
     if (killed) {
-      log("Killed process on port 3001", "info", "api");
+      log("Killed process on port 3469", "info", "api");
     }
     return killed;
   }
@@ -362,19 +362,19 @@ async function stopFrontendServer() {
 
     // Make sure the port is released
     setTimeout(async () => {
-      const stillRunning = await isPortInUse(3000);
+      const stillRunning = await isPortInUse(3470);
       if (stillRunning) {
-        await killProcessOnPort(3000);
+        await killProcessOnPort(3470);
         log("Forcefully killed frontend process", "info", "frontend");
       }
     }, 2000);
 
     return true;
   } else {
-    // Try to kill any process on port 3000
-    const killed = await killProcessOnPort(3000);
+    // Try to kill any process on port 3470
+    const killed = await killProcessOnPort(3470);
     if (killed) {
-      log("Killed process on port 3000", "info", "frontend");
+      log("Killed process on port 3470", "info", "frontend");
     }
     return killed;
   }
@@ -425,23 +425,23 @@ async function resetDatabase() {
 
 // Get status of all services
 async function getStatus() {
-  const apiRunning = await isPortInUse(3001);
-  const frontendRunning = await isPortInUse(3000);
-  const apiProcess = await getProcessOnPort(3001);
-  const frontendProcess = await getProcessOnPort(3000);
+  const apiRunning = await isPortInUse(3469);
+  const frontendRunning = await isPortInUse(3470);
+  const apiProcess = await getProcessOnPort(3469);
+  const frontendProcess = await getProcessOnPort(3470);
 
   return {
     api: {
       running: apiRunning,
-      port: 3001,
+      port: 3469,
       process: apiProcess,
-      url: "http://localhost:3001",
+      url: "http://localhost:3469",
     },
     frontend: {
       running: frontendRunning,
-      port: 3000,
+      port: 3470,
       process: frontendProcess,
-      url: "http://localhost:3000",
+      url: "http://localhost:3470",
     },
     control: {
       running: true,

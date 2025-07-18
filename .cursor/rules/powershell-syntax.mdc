@@ -1,0 +1,121 @@
+---
+alwaysApply: true
+---
+
+# PowerShell Development Rules
+
+## PowerShell Command Syntax
+
+### ✅ CORRECT PowerShell Syntax
+
+```powershell
+# Use semicolons or separate lines for multiple commands
+cd api-server; npm run build
+
+# Or use separate commands
+cd api-server
+npm run build
+
+# Use proper PowerShell operators
+if (Test-Path "file.txt") { Write-Host "File exists" }
+
+# Use PowerShell cmdlets
+Get-ChildItem | Where-Object { $_.Name -like "*.ts" }
+```
+
+### 🚫 INCORRECT PowerShell Syntax
+
+```powershell
+# Don't use bash-style && operator
+cd api-server && npm run build  # This fails in PowerShell
+
+# Don't use bash-style || operator
+npm run build || echo "Failed"  # This fails in PowerShell
+
+# Don't use bash-style command substitution
+$(npm run build)  # Use PowerShell syntax instead
+```
+
+### PowerShell Best Practices
+
+1. **Command Separators**: Use semicolons (`;`) or separate lines instead of `&&`
+2. **Conditional Execution**: Use `; if ($LASTEXITCODE -eq 0)` instead of `&&`
+3. **Error Handling**: Use `try/catch` blocks or check `$LASTEXITCODE`
+4. **Path Handling**: Use `Join-Path` for cross-platform path construction
+5. **Environment Variables**: Use `$env:VARIABLE_NAME` syntax
+
+### Cross-Platform Compatibility
+
+When writing scripts that need to work on both Windows and Unix-like systems:
+
+```powershell
+# Use PowerShell's built-in path handling
+$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$apiPath = Join-Path $projectRoot "api-server"
+
+# Use proper error checking
+try {
+    & npm run build
+    if ($LASTEXITCODE -ne 0) {
+        throw "Build failed with exit code $LASTEXITCODE"
+    }
+} catch {
+    Write-Error "Build failed: $_"
+}
+```
+
+### Node.js Integration
+
+```powershell
+# Check if npm is available
+if (Get-Command npm -ErrorAction SilentlyContinue) {
+    Write-Host "npm is available"
+} else {
+    Write-Error "npm is not installed or not in PATH"
+}
+
+# Run npm commands with proper error handling
+$npmResult = & npm run build 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "npm build failed: $npmResult"
+}
+```
+
+### Common PowerShell Patterns
+
+```powershell
+# Directory navigation
+Set-Location "api-server"
+# or
+cd "api-server"
+
+# File existence checks
+if (Test-Path "package.json") {
+    Write-Host "package.json found"
+}
+
+# Process execution with output capture
+$result = & npm run build 2>&1
+$exitCode = $LASTEXITCODE
+
+# Environment variable usage
+$env:PORT = "3469"
+$env:NODE_ENV = "development"
+
+# Error handling with try/catch
+try {
+    & npm run build
+    if ($LASTEXITCODE -ne 0) {
+        throw "Build failed"
+    }
+} catch {
+    Write-Error "Error: $_"
+    exit 1
+}
+```
+
+description:
+globs:
+alwaysApply: false
+
+---
