@@ -4,7 +4,7 @@ import { URLSearchParams } from "url";
 import { AuthService } from "./services/auth";
 
 // Create WebSocket server on port 3471
-const WS_PORT = process.env.WS_PORT || 3471;
+const WS_PORT = parseInt(process.env.WS_PORT || "3471");
 const wss = new WebSocketServer({ port: WS_PORT, path: "/ws" });
 
 // Store active connections for broadcasting

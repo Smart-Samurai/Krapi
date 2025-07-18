@@ -56,7 +56,8 @@ const app = (0, express_1.default)();
 // Create HTTP server and WebSocket server
 const server = http.createServer(app);
 const wss = new ws_1.WebSocketServer({ server, path: "/ws" });
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3470;
+// WebSocket is integrated into the same HTTP server, no separate port needed
 // Security middleware
 app.use((0, helmet_1.default)());
 // CORS configuration
@@ -64,8 +65,8 @@ app.use((0, cors_1.default)({
     origin: process.env.NODE_ENV === "production"
         ? "*" // Allow all origins in production since nginx handles the routing
         : [
-            "http://localhost:3000",
-            "http://localhost:3001",
+            "http://localhost:3469",
+            "http://localhost:3470",
             "http://localhost",
         ], // Allow Next.js dev server and nginx
     credentials: false, // Set to false since we're using JWT tokens in headers
@@ -199,6 +200,7 @@ server.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`📝 API docs: http://localhost:${PORT}/`);
+    console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws`);
     console.log(`👤 Default admin user: admin/admin123`);
     // Initialize email service with WebSocket broadcast function
     (0, email_1.setBroadcastFunction)(broadcastToAll);
@@ -207,13 +209,13 @@ server.listen(PORT, async () => {
     await (0, mcp_1.initializeMcpServer)();
 });
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-    console.log('📖 Shutting down MCP server...');
+process.on("SIGTERM", async () => {
+    console.log("📖 Shutting down server...");
     await (0, mcp_1.shutdownMcpServer)();
     process.exit(0);
 });
-process.on('SIGINT', async () => {
-    console.log('📖 Shutting down MCP server...');
+process.on("SIGINT", async () => {
+    console.log("📖 Shutting down server...");
     await (0, mcp_1.shutdownMcpServer)();
     process.exit(0);
 });

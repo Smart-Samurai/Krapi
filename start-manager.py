@@ -184,11 +184,8 @@ class KrapiCMSManager:
             self.api_status = "Running (External)"
             self.log_message("API Server is already running on port 3470")
         
-        # Check for WebSocket server (port 3471)
-        websocket_running = self.is_port_in_use(3471)
-        if websocket_running:
-            self.websocket_status = "Running (External)"
-            self.log_message("WebSocket Server is already running on port 3471")
+        # WebSocket is integrated into API server on port 3470/ws
+        # No separate WebSocket port needed
         
         # Check for frontend (port 3469, or fallback ports)
         frontend_running = False
@@ -288,7 +285,7 @@ class KrapiCMSManager:
         api_status_label.grid(row=0, column=1, sticky=tk.W)
         
         # WebSocket Server Status
-        ttk.Label(status_frame, text="WebSocket (Port 3471):").grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
+        ttk.Label(status_frame, text="WebSocket (Integrated):").grid(row=1, column=0, sticky=tk.W, padx=(0, 10))
         websocket_status_label = ttk.Label(status_frame, textvariable=self.websocket_status_var, font=('Arial', 10, 'bold'))
         websocket_status_label.grid(row=1, column=1, sticky=tk.W)
         
@@ -520,7 +517,7 @@ class KrapiCMSManager:
             env = os.environ.copy()
             env['PORT'] = '3469'
             env['NEXT_PUBLIC_API_URL'] = 'http://localhost:3470/api'
-            env['NEXT_PUBLIC_WS_URL'] = 'ws://localhost:3471/ws'
+            env['NEXT_PUBLIC_WS_URL'] = 'ws://localhost:3470/ws'
             
             # Start the frontend server with custom port
             self.frontend_process = subprocess.Popen([self.npm_cmd, "run", "dev"], 
@@ -545,47 +542,11 @@ class KrapiCMSManager:
             self.log_message(f"Error starting frontend server: {e}")
     
     def start_websocket_server(self):
-        """Start the WebSocket server"""
-        if self.websocket_process and self.websocket_process.poll() is None:
-            self.log_message("WebSocket server is already running")
-            return
-        
-        if not self.npm_cmd:
-            self.log_message("Error: npm not found. Please install Node.js")
-            return
-        
-        if not (self.api_path / "package.json").exists():
-            self.log_message("Error: API server package.json not found")
-            return
-        
-        self.log_message("Starting WebSocket server...")
-        try:
-            # Set environment variables for the WebSocket server
-            env = os.environ.copy()
-            env['WS_PORT'] = '3471'
-            env['NODE_ENV'] = 'development'
-            
-            # Start the WebSocket server
-            self.websocket_process = subprocess.Popen([self.npm_cmd, "exec", "ts-node", "src/websocket-server.ts"], 
-                                                    cwd=self.api_path, 
-                                                    stdout=subprocess.PIPE, 
-                                                    stderr=subprocess.STDOUT, 
-                                                    text=True, bufsize=1, 
-                                                    universal_newlines=True,
-                                                    env=env)
-            
-            # Start logging thread
-            threading.Thread(target=self.log_websocket_output, daemon=True).start()
-            
-            self.websocket_status = "Starting..."
-            if not self.use_web:
-                self.websocket_status_var.set(self.websocket_status)
-            
-            # Check if it started successfully after a delay
-            threading.Thread(target=self.check_websocket_startup, daemon=True).start()
-            
-        except Exception as e:
-            self.log_message(f"Error starting WebSocket server: {e}")
+        """WebSocket server is integrated with API server"""
+        self.log_message("WebSocket server is integrated with API server on port 3470/ws")
+        self.websocket_status = "Integrated with API"
+        if not self.use_web:
+            self.websocket_status_var.set(self.websocket_status)
     
     def stop_api_server(self):
         """Stop the API server"""
@@ -762,14 +723,10 @@ class KrapiCMSManager:
             self.frontend_status_var.set(self.frontend_status)
     
     def check_websocket_startup(self):
-        """Check if WebSocket server started successfully"""
-        time.sleep(3)
-        if self.is_port_in_use(3471):
-            self.websocket_status = "Running"
-            self.log_message("✓ WebSocket server started successfully on port 3471")
-        else:
-            self.websocket_status = "Failed to start"
-            self.log_message("✗ WebSocket server failed to start")
+        """WebSocket is integrated into API server"""
+        # WebSocket is integrated into the API server, no separate check needed
+        self.websocket_status = "Integrated with API"
+        self.log_message("✓ WebSocket server integrated into API server on port 3470/ws")
         
         if not self.use_web:
             self.websocket_status_var.set(self.websocket_status)
@@ -883,8 +840,8 @@ class KrapiCMSManager:
         <div class="buttons">
             <button class="btn btn-success" onclick="startAll()">🚀 Start All Services</button>
             <button class="btn btn-danger" onclick="stopAll()">🛑 Stop All Services</button>
-                            <a href="http://localhost:3469" target="_blank" class="btn btn-primary">🔧 Open API (3469)</a>
-                <a href="http://localhost:3470" target="_blank" class="btn btn-primary">🎨 Open Frontend (3470)</a>
+                                    <a href="http://localhost:3469" target="_blank" class="btn btn-primary">🎨 Open Frontend (3469)</a>
+        <a href="http://localhost:3470" target="_blank" class="btn btn-primary">🔧 Open API (3470)</a>
             <button class="btn btn-primary" onclick="refreshStatus()">🔄 Refresh Status</button>
         </div>
         

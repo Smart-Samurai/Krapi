@@ -16,12 +16,12 @@ import { URLSearchParams } from "url";
 // Load environment variables
 dotenv.config();
 
-const app = express();
+const app: express.Application = express();
 // Create HTTP server and WebSocket server
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 const PORT = process.env.PORT || 3470;
-const WS_PORT = process.env.WS_PORT || 3471;
+// WebSocket is integrated into the same HTTP server, no separate port needed
 
 // Security middleware
 app.use(helmet());
@@ -213,7 +213,7 @@ server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
   console.log(`📝 API docs: http://localhost:${PORT}/`);
-  console.log(`🔌 WebSocket: ws://localhost:${WS_PORT}/ws`);
+  console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws`);
   console.log(`👤 Default admin user: admin/admin123`);
 
   // Initialize email service with WebSocket broadcast function
