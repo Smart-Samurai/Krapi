@@ -11,30 +11,77 @@ import {
 import { OllamaService } from "./ollama";
 import { mcpTools, getAppStateContext } from "./mcp-tools";
 
+/**
+ * MCP Server implementation
+ */
 export class McpServer {
+  private config: McpServerConfig;
   private ollamaService: OllamaService;
   private server: WebSocket.Server | null = null;
-  private config: McpServerConfig;
   private isEnabled: boolean;
   private port: number;
   private debug: boolean;
 
   constructor() {
-    this.ollamaService = new OllamaService();
-    this.isEnabled = process.env.MCP_ENABLED === "true";
-    this.port = parseInt(process.env.MCP_PORT || "3456");
-    this.debug = process.env.MCP_DEBUG === "true";
-
     this.config = {
       name: "krapi-cms-mcp",
-      description: "Model Context Protocol server for Krapi CMS with Ollama integration",
+      description: "MCP server for KRAPI CMS with Ollama integration",
       version: "1.0.0",
       capabilities: {
         tools: true,
         resources: false,
-        prompts: true,
+        prompts: false,
       },
     };
+
+    this.ollamaService = new OllamaService();
+    this.isEnabled = process.env.MCP_ENABLED === "true";
+    this.port = parseInt(process.env.MCP_PORT || "3456");
+    this.debug = process.env.MCP_DEBUG === "true";
+  }
+
+  /**
+   * Safely extract text content from a tool result
+   */
+  private extractToolResultContent(result: McpToolResult, toolName: string): string {
+    // Validate result structure
+    if (!result || typeof result !== 'object') {
+      console.error(`Tool ${toolName} returned invalid result:`, result);
+      return `Error: Tool ${toolName} returned invalid result`;
+    }
+
+    // Validate content array
+    if (!Array.isArray(result.content)) {
+      console.error(`Tool ${toolName} result missing content array:`, result);
+      return `Error: Tool ${toolName} returned result without content array`;
+    }
+
+    // Check if content is empty
+    if (result.content.length === 0) {
+      console.warn(`Tool ${toolName} returned empty content array`);
+      return `Tool ${toolName} completed but returned no content`;
+    }
+
+    // Validate first content item
+    const firstContent = result.content[0];
+    if (!firstContent || typeof firstContent !== 'object') {
+      console.error(`Tool ${toolName} returned invalid content item:`, firstContent);
+      return `Error: Tool ${toolName} returned invalid content item`;
+    }
+
+    // Check content type
+    if (firstContent.type !== 'text') {
+      console.error(`Tool ${toolName} returned non-text content type: ${firstContent.type}`);
+      return `Error: Tool ${toolName} returned unsupported content type: ${firstContent.type}`;
+    }
+
+    // Validate text property
+    if (typeof firstContent.text !== 'string') {
+      console.error(`Tool ${toolName} returned invalid text content:`, firstContent);
+      return `Error: Tool ${toolName} returned invalid text content`;
+    }
+
+    return firstContent.text;
   }
 
   /**
@@ -295,18 +342,30 @@ export class McpServer {
             try {
               const result = await tool.handler(toolCall.function.arguments, context);
               
+              // Safely extract content from the result
+              const content = this.extractToolResultContent(result, toolCall.function.name);
+              
               // Add tool result as a message
               workingMessages.push({
                 role: "tool",
-                content: result.content[0].text,
+                content,
                 // Include tool call ID if available
               });
             } catch (error) {
+              const errorMessage = `Error executing tool ${toolCall.function.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
+              console.error(errorMessage, error);
               workingMessages.push({
                 role: "tool",
-                content: `Error executing tool ${toolCall.function.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
+                content: errorMessage,
               });
             }
+          } else {
+            const errorMessage = `Tool ${toolCall.function.name} not found`;
+            console.error(errorMessage);
+            workingMessages.push({
+              role: "tool",
+              content: errorMessage,
+            });
           }
         }
 
