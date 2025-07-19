@@ -195,23 +195,13 @@ export class McpController {
   ): Promise<void> {
     try {
       const mcpServer = getMcpServer();
-      const response = await (mcpServer as any).handleRequest({
-        method: "ollama/models",
-        id: Date.now(),
-      });
-
-      if (response.error) {
-        res.status(400).json({
-          success: false,
-          error: response.error.message,
-          code: response.error.code,
-        });
-        return;
-      }
+      const ollamaService = mcpServer.getOllamaService();
+      
+      const models = await ollamaService.listModels();
 
       res.json({
         success: true,
-        data: response.result,
+        data: models,
       });
     } catch (error) {
       res.status(500).json({
@@ -240,24 +230,21 @@ export class McpController {
       }
 
       const mcpServer = getMcpServer();
-      const response = await (mcpServer as any).handleRequest({
-        method: "ollama/pull",
-        params: { model },
-        id: Date.now(),
-      });
+      const ollamaService = mcpServer.getOllamaService();
+      
+      const success = await ollamaService.pullModel(model);
 
-      if (response.error) {
+      if (!success) {
         res.status(400).json({
           success: false,
-          error: response.error.message,
-          code: response.error.code,
+          error: "Failed to pull model",
         });
         return;
       }
 
       res.json({
         success: true,
-        data: response.result,
+        data: { message: `Model ${model} pulled successfully` },
       });
     } catch (error) {
       res.status(500).json({
