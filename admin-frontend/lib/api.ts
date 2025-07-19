@@ -10,6 +10,28 @@ import {
   UserFilters,
   ContentSchema,
 } from "../types";
+import type {
+  ApiResponse,
+  EmailConfig,
+  EmailTemplate,
+  CreateEmailTemplateData,
+  UpdateEmailTemplateData,
+  SendEmailData,
+  ApiKey,
+  CreateApiKeyData,
+  UpdateApiKeyData,
+  ApiEndpoint,
+  UpdateApiEndpointData,
+  RateLimit,
+  UpdateRateLimitData,
+  ApiAnalytics,
+  SecuritySettings,
+  Session,
+  DatabaseStats,
+  BackupInfo,
+  ChatMessage,
+  ChatOptions,
+} from "../types/api";
 import { config } from "./config";
 
 // Use centralized configuration
@@ -524,7 +546,7 @@ export const emailAPI = {
     const response = await api.get("/admin/email/config");
     return response.data;
   },
-  updateConfiguration: async (config: any) => {
+  updateConfiguration: async (config: EmailConfig) => {
     const response = await api.put("/admin/email/config", config);
     return response.data;
   },
@@ -532,7 +554,7 @@ export const emailAPI = {
     const response = await api.post("/admin/email/test");
     return response.data;
   },
-  sendEmail: async (emailData: any) => {
+  sendEmail: async (emailData: SendEmailData) => {
     const response = await api.post("/admin/email/send", emailData);
     return response.data;
   },
@@ -540,7 +562,7 @@ export const emailAPI = {
     const response = await api.get("/admin/email/templates");
     return response.data;
   },
-  createTemplate: async (template: any) => {
+  createTemplate: async (template: CreateEmailTemplateData) => {
     const response = await api.post("/admin/email/templates", template);
     return response.data;
   },
@@ -548,7 +570,7 @@ export const emailAPI = {
     const response = await api.get(`/admin/email/templates/${id}`);
     return response.data;
   },
-  updateTemplate: async (id: number, template: any) => {
+  updateTemplate: async (id: number, template: UpdateEmailTemplateData) => {
     const response = await api.put(`/admin/email/templates/${id}`, template);
     return response.data;
   },
@@ -587,11 +609,11 @@ export const apiManagementAPI = {
     const response = await api.get("/admin/api/keys");
     return response.data;
   },
-  createApiKey: async (keyData: any) => {
+  createApiKey: async (keyData: CreateApiKeyData) => {
     const response = await api.post("/admin/api/keys", keyData);
     return response.data;
   },
-  updateApiKey: async (id: number, keyData: any) => {
+  updateApiKey: async (id: number, keyData: UpdateApiKeyData) => {
     const response = await api.put(`/admin/api/keys/${id}`, keyData);
     return response.data;
   },
@@ -607,7 +629,7 @@ export const apiManagementAPI = {
     const response = await api.get("/admin/api/endpoints");
     return response.data;
   },
-  updateEndpoint: async (endpoint: string, data: any) => {
+  updateEndpoint: async (endpoint: string, data: UpdateApiEndpointData) => {
     const response = await api.put(`/admin/api/endpoints/${endpoint}`, data);
     return response.data;
   },
@@ -615,7 +637,7 @@ export const apiManagementAPI = {
     const response = await api.get("/admin/api/rate-limits");
     return response.data;
   },
-  updateRateLimit: async (id: number, data: any) => {
+  updateRateLimit: async (id: number, data: UpdateRateLimitData) => {
     const response = await api.put(`/admin/api/rate-limits/${id}`, data);
     return response.data;
   },
@@ -638,11 +660,11 @@ export const authManagementAPI = {
     const response = await api.get("/admin/auth/security-settings");
     return response.data;
   },
-  updateSecuritySettings: async (settings: any) => {
+  updateSecuritySettings: async (settings: SecuritySettings) => {
     const response = await api.put("/admin/auth/security-settings", settings);
     return response.data;
   },
-  getSessions: async (filters?: any) => {
+  getSessions: async (filters?: { user_id?: number; active?: boolean }) => {
     const params = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {

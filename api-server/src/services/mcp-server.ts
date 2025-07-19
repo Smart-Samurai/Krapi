@@ -1,15 +1,22 @@
-import WebSocket from "ws";
+import { Request, Response } from "express";
 import { 
   McpRequest, 
   McpResponse, 
-  McpServerConfig,
+  McpServerConfig, 
   McpTool,
-  McpToolCall,
   McpToolResult,
-  OllamaMessage 
+  OllamaMessage
 } from "../types/mcp";
 import { OllamaService } from "./ollama";
 import { mcpTools, getAppStateContext } from "./mcp-tools";
+import { 
+  isValidToolResult, 
+  isValidOllamaMessage, 
+  isValidToolCall,
+  assertDefined,
+  createErrorResponse,
+  TypedError
+} from "../utils/type-guards";
 
 /**
  * MCP Server implementation
@@ -17,9 +24,7 @@ import { mcpTools, getAppStateContext } from "./mcp-tools";
 export class McpServer {
   private config: McpServerConfig;
   private ollamaService: OllamaService;
-  private server: WebSocket.Server | null = null;
   private isEnabled: boolean;
-  private port: number;
   private debug: boolean;
 
   constructor() {
@@ -36,170 +41,64 @@ export class McpServer {
 
     this.ollamaService = new OllamaService();
     this.isEnabled = process.env.MCP_ENABLED === "true";
-    this.port = parseInt(process.env.MCP_PORT || "3456");
     this.debug = process.env.MCP_DEBUG === "true";
   }
 
   /**
    * Safely extract text content from a tool result
    */
-  private extractToolResultContent(result: McpToolResult, toolName: string): string {
-    // Validate result structure
-    if (!result || typeof result !== 'object') {
+  private extractToolResultContent(result: unknown, toolName: string): string {
+    // Validate using type guard
+    if (!isValidToolResult(result)) {
       console.error(`Tool ${toolName} returned invalid result:`, result);
-      return `Error: Tool ${toolName} returned invalid result`;
+      return `Error: Tool ${toolName} returned invalid result structure`;
     }
 
-    // Validate content array
-    if (!Array.isArray(result.content)) {
-      console.error(`Tool ${toolName} result missing content array:`, result);
-      return `Error: Tool ${toolName} returned result without content array`;
-    }
-
-    // Check if content is empty
+    // At this point, TypeScript knows result is McpToolResult
     if (result.content.length === 0) {
       console.warn(`Tool ${toolName} returned empty content array`);
       return `Tool ${toolName} completed but returned no content`;
     }
 
-    // Validate first content item
-    const firstContent = result.content[0];
-    if (!firstContent || typeof firstContent !== 'object') {
-      console.error(`Tool ${toolName} returned invalid content item:`, firstContent);
-      return `Error: Tool ${toolName} returned invalid content item`;
-    }
-
-    // Check content type
-    if (firstContent.type !== 'text') {
-      console.error(`Tool ${toolName} returned non-text content type: ${firstContent.type}`);
-      return `Error: Tool ${toolName} returned unsupported content type: ${firstContent.type}`;
-    }
-
-    // Validate text property
-    if (typeof firstContent.text !== 'string') {
-      console.error(`Tool ${toolName} returned invalid text content:`, firstContent);
-      return `Error: Tool ${toolName} returned invalid text content`;
-    }
-
-    return firstContent.text;
+    // Safe access - we know content[0] exists and has text property
+    return result.content[0].text;
   }
 
   /**
-   * Start the MCP server
+   * Check if the server is enabled
    */
-  async start(): Promise<void> {
-    if (!this.isEnabled) {
-      console.log("📖 MCP server is disabled");
-      return;
-    }
-
-    // Check Ollama health before starting
-    const ollamaHealthy = await this.ollamaService.healthCheck();
-    if (!ollamaHealthy) {
-      console.warn("⚠️  Ollama is not available. MCP server will start but AI features may not work.");
-    }
-
-    this.server = new WebSocket.Server({ 
-      port: this.port,
-      path: "/mcp"
-    });
-
-    this.server.on("connection", (ws: WebSocket) => {
-      this.handleConnection(ws);
-    });
-
-    console.log(`🤖 MCP Server started on port ${this.port}`);
-    console.log(`📖 Available tools: ${mcpTools.map(t => t.name).join(", ")}`);
-    
-    if (ollamaHealthy) {
-      const models = await this.ollamaService.listModels();
-      console.log(`🧠 Available Ollama models: ${models.join(", ")}`);
-    }
+  isServerEnabled(): boolean {
+    return this.isEnabled;
   }
 
   /**
-   * Stop the MCP server
+   * Get server configuration
    */
-  async stop(): Promise<void> {
-    if (this.server) {
-      this.server.close();
-      this.server = null;
-      console.log("📖 MCP Server stopped");
-    }
+  getConfig(): McpServerConfig {
+    return this.config;
   }
 
   /**
-   * Handle WebSocket connection
+   * Get Ollama service instance
    */
-  private handleConnection(ws: WebSocket): void {
-    if (this.debug) {
-      console.log("🔗 New MCP client connected");
-    }
-
-    ws.on("message", async (data: WebSocket.RawData) => {
-      try {
-        const message = JSON.parse(data.toString()) as McpRequest;
-        const response = await this.handleRequest(message);
-        ws.send(JSON.stringify(response));
-      } catch (error) {
-        const errorResponse: McpResponse = {
-          error: {
-            code: -32700,
-            message: "Parse error",
-            data: error instanceof Error ? error.message : "Unknown error",
-          },
-        };
-        ws.send(JSON.stringify(errorResponse));
-      }
-    });
-
-    ws.on("close", () => {
-      if (this.debug) {
-        console.log("🔗 MCP client disconnected");
-      }
-    });
-
-    ws.on("error", (error) => {
-      console.error("🚨 MCP WebSocket error:", error);
-    });
-
-    // Send server info on connection
-    const initMessage: McpResponse = {
-      result: {
-        type: "server_info",
-        data: this.config,
-      },
-    };
-    ws.send(JSON.stringify(initMessage));
+  getOllamaService(): OllamaService {
+    return this.ollamaService;
   }
 
   /**
-   * Handle MCP requests
+   * Handle MCP request
    */
   async handleRequest(request: McpRequest): Promise<McpResponse> {
     try {
       switch (request.method) {
         case "initialize":
           return this.handleInitialize(request);
-
         case "tools/list":
-          return this.handleListTools(request);
-
+          return this.handleToolsList(request);
         case "tools/call":
-          return await this.handleCallTool(request);
-
+          return this.handleToolCall(request);
         case "ollama/chat":
           return await this.handleOllamaChat(request);
-
-        case "ollama/models":
-          return await this.handleOllamaModels(request);
-
-        case "ollama/pull":
-          return await this.handleOllamaPull(request);
-
-        case "server/info":
-          return this.handleServerInfo(request);
-
         default:
           return {
             error: {
@@ -213,8 +112,7 @@ export class McpServer {
       return {
         error: {
           code: -32603,
-          message: "Internal error",
-          data: error instanceof Error ? error.message : "Unknown error",
+          message: error instanceof Error ? error.message : "Internal error",
         },
         id: request.id,
       };
@@ -227,39 +125,33 @@ export class McpServer {
   private handleInitialize(request: McpRequest): McpResponse {
     return {
       result: {
+        serverInfo: this.config,
         protocolVersion: "1.0.0",
-        capabilities: this.config.capabilities,
-        serverInfo: {
-          name: this.config.name,
-          version: this.config.version,
-        },
       },
       id: request.id,
     };
   }
 
   /**
-   * Handle list tools request
+   * Handle tools/list request
    */
-  private handleListTools(request: McpRequest): McpResponse {
-    const tools: McpTool[] = mcpTools.map((tool) => ({
+  private handleToolsList(request: McpRequest): McpResponse {
+    const tools = mcpTools.map((tool) => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
     }));
 
     return {
-      result: {
-        tools,
-      },
+      result: tools,
       id: request.id,
     };
   }
 
   /**
-   * Handle tool call request
+   * Handle tools/call request
    */
-  async handleCallTool(request: McpRequest): Promise<McpResponse> {
+  private async handleToolCall(request: McpRequest): Promise<McpResponse> {
     const { name, arguments: args } = request.params as {
       name: string;
       arguments: Record<string, unknown>;
@@ -279,7 +171,7 @@ export class McpServer {
     try {
       const context = await getAppStateContext();
       const result = await tool.handler(args, context);
-
+      
       return {
         result,
         id: request.id,
@@ -288,7 +180,9 @@ export class McpServer {
       return {
         error: {
           code: -32603,
-          message: `Tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          message: `Tool execution failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
         },
         id: request.id,
       };
@@ -390,102 +284,5 @@ export class McpServer {
         id: request.id,
       };
     }
-  }
-
-  /**
-   * Handle Ollama models request
-   */
-  private async handleOllamaModels(request: McpRequest): Promise<McpResponse> {
-    try {
-      const models = await this.ollamaService.listModels();
-      const defaultModel = this.ollamaService.getDefaultModel();
-
-      return {
-        result: {
-          models,
-          defaultModel,
-          baseUrl: this.ollamaService.getBaseUrl(),
-        },
-        id: request.id,
-      };
-    } catch (error) {
-      return {
-        error: {
-          code: -32603,
-          message: `Failed to list Ollama models: ${error instanceof Error ? error.message : "Unknown error"}`,
-        },
-        id: request.id,
-      };
-    }
-  }
-
-  /**
-   * Handle Ollama pull model request
-   */
-  private async handleOllamaPull(request: McpRequest): Promise<McpResponse> {
-    const { model } = request.params as { model: string };
-
-    try {
-      const success = await this.ollamaService.pullModel(model);
-
-      return {
-        result: {
-          success,
-          message: success 
-            ? `Model ${model} pulled successfully` 
-            : `Failed to pull model ${model}`,
-        },
-        id: request.id,
-      };
-    } catch (error) {
-      return {
-        error: {
-          code: -32603,
-          message: `Failed to pull model: ${error instanceof Error ? error.message : "Unknown error"}`,
-        },
-        id: request.id,
-      };
-    }
-  }
-
-  /**
-   * Handle server info request
-   */
-  private handleServerInfo(request: McpRequest): McpResponse {
-    return {
-      result: {
-        ...this.config,
-        ollama: {
-          baseUrl: this.ollamaService.getBaseUrl(),
-          defaultModel: this.ollamaService.getDefaultModel(),
-        },
-        tools: mcpTools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-        })),
-      },
-      id: request.id,
-    };
-  }
-
-  /**
-   * Get server configuration
-   */
-  getConfig(): McpServerConfig {
-    return this.config;
-  }
-
-  /**
-   * Check if server is enabled
-   */
-  isServerEnabled(): boolean {
-    return this.isEnabled;
-  }
-
-  /**
-   * Get Ollama service instance
-   */
-  getOllamaService(): OllamaService {
-    return this.ollamaService;
   }
 }

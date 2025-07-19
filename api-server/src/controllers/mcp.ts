@@ -379,7 +379,16 @@ export async function initializeMcpServer(): Promise<void> {
   try {
     const mcpServer = getMcpServer();
     if (mcpServer.isServerEnabled()) {
-      await mcpServer.start();
+      console.log("📖 MCP server initialized (HTTP-only mode)");
+      const ollamaService = mcpServer.getOllamaService();
+      if (await ollamaService.healthCheck()) {
+        const models = await ollamaService.listModels();
+        console.log(`🧠 Available Ollama models: ${models.join(", ")}`);
+      } else {
+        console.warn("⚠️  Ollama is not available. AI features may not work.");
+      }
+    } else {
+      console.log("📖 MCP server is disabled");
     }
   } catch (error) {
     console.error("Failed to initialize MCP server:", error);
@@ -391,7 +400,7 @@ export async function initializeMcpServer(): Promise<void> {
  */
 export async function shutdownMcpServer(): Promise<void> {
   if (mcpServerInstance) {
-    await mcpServerInstance.stop();
+    console.log("📖 MCP server shutdown");
     mcpServerInstance = null;
   }
 }
