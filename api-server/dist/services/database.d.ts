@@ -141,7 +141,6 @@ declare class DatabaseService {
     updateRateLimit(id: string, updates: UpdateRateLimitRequest): RateLimit | null;
     getRateLimitById(id: string): RateLimit | null;
     deleteRateLimit(id: string): boolean;
-    seedDefaultApiData(): void;
     seedSampleNotifications(): void;
     /**
      * Search across multiple content types

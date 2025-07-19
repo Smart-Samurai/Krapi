@@ -103,13 +103,22 @@ export class OllamaService {
       options: {
         temperature: options.temperature || 0.7,
         top_p: options.top_p || 0.9,
-        max_tokens: options.max_tokens || 2000,
+        num_predict: options.max_tokens || 2000,
       },
     };
 
     // Add tools if provided and model supports them
+    // Only certain models support tool calling (e.g., mistral, llama3.1)
     if (options.tools && options.tools.length > 0) {
-      request.tools = options.tools;
+      // Format tools for Ollama's expected format
+      request.tools = options.tools.map(tool => ({
+        type: "function",
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.inputSchema
+        }
+      }));
     }
 
     try {

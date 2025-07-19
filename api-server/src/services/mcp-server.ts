@@ -264,6 +264,8 @@ export class McpServer {
     };
 
     try {
+      // Create a working copy of messages
+      let workingMessages = [...messages];
       const mcpToolsForOllama: McpTool[] = tools 
         ? mcpTools.map((tool) => ({
             name: tool.name,
@@ -272,37 +274,48 @@ export class McpServer {
           }))
         : [];
 
-      const response = await this.ollamaService.chat(messages, {
+      // Make the initial chat request
+      let response = await this.ollamaService.chat(workingMessages, {
         model,
         tools: mcpToolsForOllama,
         ...options,
       });
 
-      // If the response contains tool calls, execute them
+      // Handle tool calls if present
       if (response.message.tool_calls && response.message.tool_calls.length > 0) {
         const context = await getAppStateContext();
-        const toolResults: McpToolResult[] = [];
+        
+        // Add the assistant's response with tool calls to the conversation
+        workingMessages.push(response.message);
 
+        // Execute each tool call
         for (const toolCall of response.message.tool_calls) {
-          const tool = mcpTools.find((t) => t.name === toolCall.name);
+          const tool = mcpTools.find((t) => t.name === toolCall.function.name);
           if (tool) {
             try {
-              const result = await tool.handler(toolCall.arguments, context);
-              toolResults.push(result);
+              const result = await tool.handler(toolCall.function.arguments, context);
+              
+              // Add tool result as a message
+              workingMessages.push({
+                role: "tool",
+                content: result.content[0].text,
+                // Include tool call ID if available
+              });
             } catch (error) {
-              toolResults.push({
-                content: [{
-                  type: "text",
-                  text: `Error executing tool ${toolCall.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
-                }],
-                isError: true,
+              workingMessages.push({
+                role: "tool",
+                content: `Error executing tool ${toolCall.function.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
               });
             }
           }
         }
 
-        // Add tool results to the response
-        (response as unknown as Record<string, unknown>).tool_results = toolResults;
+        // Make a follow-up request with the tool results
+        response = await this.ollamaService.chat(workingMessages, {
+          model,
+          tools: [], // Don't send tools again for the follow-up
+          ...options,
+        });
       }
 
       return {

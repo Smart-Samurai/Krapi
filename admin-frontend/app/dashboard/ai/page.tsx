@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { mcpAPI, ollamaAPI } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { Textarea } from "../../../components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -24,9 +23,10 @@ import {
   Brain,
   MessageSquare,
   Zap,
-  Settings,
   Wifi,
   WifiOff,
+  Send,
+  Loader2,
 } from "lucide-react";
 
 interface McpInfo {
@@ -81,12 +81,6 @@ export default function AIPage() {
     "http://localhost:11434"
   );
 
-  // Tool testing state
-  const [selectedTool, setSelectedTool] = useState<string>("");
-  const [toolArgs, setToolArgs] = useState<string>("{}");
-  const [toolResult, setToolResult] = useState<any>(null);
-  const [toolLoading, setToolLoading] = useState(false);
-
   // Model management
   const [newModel, setNewModel] = useState("");
   const [pullLoading, setPullLoading] = useState(false);
@@ -112,13 +106,14 @@ export default function AIPage() {
 
       if (modelsResponse.success) {
         setModels(modelsResponse.data);
+        setSelectedModel(modelsResponse.data.defaultModel);
       }
 
       if (toolsResponse.success) {
-        setTools(toolsResponse.data.tools || []);
+        setTools(toolsResponse.data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load AI data");
+      setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -144,6 +139,7 @@ export default function AIPage() {
           { role: "user", content: inputMessage },
         ],
         {
+          model: selectedModel,
           tools: true, // Enable MCP tools
           temperature: 0.7,
         }
@@ -173,26 +169,6 @@ export default function AIPage() {
     }
   };
 
-  const testTool = async () => {
-    if (!selectedTool || toolLoading) return;
-
-    setToolLoading(true);
-    setToolResult(null);
-
-    try {
-      const args = JSON.parse(toolArgs);
-      const response = await mcpAPI.callTool(selectedTool, args);
-      setToolResult(response);
-    } catch (err) {
-      setToolResult({
-        success: false,
-        error: err instanceof Error ? err.message : "Tool execution failed",
-      });
-    } finally {
-      setToolLoading(false);
-    }
-  };
-
   const pullModel = async () => {
     if (!newModel.trim() || pullLoading) return;
 
@@ -200,59 +176,66 @@ export default function AIPage() {
     try {
       const response = await ollamaAPI.pullModel(newModel);
       if (response.success) {
-        // Reload models after successful pull
-        const modelsResponse = await ollamaAPI.listModels();
-        if (modelsResponse.success) {
-          setModels(modelsResponse.data);
-        }
+        await loadData(); // Reload models
         setNewModel("");
       } else {
         throw new Error(response.error || "Failed to pull model");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Model pull failed");
+      setError(err instanceof Error ? err.message : "Failed to pull model");
     } finally {
       setPullLoading(false);
+    }
+  };
+
+  const updateSettings = async () => {
+    try {
+      // Here you would update the Ollama endpoint
+      // For now, just reload the data
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update settings");
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Bot className="h-8 w-8 animate-spin mx-auto mb-2" />
-          <p>Loading AI system...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-2 mb-6">
-        <Brain className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">AI & MCP Management</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">AI & MCP Management</h1>
+          <p className="text-gray-600">
+            Manage AI models and MCP tools for intelligent automation
+          </p>
+        </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-red-500" />
-          <span className="text-red-700">{error}</span>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          {error}
         </div>
       )}
 
-      {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">MCP Server</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
               <Badge variant={mcpInfo?.enabled ? "default" : "secondary"}>
                 {mcpInfo?.enabled ? "Enabled" : "Disabled"}
               </Badge>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-500">
                 {mcpInfo?.server.version}
               </span>
             </div>
@@ -260,17 +243,17 @@ export default function AIPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Ollama</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Ollama Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
               <Badge
                 variant={mcpInfo?.ollama.healthy ? "default" : "destructive"}
               >
                 {mcpInfo?.ollama.healthy ? "Healthy" : "Disconnected"}
               </Badge>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-500">
                 {models?.models.length || 0} models
               </span>
             </div>
@@ -278,13 +261,13 @@ export default function AIPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">MCP Tools</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              <span className="text-sm">{tools.length} tools available</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-bold">{tools.length}</span>
+              <Zap className="h-5 w-5 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -293,7 +276,7 @@ export default function AIPage() {
       <Tabs defaultValue="chat" className="space-y-6">
         <TabsList>
           <TabsTrigger value="chat">AI Chat</TabsTrigger>
-          <TabsTrigger value="tools">MCP Tools</TabsTrigger>
+          <TabsTrigger value="tools">Available Tools</TabsTrigger>
           <TabsTrigger value="models">Model Management</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -303,15 +286,24 @@ export default function AIPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
-                AI Chat with MCP Tools
+                AI Assistant with MCP Tools
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="h-96 border rounded-lg p-4 overflow-y-auto bg-gray-50">
+              <div className="h-96 border rounded-lg p-4 overflow-y-auto bg-white">
                 {messages.length === 0 && (
                   <div className="text-center text-gray-500 py-8">
-                    Start a conversation! The AI can use MCP tools to help you
-                    manage content, users, and more.
+                    <Bot className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Start a conversation! I can help you manage:</p>
+                    <ul className="mt-2 text-sm">
+                      <li>• Content items and routes</li>
+                      <li>• Users and permissions</li>
+                      <li>• Files and schemas</li>
+                      <li>• API endpoints and more</li>
+                    </ul>
+                    <p className="mt-4 text-xs">
+                      Try: &quot;Show me all users and their roles&quot;
+                    </p>
                   </div>
                 )}
                 {messages.map((msg, idx) => (
@@ -325,11 +317,15 @@ export default function AIPage() {
                       className={`inline-block max-w-[80%] rounded-lg px-4 py-2 ${
                         msg.role === "user"
                           ? "bg-blue-500 text-white"
-                          : "bg-white border"
+                          : msg.content.startsWith("Error:")
+                          ? "bg-red-50 text-red-700 border border-red-200"
+                          : "bg-gray-100 text-gray-900"
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{msg.content}</p>
-                      <p className="text-xs opacity-70 mt-1">
+                      <p className={`text-xs mt-1 ${
+                        msg.role === "user" ? "text-blue-100" : "text-gray-500"
+                      }`}>
                         {msg.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
@@ -337,206 +333,205 @@ export default function AIPage() {
                 ))}
                 {chatLoading && (
                   <div className="text-left">
-                    <div className="inline-block bg-white border rounded-lg px-4 py-2">
-                      <Bot className="h-4 w-4 animate-spin" />
+                    <div className="inline-block bg-gray-100 rounded-lg px-4 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-2 items-center">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  disabled={chatLoading}
-                >
-                  <option value="">Select Model</option>
-                  {models?.models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex gap-2">
                 <Input
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Ask the AI to help manage your CMS..."
                   onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                  placeholder="Ask me anything..."
                   disabled={chatLoading}
+                  className="flex-1"
                 />
-                <Button
-                  onClick={sendMessage}
-                  disabled={chatLoading || !inputMessage.trim()}
-                >
-                  Send
+                <Button onClick={sendMessage} disabled={chatLoading}>
+                  {chatLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </Button>
+              </div>
+
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <div className="flex items-center gap-1">
+                  <Brain className="h-4 w-4" />
+                  <span>Model: {selectedModel || "Default"}</span>
+                </div>
+                {mcpInfo?.ollama.healthy && (
+                  <div className="flex items-center gap-1">
+                    <Wifi className="h-4 w-4 text-green-500" />
+                    <span>Connected</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="tools">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Available MCP Tools</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {tools.map((tool) => (
-                    <div
-                      key={tool.name}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedTool === tool.name
-                          ? "bg-blue-50 border-blue-200"
-                          : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => setSelectedTool(tool.name)}
-                    >
-                      <h4 className="font-medium">{tool.name}</h4>
-                      <p className="text-sm text-gray-600">
-                        {tool.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Test Tool</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedTool && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Arguments (JSON)
-                      </label>
-                      <Textarea
-                        value={toolArgs}
-                        onChange={(e) => setToolArgs(e.target.value)}
-                        placeholder='{"key": "value"}'
-                        rows={4}
-                      />
-                    </div>
-
-                    <Button onClick={testTool} disabled={toolLoading}>
-                      {toolLoading ? "Running..." : "Run Tool"}
-                    </Button>
-
-                    {toolResult && (
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium mb-2">
-                          Result
-                        </label>
-                        <pre className="bg-gray-100 p-3 rounded-lg text-sm overflow-auto">
-                          {JSON.stringify(toolResult, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                  </>
-                )}
-                {!selectedTool && (
-                  <p className="text-gray-500">Select a tool to test it</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="models">
           <Card>
             <CardHeader>
-              <CardTitle>Ollama Models</CardTitle>
+              <CardTitle>Available MCP Tools</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="font-medium mb-3">Pull New Model</h3>
-                <div className="flex gap-2">
-                  <Input
-                    value={newModel}
-                    onChange={(e) => setNewModel(e.target.value)}
-                    placeholder="Model name (e.g., llama3.2:3b)"
-                  />
-                  <Button onClick={pullModel} disabled={pullLoading}>
-                    {pullLoading ? "Pulling..." : "Pull Model"}
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium mb-3">Available Models</h3>
-                <div className="space-y-2">
-                  {models?.models.map((model) => (
-                    <div
-                      key={model}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <span className="font-mono text-sm">{model}</span>
-                      {model === models.defaultModel && (
-                        <Badge variant="default">Default</Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tools.map((tool) => (
+                  <div
+                    key={tool.name}
+                    className="p-4 border rounded-lg bg-white hover:shadow-md transition-shadow"
+                  >
+                    <h4 className="font-medium text-lg mb-2">{tool.name}</h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {tool.description}
+                    </p>
+                    {tool.inputSchema.properties && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-500">Parameters:</p>
+                        {Object.entries(tool.inputSchema.properties).map(([key, prop]: [string, any]) => (
+                          <div key={key} className="text-xs text-gray-600">
+                            • <span className="font-mono">{key}</span>
+                            {prop.description && `: ${prop.description}`}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        <TabsContent value="models">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Models</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {models?.models.map((model) => (
+                    <div
+                      key={model}
+                      className={`p-3 border rounded-lg flex items-center justify-between ${
+                        model === selectedModel
+                          ? "bg-blue-50 border-blue-200"
+                          : "bg-white"
+                      }`}
+                    >
+                      <span className="font-mono text-sm">{model}</span>
+                      {model === selectedModel && (
+                        <Badge variant="default">Active</Badge>
+                      )}
+                    </div>
+                  ))}
+                  {models?.models.length === 0 && (
+                    <p className="text-gray-500 text-center py-4">
+                      No models installed
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pull New Model</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Model Name
+                  </label>
+                  <Input
+                    value={newModel}
+                    onChange={(e) => setNewModel(e.target.value)}
+                    placeholder="e.g., llama3.1:8b"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter the model name from Ollama library
+                  </p>
+                </div>
+                <Button
+                  onClick={pullModel}
+                  disabled={pullLoading}
+                  className="w-full"
+                >
+                  {pullLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Pulling...
+                    </>
+                  ) : (
+                    "Pull Model"
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="settings">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Ollama Configuration
-              </CardTitle>
+              <CardTitle>Ollama Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Ollama Endpoint
                 </label>
-                <div className="flex gap-2">
-                  <Input
-                    value={ollamaEndpoint}
-                    onChange={(e) => setOllamaEndpoint(e.target.value)}
-                    placeholder="http://localhost:11434"
-                  />
-                  <Button
-                    onClick={() => {
-                      // TODO: Implement endpoint update
-                      console.log("Update endpoint:", ollamaEndpoint);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    {mcpInfo?.ollama.healthy ? (
-                      <Wifi className="h-4 w-4" />
-                    ) : (
-                      <WifiOff className="h-4 w-4" />
-                    )}
-                    Connect
-                  </Button>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Default Ollama endpoint is http://localhost:11434
-                </p>
+                <Input
+                  value={ollamaEndpoint}
+                  onChange={(e) => setOllamaEndpoint(e.target.value)}
+                  placeholder="http://localhost:11434"
+                />
               </div>
 
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-2">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Default Model
+                </label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {models?.models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <Button onClick={updateSettings} className="w-full">
+                Update Settings
+              </Button>
+
+              <div className="pt-4 border-t">
+                <div className="flex items-center gap-2 text-sm">
                   {mcpInfo?.ollama.healthy ? (
-                    <Wifi className="h-4 w-4 text-green-500" />
+                    <>
+                      <Wifi className="h-4 w-4 text-green-500" />
+                      <span className="text-green-600">
+                        Connected to Ollama at {mcpInfo.ollama.baseUrl}
+                      </span>
+                    </>
                   ) : (
-                    <WifiOff className="h-4 w-4 text-red-500" />
+                    <>
+                      <WifiOff className="h-4 w-4 text-red-500" />
+                      <span className="text-red-600">
+                        Cannot connect to Ollama
+                      </span>
+                    </>
                   )}
-                  <span className="text-sm">
-                    Status:{" "}
-                    {mcpInfo?.ollama.healthy ? "Connected" : "Disconnected"}
-                  </span>
                 </div>
               </div>
             </CardContent>

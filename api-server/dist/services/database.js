@@ -45,7 +45,6 @@ class DatabaseService {
             this.db.pragma("foreign_keys = ON");
             this.initializeTables();
             this.seedDefaultData();
-            this.seedDefaultApiData();
             this.seedSampleNotifications();
             console.log("✅ Database initialized successfully");
         }
@@ -684,7 +683,7 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
             ];
             const insertTemplate = this.db.prepare("INSERT INTO email_templates (name, subject, template_html, template_text, variables, description, active) VALUES (?, ?, ?, ?, ?, ?, ?)");
             templates.forEach((template) => {
-                insertTemplate.run(template.name, template.subject, template.template_html, template.template_text, template.variables, template.description, template.active);
+                insertTemplate.run(template.name, template.subject, template.template_html, template.template_text || null, JSON.stringify(template.variables || []), template.description || null, template.active ? 1 : 0);
             });
             console.log("Default email templates created");
         }
@@ -1331,7 +1330,6 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
             // Reinitialize tables and seed data
             this.initializeTables();
             this.seedDefaultData();
-            this.seedDefaultApiData();
             console.log("Database reinitialized successfully");
         }
         catch (error) {
@@ -1769,12 +1767,30 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
         const totalResult = this.db
             .prepare("SELECT SUM(request_count) as total FROM api_endpoints")
             .get();
-        // Calculate requests today as a percentage of total (simulating daily activity)
-        const requestsToday = Math.floor((totalResult.total || 0) * 0.15);
-        // Get average response time from endpoints with requests
+        // Get today's requests from api_requests table
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayResult = this.db
+            .prepare("SELECT COUNT(*) as count FROM api_requests WHERE timestamp >= ?")
+            .get(today.toISOString());
+        // Get average response time from actual requests
         const avgTimeResult = this.db
-            .prepare("SELECT AVG(avg_response_time) as avg_time FROM api_endpoints WHERE request_count > 0")
+            .prepare(`SELECT AVG(response_time) as avg_time 
+         FROM api_requests 
+         WHERE response_time IS NOT NULL 
+         AND timestamp >= datetime('now', '-7 days')`)
             .get();
+        // Calculate error rate from actual requests
+        const errorResult = this.db
+            .prepare(`SELECT 
+          COUNT(CASE WHEN status_code >= 400 THEN 1 END) as errors,
+          COUNT(*) as total
+         FROM api_requests 
+         WHERE timestamp >= datetime('now', '-7 days')`)
+            .get();
+        const errorRate = errorResult.total > 0
+            ? (errorResult.errors / errorResult.total) * 100
+            : 0;
         // Get active keys count
         const activeKeysResult = this.db
             .prepare("SELECT COUNT(*) as count FROM api_keys WHERE active = 1")
@@ -1783,19 +1799,28 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
         const topEndpoints = this.db
             .prepare("SELECT path, method, request_count as requests FROM api_endpoints ORDER BY request_count DESC LIMIT 5")
             .all();
-        // Calculate error rate based on endpoint performance (simulated)
-        const errorRate = Math.max(0.5, Math.min(5.0, Math.random() * 3 + 1));
-        // Calculate bandwidth based on total requests (simulated)
-        const bandwidthMB = Math.floor((totalResult.total || 0) * 0.01);
-        // Get blocked requests from rate limit violations (simulated)
-        const blockedRequests = Math.floor((totalResult.total || 0) * 0.02);
+        // Get blocked requests from rate limit violations
+        const blockedResult = this.db
+            .prepare(`SELECT COUNT(*) as count 
+         FROM api_requests 
+         WHERE status_code = 429 
+         AND timestamp >= datetime('now', '-1 day')`)
+            .get();
+        // Calculate bandwidth based on actual request/response sizes
+        const bandwidthResult = this.db
+            .prepare(`SELECT 
+          SUM(COALESCE(request_size, 0) + COALESCE(response_size, 0)) as total_bytes
+         FROM api_requests 
+         WHERE timestamp >= datetime('now', '-30 days')`)
+            .get();
+        const bandwidthMB = Math.round((bandwidthResult.total_bytes || 0) / (1024 * 1024));
         return {
             total_requests: totalResult.total || 0,
-            requests_today: requestsToday,
-            avg_response_time: Math.round(avgTimeResult.avg_time || 150),
+            requests_today: todayResult.count,
+            avg_response_time: Math.round(avgTimeResult.avg_time || 0),
             error_rate: Math.round(errorRate * 10) / 10,
             active_keys: activeKeysResult.count,
-            blocked_requests: blockedRequests,
+            blocked_requests: blockedResult.count,
             bandwidth_used: `${bandwidthMB} MB`,
             top_endpoints: topEndpoints,
         };
@@ -1873,156 +1898,6 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
         const stmt = this.db.prepare("DELETE FROM rate_limits WHERE id = ?");
         const result = stmt.run(id);
         return result.changes > 0;
-    }
-    // Add some default API data if tables are empty
-    seedDefaultApiData() {
-        // Check if we need to seed API keys
-        const apiKeysCount = this.db
-            .prepare("SELECT COUNT(*) as count FROM api_keys")
-            .get();
-        if (apiKeysCount.count === 0) {
-            // Create a default API key
-            const uuid = (0, crypto_1.randomUUID)();
-            this.db
-                .prepare("INSERT INTO api_keys (uuid, name, key, permissions, rate_limit, active, usage_count) VALUES (?, ?, ?, ?, ?, ?, ?)")
-                .run(uuid, "Default API Key", "krapi_" + require("crypto").randomBytes(32).toString("hex"), JSON.stringify(["read", "write"]), 1000, 1, 0);
-        }
-        // Check if we need to seed endpoints
-        const endpointsCount = this.db
-            .prepare("SELECT COUNT(*) as count FROM api_endpoints")
-            .get();
-        if (endpointsCount.count === 0) {
-            const defaultEndpoints = [
-                {
-                    method: "GET",
-                    path: "/api/content",
-                    handler: "ContentController.getAllContent",
-                    description: "Get all content items",
-                    auth_required: true,
-                    permissions: ["read"],
-                    rate_limit: 100,
-                },
-                {
-                    method: "POST",
-                    path: "/api/auth/login",
-                    handler: "AuthController.login",
-                    description: "User authentication",
-                    auth_required: false,
-                    permissions: [],
-                    rate_limit: 10,
-                },
-                {
-                    method: "GET",
-                    path: "/api/auth/verify",
-                    handler: "AuthController.verify",
-                    description: "Verify authentication token",
-                    auth_required: true,
-                    permissions: [],
-                    rate_limit: 50,
-                },
-                {
-                    method: "GET",
-                    path: "/api/users",
-                    handler: "UserController.getAllUsers",
-                    description: "Get all users",
-                    auth_required: true,
-                    permissions: ["users.read"],
-                    rate_limit: 50,
-                },
-                {
-                    method: "GET",
-                    path: "/api/health",
-                    handler: "HealthController.check",
-                    description: "Health check endpoint",
-                    auth_required: false,
-                    permissions: [],
-                    rate_limit: 1000,
-                },
-                {
-                    method: "GET",
-                    path: "/api/notifications",
-                    handler: "NotificationsController.getUserNotifications",
-                    description: "Get user notifications",
-                    auth_required: true,
-                    permissions: ["notifications.read"],
-                    rate_limit: 100,
-                },
-                {
-                    method: "POST",
-                    path: "/api/content",
-                    handler: "ContentController.createContent",
-                    description: "Create new content",
-                    auth_required: true,
-                    permissions: ["content.write"],
-                    rate_limit: 20,
-                },
-                {
-                    method: "PUT",
-                    path: "/api/content",
-                    handler: "ContentController.updateContent",
-                    description: "Update content",
-                    auth_required: true,
-                    permissions: ["content.write"],
-                    rate_limit: 20,
-                },
-            ];
-            const insertEndpoint = this.db.prepare("INSERT INTO api_endpoints (uuid, method, path, handler, description, auth_required, permissions, rate_limit, active, request_count, avg_response_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            defaultEndpoints.forEach((endpoint) => {
-                const uuid = (0, crypto_1.randomUUID)();
-                // Generate realistic request counts based on endpoint type
-                let requestCount = 0;
-                let responseTime = 0;
-                if (endpoint.path === "/api/auth/login") {
-                    requestCount = Math.floor(Math.random() * 500) + 200; // High usage
-                    responseTime = Math.floor(Math.random() * 100) + 50;
-                }
-                else if (endpoint.path === "/api/health") {
-                    requestCount = Math.floor(Math.random() * 2000) + 1000; // Very high usage
-                    responseTime = Math.floor(Math.random() * 20) + 10;
-                }
-                else if (endpoint.path === "/api/content" &&
-                    endpoint.method === "GET") {
-                    requestCount = Math.floor(Math.random() * 800) + 300; // High usage
-                    responseTime = Math.floor(Math.random() * 150) + 80;
-                }
-                else if (endpoint.path === "/api/notifications") {
-                    requestCount = Math.floor(Math.random() * 400) + 150; // Medium usage
-                    responseTime = Math.floor(Math.random() * 120) + 60;
-                }
-                else {
-                    requestCount = Math.floor(Math.random() * 200) + 50; // Lower usage
-                    responseTime = Math.floor(Math.random() * 200) + 100;
-                }
-                insertEndpoint.run(uuid, endpoint.method, endpoint.path, endpoint.handler, endpoint.description, endpoint.auth_required ? 1 : 0, JSON.stringify(endpoint.permissions), endpoint.rate_limit, 1, requestCount, responseTime);
-            });
-        }
-        // Check if we need to seed rate limits
-        const rateLimitsCount = this.db
-            .prepare("SELECT COUNT(*) as count FROM rate_limits")
-            .get();
-        if (rateLimitsCount.count === 0) {
-            const defaultRateLimits = [
-                {
-                    name: "Global Rate Limit",
-                    requests_per_minute: 100,
-                    requests_per_hour: 6000,
-                    requests_per_day: 144000,
-                    applies_to: "global",
-                },
-                {
-                    name: "API Key Rate Limit",
-                    requests_per_minute: 1000,
-                    requests_per_hour: 60000,
-                    requests_per_day: 1440000,
-                    applies_to: "key",
-                },
-            ];
-            const insertRateLimit = this.db.prepare("INSERT INTO rate_limits (uuid, name, requests_per_minute, requests_per_hour, requests_per_day, applies_to, active) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            defaultRateLimits.forEach((limit) => {
-                const uuid = (0, crypto_1.randomUUID)();
-                insertRateLimit.run(uuid, limit.name, limit.requests_per_minute, limit.requests_per_hour, limit.requests_per_day, limit.applies_to, 1);
-            });
-        }
     }
     seedSampleNotifications() {
         try {
