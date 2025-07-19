@@ -5,7 +5,7 @@ import { SchemasController } from "../controllers/schemas";
 import { ContentController } from "../controllers/content";
 import { RoutesController } from "../controllers/routes";
 import { EmailController } from "../controllers/email";
-import { FilesController } from "../controllers/files";
+import { FilesController, upload } from "../controllers/files";
 import { NotificationsController } from "../controllers/notifications";
 import { SearchController } from "../controllers/search";
 import { ApiManagementController } from "../controllers/api-management";
@@ -166,7 +166,11 @@ router.put(
 );
 
 // Files
-router.post("/admin/files/upload", FilesController.uploadFile);
+router.post(
+  "/admin/files/upload",
+  upload.single("file"),
+  FilesController.uploadFile
+);
 router.get("/admin/files", FilesController.getAllFiles);
 router.get("/admin/files/:id", FilesController.getFileById);
 router.put("/admin/files/:id", FilesController.updateFile);

@@ -64,11 +64,13 @@ app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
     origin: process.env.NODE_ENV === "production"
         ? "*" // Allow all origins in production since nginx handles the routing
-        : [
-            "http://localhost:3469",
-            "http://localhost:3470",
-            "http://localhost",
-        ], // Allow Next.js dev server and nginx
+        : process.env.ALLOWED_ORIGINS
+            ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+            : [
+                "http://localhost:3469", // Frontend dev server
+                "http://localhost:3000", // Alternative frontend port
+                "http://localhost", // Local development
+            ],
     credentials: false, // Set to false since we're using JWT tokens in headers
 }));
 // Logging
@@ -129,7 +131,19 @@ wss.on("connection", (ws, req) => {
         try {
             const messageString = message.toString();
             console.log(`WebSocket message from ${payload.username}:`, messageString);
-            const data = JSON.parse(messageString);
+            let data;
+            try {
+                data = JSON.parse(messageString);
+            }
+            catch {
+                console.warn("Non-JSON WebSocket message received:", messageString);
+                ws.send(JSON.stringify({
+                    type: "error",
+                    message: "Message must be valid JSON",
+                    timestamp: new Date().toISOString(),
+                }));
+                return;
+            }
             // Handle different message types
             switch (data.type) {
                 case "ping":
@@ -147,28 +161,59 @@ wss.on("connection", (ws, req) => {
                         timestamp: new Date().toISOString(),
                     });
                     break;
+                case "heartbeat":
+                    // Keep connection alive
+                    ws.send(JSON.stringify({
+                        type: "heartbeat-ack",
+                        timestamp: new Date().toISOString(),
+                    }));
+                    break;
                 default:
                     console.log("Unknown message type:", data.type);
+                    ws.send(JSON.stringify({
+                        type: "error",
+                        message: `Unknown message type: ${data.type}`,
+                        timestamp: new Date().toISOString(),
+                    }));
             }
         }
         catch (error) {
             console.error("Error processing WebSocket message:", error);
-            ws.send(JSON.stringify({
-                type: "error",
-                message: "Invalid message format",
-                timestamp: new Date().toISOString(),
-            }));
+            try {
+                ws.send(JSON.stringify({
+                    type: "error",
+                    message: "Internal server error processing message",
+                    timestamp: new Date().toISOString(),
+                }));
+            }
+            catch (sendError) {
+                console.error("Failed to send error response:", sendError);
+            }
         }
     });
     // Handle connection close
     ws.on("close", (code, reason) => {
         activeConnections.delete(connectionId);
-        console.log(`WebSocket disconnected for user ${payload.username} (Code: ${code}, Reason: ${reason.toString()})`);
+        const reasonStr = reason.toString();
+        console.log(`WebSocket disconnected for user ${payload.username} (Code: ${code}, Reason: ${reasonStr || "None"})`);
+        // Log unusual close codes for debugging
+        if (code !== 1000 && code !== 1001) {
+            console.warn(`Unusual WebSocket close code ${code} for user ${payload.username}`);
+        }
     });
     // Handle errors
     ws.on("error", (error) => {
         console.error(`WebSocket error for user ${payload.username}:`, error);
         activeConnections.delete(connectionId);
+        // Try to close the connection gracefully if it's still open
+        try {
+            if (ws.readyState === ws_1.default.OPEN) {
+                ws.close(1011, "Server error");
+            }
+        }
+        catch (closeError) {
+            console.error("Error closing WebSocket after error:", closeError);
+        }
     });
 });
 // Function to broadcast messages to all connected clients
@@ -197,27 +242,55 @@ function broadcastToAll(message) {
 }
 // Start HTTP and WebSocket server
 server.listen(PORT, async () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`📝 API docs: http://localhost:${PORT}/`);
-    console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws`);
-    console.log(`👤 Default admin user: admin/admin123`);
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
+    console.log(`API docs: http://localhost:${PORT}/`);
+    console.log(`WebSocket: ws://localhost:${PORT}/ws`);
+    console.log(`Default admin user: admin/admin123`);
     // Initialize email service with WebSocket broadcast function
     (0, email_1.setBroadcastFunction)(broadcastToAll);
-    console.log(`📧 Email service initialized with WebSocket broadcasting`);
-    // Initialize MCP server with Ollama integration
-    await (0, mcp_1.initializeMcpServer)();
+    console.log(`Email service initialized with WebSocket broadcasting`);
+    // Initialize MCP server with Ollama integration (non-blocking)
+    // Don't await this to prevent blocking server startup
+    (0, mcp_1.initializeMcpServer)().catch((error) => {
+        console.warn("MCP server initialization failed (this is normal if MCP is disabled or Ollama is not available):", error.message);
+    });
+});
+// Error handling for unhandled promises and exceptions
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+    // Don't exit the process, just log the error
+});
+process.on("uncaughtException", (error) => {
+    console.error("Uncaught Exception:", error);
+    // Don't exit the process immediately, allow graceful cleanup
+    global.setTimeout(() => {
+        console.error("Exiting due to uncaught exception");
+        process.exit(1);
+    }, 1000);
 });
 // Graceful shutdown
 process.on("SIGTERM", async () => {
-    console.log("📖 Shutting down server...");
-    await (0, mcp_1.shutdownMcpServer)();
-    process.exit(0);
+    console.log("Shutting down server...");
+    try {
+        await (0, mcp_1.shutdownMcpServer)();
+        process.exit(0);
+    }
+    catch (error) {
+        console.error("Error during shutdown:", error);
+        process.exit(1);
+    }
 });
 process.on("SIGINT", async () => {
-    console.log("📖 Shutting down server...");
-    await (0, mcp_1.shutdownMcpServer)();
-    process.exit(0);
+    console.log("Shutting down server...");
+    try {
+        await (0, mcp_1.shutdownMcpServer)();
+        process.exit(0);
+    }
+    catch (error) {
+        console.error("Error during shutdown:", error);
+        process.exit(1);
+    }
 });
 exports.default = app;
 //# sourceMappingURL=app.js.map

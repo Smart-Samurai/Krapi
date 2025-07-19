@@ -57,27 +57,27 @@ class DatabaseService {
   constructor() {
     try {
       const dbPath = path.join(__dirname, "../../data/app.db");
-      
+
       // Ensure data directory exists
       const dataDir = path.dirname(dbPath);
       if (!require("fs").existsSync(dataDir)) {
         require("fs").mkdirSync(dataDir, { recursive: true });
       }
-      
+
       console.log(`📊 Initializing database at: ${dbPath}`);
       this.db = new Database(dbPath, {
-        verbose: process.env.NODE_ENV === 'development' ? console.log : undefined
+        verbose:
+          process.env.NODE_ENV === "development" ? console.log : undefined,
       });
-      
+
       // Enable WAL mode for better concurrency
-      this.db.pragma('journal_mode = WAL');
-      this.db.pragma('foreign_keys = ON');
-      
+      this.db.pragma("journal_mode = WAL");
+      this.db.pragma("foreign_keys = ON");
+
       this.initializeTables();
       this.seedDefaultData();
-      this.seedDefaultApiData();
       this.seedSampleNotifications();
-      
+
       console.log("✅ Database initialized successfully");
     } catch (error) {
       console.error("❌ Failed to initialize database:", error);
@@ -88,9 +88,9 @@ class DatabaseService {
   private initializeTables() {
     try {
       console.log("📊 Creating database tables...");
-      
+
       // Create roles table
-    this.db.exec(`
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -100,8 +100,8 @@ class DatabaseService {
       );
     `);
 
-    // Create users table with enhanced fields
-    this.db.exec(`
+      // Create users table with enhanced fields
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -114,8 +114,8 @@ class DatabaseService {
       );
     `);
 
-    // Create content_routes table
-    this.db.exec(`
+      // Create content_routes table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS content_routes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         path TEXT UNIQUE NOT NULL,
@@ -130,8 +130,8 @@ class DatabaseService {
       );
     `);
 
-    // Create enhanced content table
-    this.db.exec(`
+      // Create enhanced content table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS content (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT UNIQUE NOT NULL,
@@ -147,8 +147,8 @@ class DatabaseService {
       );
     `);
 
-    // Create schemas table
-    this.db.exec(`
+      // Create schemas table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS content_schemas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -160,8 +160,8 @@ class DatabaseService {
       );
     `);
 
-    // Create files table
-    this.db.exec(`
+      // Create files table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         filename TEXT UNIQUE NOT NULL,
@@ -176,8 +176,8 @@ class DatabaseService {
       );
     `);
 
-    // Create email templates table
-    this.db.exec(`
+      // Create email templates table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_templates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -192,8 +192,8 @@ class DatabaseService {
       );
     `);
 
-    // Create email logs table
-    this.db.exec(`
+      // Create email logs table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         template_id INTEGER,
@@ -212,8 +212,8 @@ class DatabaseService {
       );
     `);
 
-    // Create notifications table
-    this.db.exec(`
+      // Create notifications table
+      this.db.exec(`
     CREATE TABLE IF NOT EXISTS notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -227,8 +227,8 @@ class DatabaseService {
     );
   `);
 
-    // Create login_logs table
-    this.db.exec(`
+      // Create login_logs table
+      this.db.exec(`
     CREATE TABLE IF NOT EXISTS login_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL,
@@ -241,8 +241,24 @@ class DatabaseService {
     );
   `);
 
-    // Create email settings table
-    this.db.exec(`
+      // Create sessions table
+      this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        user_agent TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NOT NULL,
+        active BOOLEAN DEFAULT 1,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      );
+    `);
+
+      // Create email settings table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT UNIQUE NOT NULL,
@@ -255,8 +271,8 @@ class DatabaseService {
       );
     `);
 
-    // Create notification preferences table
-    this.db.exec(`
+      // Create notification preferences table
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS notification_preferences (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -272,8 +288,8 @@ class DatabaseService {
       );
     `);
 
-    // Create API management tables
-    this.db.exec(`
+      // Create API management tables
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_keys (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         uuid TEXT UNIQUE NOT NULL,
@@ -289,7 +305,7 @@ class DatabaseService {
       );
     `);
 
-    this.db.exec(`
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_endpoints (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         uuid TEXT UNIQUE NOT NULL,
@@ -308,7 +324,7 @@ class DatabaseService {
       );
     `);
 
-    this.db.exec(`
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS rate_limits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         uuid TEXT UNIQUE NOT NULL,
@@ -322,7 +338,7 @@ class DatabaseService {
       );
     `);
 
-    this.db.exec(`
+      this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_request_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         api_key_id INTEGER,
@@ -339,26 +355,26 @@ class DatabaseService {
       );
     `);
 
-    // Add new columns to existing tables if they don't exist
-    const addColumnIfNotExists = (
-      table: string,
-      column: string,
-      type: string,
-      defaultValue?: string
-    ) => {
-      try {
-        const defaultClause = defaultValue ? ` DEFAULT ${defaultValue}` : "";
-        this.db.exec(
-          `ALTER TABLE ${table} ADD COLUMN ${column} ${type}${defaultClause}`
-        );
-      } catch {
-        // Column might already exist, which is fine
-      }
-    };
+      // Add new columns to existing tables if they don't exist
+      const addColumnIfNotExists = (
+        table: string,
+        column: string,
+        type: string,
+        defaultValue?: string
+      ) => {
+        try {
+          const defaultClause = defaultValue ? ` DEFAULT ${defaultValue}` : "";
+          this.db.exec(
+            `ALTER TABLE ${table} ADD COLUMN ${column} ${type}${defaultClause}`
+          );
+        } catch {
+          // Column might already exist, which is fine
+        }
+      };
 
-    // Remove the access_level column from content table since routes now control access
-    try {
-      this.db.exec(`
+      // Remove the access_level column from content table since routes now control access
+      try {
+        this.db.exec(`
         CREATE TABLE IF NOT EXISTS content_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           key TEXT UNIQUE NOT NULL,
@@ -374,44 +390,44 @@ class DatabaseService {
         );
       `);
 
-      this.db.exec(`
+        this.db.exec(`
         INSERT OR IGNORE INTO content_new (id, key, data, description, schema, route_path, parent_route_id, content_type, created_at, updated_at)
         SELECT id, key, data, description, schema, route_path, parent_route_id, content_type, created_at, updated_at
         FROM content;
       `);
 
-      this.db.exec(`DROP TABLE IF EXISTS content;`);
-      this.db.exec(`ALTER TABLE content_new RENAME TO content;`);
-    } catch {
-      // Migration might have already been applied
-      console.log("Content table migration skipped");
-    }
+        this.db.exec(`DROP TABLE IF EXISTS content;`);
+        this.db.exec(`ALTER TABLE content_new RENAME TO content;`);
+      } catch {
+        // Migration might have already been applied
+        console.log("Content table migration skipped");
+      }
 
-    // Add new columns to existing users table
-    addColumnIfNotExists("users", "email", "TEXT");
-    addColumnIfNotExists("users", "role", "TEXT", "'viewer'");
-    addColumnIfNotExists("users", "permissions", "TEXT", "'[]'");
-    addColumnIfNotExists("users", "active", "BOOLEAN", "1");
+      // Add new columns to existing users table
+      addColumnIfNotExists("users", "email", "TEXT");
+      addColumnIfNotExists("users", "role", "TEXT", "'viewer'");
+      addColumnIfNotExists("users", "permissions", "TEXT", "'[]'");
+      addColumnIfNotExists("users", "active", "BOOLEAN", "1");
 
-    // Add new columns to existing content table
-    addColumnIfNotExists("content", "schema", "TEXT");
-    addColumnIfNotExists("content", "route_path", "TEXT", "'/default'");
-    addColumnIfNotExists("content", "parent_route_id", "INTEGER");
-    addColumnIfNotExists("content", "content_type", "TEXT", "'json'");
-    addColumnIfNotExists("content", "access_level", "TEXT", "'public'");
+      // Add new columns to existing content table
+      addColumnIfNotExists("content", "schema", "TEXT");
+      addColumnIfNotExists("content", "route_path", "TEXT", "'/default'");
+      addColumnIfNotExists("content", "parent_route_id", "INTEGER");
+      addColumnIfNotExists("content", "content_type", "TEXT", "'json'");
+      addColumnIfNotExists("content", "access_level", "TEXT", "'public'");
 
-    // Add UUID columns to existing tables for better API compatibility
-    addColumnIfNotExists("users", "uuid", "TEXT");
-    addColumnIfNotExists("content_routes", "uuid", "TEXT");
-    addColumnIfNotExists("content", "uuid", "TEXT");
-    addColumnIfNotExists("content_schemas", "uuid", "TEXT");
-    addColumnIfNotExists("files", "uuid", "TEXT");
+      // Add UUID columns to existing tables for better API compatibility
+      addColumnIfNotExists("users", "uuid", "TEXT");
+      addColumnIfNotExists("content_routes", "uuid", "TEXT");
+      addColumnIfNotExists("content", "uuid", "TEXT");
+      addColumnIfNotExists("content_schemas", "uuid", "TEXT");
+      addColumnIfNotExists("files", "uuid", "TEXT");
 
-    // Generate UUIDs for existing records that don't have them
-    this.generateMissingUUIDs();
+      // Generate UUIDs for existing records that don't have them
+      this.generateMissingUUIDs();
 
-    // Create triggers for updated_at
-    this.db.exec(`
+      // Create triggers for updated_at
+      this.db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_content_timestamp 
       AFTER UPDATE ON content
       BEGIN
@@ -419,7 +435,7 @@ class DatabaseService {
       END;
     `);
 
-    this.db.exec(`
+      this.db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_content_routes_timestamp 
       AFTER UPDATE ON content_routes
       BEGIN
@@ -427,21 +443,21 @@ class DatabaseService {
       END;
     `);
 
-    // Create indexes for better performance
-    this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_content_route_path ON content(route_path);`
-    );
-    this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_content_access_level ON content(access_level);`
-    );
-    this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);`
-    );
-    this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_routes_parent_id ON content_routes(parent_id);`
-    );
-    
-    console.log("✅ Database tables created successfully");
+      // Create indexes for better performance
+      this.db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_content_route_path ON content(route_path);`
+      );
+      this.db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_content_access_level ON content(access_level);`
+      );
+      this.db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);`
+      );
+      this.db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_routes_parent_id ON content_routes(parent_id);`
+      );
+
+      console.log("✅ Database tables created successfully");
     } catch (error) {
       console.error("❌ Error initializing database tables:", error);
       throw error;
@@ -1656,7 +1672,6 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
       // Reinitialize tables and seed data
       this.initializeTables();
       this.seedDefaultData();
-      this.seedDefaultApiData();
 
       console.log("Database reinitialized successfully");
     } catch (error) {
@@ -2454,200 +2469,6 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
     const stmt = this.db.prepare("DELETE FROM rate_limits WHERE id = ?");
     const result = stmt.run(id);
     return result.changes > 0;
-  }
-
-  // Add some default API data if tables are empty
-  seedDefaultApiData() {
-    // Check if we need to seed API keys
-    const apiKeysCount = this.db
-      .prepare("SELECT COUNT(*) as count FROM api_keys")
-      .get() as { count: number };
-
-    if (apiKeysCount.count === 0) {
-      // Create a default API key
-      const uuid = randomUUID();
-      this.db
-        .prepare(
-          "INSERT INTO api_keys (uuid, name, key, permissions, rate_limit, active, usage_count) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        )
-        .run(
-          uuid,
-          "Default API Key",
-          "krapi_" + require("crypto").randomBytes(32).toString("hex"),
-          JSON.stringify(["read", "write"]),
-          1000,
-          1,
-          0
-        );
-    }
-
-    // Check if we need to seed endpoints
-    const endpointsCount = this.db
-      .prepare("SELECT COUNT(*) as count FROM api_endpoints")
-      .get() as { count: number };
-
-    if (endpointsCount.count === 0) {
-      const defaultEndpoints = [
-        {
-          method: "GET",
-          path: "/api/content",
-          handler: "ContentController.getAllContent",
-          description: "Get all content items",
-          auth_required: true,
-          permissions: ["read"],
-          rate_limit: 100,
-        },
-        {
-          method: "POST",
-          path: "/api/auth/login",
-          handler: "AuthController.login",
-          description: "User authentication",
-          auth_required: false,
-          permissions: [],
-          rate_limit: 10,
-        },
-        {
-          method: "GET",
-          path: "/api/auth/verify",
-          handler: "AuthController.verify",
-          description: "Verify authentication token",
-          auth_required: true,
-          permissions: [],
-          rate_limit: 50,
-        },
-        {
-          method: "GET",
-          path: "/api/users",
-          handler: "UserController.getAllUsers",
-          description: "Get all users",
-          auth_required: true,
-          permissions: ["users.read"],
-          rate_limit: 50,
-        },
-        {
-          method: "GET",
-          path: "/api/health",
-          handler: "HealthController.check",
-          description: "Health check endpoint",
-          auth_required: false,
-          permissions: [],
-          rate_limit: 1000,
-        },
-        {
-          method: "GET",
-          path: "/api/notifications",
-          handler: "NotificationsController.getUserNotifications",
-          description: "Get user notifications",
-          auth_required: true,
-          permissions: ["notifications.read"],
-          rate_limit: 100,
-        },
-        {
-          method: "POST",
-          path: "/api/content",
-          handler: "ContentController.createContent",
-          description: "Create new content",
-          auth_required: true,
-          permissions: ["content.write"],
-          rate_limit: 20,
-        },
-        {
-          method: "PUT",
-          path: "/api/content",
-          handler: "ContentController.updateContent",
-          description: "Update content",
-          auth_required: true,
-          permissions: ["content.write"],
-          rate_limit: 20,
-        },
-      ];
-
-      const insertEndpoint = this.db.prepare(
-        "INSERT INTO api_endpoints (uuid, method, path, handler, description, auth_required, permissions, rate_limit, active, request_count, avg_response_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      );
-
-      defaultEndpoints.forEach((endpoint) => {
-        const uuid = randomUUID();
-        // Generate realistic request counts based on endpoint type
-        let requestCount = 0;
-        let responseTime = 0;
-
-        if (endpoint.path === "/api/auth/login") {
-          requestCount = Math.floor(Math.random() * 500) + 200; // High usage
-          responseTime = Math.floor(Math.random() * 100) + 50;
-        } else if (endpoint.path === "/api/health") {
-          requestCount = Math.floor(Math.random() * 2000) + 1000; // Very high usage
-          responseTime = Math.floor(Math.random() * 20) + 10;
-        } else if (
-          endpoint.path === "/api/content" &&
-          endpoint.method === "GET"
-        ) {
-          requestCount = Math.floor(Math.random() * 800) + 300; // High usage
-          responseTime = Math.floor(Math.random() * 150) + 80;
-        } else if (endpoint.path === "/api/notifications") {
-          requestCount = Math.floor(Math.random() * 400) + 150; // Medium usage
-          responseTime = Math.floor(Math.random() * 120) + 60;
-        } else {
-          requestCount = Math.floor(Math.random() * 200) + 50; // Lower usage
-          responseTime = Math.floor(Math.random() * 200) + 100;
-        }
-
-        insertEndpoint.run(
-          uuid,
-          endpoint.method,
-          endpoint.path,
-          endpoint.handler,
-          endpoint.description,
-          endpoint.auth_required ? 1 : 0,
-          JSON.stringify(endpoint.permissions),
-          endpoint.rate_limit,
-          1,
-          requestCount,
-          responseTime
-        );
-      });
-    }
-
-    // Check if we need to seed rate limits
-    const rateLimitsCount = this.db
-      .prepare("SELECT COUNT(*) as count FROM rate_limits")
-      .get() as { count: number };
-
-    if (rateLimitsCount.count === 0) {
-      const defaultRateLimits = [
-        {
-          name: "Global Rate Limit",
-          requests_per_minute: 100,
-          requests_per_hour: 6000,
-          requests_per_day: 144000,
-          applies_to: "global",
-        },
-        {
-          name: "API Key Rate Limit",
-          requests_per_minute: 1000,
-          requests_per_hour: 60000,
-          requests_per_day: 1440000,
-          applies_to: "key",
-        },
-      ];
-
-      const insertRateLimit = this.db.prepare(
-        "INSERT INTO rate_limits (uuid, name, requests_per_minute, requests_per_hour, requests_per_day, applies_to, active) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      );
-
-      defaultRateLimits.forEach((limit) => {
-        const uuid = randomUUID();
-        insertRateLimit.run(
-          uuid,
-          limit.name,
-          limit.requests_per_minute,
-          limit.requests_per_hour,
-          limit.requests_per_day,
-          limit.applies_to,
-          1
-        );
-      });
-    }
   }
 
   seedSampleNotifications() {

@@ -1,0 +1,70 @@
+# Code Change Safety Rules
+
+## Critical Requirements
+
+### Before Making Any Code Changes:
+
+1. **Search for All References**: Before removing or renaming any variable, function, or class:
+
+   - Use `grep_search` to find ALL references to the item
+   - Check for imports, function calls, variable assignments, etc.
+   - Ensure no references are left behind
+
+2. **Test Existing Functionality**:
+
+   - After making changes, test that existing functionality still works
+   - Run the application to verify no runtime errors
+   - Check that all dependent code still functions correctly
+
+3. **Incremental Changes**:
+   - Make small, focused changes rather than large refactoring
+   - Test after each significant change
+   - Use version control to track changes
+
+### Common Pitfalls to Avoid:
+
+1. **Removing Variables Without Removing References**:
+
+   ```python
+   # ❌ WRONG - Removing variable but leaving reference
+   # self.websocket_status_var = tk.StringVar()  # Removed
+   self.websocket_status_var.set(self.websocket_status)  # Still exists!
+   ```
+
+2. **Changing Function Signatures Without Updating Callers**:
+
+   ```typescript
+   // ❌ WRONG - Changing function but not updating calls
+   function uploadFile(file: File, description?: string, access_level?: string); // Changed
+   uploadFile(data.file, data.description); // Still old signature!
+   ```
+
+3. **Removing Imports Without Removing Usage**:
+   ```typescript
+   // ❌ WRONG - Removing import but still using
+   // import { WebSocket } from 'ws'  // Removed
+   const ws = new WebSocket(url); // Still using!
+   ```
+
+### Required Process:
+
+1. **Before Change**: Search for all references
+2. **During Change**: Update all references systematically
+3. **After Change**: Test the functionality
+4. **Verification**: Run the application to confirm it works
+
+### Error Prevention Checklist:
+
+- [ ] Searched for all references to changed items
+- [ ] Updated all function calls to match new signatures
+- [ ] Removed all unused imports and variables
+- [ ] Tested the application after changes
+- [ ] Verified no runtime errors occur
+- [ ] Confirmed existing functionality still works
+
+**Remember**: It's better to be thorough and slow than to break existing functionality. Always test your changes!
+description:
+globs:
+alwaysApply: false
+
+---

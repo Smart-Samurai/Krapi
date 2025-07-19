@@ -227,16 +227,16 @@ export default function AuthPage() {
   // Load functions
   const loadUsers = useCallback(async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = (await authManagementAPI.getUsers(usersPage, 10)) as any;
+      const response = await authManagementAPI.getUsers(usersPage, 10);
 
       if (response.success) {
         setUsers(response.data || []);
-        setUsersTotal(response.total || 0);
+        setUsersTotal(response.data?.length || 0);
       } else {
         handleError(response.error || "Failed to load users");
       }
     } catch (error) {
+      console.error("Failed to load users:", error);
       handleError(error, "Failed to load users");
     }
   }, [usersPage, handleError]);
@@ -244,8 +244,7 @@ export default function AuthPage() {
   const loadAuthStats = useCallback(async () => {
     try {
       console.log("Loading auth stats...");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).getUserStats();
+      const response = await authManagementAPI.getUserStats();
       console.log("Auth stats response:", response);
 
       if (response.success) {
@@ -284,6 +283,7 @@ export default function AuthPage() {
         handleError(response.error || "Failed to load security settings");
       }
     } catch (error) {
+      console.error("Failed to load security settings:", error);
       handleError(error, "Failed to load security settings");
     }
   }, [handleError, securityForm]);
@@ -345,8 +345,7 @@ export default function AuthPage() {
   // Handlers
   const handleCreateUser = async (data: UserFormData) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).createUser(data);
+      const response = await authManagementAPI.createUser(data);
 
       if (response.success) {
         showSuccess("User created successfully");
@@ -357,6 +356,7 @@ export default function AuthPage() {
         handleError(response.error || "Failed to create user");
       }
     } catch (error) {
+      console.error("Failed to create user:", error);
       handleError(error, "Failed to create user");
     }
   };
@@ -365,11 +365,7 @@ export default function AuthPage() {
     if (!editingUser) return;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).updateUser(
-        editingUser.id,
-        data
-      );
+      const response = await authManagementAPI.updateUser(editingUser.id, data);
 
       if (response.success) {
         showSuccess("User updated successfully");
@@ -381,6 +377,7 @@ export default function AuthPage() {
         handleError(response.error || "Failed to update user");
       }
     } catch (error) {
+      console.error("Failed to update user:", error);
       handleError(error, "Failed to update user");
     }
   };
@@ -389,8 +386,7 @@ export default function AuthPage() {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).deleteUser(id);
+      const response = await authManagementAPI.deleteUser(id);
 
       if (response.success) {
         showSuccess("User deleted successfully");
@@ -399,6 +395,7 @@ export default function AuthPage() {
         handleError(response.error || "Failed to delete user");
       }
     } catch (error) {
+      console.error("Failed to delete user:", error);
       handleError(error, "Failed to delete user");
     }
   };

@@ -116,10 +116,25 @@ class FilesController {
     }
     static uploadFile(req, res) {
         try {
+            console.log("Upload file request received");
             const user = req.user;
             const file = req.file;
             const { access_level } = req.body;
+            console.log("Upload file debug:", {
+                user: user ? { userId: user.userId, username: user.username } : null,
+                file: file
+                    ? {
+                        filename: file.filename,
+                        originalname: file.originalname,
+                        mimetype: file.mimetype,
+                        size: file.size,
+                        path: file.path,
+                    }
+                    : null,
+                access_level,
+            });
             if (!user) {
+                console.log("No user found in request");
                 const response = {
                     success: false,
                     error: "User not authenticated",
@@ -128,6 +143,7 @@ class FilesController {
                 return;
             }
             if (!file) {
+                console.log("No file found in request");
                 const response = {
                     success: false,
                     error: "No file uploaded",
@@ -140,6 +156,15 @@ class FilesController {
             const finalAccessLevel = validAccessLevels.includes(access_level)
                 ? access_level
                 : "public";
+            console.log("Creating file in database with data:", {
+                filename: file.filename,
+                original_name: file.originalname,
+                mime_type: file.mimetype,
+                size: file.size,
+                path: file.path,
+                uploaded_by: user.userId,
+                access_level: finalAccessLevel,
+            });
             const fileData = database_1.default.createFile({
                 filename: file.filename,
                 original_name: file.originalname,
@@ -149,6 +174,7 @@ class FilesController {
                 uploaded_by: user.userId,
                 access_level: finalAccessLevel,
             });
+            console.log("File created successfully:", fileData);
             const response = {
                 success: true,
                 data: transformFileUpload(fileData),
@@ -158,6 +184,7 @@ class FilesController {
         }
         catch (error) {
             console.error("Upload file error:", error);
+            console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
             // Handle multer errors specifically
             if (error instanceof multer_1.default.MulterError) {
                 let errorMessage = "File upload error";

@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const isAuthenticated = !!user && !!token;
 
@@ -45,9 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Don't call verifyToken here - let the next useEffect handle it
       } else {
         setIsLoading(false);
+        setIsHydrated(true);
       }
     } else {
       setIsLoading(false);
+      setIsHydrated(true);
     }
   }, []);
 
@@ -70,21 +73,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ws.onopen = () => {
         console.log("✅ WebSocket connected successfully");
         setReconnectAttempts(0); // Reset reconnection counter
-        
+
         // Send initial heartbeat
         const heartbeat = () => {
           if (ws.readyState === WebSocket.OPEN) {
             try {
               ws.send(JSON.stringify({ type: "heartbeat" }));
-            } catch (error) {
-              console.warn("Failed to send heartbeat:", error);
+            } catch {
+              console.warn("Failed to send heartbeat");
             }
           }
         };
-        
+
         // Send heartbeat using config interval
-        const heartbeatInterval = setInterval(heartbeat, config.websocket.heartbeatInterval);
-        
+        const heartbeatInterval = setInterval(
+          heartbeat,
+          config.websocket.heartbeatInterval
+        );
+
         // Store interval ID for cleanup
         (ws as any).heartbeatInterval = heartbeatInterval;
       };
@@ -94,42 +100,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const data = JSON.parse(event.data);
           console.log("📨 WebSocket message received:", data);
           // Handle WebSocket messages here
-        } catch (error) {
+        } catch {
           console.warn("Non-JSON WebSocket message:", event.data);
         }
       };
 
-      ws.onerror = (err) => {
-        console.error("❌ WebSocket error:", err);
+      ws.onerror = (error) => {
+        console.error("❌ WebSocket error:", error);
         // Don't attempt to use the connection after an error
       };
 
       ws.onclose = (event) => {
-        console.log(`🔌 WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
-        
+        console.log(
+          `🔌 WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`
+        );
+
         // Clean up heartbeat interval
         if ((ws as any).heartbeatInterval) {
           clearInterval((ws as any).heartbeatInterval);
         }
-        
+
         // Only attempt reconnection if token is still valid and connection wasn't intentionally closed
         // Also check that we're still authenticated to prevent unnecessary reconnection attempts
-        if (token && user && event.code !== 1000 && reconnectAttempts < config.websocket.maxReconnectAttempts) {
+        if (
+          token &&
+          user &&
+          event.code !== 1000 &&
+          reconnectAttempts < config.websocket.maxReconnectAttempts
+        ) {
           const delay = Math.min(
-            config.websocket.reconnectDelay.initial * Math.pow(config.websocket.reconnectDelay.multiplier, reconnectAttempts), 
+            config.websocket.reconnectDelay.initial *
+              Math.pow(
+                config.websocket.reconnectDelay.multiplier,
+                reconnectAttempts
+              ),
             config.websocket.reconnectDelay.max
           );
-          console.log(`🔄 Attempting WebSocket reconnection #${reconnectAttempts + 1} in ${delay/1000} seconds...`);
-          
+          console.log(
+            `🔄 Attempting WebSocket reconnection #${
+              reconnectAttempts + 1
+            } in ${delay / 1000} seconds...`
+          );
+
           setTimeout(() => {
-            if (token && user) { // Double-check we're still authenticated
-              setReconnectAttempts(prev => prev + 1);
+            if (token && user) {
+              // Double-check we're still authenticated
+              setReconnectAttempts((prev) => prev + 1);
               // Trigger re-effect by updating a state variable
               setSocket(null);
             }
           }, delay);
         } else if (reconnectAttempts >= config.websocket.maxReconnectAttempts) {
-          console.error("❌ Maximum reconnection attempts reached. WebSocket will not reconnect automatically.");
+          console.error(
+            "❌ Maximum reconnection attempts reached. WebSocket will not reconnect automatically."
+          );
         }
       };
 
@@ -137,12 +161,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return () => {
         console.log("🔌 Closing WebSocket connection");
-        
+
         // Clean up heartbeat interval
         if ((ws as any).heartbeatInterval) {
           clearInterval((ws as any).heartbeatInterval);
         }
-        
+
         ws.close(1000, "Component unmounting");
       };
     } else {
@@ -171,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
     } finally {
       setIsLoading(false);
+      setIsHydrated(true);
     }
   };
 
@@ -221,6 +246,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
     }
   };
+
+  // Don't render children until hydration is complete to prevent hydration mismatch
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider

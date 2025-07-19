@@ -4,7 +4,7 @@
   "packageManager": "pnpm@9.0.0",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "nodemon src/app.ts",
+    "dev": "ts-node src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
     "type-check": "tsc --noEmit",

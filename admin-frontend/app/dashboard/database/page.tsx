@@ -60,21 +60,19 @@ export default function DatabasePage() {
       const response = await databaseAPI.getDatabaseInfo();
       if (response.success) {
         // Transform tables to match QueryBuilder interface
-        const transformedTables = (response.data.tables || []).map(
-          (table: any) => ({
-            name: table.name,
-            rowCount: table.rowCount || 0,
-            columns: (table.columns || []).map((col: any) => ({
-              name: col.name,
-              type: col.type,
-              nullable: col.nullable || false,
-              defaultValue: col.defaultValue,
-              primaryKey: col.primaryKey || false,
-            })),
-          })
-        );
+        const transformedTables = (response.tables || []).map((table: any) => ({
+          name: table.name,
+          rowCount: table.rowCount || 0,
+          columns: (table.columns || []).map((col: any) => ({
+            name: col.name,
+            type: col.type,
+            nullable: col.nullable || false,
+            defaultValue: col.defaultValue,
+            primaryKey: col.primaryKey || false,
+          })),
+        }));
         setTables(transformedTables);
-        setDbStats(response.data.stats || {});
+        setDbStats(response.stats || {});
       }
     } catch (error: unknown) {
       console.error("Failed to fetch database info:", error);
@@ -88,7 +86,7 @@ export default function DatabasePage() {
       setLoading(true);
       const response = await databaseAPI.getTableData(tableName);
       if (response.success) {
-        setTableData(response.data);
+        setTableData(response);
       }
     } catch (error) {
       console.error(`Failed to fetch table data for ${tableName}:`, error);
@@ -109,7 +107,7 @@ export default function DatabasePage() {
       setQueryLoading(true);
       const response = await databaseAPI.executeQuery(query);
       if (response.success) {
-        setQueryResult(response.data);
+        setQueryResult(response);
       } else {
         setQueryResult({
           columns: [],

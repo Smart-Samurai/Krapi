@@ -129,7 +129,7 @@ router.get("/admin/email/stats", email_1.EmailController.getEmailStats);
 router.get("/admin/email/preferences", email_1.EmailController.getNotificationPreferences);
 router.put("/admin/email/preferences", email_1.EmailController.updateNotificationPreferences);
 // Files
-router.post("/admin/files/upload", files_1.FilesController.uploadFile);
+router.post("/admin/files/upload", files_1.upload.single("file"), files_1.FilesController.uploadFile);
 router.get("/admin/files", files_1.FilesController.getAllFiles);
 router.get("/admin/files/:id", files_1.FilesController.getFileById);
 router.put("/admin/files/:id", files_1.FilesController.updateFile);

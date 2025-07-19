@@ -5,10 +5,29 @@ import { mcpAPI, ollamaAPI } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Textarea } from "../../../components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
-import { AlertCircle, Bot, Brain, MessageSquare, Zap } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../../components/ui/tabs";
+import {
+  AlertCircle,
+  Bot,
+  Brain,
+  MessageSquare,
+  Zap,
+  Settings,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 
 interface McpInfo {
   server: {
@@ -57,6 +76,10 @@ export default function AIPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [ollamaEndpoint, setOllamaEndpoint] = useState<string>(
+    "http://localhost:11434"
+  );
 
   // Tool testing state
   const [selectedTool, setSelectedTool] = useState<string>("");
@@ -76,7 +99,7 @@ export default function AIPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [mcpResponse, modelsResponse, toolsResponse] = await Promise.all([
         mcpAPI.getInfo(),
         ollamaAPI.listModels(),
@@ -110,18 +133,21 @@ export default function AIPage() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setChatLoading(true);
 
     try {
-      const response = await ollamaAPI.chat([
-        ...messages.map(m => ({ role: m.role, content: m.content })),
-        { role: "user", content: inputMessage }
-      ], {
-        tools: true, // Enable MCP tools
-        temperature: 0.7,
-      });
+      const response = await ollamaAPI.chat(
+        [
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+          { role: "user", content: inputMessage },
+        ],
+        {
+          tools: true, // Enable MCP tools
+          temperature: 0.7,
+        }
+      );
 
       if (response.success) {
         const assistantMessage: ChatMessage = {
@@ -129,17 +155,19 @@ export default function AIPage() {
           content: response.data.message.content,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages((prev) => [...prev, assistantMessage]);
       } else {
         throw new Error(response.error || "Chat failed");
       }
     } catch (err) {
       const errorMessage: ChatMessage = {
         role: "assistant",
-        content: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+        content: `Error: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setChatLoading(false);
     }
@@ -158,7 +186,7 @@ export default function AIPage() {
     } catch (err) {
       setToolResult({
         success: false,
-        error: err instanceof Error ? err.message : "Tool execution failed"
+        error: err instanceof Error ? err.message : "Tool execution failed",
       });
     } finally {
       setToolLoading(false);
@@ -237,7 +265,9 @@ export default function AIPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Badge variant={mcpInfo?.ollama.healthy ? "default" : "destructive"}>
+              <Badge
+                variant={mcpInfo?.ollama.healthy ? "default" : "destructive"}
+              >
                 {mcpInfo?.ollama.healthy ? "Healthy" : "Disconnected"}
               </Badge>
               <span className="text-sm text-gray-600">
@@ -265,6 +295,7 @@ export default function AIPage() {
           <TabsTrigger value="chat">AI Chat</TabsTrigger>
           <TabsTrigger value="tools">MCP Tools</TabsTrigger>
           <TabsTrigger value="models">Model Management</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="chat">
@@ -279,15 +310,21 @@ export default function AIPage() {
               <div className="h-96 border rounded-lg p-4 overflow-y-auto bg-gray-50">
                 {messages.length === 0 && (
                   <div className="text-center text-gray-500 py-8">
-                    Start a conversation! The AI can use MCP tools to help you manage content, users, and more.
+                    Start a conversation! The AI can use MCP tools to help you
+                    manage content, users, and more.
                   </div>
                 )}
                 {messages.map((msg, idx) => (
-                  <div key={idx} className={`mb-4 ${msg.role === "user" ? "text-right" : "text-left"}`}>
+                  <div
+                    key={idx}
+                    className={`mb-4 ${
+                      msg.role === "user" ? "text-right" : "text-left"
+                    }`}
+                  >
                     <div
                       className={`inline-block max-w-[80%] rounded-lg px-4 py-2 ${
-                        msg.role === "user" 
-                          ? "bg-blue-500 text-white" 
+                        msg.role === "user"
+                          ? "bg-blue-500 text-white"
                           : "bg-white border"
                       }`}
                     >
@@ -306,8 +343,21 @@ export default function AIPage() {
                   </div>
                 )}
               </div>
-              
-              <div className="flex gap-2">
+
+              <div className="flex gap-2 items-center">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  disabled={chatLoading}
+                >
+                  <option value="">Select Model</option>
+                  {models?.models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
                 <Input
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
@@ -315,7 +365,10 @@ export default function AIPage() {
                   onKeyPress={(e) => e.key === "Enter" && sendMessage()}
                   disabled={chatLoading}
                 />
-                <Button onClick={sendMessage} disabled={chatLoading || !inputMessage.trim()}>
+                <Button
+                  onClick={sendMessage}
+                  disabled={chatLoading || !inputMessage.trim()}
+                >
                   Send
                 </Button>
               </div>
@@ -335,12 +388,16 @@ export default function AIPage() {
                     <div
                       key={tool.name}
                       className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        selectedTool === tool.name ? "bg-blue-50 border-blue-200" : "hover:bg-gray-50"
+                        selectedTool === tool.name
+                          ? "bg-blue-50 border-blue-200"
+                          : "hover:bg-gray-50"
                       }`}
                       onClick={() => setSelectedTool(tool.name)}
                     >
                       <h4 className="font-medium">{tool.name}</h4>
-                      <p className="text-sm text-gray-600">{tool.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {tool.description}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -365,14 +422,16 @@ export default function AIPage() {
                         rows={4}
                       />
                     </div>
-                    
+
                     <Button onClick={testTool} disabled={toolLoading}>
                       {toolLoading ? "Running..." : "Run Tool"}
                     </Button>
 
                     {toolResult && (
                       <div className="mt-4">
-                        <label className="block text-sm font-medium mb-2">Result</label>
+                        <label className="block text-sm font-medium mb-2">
+                          Result
+                        </label>
                         <pre className="bg-gray-100 p-3 rounded-lg text-sm overflow-auto">
                           {JSON.stringify(toolResult, null, 2)}
                         </pre>
@@ -412,13 +471,72 @@ export default function AIPage() {
                 <h3 className="font-medium mb-3">Available Models</h3>
                 <div className="space-y-2">
                   {models?.models.map((model) => (
-                    <div key={model} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div
+                      key={model}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <span className="font-mono text-sm">{model}</span>
                       {model === models.defaultModel && (
                         <Badge variant="default">Default</Badge>
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Ollama Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Ollama Endpoint
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={ollamaEndpoint}
+                    onChange={(e) => setOllamaEndpoint(e.target.value)}
+                    placeholder="http://localhost:11434"
+                  />
+                  <Button
+                    onClick={() => {
+                      // TODO: Implement endpoint update
+                      console.log("Update endpoint:", ollamaEndpoint);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    {mcpInfo?.ollama.healthy ? (
+                      <Wifi className="h-4 w-4" />
+                    ) : (
+                      <WifiOff className="h-4 w-4" />
+                    )}
+                    Connect
+                  </Button>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Default Ollama endpoint is http://localhost:11434
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  {mcpInfo?.ollama.healthy ? (
+                    <Wifi className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <WifiOff className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className="text-sm">
+                    Status:{" "}
+                    {mcpInfo?.ollama.healthy ? "Connected" : "Disconnected"}
+                  </span>
                 </div>
               </div>
             </CardContent>

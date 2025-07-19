@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 
-export const metadata: Metadata = {
-  title: "Krapi Admin Dashboard",
-  description: "Content Management System for Krapi API",
-};
+// Client wrapper component for AuthProvider
+function ClientAuthProvider({ children }: { children: React.ReactNode }) {
+  return <AuthProvider>{children}</AuthProvider>;
+}
 
 export default function RootLayout({
   children,
@@ -14,8 +13,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-gray-50 min-h-screen">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="antialiased bg-background text-foreground min-h-screen">
+        <ClientAuthProvider>{children}</ClientAuthProvider>
       </body>
     </html>
   );

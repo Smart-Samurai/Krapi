@@ -73,7 +73,8 @@ export default function FilesPage() {
 
       const response: ApiResponse<FileMetadata> = await filesAPI.uploadFile(
         data.file,
-        data.description
+        data.description,
+        data.access_level
       );
 
       if (response.success && response.data) {

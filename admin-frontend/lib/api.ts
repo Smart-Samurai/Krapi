@@ -412,11 +412,18 @@ export const filesAPI = {
     const response = await api.get(`/admin/files/${id}`);
     return response.data;
   },
-  uploadFile: async (file: File, description?: string) => {
+  uploadFile: async (
+    file: File,
+    description?: string,
+    access_level?: string
+  ) => {
     const formData = new FormData();
     formData.append("file", file);
     if (description) {
       formData.append("description", description);
+    }
+    if (access_level) {
+      formData.append("access_level", access_level);
     }
 
     const response = await api.post("/admin/files/upload", formData, {

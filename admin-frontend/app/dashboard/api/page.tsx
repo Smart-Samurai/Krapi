@@ -153,9 +153,12 @@ export default function ApiManagementPage() {
       if (response.success) {
         setApiKeys(response.data || []);
         setKeysTotal(response.data?.length || 0);
+      } else {
+        setApiKeys([]);
+        setKeysTotal(0);
       }
-    } catch {
-      // API keys might not be implemented yet, use empty array
+    } catch (error) {
+      console.error("Failed to load API keys:", error);
       setApiKeys([]);
       setKeysTotal(0);
     }
@@ -168,12 +171,13 @@ export default function ApiManagementPage() {
         setEndpoints(response.data || []);
         setEndpointsTotal(response.data?.length || 0);
       } else {
-        // If endpoints endpoint doesn't exist, use empty array
         setEndpoints([]);
+        setEndpointsTotal(0);
       }
-    } catch {
-      // Endpoints might not be implemented yet, use empty array
+    } catch (error) {
+      console.error("Failed to load endpoints:", error);
       setEndpoints([]);
+      setEndpointsTotal(0);
     }
   }, []);
 
@@ -183,11 +187,10 @@ export default function ApiManagementPage() {
       if (response.success) {
         setRateLimits(response.data || []);
       } else {
-        // If rate limits endpoint doesn't exist, use empty array
         setRateLimits([]);
       }
-    } catch {
-      // Rate limits might not be implemented yet, just set empty array
+    } catch (error) {
+      console.error("Failed to load rate limits:", error);
       setRateLimits([]);
     }
   }, []);
@@ -198,11 +201,10 @@ export default function ApiManagementPage() {
       if (response.success) {
         setAnalytics(response.data);
       } else {
-        // If analytics endpoint doesn't exist, use null
         setAnalytics(null);
       }
-    } catch {
-      // Analytics might not be implemented yet, just set null
+    } catch (error) {
+      console.error("Failed to load analytics:", error);
       setAnalytics(null);
     }
   }, []);
@@ -251,12 +253,15 @@ export default function ApiManagementPage() {
     if (!editingKey) return;
 
     try {
-      const response = await apiManagementAPI.updateApiKey(Number(editingKey.id), {
-        name: data.name,
-        permissions: data.permissions,
-        rate_limit: data.rate_limit,
-        expires_at: data.expires_at || undefined,
-      });
+      const response = await apiManagementAPI.updateApiKey(
+        Number(editingKey.id),
+        {
+          name: data.name,
+          permissions: data.permissions,
+          rate_limit: data.rate_limit,
+          expires_at: data.expires_at || undefined,
+        }
+      );
 
       if (response.success) {
         showSuccess("API key updated successfully");

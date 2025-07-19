@@ -29,16 +29,36 @@ class DatabaseService {
         return result;
     }
     constructor() {
-        const dbPath = path_1.default.join(__dirname, "../../data/app.db");
-        this.db = new better_sqlite3_1.default(dbPath);
-        this.initializeTables();
-        this.seedDefaultData();
-        this.seedDefaultApiData();
-        this.seedSampleNotifications();
+        try {
+            const dbPath = path_1.default.join(__dirname, "../../data/app.db");
+            // Ensure data directory exists
+            const dataDir = path_1.default.dirname(dbPath);
+            if (!require("fs").existsSync(dataDir)) {
+                require("fs").mkdirSync(dataDir, { recursive: true });
+            }
+            console.log(`📊 Initializing database at: ${dbPath}`);
+            this.db = new better_sqlite3_1.default(dbPath, {
+                verbose: process.env.NODE_ENV === "development" ? console.log : undefined,
+            });
+            // Enable WAL mode for better concurrency
+            this.db.pragma("journal_mode = WAL");
+            this.db.pragma("foreign_keys = ON");
+            this.initializeTables();
+            this.seedDefaultData();
+            this.seedDefaultApiData();
+            this.seedSampleNotifications();
+            console.log("✅ Database initialized successfully");
+        }
+        catch (error) {
+            console.error("❌ Failed to initialize database:", error);
+            throw error;
+        }
     }
     initializeTables() {
-        // Create roles table
-        this.db.exec(`
+        try {
+            console.log("📊 Creating database tables...");
+            // Create roles table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -47,8 +67,8 @@ class DatabaseService {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        // Create users table with enhanced fields
-        this.db.exec(`
+            // Create users table with enhanced fields
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -60,8 +80,8 @@ class DatabaseService {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        // Create content_routes table
-        this.db.exec(`
+            // Create content_routes table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS content_routes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         path TEXT UNIQUE NOT NULL,
@@ -75,8 +95,8 @@ class DatabaseService {
         FOREIGN KEY (parent_id) REFERENCES content_routes (id) ON DELETE CASCADE
       );
     `);
-        // Create enhanced content table
-        this.db.exec(`
+            // Create enhanced content table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS content (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT UNIQUE NOT NULL,
@@ -91,8 +111,8 @@ class DatabaseService {
         FOREIGN KEY (parent_route_id) REFERENCES content_routes (id) ON DELETE CASCADE
       );
     `);
-        // Create schemas table
-        this.db.exec(`
+            // Create schemas table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS content_schemas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -103,8 +123,8 @@ class DatabaseService {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        // Create files table
-        this.db.exec(`
+            // Create files table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         filename TEXT UNIQUE NOT NULL,
@@ -118,8 +138,8 @@ class DatabaseService {
         FOREIGN KEY (uploaded_by) REFERENCES users (id) ON DELETE CASCADE
       );
     `);
-        // Create email templates table
-        this.db.exec(`
+            // Create email templates table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_templates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -133,8 +153,8 @@ class DatabaseService {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        // Create email logs table
-        this.db.exec(`
+            // Create email logs table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         template_id INTEGER,
@@ -152,8 +172,8 @@ class DatabaseService {
         FOREIGN KEY (template_id) REFERENCES email_templates (id) ON DELETE SET NULL
       );
     `);
-        // Create notifications table
-        this.db.exec(`
+            // Create notifications table
+            this.db.exec(`
     CREATE TABLE IF NOT EXISTS notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -166,8 +186,8 @@ class DatabaseService {
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     );
   `);
-        // Create login_logs table
-        this.db.exec(`
+            // Create login_logs table
+            this.db.exec(`
     CREATE TABLE IF NOT EXISTS login_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL,
@@ -179,8 +199,23 @@ class DatabaseService {
       failure_reason TEXT
     );
   `);
-        // Create email settings table
-        this.db.exec(`
+            // Create sessions table
+            this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        user_agent TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NOT NULL,
+        active BOOLEAN DEFAULT 1,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      );
+    `);
+            // Create email settings table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS email_settings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT UNIQUE NOT NULL,
@@ -192,8 +227,8 @@ class DatabaseService {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        // Create notification preferences table
-        this.db.exec(`
+            // Create notification preferences table
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS notification_preferences (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -208,8 +243,8 @@ class DatabaseService {
         UNIQUE(user_id)
       );
     `);
-        // Create API management tables
-        this.db.exec(`
+            // Create API management tables
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_keys (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         uuid TEXT UNIQUE NOT NULL,
@@ -224,7 +259,7 @@ class DatabaseService {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        this.db.exec(`
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_endpoints (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         uuid TEXT UNIQUE NOT NULL,
@@ -242,7 +277,7 @@ class DatabaseService {
         UNIQUE(method, path)
       );
     `);
-        this.db.exec(`
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS rate_limits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         uuid TEXT UNIQUE NOT NULL,
@@ -255,7 +290,7 @@ class DatabaseService {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        this.db.exec(`
+            this.db.exec(`
       CREATE TABLE IF NOT EXISTS api_request_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         api_key_id INTEGER,
@@ -271,19 +306,19 @@ class DatabaseService {
         FOREIGN KEY (endpoint_id) REFERENCES api_endpoints (id) ON DELETE SET NULL
       );
     `);
-        // Add new columns to existing tables if they don't exist
-        const addColumnIfNotExists = (table, column, type, defaultValue) => {
+            // Add new columns to existing tables if they don't exist
+            const addColumnIfNotExists = (table, column, type, defaultValue) => {
+                try {
+                    const defaultClause = defaultValue ? ` DEFAULT ${defaultValue}` : "";
+                    this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}${defaultClause}`);
+                }
+                catch {
+                    // Column might already exist, which is fine
+                }
+            };
+            // Remove the access_level column from content table since routes now control access
             try {
-                const defaultClause = defaultValue ? ` DEFAULT ${defaultValue}` : "";
-                this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}${defaultClause}`);
-            }
-            catch {
-                // Column might already exist, which is fine
-            }
-        };
-        // Remove the access_level column from content table since routes now control access
-        try {
-            this.db.exec(`
+                this.db.exec(`
         CREATE TABLE IF NOT EXISTS content_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           key TEXT UNIQUE NOT NULL,
@@ -298,57 +333,63 @@ class DatabaseService {
           FOREIGN KEY (parent_route_id) REFERENCES content_routes (id) ON DELETE CASCADE
         );
       `);
-            this.db.exec(`
+                this.db.exec(`
         INSERT OR IGNORE INTO content_new (id, key, data, description, schema, route_path, parent_route_id, content_type, created_at, updated_at)
         SELECT id, key, data, description, schema, route_path, parent_route_id, content_type, created_at, updated_at
         FROM content;
       `);
-            this.db.exec(`DROP TABLE IF EXISTS content;`);
-            this.db.exec(`ALTER TABLE content_new RENAME TO content;`);
-        }
-        catch {
-            // Migration might have already been applied
-            console.log("Content table migration skipped");
-        }
-        // Add new columns to existing users table
-        addColumnIfNotExists("users", "email", "TEXT");
-        addColumnIfNotExists("users", "role", "TEXT", "'viewer'");
-        addColumnIfNotExists("users", "permissions", "TEXT", "'[]'");
-        addColumnIfNotExists("users", "active", "BOOLEAN", "1");
-        // Add new columns to existing content table
-        addColumnIfNotExists("content", "schema", "TEXT");
-        addColumnIfNotExists("content", "route_path", "TEXT", "'/default'");
-        addColumnIfNotExists("content", "parent_route_id", "INTEGER");
-        addColumnIfNotExists("content", "content_type", "TEXT", "'json'");
-        addColumnIfNotExists("content", "access_level", "TEXT", "'public'");
-        // Add UUID columns to existing tables for better API compatibility
-        addColumnIfNotExists("users", "uuid", "TEXT");
-        addColumnIfNotExists("content_routes", "uuid", "TEXT");
-        addColumnIfNotExists("content", "uuid", "TEXT");
-        addColumnIfNotExists("content_schemas", "uuid", "TEXT");
-        addColumnIfNotExists("files", "uuid", "TEXT");
-        // Generate UUIDs for existing records that don't have them
-        this.generateMissingUUIDs();
-        // Create triggers for updated_at
-        this.db.exec(`
+                this.db.exec(`DROP TABLE IF EXISTS content;`);
+                this.db.exec(`ALTER TABLE content_new RENAME TO content;`);
+            }
+            catch {
+                // Migration might have already been applied
+                console.log("Content table migration skipped");
+            }
+            // Add new columns to existing users table
+            addColumnIfNotExists("users", "email", "TEXT");
+            addColumnIfNotExists("users", "role", "TEXT", "'viewer'");
+            addColumnIfNotExists("users", "permissions", "TEXT", "'[]'");
+            addColumnIfNotExists("users", "active", "BOOLEAN", "1");
+            // Add new columns to existing content table
+            addColumnIfNotExists("content", "schema", "TEXT");
+            addColumnIfNotExists("content", "route_path", "TEXT", "'/default'");
+            addColumnIfNotExists("content", "parent_route_id", "INTEGER");
+            addColumnIfNotExists("content", "content_type", "TEXT", "'json'");
+            addColumnIfNotExists("content", "access_level", "TEXT", "'public'");
+            // Add UUID columns to existing tables for better API compatibility
+            addColumnIfNotExists("users", "uuid", "TEXT");
+            addColumnIfNotExists("content_routes", "uuid", "TEXT");
+            addColumnIfNotExists("content", "uuid", "TEXT");
+            addColumnIfNotExists("content_schemas", "uuid", "TEXT");
+            addColumnIfNotExists("files", "uuid", "TEXT");
+            // Generate UUIDs for existing records that don't have them
+            this.generateMissingUUIDs();
+            // Create triggers for updated_at
+            this.db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_content_timestamp 
       AFTER UPDATE ON content
       BEGIN
         UPDATE content SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
       END;
     `);
-        this.db.exec(`
+            this.db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_content_routes_timestamp 
       AFTER UPDATE ON content_routes
       BEGIN
         UPDATE content_routes SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
       END;
     `);
-        // Create indexes for better performance
-        this.db.exec(`CREATE INDEX IF NOT EXISTS idx_content_route_path ON content(route_path);`);
-        this.db.exec(`CREATE INDEX IF NOT EXISTS idx_content_access_level ON content(access_level);`);
-        this.db.exec(`CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);`);
-        this.db.exec(`CREATE INDEX IF NOT EXISTS idx_routes_parent_id ON content_routes(parent_id);`);
+            // Create indexes for better performance
+            this.db.exec(`CREATE INDEX IF NOT EXISTS idx_content_route_path ON content(route_path);`);
+            this.db.exec(`CREATE INDEX IF NOT EXISTS idx_content_access_level ON content(access_level);`);
+            this.db.exec(`CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);`);
+            this.db.exec(`CREATE INDEX IF NOT EXISTS idx_routes_parent_id ON content_routes(parent_id);`);
+            console.log("✅ Database tables created successfully");
+        }
+        catch (error) {
+            console.error("❌ Error initializing database tables:", error);
+            throw error;
+        }
     }
     seedDefaultData() {
         // Seed default roles

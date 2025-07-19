@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState({
     contentCount: 0,
     routesCount: 0,
@@ -43,29 +43,35 @@ export default function DashboardPage() {
 
       // Create base promises array
       const promises = [];
-      
+
       // Add content and health API calls first (these are always allowed)
       promises.push(contentAPI.getAllContent());
       promises.push(healthAPI.check());
 
       // Add admin-only API calls based on user permissions with small delays to reduce concurrent load
-      if (user?.role === "admin" || user?.permissions?.includes("routes.read")) {
+      if (
+        user?.role === "admin" ||
+        user?.permissions?.includes("routes.read")
+      ) {
         // Add a small delay to stagger the requests
         promises.push(
-          new Promise(resolve => setTimeout(resolve, 100))
-            .then(() => routesAPI.getAllRoutes())
+          new Promise((resolve) => setTimeout(resolve, 100)).then(() =>
+            routesAPI.getAllRoutes()
+          )
         );
       }
       if (user?.role === "admin" || user?.permissions?.includes("files.read")) {
         promises.push(
-          new Promise(resolve => setTimeout(resolve, 200))
-            .then(() => filesAPI.getAllFiles())
+          new Promise((resolve) => setTimeout(resolve, 200)).then(() =>
+            filesAPI.getAllFiles()
+          )
         );
       }
       if (user?.role === "admin" || user?.permissions?.includes("users.read")) {
         promises.push(
-          new Promise(resolve => setTimeout(resolve, 300))
-            .then(() => usersAPI.getAllUsers())
+          new Promise((resolve) => setTimeout(resolve, 300)).then(() =>
+            usersAPI.getAllUsers()
+          )
         );
       }
 
@@ -136,10 +142,23 @@ export default function DashboardPage() {
     return `${hours}h ${minutes}m`;
   };
 
-  if (isLoading) {
+  // Show loading state while auth is loading or dashboard data is loading
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render if user is not available yet
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading user data...</p>
+        </div>
       </div>
     );
   }
