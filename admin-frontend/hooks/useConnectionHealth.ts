@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { config } from '@/lib/config';
-import { authAPI } from '@/lib/api';
+import { healthAPI } from '@/lib/api';
 
 interface ConnectionHealth {
   api: {
@@ -40,7 +40,7 @@ export const useConnectionHealth = (socket: WebSocket | null) => {
     }));
 
     try {
-      await authAPI.healthCheck();
+      await healthAPI.check();
       setHealth(prev => ({
         ...prev,
         api: {

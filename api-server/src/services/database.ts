@@ -794,10 +794,10 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
           template.name,
           template.subject,
           template.template_html,
-          template.template_text,
-          template.variables,
-          template.description,
-          template.active
+          template.template_text || null,
+          JSON.stringify(template.variables || []),
+          template.description || null,
+          template.active ? 1 : 0
         );
       });
 
@@ -2327,15 +2327,39 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
       .prepare("SELECT SUM(request_count) as total FROM api_endpoints")
       .get() as { total: number | null };
 
-    // Calculate requests today as a percentage of total (simulating daily activity)
-    const requestsToday = Math.floor((totalResult.total || 0) * 0.15);
+    // Get today's requests from api_requests table
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayResult = this.db
+      .prepare(
+        "SELECT COUNT(*) as count FROM api_requests WHERE timestamp >= ?"
+      )
+      .get(today.toISOString()) as { count: number };
 
-    // Get average response time from endpoints with requests
+    // Get average response time from actual requests
     const avgTimeResult = this.db
       .prepare(
-        "SELECT AVG(avg_response_time) as avg_time FROM api_endpoints WHERE request_count > 0"
+        `SELECT AVG(response_time) as avg_time 
+         FROM api_requests 
+         WHERE response_time IS NOT NULL 
+         AND timestamp >= datetime('now', '-7 days')`
       )
       .get() as { avg_time: number | null };
+
+    // Calculate error rate from actual requests
+    const errorResult = this.db
+      .prepare(
+        `SELECT 
+          COUNT(CASE WHEN status_code >= 400 THEN 1 END) as errors,
+          COUNT(*) as total
+         FROM api_requests 
+         WHERE timestamp >= datetime('now', '-7 days')`
+      )
+      .get() as { errors: number; total: number };
+
+    const errorRate = errorResult.total > 0 
+      ? (errorResult.errors / errorResult.total) * 100 
+      : 0;
 
     // Get active keys count
     const activeKeysResult = this.db
@@ -2349,22 +2373,35 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
       )
       .all() as Array<{ path: string; method: string; requests: number }>;
 
-    // Calculate error rate based on endpoint performance (simulated)
-    const errorRate = Math.max(0.5, Math.min(5.0, Math.random() * 3 + 1));
+    // Get blocked requests from rate limit violations
+    const blockedResult = this.db
+      .prepare(
+        `SELECT COUNT(*) as count 
+         FROM api_requests 
+         WHERE status_code = 429 
+         AND timestamp >= datetime('now', '-1 day')`
+      )
+      .get() as { count: number };
 
-    // Calculate bandwidth based on total requests (simulated)
-    const bandwidthMB = Math.floor((totalResult.total || 0) * 0.01);
+    // Calculate bandwidth based on actual request/response sizes
+    const bandwidthResult = this.db
+      .prepare(
+        `SELECT 
+          SUM(COALESCE(request_size, 0) + COALESCE(response_size, 0)) as total_bytes
+         FROM api_requests 
+         WHERE timestamp >= datetime('now', '-30 days')`
+      )
+      .get() as { total_bytes: number | null };
 
-    // Get blocked requests from rate limit violations (simulated)
-    const blockedRequests = Math.floor((totalResult.total || 0) * 0.02);
+    const bandwidthMB = Math.round((bandwidthResult.total_bytes || 0) / (1024 * 1024));
 
     return {
       total_requests: totalResult.total || 0,
-      requests_today: requestsToday,
-      avg_response_time: Math.round(avgTimeResult.avg_time || 150),
+      requests_today: todayResult.count,
+      avg_response_time: Math.round(avgTimeResult.avg_time || 0),
       error_rate: Math.round(errorRate * 10) / 10,
       active_keys: activeKeysResult.count,
-      blocked_requests: blockedRequests,
+      blocked_requests: blockedResult.count,
       bandwidth_used: `${bandwidthMB} MB`,
       top_endpoints: topEndpoints,
     };

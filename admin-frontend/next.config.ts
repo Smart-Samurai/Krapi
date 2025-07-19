@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   },
   // Enable experimental features for better type safety
   experimental: {
-    typedRoutes: true,
+    typedRoutes: false,
   },
   // Increase timeout for development
   staticPageGenerationTimeout: 120,

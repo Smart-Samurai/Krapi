@@ -25,8 +25,10 @@ export interface McpTool {
 }
 
 export interface McpToolCall {
-  name: string;
-  arguments: Record<string, unknown>;
+  function: {
+    name: string;
+    arguments: Record<string, unknown>;
+  };
 }
 
 export interface McpToolResult {
@@ -38,20 +40,29 @@ export interface McpToolResult {
 }
 
 export interface OllamaMessage {
-  role: "system" | "user" | "assistant";
+  role: "system" | "user" | "assistant" | "tool";
   content: string;
   tool_calls?: McpToolCall[];
+}
+
+export interface OllamaToolFormat {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+  };
 }
 
 export interface OllamaChatRequest {
   model: string;
   messages: OllamaMessage[];
-  tools?: McpTool[];
+  tools?: OllamaToolFormat[];
   stream?: boolean;
   options?: {
     temperature?: number;
     top_p?: number;
-    max_tokens?: number;
+    num_predict?: number;
   };
 }
 

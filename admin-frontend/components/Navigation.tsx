@@ -70,22 +70,7 @@ const SidebarContent = ({
                 return (
                   <Link
                     key={item.name}
-                    href={
-                      item.href as
-                        | "/dashboard"
-                        | "/dashboard/content"
-                        | "/dashboard/users"
-                        | "/dashboard/database"
-                        | "/dashboard/api"
-                        | "/dashboard/auth"
-                        | "/dashboard/files"
-                        | "/dashboard/email"
-                        | "/dashboard/health"
-                        | "/dashboard/api-test"
-                        | "/dashboard/docs"
-                        | "/dashboard/ai"
-                        | "/dashboard/routes"
-                    }
+                    href={item.href}
                     onClick={onLinkClick}
                     className={cn(
                       "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
