@@ -15,7 +15,7 @@ export class OllamaService {
   constructor() {
     this.baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
     this.defaultModel = process.env.OLLAMA_DEFAULT_MODEL || "llama3.2:3b";
-    this.timeout = parseInt(process.env.OLLAMA_TIMEOUT || "30000");
+    this.timeout = parseInt(process.env.OLLAMA_TIMEOUT || "5000"); // Reduced from 30000 to 5000
 
     this.client = axios.create({
       baseURL: this.baseUrl,
@@ -34,7 +34,10 @@ export class OllamaService {
       const response = await this.client.get("/api/tags");
       return response.status === 200;
     } catch (error) {
-      console.error("Ollama health check failed:", error);
+      // Don't log error details to reduce noise when Ollama is not available
+      if (process.env.NODE_ENV === 'development') {
+        console.debug("Ollama health check failed - this is normal if Ollama is not installed");
+      }
       return false;
     }
   }

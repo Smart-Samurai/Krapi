@@ -41,20 +41,32 @@ export default function DashboardPage() {
         return;
       }
 
-      const promises = [contentAPI.getAllContent(), healthAPI.check()];
+      // Create base promises array
+      const promises = [];
+      
+      // Add content and health API calls first (these are always allowed)
+      promises.push(contentAPI.getAllContent());
+      promises.push(healthAPI.check());
 
-      // Add admin-only API calls based on user permissions
-      if (
-        user?.role === "admin" ||
-        user?.permissions?.includes("routes.read")
-      ) {
-        promises.push(routesAPI.getAllRoutes());
+      // Add admin-only API calls based on user permissions with small delays to reduce concurrent load
+      if (user?.role === "admin" || user?.permissions?.includes("routes.read")) {
+        // Add a small delay to stagger the requests
+        promises.push(
+          new Promise(resolve => setTimeout(resolve, 100))
+            .then(() => routesAPI.getAllRoutes())
+        );
       }
       if (user?.role === "admin" || user?.permissions?.includes("files.read")) {
-        promises.push(filesAPI.getAllFiles());
+        promises.push(
+          new Promise(resolve => setTimeout(resolve, 200))
+            .then(() => filesAPI.getAllFiles())
+        );
       }
       if (user?.role === "admin" || user?.permissions?.includes("users.read")) {
-        promises.push(usersAPI.getAllUsers());
+        promises.push(
+          new Promise(resolve => setTimeout(resolve, 300))
+            .then(() => usersAPI.getAllUsers())
+        );
       }
 
       const responses = await Promise.all(promises);
