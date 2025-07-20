@@ -8,7 +8,6 @@ import {
   Code,
   Shield,
   Activity,
-  BookOpen,
   Home,
   Brain,
 } from "lucide-react";
@@ -103,10 +102,5 @@ export const navigation = [
     icon: Code,
     category: "tools",
   },
-  {
-    name: "Documentation",
-    href: "/dashboard/docs",
-    icon: BookOpen,
-    category: "tools",
-  },
+
 ];

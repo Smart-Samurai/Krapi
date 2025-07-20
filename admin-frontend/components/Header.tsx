@@ -330,13 +330,13 @@ export default function Header({
   return (
     <>
       {/* Desktop Header */}
-      <header className="hidden h-16 border-b border-gray-200 bg-white lg:flex lg:items-center lg:justify-between lg:px-6 relative">
+      <header className="hidden h-16 border-b border-background-300 bg-background-100 lg:flex lg:items-center lg:justify-between lg:px-6 relative">
         {isLoading ? (
           <div
             className="flex items-center justify-center w-full"
             data-testid="header-loading"
           >
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-text-400" />
           </div>
         ) : (
           <>
@@ -349,7 +349,7 @@ export default function Header({
                   variant="ghost"
                   size="sm"
                   onClick={openSearchMode}
-                  className="text-gray-500 hover:text-gray-900"
+                  className="text-text-500 hover:text-text-900"
                   data-testid="search-button"
                 >
                   <Search className="mr-2 h-4 w-4" />
@@ -371,7 +371,7 @@ export default function Header({
                       />
                       {isSearching && (
                         <Loader2
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-text-400"
                           data-testid="search-loading"
                         />
                       )}
@@ -393,21 +393,21 @@ export default function Header({
 
                   {/* Search Results Dropdown */}
                   {showResults && searchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 w-96 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-background-300 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
                       <div className="p-2">
-                        <div className="text-xs text-gray-500 mb-2">
+                        <div className="text-xs text-text-500 mb-2">
                           Found {searchResults.length} results
                         </div>
                         {searchResults.map((result) => (
                           <div
                             key={`${result.type}-${result.id}`}
-                            className="p-3 hover:bg-gray-50 cursor-pointer rounded-md border-b border-gray-100 last:border-b-0"
+                            className="p-3 hover:bg-background-200 cursor-pointer rounded-md border-b border-background-200 last:border-b-0"
                             onClick={() => handleSearchResultClick(result)}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-1">
-                                  <span className="font-medium text-sm text-gray-900 truncate">
+                                  <span className="font-medium text-sm text-text-900 truncate">
                                     {result.title}
                                   </span>
                                   <span
@@ -419,7 +419,7 @@ export default function Header({
                                   </span>
                                 </div>
                                 {result.description && (
-                                  <p className="text-xs text-gray-600 truncate">
+                                  <p className="text-xs text-text-600 truncate">
                                     {result.description}
                                   </p>
                                 )}
@@ -437,8 +437,8 @@ export default function Header({
                     searchResults.length === 0 &&
                     searchQuery.length >= 2 &&
                     !isSearching && (
-                      <div className="absolute top-full left-0 w-96 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-                        <div className="p-4 text-center text-gray-500 text-sm">
+                      <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-background-300 rounded-md shadow-lg z-50">
+                        <div className="p-4 text-center text-text-500 text-sm">
                           No results found for &quot;{searchQuery}&quot;
                         </div>
                       </div>
@@ -446,11 +446,11 @@ export default function Header({
 
                   {/* Search Error Message */}
                   {searchError && (
-                    <div className="absolute top-full left-0 w-96 mt-1 bg-white border border-red-200 rounded-md shadow-lg z-50">
-                      <div className="p-4 text-center text-red-500 text-sm">
-                        {searchError}
+                                          <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-red-200 rounded-md shadow-lg z-50">
+                        <div className="p-4 text-center text-red-500 text-sm">
+                          {searchError}
+                        </div>
                       </div>
-                    </div>
                   )}
                 </div>
               )}
@@ -479,8 +479,8 @@ export default function Header({
 
                 {/* Notifications Dropdown */}
                 {showNotifications && (
-                  <div className="absolute top-full right-0 w-96 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                    <div className="p-3 border-b border-gray-200">
+                  <div className="absolute top-full right-0 w-96 mt-1 bg-background-100 border border-background-300 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b border-background-300">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-medium">Notifications</h3>
                         {unreadCount > 0 && (
@@ -500,7 +500,7 @@ export default function Header({
                     <div className="max-h-80 overflow-y-auto">
                       {isLoadingNotifications ? (
                         <div className="p-4 text-center">
-                          <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto text-text-400" />
                         </div>
                       ) : notificationError ? (
                         <div className="p-4 text-center text-red-500 text-sm">
@@ -510,8 +510,8 @@ export default function Header({
                         notifications.map((notification) => (
                           <div
                             key={notification.id}
-                            className={`p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${
-                              !notification.read ? "bg-blue-50" : ""
+                            className={`p-3 border-b border-background-200 last:border-b-0 hover:bg-background-200 ${
+                              !notification.read ? "bg-primary-100" : ""
                             }`}
                           >
                             <div className="flex items-start justify-between">
@@ -571,7 +571,7 @@ export default function Header({
                           </div>
                         ))
                       ) : (
-                        <div className="p-4 text-center text-gray-500 text-sm">
+                        <div className="p-4 text-center text-text-500 text-sm">
                           No notifications
                         </div>
                       )}
@@ -580,7 +580,7 @@ export default function Header({
                 )}
               </div>
 
-              <div className="h-6 w-px bg-gray-200" />
+              <div className="h-6 w-px bg-background-300" />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -590,7 +590,7 @@ export default function Header({
                     data-testid="user-menu-button"
                   >
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-blue-600 text-white text-xs">
+                      <AvatarFallback className="bg-primary-500 text-text-50 text-xs">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -598,7 +598,7 @@ export default function Header({
                       <span className="text-sm font-medium">
                         {user?.username}
                       </span>
-                      <span className="text-xs text-gray-500 capitalize">
+                      <span className="text-xs text-text-500 capitalize">
                         {user?.role || "Admin"}
                       </span>
                     </div>
@@ -611,7 +611,7 @@ export default function Header({
                       <p className="text-sm font-medium leading-none">
                         {user?.username}
                       </p>
-                      <p className="text-xs leading-none text-gray-500">
+                      <p className="text-xs leading-none text-text-500">
                         {user?.email || "admin@krapi.com"}
                       </p>
                     </div>
@@ -640,7 +640,7 @@ export default function Header({
       </header>
 
       {/* Mobile Header */}
-      <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:hidden">
+      <header className="flex h-16 items-center justify-between border-b border-background-300 bg-background-100 px-4 lg:hidden">
         <div className="flex items-center space-x-2">
           <Sheet open={isMobileMenuOpen} onOpenChange={onMobileMenuToggle}>
             <SheetTrigger asChild>
@@ -659,7 +659,7 @@ export default function Header({
             </SheetContent>
           </Sheet>
 
-          <div className="text-xl font-bold text-gray-900">Krapi CMS</div>
+          <div className="text-xl font-bold text-text-900">Krapi CMS</div>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -686,7 +686,7 @@ export default function Header({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-blue-600 text-white text-xs">
+                  <AvatarFallback className="bg-primary-500 text-text-50 text-xs">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>
@@ -698,7 +698,7 @@ export default function Header({
                   <p className="text-sm font-medium leading-none">
                     {user?.username}
                   </p>
-                  <p className="text-xs leading-none text-gray-500">
+                                        <p className="text-xs leading-none text-text-500">
                     {user?.email || "admin@krapi.com"}
                   </p>
                 </div>
