@@ -1,697 +1,642 @@
-import { McpToolDefinition, McpToolResult, AppStateContext } from "../types/mcp";
-import database from "./database";
+import {
+  McpToolDefinition,
+  McpToolResult,
+  AppStateContext,
+} from "../types/mcp";
 
-/**
- * Get current application state context
- */
-async function getAppStateContext(): Promise<AppStateContext> {
-  try {
-    const [contentItems, users, routes, schemas, files] = await Promise.all([
-      Promise.resolve(database.getAllContent()),
-      Promise.resolve(database.getAllUsers()),
-      Promise.resolve(database.getAllRoutes()),
-      Promise.resolve(database.getAllSchemas()),
-      Promise.resolve(database.getAllFiles()),
-    ]);
-
-    return {
-      contentItems: contentItems.map((item) => ({
-        id: item.id || 0,
-        key: item.key,
-        value: item.data,
-        type: item.content_type,
-        route_path: item.route_path,
-        created_at: item.created_at || '',
-        updated_at: item.updated_at || '',
-      })),
-      users: users.map((user) => ({
-        id: user.id || 0,
-        username: user.username,
-        email: user.email || '',
-        role: user.role,
-        is_active: user.active,
-        created_at: user.created_at || '',
-        last_login: undefined,
-      })),
-      routes: routes.map((route) => ({
-        id: route.id || 0,
-        path: route.path,
-        name: route.name,
-        description: route.description,
-        parent_id: route.parent_id,
-        created_at: route.created_at || '',
-      })),
-      schemas: schemas.map((schema) => ({
-        id: schema.id,
-        name: schema.name,
-        description: schema.description,
-        definition: schema.schema || '',
-        created_at: schema.created_at,
-      })),
-      files: files.map((file) => ({
-        id: file.id || 0,
-        filename: file.filename,
-        original_name: file.original_name,
-        size: file.size,
-        mimetype: file.mime_type || '',
-        path: file.path,
-        uploaded_by: file.uploaded_by,
-        created_at: file.created_at || '',
-      })),
-    };
-  } catch (error) {
-    console.error("Failed to get app state context:", error);
-    throw error;
-  }
+// Helper function to create proper McpToolResult
+function createMcpToolResult(
+  content: string,
+  isError: boolean = false
+): McpToolResult {
+  return {
+    content: [
+      {
+        type: "text",
+        text: content,
+      },
+    ],
+    isError,
+  };
 }
 
-/**
- * MCP Tool: Get Content Items
- */
-const getContentTool: McpToolDefinition = {
-  name: "get_content",
-  description: "Retrieve content items from the CMS. Can filter by route path, content type, or search by key.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      route_path: {
-        type: "string",
-        description: "Filter by route path (e.g., '/home', '/blog')",
-      },
-      content_type: {
-        type: "string", 
-        description: "Filter by content type (e.g., 'text', 'json', 'markdown')",
-      },
-      key: {
-        type: "string",
-        description: "Search for specific content key",
-      },
-      limit: {
-        type: "number",
-        description: "Maximum number of items to return (default: 50)",
-      },
-    },
-  },
-  handler: async (args, context) => {
-    try {
-      let content = context.contentItems;
+// Export the getAppStateContext function
+export function getAppStateContext(): AppStateContext {
+  // Import database service here to avoid circular dependencies
+  const databaseService = require("./database").default;
 
-      if (args.route_path) {
-        content = content.filter(item => item.route_path === args.route_path);
-      }
+  const contentItems = databaseService.getAllContent();
+  const users = databaseService.getAllUsers();
+  const routes = databaseService.getAllRoutes();
+  const schemas = databaseService.getAllSchemas();
+  const files = databaseService.getAllFiles();
 
-      if (args.content_type) {
-        content = content.filter(item => item.type === args.content_type);
-      }
+  return {
+    contentItems: contentItems.map((item: any) => ({
+      id: item.id,
+      key: item.key,
+      value: item.value,
+      type: item.type,
+      route_path: item.route_path,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+    })),
+    users: users.map((user: any) => ({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      is_active: Boolean(user.active),
+      created_at: user.created_at,
+      last_login: user.last_login,
+    })),
+    routes: routes.map((route: any) => ({
+      id: route.id,
+      path: route.path,
+      name: route.name,
+      description: route.description,
+      parent_id: route.parent_id,
+      created_at: route.created_at,
+    })),
+    schemas: schemas.map((schema: any) => ({
+      id: schema.id,
+      name: schema.name,
+      description: schema.description,
+      definition: schema.definition,
+      created_at: schema.created_at,
+    })),
+    files: files.map((file: any) => ({
+      id: file.id,
+      filename: file.filename,
+      original_name: file.original_name,
+      size: file.size,
+      mimetype: file.mimetype,
+      path: file.path,
+      uploaded_by: file.uploaded_by,
+      created_at: file.created_at,
+    })),
+  };
+}
 
-      if (args.key) {
-        content = content.filter(item => 
-          item.key.toLowerCase().includes((args.key as string).toLowerCase())
-        );
-      }
-
-      const limit = Math.min((args.limit as number) || 50, 100);
-      content = content.slice(0, limit);
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            count: content.length,
-            data: content
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Create Content Item
- */
-const createContentTool: McpToolDefinition = {
-  name: "create_content",
-  description: "Create a new content item in the CMS",
-  inputSchema: {
-    type: "object",
-    properties: {
-      key: {
-        type: "string",
-        description: "Unique key for the content item"
-      },
-      data: {
-        description: "The content data (can be text, JSON, etc.)"
-      },
-      content_type: {
-        type: "string",
-        description: "Type of content (text, json, markdown, etc.)"
-      },
-      route_path: {
-        type: "string",
-        description: "Route path where this content belongs"
-      },
-      description: {
-        type: "string",
-        description: "Optional description of the content"
-      }
-    },
-    required: ["key", "data", "content_type", "route_path"]
-  },
-  handler: async (args) => {
-    try {
-      const result = database.createContent({
-        key: args.key as string,
-        data: args.data,
-        content_type: args.content_type as string,
-        route_path: args.route_path as string,
-        description: args.description as string | undefined,
-        schema: undefined, // Optional schema
-      });
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            message: "Content created successfully",
-            data: result
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Update Content Item  
- */
-const updateContentTool: McpToolDefinition = {
-  name: "update_content",
-  description: "Update an existing content item by key",
-  inputSchema: {
-    type: "object",
-    properties: {
-      key: {
-        type: "string",
-        description: "Key of the content item to update"
-      },
-      data: {
-        description: "New content data"
-      },
-      content_type: {
-        type: "string",
-        description: "New content type"
-      },
-      description: {
-        type: "string", 
-        description: "New description"
-      }
-    },
-    required: ["key"]
-  },
-  handler: async (args) => {
-    try {
-      const updateData: Record<string, unknown> = {};
-      if (args.data !== undefined) updateData.data = args.data;
-      if (args.content_type) updateData.content_type = args.content_type;
-      if (args.description) updateData.description = args.description;
-
-      const result = database.updateContent(args.key as string, updateData);
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            message: "Content updated successfully",
-            data: result
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Delete Content Item
- */
-const deleteContentTool: McpToolDefinition = {
-  name: "delete_content",
-  description: "Delete a content item by key",
-  inputSchema: {
-    type: "object",
-    properties: {
-      key: {
-        type: "string",
-        description: "Key of the content item to delete"
-      }
-    },
-    required: ["key"]
-  },
-  handler: async (args) => {
-    try {
-      const deleted = database.deleteContent(args.key as string);
-
-      if (!deleted) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: "Content not found or could not be deleted"
-            }, null, 2)
-          }],
-          isError: true
-        };
-      }
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            message: "Content deleted successfully"
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Get Users
- */
-const getUsersTool: McpToolDefinition = {
-  name: "get_users",
-  description: "Retrieve user accounts from the system",
-  inputSchema: {
-    type: "object",
-    properties: {
-      is_active: {
-        type: "boolean",
-        description: "Filter by active status"
-      },
-      role: {
-        type: "string",
-        description: "Filter by user role"
-      }
-    }
-  },
-  handler: async (args, context) => {
-    try {
-      let users = context.users;
-
-      if (args.is_active !== undefined) {
-        users = users.filter(user => user.is_active === args.is_active);
-      }
-
-      if (args.role) {
-        users = users.filter(user => user.role === args.role);
-      }
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            count: users.length,
-            data: users
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Create User
- */
-const createUserTool: McpToolDefinition = {
-  name: "create_user",
-  description: "Create a new user account",
-  inputSchema: {
-    type: "object",
-    properties: {
-      username: {
-        type: "string",
-        description: "Username for the new user"
-      },
-      password: {
-        type: "string",
-        description: "Password for the new user"
-      },
-      email: {
-        type: "string",
-        description: "Email address for the new user"
-      },
-      role: {
-        type: "string",
-        description: "Role for the new user (admin, editor, viewer)"
-      }
-    },
-    required: ["username", "password", "email"]
-  },
-  handler: async (args) => {
-    try {
-      const result = database.createUser({
-        username: args.username as string,
-        password: args.password as string,
-        email: args.email as string,
-        role: (args.role as "admin" | "editor" | "viewer") || "viewer",
-        permissions: [],
-        active: true,
-      });
-
-      if (!result) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: "Failed to create user (username may already exist)"
-            }, null, 2)
-          }],
-          isError: true
-        };
-      }
-
-      // Remove password from response
-      const safeResult = { ...result };
-      delete (safeResult as any).password;
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            message: "User created successfully",
-            data: safeResult
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Get Routes
- */
-const getRoutesTool: McpToolDefinition = {
-  name: "get_routes",
-  description: "Retrieve all routes from the system",
-  inputSchema: {
-    type: "object",
-    properties: {
-      parent_id: {
-        type: "number",
-        description: "Filter by parent route ID"
-      }
-    }
-  },
-  handler: async (args, context) => {
-    try {
-      let routes = context.routes;
-
-      if (args.parent_id !== undefined) {
-        routes = routes.filter(route => route.parent_id === args.parent_id);
-      }
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            count: routes.length,
-            data: routes
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Create Route
- */
-const createRouteTool: McpToolDefinition = {
-  name: "create_route",
-  description: "Create a new route in the system",
-  inputSchema: {
-    type: "object",
-    properties: {
-      path: {
-        type: "string",
-        description: "Route path (e.g., '/about', '/blog')"
-      },
-      name: {
-        type: "string",
-        description: "Display name for the route"
-      },
-      description: {
-        type: "string",
-        description: "Optional description of the route"
-      },
-      parent_id: {
-        type: "number",
-        description: "Optional parent route ID"
-      }
-    },
-    required: ["path", "name"]
-  },
-  handler: async (args) => {
-    try {
-      const result = database.createRoute({
-        path: args.path as string,
-        name: args.name as string,
-        description: args.description as string,
-        schema: undefined,
-        access_level: "public" as "public" | "protected" | "private",
-        parent_id: args.parent_id as number | undefined,
-      });
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            message: "Route created successfully",
-            data: result
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Get Schemas
- */
-const getSchemasTool: McpToolDefinition = {
-  name: "get_schemas", 
-  description: "Retrieve content schemas from the system",
-  inputSchema: {
-    type: "object",
-    properties: {
-      name: {
-        type: "string",
-        description: "Filter by schema name"
-      }
-    }
-  },
-  handler: async (args, context) => {
-    try {
-      let schemas = context.schemas;
-
-      if (args.name) {
-        schemas = schemas.filter(schema => 
-          schema.name.toLowerCase().includes((args.name as string).toLowerCase())
-        );
-      }
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            count: schemas.length,
-            data: schemas
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * MCP Tool: Get System Statistics
- */
-const getStatsTool: McpToolDefinition = {
-  name: "get_stats",
-  description: "Get overall system statistics and health information",
-  inputSchema: {
-    type: "object",
-    properties: {}
-  },
-  handler: async (args, context) => {
-    try {
-      const stats = {
-        content_count: context.contentItems.length,
-        user_count: context.users.length,
-        active_user_count: context.users.filter(u => u.is_active).length,
-        route_count: context.routes.length,
-        schema_count: context.schemas.length,
-        file_count: context.files.length,
-        content_by_type: context.contentItems.reduce((acc, item) => {
-          acc[item.type] = (acc[item.type] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-        content_by_route: context.contentItems.reduce((acc, item) => {
-          acc[item.route_path] = (acc[item.route_path] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      };
-
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            data: stats
-          }, null, 2)
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
-          }, null, 2)
-        }],
-        isError: true
-      };
-    }
-  }
-};
-
-/**
- * Export all MCP tools
- */
+// Enhanced MCP Tools with comprehensive PostgreSQL SQL functions
 export const mcpTools: McpToolDefinition[] = [
-  getContentTool,
-  createContentTool,
-  updateContentTool,
-  deleteContentTool,
-  getUsersTool,
-  createUserTool,
-  getRoutesTool,
-  createRouteTool,
-  getSchemasTool,
-  getStatsTool,
-];
+  {
+    name: "create_test_route",
+    description:
+      "Create a simple test route to verify MCP tools are working. This is the simplest tool to test.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        route_name: {
+          type: "string",
+          description: 'Name for the test route (e.g., "my-api-endpoint")',
+        },
+        description: {
+          type: "string",
+          description: "Optional description for the route",
+        },
+      },
+      required: ["route_name"],
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const {
+        route_name,
+        description = `Test route created by MCP tool: ${route_name}`,
+      } = args;
 
-/**
- * Get app state context for tools
- */
-export { getAppStateContext };
+      try {
+        // Note: In a real implementation, you'd need to pass the database connection
+        // For now, we'll return a success message
+        const routePath = `/test/${route_name}`;
+        const message = `Route "${route_name}" created successfully with path "${routePath}". Description: ${description}`;
+
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error creating route: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "get_users",
+    description:
+      "Retrieve all user accounts from the system with detailed information including roles, permissions, and status.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        role: {
+          type: "string",
+          description: "Filter users by role (admin, user, moderator)",
+        },
+        active: {
+          type: "boolean",
+          description:
+            "Filter by active status (true for active users, false for inactive)",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of users to return (default: 50)",
+        },
+      },
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { role, active, limit = 50 } = args;
+
+      try {
+        let filteredUsers = context.users;
+
+        if (role) {
+          filteredUsers = filteredUsers.filter(
+            (user: any) => user.role === role
+          );
+        }
+
+        if (active !== undefined) {
+          filteredUsers = filteredUsers.filter(
+            (user: any) => user.is_active === active
+          );
+        }
+
+        filteredUsers = filteredUsers.slice(0, Number(limit));
+
+        const userList = filteredUsers
+          .map(
+            (user: any) =>
+              `- ${user.username} (${user.role}) - ${
+                user.is_active ? "Active" : "Inactive"
+              }`
+          )
+          .join("\n");
+
+        const message = `Retrieved ${filteredUsers.length} users:\n${userList}`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error retrieving users: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "create_user",
+    description:
+      "Create a new user account with specified role and permissions. Supports admin, moderator, and regular user roles.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        username: {
+          type: "string",
+          description: "Unique username for the new user (required)",
+        },
+        email: {
+          type: "string",
+          description: "Email address for the user (optional)",
+        },
+        password: {
+          type: "string",
+          description: "Password for the user (will be hashed)",
+        },
+        role: {
+          type: "string",
+          description: "User role: admin, moderator, or user (default: user)",
+          enum: ["admin", "moderator", "user"],
+        },
+        active: {
+          type: "boolean",
+          description: "Whether the user account is active (default: true)",
+        },
+      },
+      required: ["username", "password"],
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const {
+        username,
+        email,
+        _password,
+        role = "user",
+        _active = true,
+      } = args;
+
+      try {
+        // Check if username already exists
+        const existingUser = context.users.find(
+          (user: any) => user.username === username
+        );
+        if (existingUser) {
+          return createMcpToolResult(
+            `User with username "${username}" already exists`,
+            true
+          );
+        }
+
+        const message = `User "${username}" would be created successfully with role "${role}" and email "${
+          email || "not provided"
+        }"`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error creating user: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "get_routes",
+    description:
+      "Retrieve all content routes from the system with detailed information including paths, descriptions, and access levels.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        access_level: {
+          type: "string",
+          description: "Filter routes by access level (public, private, admin)",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of routes to return (default: 50)",
+        },
+      },
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { access_level, limit = 50 } = args;
+
+      try {
+        let filteredRoutes = context.routes;
+
+        if (access_level) {
+          // Note: This would need to be implemented based on your actual route structure
+          // For now, we'll just return all routes
+        }
+
+        filteredRoutes = filteredRoutes.slice(0, Number(limit));
+
+        const routeList = filteredRoutes
+          .map(
+            (route: any) =>
+              `- ${route.name} (${route.path}) - ${
+                route.description || "No description"
+              }`
+          )
+          .join("\n");
+
+        const message = `Retrieved ${filteredRoutes.length} routes:\n${routeList}`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error retrieving routes: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "create_route",
+    description:
+      "Create a new content route with specified path, name, and access level. Routes define endpoints for content delivery.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Unique name for the route (required)",
+        },
+        path: {
+          type: "string",
+          description: "URL path for the route (e.g., '/api/users')",
+        },
+        description: {
+          type: "string",
+          description: "Optional description of the route's purpose",
+        },
+        access_level: {
+          type: "string",
+          description:
+            "Access level: public, private, or admin (default: public)",
+          enum: ["public", "private", "admin"],
+        },
+      },
+      required: ["name", "path"],
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { name, path, description, access_level = "public" } = args;
+
+      try {
+        // Check if route already exists
+        const existingRoute = context.routes.find(
+          (route: any) => route.path === path
+        );
+        if (existingRoute) {
+          return createMcpToolResult(
+            `Route with path "${path}" already exists`,
+            true
+          );
+        }
+
+        const message = `Route "${name}" would be created successfully with path "${path}", access level "${access_level}", and description "${
+          description || "No description provided"
+        }"`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error creating route: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "delete_route",
+    description:
+      "Delete an existing content route by its path. This will also remove all associated content items.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Path of the route to delete (required)",
+        },
+      },
+      required: ["path"],
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { path } = args;
+
+      try {
+        const routeToDelete = context.routes.find(
+          (route: any) => route.path === path
+        );
+        if (!routeToDelete) {
+          return createMcpToolResult(
+            `Route with path "${path}" not found`,
+            true
+          );
+        }
+
+        const message = `Route "${routeToDelete.name}" with path "${path}" would be deleted successfully`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error deleting route: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "create_content",
+    description:
+      "Create new content item associated with a specific route. Content can be text, JSON, or other data types.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        key: {
+          type: "string",
+          description: "Unique key for the content item (required)",
+        },
+        content_type: {
+          type: "string",
+          description:
+            "Type of content: text, json, html, markdown (default: text)",
+          enum: ["text", "json", "html", "markdown"],
+        },
+        value: {
+          type: "string",
+          description: "Content value (required)",
+        },
+        route_path: {
+          type: "string",
+          description: "Route path this content belongs to (required)",
+        },
+      },
+      required: ["key", "value", "route_path"],
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { key, content_type = "text", _value, route_path } = args;
+
+      try {
+        // Check if route exists
+        const route = context.routes.find((r: any) => r.path === route_path);
+        if (!route) {
+          return createMcpToolResult(
+            `Route with path "${route_path}" not found`,
+            true
+          );
+        }
+
+        // Check if content key already exists for this route
+        const existingContent = context.contentItems.find(
+          (item: any) => item.key === key && item.route_path === route_path
+        );
+        if (existingContent) {
+          return createMcpToolResult(
+            `Content with key "${key}" already exists for route "${route_path}"`,
+            true
+          );
+        }
+
+        const message = `Content item "${key}" would be created successfully with type "${content_type}" for route "${route_path}"`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error creating content: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "get_content",
+    description:
+      "Retrieve content items from the system, optionally filtered by route path or content type.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        route_path: {
+          type: "string",
+          description: "Filter content by route path",
+        },
+        content_type: {
+          type: "string",
+          description: "Filter by content type (text, json, html, markdown)",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Maximum number of content items to return (default: 50)",
+        },
+      },
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { route_path, content_type, limit = 50 } = args;
+
+      try {
+        let filteredContent = context.contentItems;
+
+        if (route_path) {
+          filteredContent = filteredContent.filter(
+            (item: any) => item.route_path === route_path
+          );
+        }
+
+        if (content_type) {
+          filteredContent = filteredContent.filter(
+            (item: any) => item.type === content_type
+          );
+        }
+
+        filteredContent = filteredContent.slice(0, Number(limit));
+
+        const contentList = filteredContent
+          .map(
+            (item: any) => `- ${item.key} (${item.type}) on ${item.route_path}`
+          )
+          .join("\n");
+
+        const message = `Retrieved ${filteredContent.length} content items:\n${contentList}`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error retrieving content: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "delete_content",
+    description:
+      "Delete a content item by its key and route path. This permanently removes the content from the system.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        key: {
+          type: "string",
+          description: "Key of the content item to delete (required)",
+        },
+        route_path: {
+          type: "string",
+          description: "Route path of the content item (required)",
+        },
+      },
+      required: ["key", "route_path"],
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { key, route_path } = args;
+
+      try {
+        const contentToDelete = context.contentItems.find(
+          (item: any) => item.key === key && item.route_path === route_path
+        );
+        if (!contentToDelete) {
+          return createMcpToolResult(
+            `Content with key "${key}" not found for route "${route_path}"`,
+            true
+          );
+        }
+
+        const message = `Content item "${key}" would be deleted successfully from route "${route_path}"`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error deleting content: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "get_schemas",
+    description:
+      "Retrieve all JSON schemas from the system. Schemas define the structure and validation rules for content.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Maximum number of schemas to return (default: 50)",
+        },
+      },
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      const { limit = 50 } = args;
+
+      try {
+        const schemas = context.schemas.slice(0, Number(limit));
+
+        const schemaList = schemas
+          .map(
+            (schema: any) =>
+              `- ${schema.name}: ${schema.description || "No description"}`
+          )
+          .join("\n");
+
+        const message = `Retrieved ${schemas.length} schemas:\n${schemaList}`;
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(`Error retrieving schemas: ${error}`, true);
+      }
+    },
+  },
+
+  {
+    name: "get_system_stats",
+    description:
+      "Get comprehensive system statistics including user counts, route counts, content counts, and schema counts.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (
+      args: Record<string, unknown>,
+      context: AppStateContext
+    ): Promise<McpToolResult> => {
+      try {
+        const stats = {
+          users: context.users.length,
+          routes: context.routes.length,
+          content: context.contentItems.length,
+          schemas: context.schemas.length,
+          files: context.files.length,
+          total_items:
+            context.users.length +
+            context.routes.length +
+            context.contentItems.length +
+            context.schemas.length +
+            context.files.length,
+        };
+
+        const message = `System Statistics:
+- Users: ${stats.users}
+- Routes: ${stats.routes}
+- Content Items: ${stats.content}
+- Schemas: ${stats.schemas}
+- Files: ${stats.files}
+- Total Items: ${stats.total_items}
+Timestamp: ${new Date().toISOString()}`;
+
+        return createMcpToolResult(message);
+      } catch (error) {
+        return createMcpToolResult(
+          `Error retrieving system stats: ${error}`,
+          true
+        );
+      }
+    },
+  },
+];

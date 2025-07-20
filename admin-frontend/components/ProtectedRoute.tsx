@@ -9,16 +9,17 @@ export default function ProtectedRoute({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isHydrated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isHydrated && !isLoading && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, isHydrated, router]);
 
-  if (isLoading) {
+  // Show loading state while hydration is in progress
+  if (!isHydrated || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-50">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
@@ -26,6 +27,7 @@ export default function ProtectedRoute({
     );
   }
 
+  // Don't render anything if not authenticated and hydration is complete
   if (!isAuthenticated) {
     return null;
   }

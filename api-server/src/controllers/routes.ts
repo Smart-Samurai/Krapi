@@ -160,14 +160,35 @@ export class RoutesController {
 
   static deleteRoute(req: Request, res: Response): void {
     try {
-      const { path } = req.params;
+      const { id } = req.params;
+      const routeId = parseInt(id);
 
-      const deleted = database.deleteRoute(path);
+      if (isNaN(routeId)) {
+        const response: ApiResponse = {
+          success: false,
+          error: "Invalid route ID",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      // First get the route to find its path
+      const route = database.getRouteById(routeId);
+      if (!route) {
+        const response: ApiResponse = {
+          success: false,
+          error: `Route with ID ${routeId} not found`,
+        };
+        res.status(404).json(response);
+        return;
+      }
+
+      const deleted = database.deleteRoute(route.path);
 
       if (!deleted) {
         const response: ApiResponse = {
           success: false,
-          error: `Route with path '${path}' not found`,
+          error: `Route with path '${route.path}' not found`,
         };
         res.status(404).json(response);
         return;
@@ -175,7 +196,7 @@ export class RoutesController {
 
       const response: ApiResponse = {
         success: true,
-        message: `Route with path '${path}' deleted successfully`,
+        message: `Route with path '${route.path}' deleted successfully`,
       };
 
       res.json(response);

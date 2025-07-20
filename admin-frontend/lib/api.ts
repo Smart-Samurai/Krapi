@@ -161,11 +161,33 @@ export const ollamaAPI = {
       max_tokens?: number;
     } = {}
   ) => {
-    const response = await api.post("/ollama/chat", {
-      messages,
-      ...options,
-    });
-    return response.data;
+    try {
+      console.log("🔍 Frontend API Chat Request:", {
+        messages: messages.length,
+        options,
+        timestamp: new Date().toISOString(),
+      });
+
+      const response = await api.post("/ollama/chat", {
+        messages,
+        ...options,
+      });
+
+      console.log("✅ Frontend API Chat Response:", {
+        success: response.data.success,
+        timestamp: new Date().toISOString(),
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("❌ Frontend API Chat Error:", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        response: (error as any).response?.data,
+        status: (error as any).response?.status,
+        timestamp: new Date().toISOString(),
+      });
+      throw error;
+    }
   },
 
   // Generate text completion

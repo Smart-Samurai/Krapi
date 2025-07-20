@@ -40,14 +40,14 @@ router.get("/auth/profile", AuthController.getProfile);
 router.put("/auth/profile", AuthController.updateProfile);
 router.post("/auth/change-password", AuthController.changePassword);
 
-// MCP Routes (Ollama + AI Integration)
+// MCP Routes (Ollama + AI Integration) - Protected
 router.get("/mcp/info", McpController.getServerInfo);
 router.get("/mcp/health", McpController.healthCheck);
 router.get("/mcp/tools", McpController.listTools);
 router.post("/mcp/tools/call", McpController.callTool);
 router.get("/mcp/app-state", McpController.getAppState);
 
-// Ollama Integration
+// Ollama Integration - Protected
 router.get("/ollama/models", McpController.listModels);
 router.post("/ollama/models/pull", McpController.pullModel);
 router.post("/ollama/chat", McpController.ollamaChat);
@@ -80,11 +80,11 @@ router.get("/search", SearchController.searchAll);
 // Users
 router.get("/admin/users", UserController.getAllUsers);
 router.post("/admin/users", UserController.createUser);
+router.get("/admin/users/stats", UserController.getUserStats);
 router.get("/admin/users/:id", UserController.getUserById);
 router.put("/admin/users/:id", UserController.updateUser);
 router.delete("/admin/users/:id", UserController.deleteUser);
 router.patch("/admin/users/:id/toggle-status", UserController.toggleUserStatus);
-router.get("/admin/users/stats", UserController.getUserStats);
 
 // Auth Management
 router.get("/admin/auth/security-settings", AuthController.getSecuritySettings);

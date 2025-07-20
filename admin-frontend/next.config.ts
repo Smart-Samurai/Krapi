@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Port configuration
+  serverRuntimeConfig: {
+    port: 3469,
+  },
+  publicRuntimeConfig: {
+    port: 3469,
+  },
   async rewrites() {
     return [
       {
@@ -25,6 +32,7 @@ const nextConfig: NextConfig = {
   // Environment variables
   env: {
     NEXT_PUBLIC_API_URL: "http://localhost:3470/api",
+    PORT: "3469",
   },
 };
 

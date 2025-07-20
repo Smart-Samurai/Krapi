@@ -1,9 +1,9 @@
 import axios, { AxiosInstance } from "axios";
-import { 
-  OllamaChatRequest, 
-  OllamaChatResponse, 
+import {
+  OllamaChatRequest,
+  OllamaChatResponse,
   OllamaMessage,
-  McpTool 
+  McpTool,
 } from "../types/mcp";
 
 export class OllamaService {
@@ -35,8 +35,10 @@ export class OllamaService {
       return response.status === 200;
     } catch (error) {
       // Don't log error details to reduce noise when Ollama is not available
-      if (process.env.NODE_ENV === 'development') {
-        console.debug("Ollama health check failed - this is normal if Ollama is not installed");
+      if (process.env.NODE_ENV === "development") {
+        console.debug(
+          "Ollama health check failed - this is normal if Ollama is not installed"
+        );
       }
       return false;
     }
@@ -48,7 +50,9 @@ export class OllamaService {
   async listModels(): Promise<string[]> {
     try {
       const response = await this.client.get("/api/tags");
-      return response.data.models?.map((model: { name: string }) => model.name) || [];
+      return (
+        response.data.models?.map((model: { name: string }) => model.name) || []
+      );
     } catch (error) {
       console.error("Failed to list Ollama models:", error);
       return [];
@@ -90,10 +94,14 @@ export class OllamaService {
     } = {}
   ): Promise<OllamaChatResponse> {
     const model = options.model || this.defaultModel;
-    
+
     // Ensure the model is available
     if (!(await this.isModelAvailable(model))) {
-      throw new Error(`Model ${model} is not available. Available models: ${(await this.listModels()).join(", ")}`);
+      throw new Error(
+        `Model ${model} is not available. Available models: ${(
+          await this.listModels()
+        ).join(", ")}`
+      );
     }
 
     const request: OllamaChatRequest = {
@@ -110,15 +118,28 @@ export class OllamaService {
     // Add tools if provided and model supports them
     // Only certain models support tool calling (e.g., mistral, llama3.1)
     if (options.tools && options.tools.length > 0) {
+      console.log("🔍 Ollama Service - Tools provided:", options.tools.length);
+      console.log(
+        "🔍 Ollama Service - Tool names:",
+        options.tools.map((t) => t.name)
+      );
+
       // Format tools for Ollama's expected format
-      request.tools = options.tools.map(tool => ({
+      request.tools = options.tools.map((tool) => ({
         type: "function",
         function: {
           name: tool.name,
           description: tool.description,
-          parameters: tool.inputSchema
-        }
+          parameters: tool.inputSchema,
+        },
       }));
+
+      console.log(
+        "🔍 Ollama Service - Formatted tools:",
+        JSON.stringify(request.tools, null, 2)
+      );
+    } else {
+      console.log("🔍 Ollama Service - No tools provided");
     }
 
     try {
@@ -127,10 +148,16 @@ export class OllamaService {
     } catch (error) {
       console.error("Ollama chat request failed:", error);
       if (axios.isAxiosError(error)) {
-        if (error.code === 'ECONNREFUSED') {
-          throw new Error('Ollama is not running. Please start Ollama with: ollama serve');
+        if (error.code === "ECONNREFUSED") {
+          throw new Error(
+            "Ollama is not running. Please start Ollama with: ollama serve"
+          );
         }
-        throw new Error(`Ollama request failed: ${error.response?.data?.error || error.message}`);
+        throw new Error(
+          `Ollama request failed: ${
+            error.response?.data?.error || error.message
+          }`
+        );
       }
       throw error;
     }
@@ -161,7 +188,9 @@ export class OllamaService {
   /**
    * Get model information
    */
-  async getModelInfo(modelName: string): Promise<Record<string, unknown> | null> {
+  async getModelInfo(
+    modelName: string
+  ): Promise<Record<string, unknown> | null> {
     try {
       const response = await this.client.post("/api/show", { name: modelName });
       return response.data;
@@ -176,7 +205,9 @@ export class OllamaService {
    */
   async deleteModel(modelName: string): Promise<boolean> {
     try {
-      const response = await this.client.delete("/api/delete", { data: { name: modelName } });
+      const response = await this.client.delete("/api/delete", {
+        data: { name: modelName },
+      });
       return response.status === 200;
     } catch (error) {
       console.error(`Failed to delete model ${modelName}:`, error);

@@ -11,10 +11,11 @@ export default function Notification({
   message,
   onClose,
 }: NotificationProps) {
-  const bgColor = type === "error" ? "bg-red-50" : "bg-green-50";
-  const textColor = type === "error" ? "text-red-700 dark:text-red-300" : "text-accent-700 dark:text-accent-300";
-  const borderColor = type === "error" ? "border-red-200" : "border-green-200";
-  const iconColor = type === "error" ? "text-red-400" : "text-green-400";
+  const bgColor = type === "error" ? "bg-error/20" : "bg-success/20";
+  const textColor = type === "error" ? "text-error" : "text-success";
+  const borderColor =
+    type === "error" ? "border-error/30" : "border-success/30";
+  const iconColor = type === "error" ? "text-error" : "text-success";
   const Icon = type === "error" ? AlertCircle : CheckCircle;
 
   return (

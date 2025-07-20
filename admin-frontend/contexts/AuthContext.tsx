@@ -16,6 +16,7 @@ interface AuthContextType {
   token: string | null;
   socket: WebSocket | null;
   isLoading: boolean;
+  isHydrated: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -181,19 +182,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = async () => {
     try {
+      console.log("🔍 Verifying token...");
       const response = await authAPI.verify();
+      console.log("🔍 Token verification response:", response);
 
       if (response.success && response.data && response.data.user) {
+        console.log("✅ Token verified, setting user:", response.data.user);
         setUser(response.data.user);
       } else {
+        console.log("❌ Token verification failed, clearing token");
         localStorage.removeItem("auth_token");
         setToken(null);
       }
     } catch (error) {
-      console.error("Token verification failed:", error);
+      console.error("❌ Token verification failed:", error);
       localStorage.removeItem("auth_token");
       setToken(null);
     } finally {
+      console.log("🔍 Setting loading=false, hydrated=true");
       setIsLoading(false);
       setIsHydrated(true);
     }
@@ -259,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         socket,
         isLoading,
+        isHydrated,
         login,
         logout,
         refreshUser,

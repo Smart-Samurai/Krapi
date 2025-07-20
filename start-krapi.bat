@@ -1,46 +1,21 @@
 @echo off
-echo ================================================
-echo     KRAPI CMS - DEVELOPMENT MANAGER
-echo ================================================
-echo.
-echo Expected Ports:
-echo   - Frontend: http://localhost:3469
-echo   - API: http://localhost:3470
-echo   - WebSocket: ws://localhost:3471
-echo.
-echo ================================================
+echo Starting Krapi CMS...
 echo.
 
-REM Check if Python is available
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Error: Python is not installed or not in PATH
-    echo Please install Python 3.8+ and try again
-    pause
-    exit /b 1
-)
+echo Starting API Server on port 3470...
+start "API Server" cmd /k "cd /d %~dp0api-server && pnpm run dev"
 
-REM Check if npm is available
-npm --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Error: npm is not installed or not in PATH
-    echo Please install Node.js and try again
-    pause
-    exit /b 1
-)
+echo Starting Frontend on port 3469...
+start "Frontend" cmd /k "cd /d %~dp0admin-frontend && pnpm run dev"
 
-echo Found Python executable: python
 echo.
-
-REM Install Python dependencies if needed
-echo Installing Python dependencies...
-pip install -r requirements.txt
+echo Both services are starting...
+echo API Server: http://localhost:3470
+echo Frontend: http://localhost:3469
 echo.
+echo Press any key to stop all services...
+pause >nul
 
-echo Starting Krapi CMS Development Manager...
-echo.
-
-REM Start the Python manager
-python start-manager.py
-
-pause 
+echo Stopping all services...
+taskkill /F /IM node.exe
+echo Services stopped. 

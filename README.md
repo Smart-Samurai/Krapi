@@ -1,208 +1,156 @@
-# KRAPI CMS - Enterprise Content Management System
+# Krapi CMS
 
-## Project Vision
-KRAPI CMS is designed to become a comprehensive, AI-powered content management system with enterprise-grade scalability, competing with platforms like Appwrite. The system will provide limitless scalability, intelligent content management, and seamless deployment across cloud environments.
+A modern, TypeScript-based headless CMS with React admin panel and Express.js backend.
 
-## Core Objectives
+## Quick Start
 
-### 🎯 Primary Goals
-- **Enterprise CMS**: Full-featured content management with AI assistance
-- **Limitless Scalability**: Handle massive databases and high traffic loads
-- **AI-Native Architecture**: Intelligent content creation, management, and automation
-- **Cloud-Ready**: Kubernetes/Swarm deployment with auto-scaling capabilities
-- **Developer-Friendly**: Comprehensive API-first design with modern tooling
+### Install All Dependencies
 
-### 🏗️ Architecture Foundation
-- **Frontend**: Next.js 14 with React 18 and TypeScript
-- **Backend**: Node.js Express API with TypeScript
-- **Database**: SQLite (dev) → PostgreSQL/MySQL (production)
-- **AI Integration**: MCP Protocol with Ollama for intelligent features
-- **File Storage**: Local → Cloud storage (S3, GCS, Azure)
-- **Authentication**: JWT-based with role-based access control
+```bash
+npm run install:all
+```
 
-## Development Roadmap
+### Development Mode (Both Frontend & Backend)
 
-### Phase 1: Core Foundation ✅
-- [x] Basic CMS functionality (content, users, schemas)
-- [x] Authentication and authorization system
-- [x] File management and storage
-- [x] API-first architecture
-- [x] TypeScript implementation
+```bash
+npm run dev
+```
 
-### Phase 2: AI Integration ✅
-- [x] MCP (Model Context Protocol) integration
-- [x] Ollama AI model support
-- [x] AI-powered content management tools
-- [x] Intelligent automation capabilities
+This starts both servers simultaneously:
 
-### Phase 3: Enhanced Features 🚧
-- [ ] Advanced content workflows
-- [ ] Multi-tenant architecture
-- [ ] Advanced search and filtering
-- [ ] Real-time collaboration features
-- [ ] Advanced user management and permissions
+- **Frontend**: http://localhost:3469
+- **Backend API**: http://localhost:3470
 
-### Phase 4: Scalability & Performance 🎯
-- [ ] Database optimization and indexing
-- [ ] Caching layer implementation
-- [ ] CDN integration for assets
-- [ ] Load balancing preparation
-- [ ] Performance monitoring and metrics
+### Individual Server Commands
 
-### Phase 5: Enterprise Features 🎯
-- [ ] Advanced analytics and reporting
-- [ ] Workflow automation
-- [ ] Integration APIs (webhooks, SDKs)
-- [ ] Advanced security features
-- [ ] Compliance and audit logging
+#### Frontend Only
 
-### Phase 6: Cloud Deployment 🎯
-- [ ] Docker containerization
-- [ ] Kubernetes deployment manifests
-- [ ] Auto-scaling configuration
-- [ ] Cloud storage integration
-- [ ] CI/CD pipeline setup
+```bash
+npm run dev:frontend
+```
 
-## Key Features (Planned)
+#### Backend Only
 
-### Content Management
-- Dynamic content schemas and validation
-- Version control and content history
-- Multi-language support
-- SEO optimization tools
-- Content scheduling and publishing
+```bash
+npm run dev:api
+```
 
-### AI-Powered Features
-- Intelligent content generation
-- Automated content tagging and categorization
-- Smart search and recommendations
-- Content optimization suggestions
-- Automated workflow triggers
+### Production Build
 
-### User Management
-- Role-based access control
-- Multi-tenant support
-- SSO integration
-- Advanced permission system
-- User activity tracking
+```bash
+npm run build
+```
 
-### File Management
-- Cloud storage integration
-- Image optimization and processing
-- File versioning
-- Advanced search and filtering
-- CDN integration
+### Production Start
 
-### Developer Experience
-- Comprehensive REST API
-- Real-time WebSocket connections
-- SDK libraries (JavaScript, Python, etc.)
-- Webhook system
-- API rate limiting and monitoring
+```bash
+npm start
+```
 
-## Technology Stack
+### Testing
 
-### Frontend
-- **Framework**: Next.js 14 with App Router
-- **UI**: React 18, Tailwind CSS, Shadcn/ui
-- **State**: React Context + Custom hooks
-- **Type Safety**: TypeScript
+```bash
+npm test
+```
 
-### Backend
-- **Runtime**: Node.js with Express
-- **Database**: SQLite → PostgreSQL/MySQL
-- **Authentication**: JWT with bcrypt
-- **File Storage**: Multer → Cloud storage
-- **Real-time**: WebSocket with ws
+## Project Structure
 
-### AI & Automation
-- **AI Models**: Ollama with local/cloud models
-- **Protocol**: MCP (Model Context Protocol)
-- **Tools**: Custom AI tools for CMS operations
-- **Integration**: RESTful API endpoints
+```
+Krapi/
+├── admin-frontend/     # Next.js React frontend
+├── api-server/         # Express.js TypeScript backend
+├── development/        # Development tools
+├── docs/              # Documentation
+└── logs/              # Application logs
+```
 
-### Infrastructure (Future)
-- **Containerization**: Docker
-- **Orchestration**: Kubernetes/Docker Swarm
-- **Storage**: Cloud storage (S3, GCS, Azure)
-- **CDN**: CloudFlare/AWS CloudFront
-- **Monitoring**: Prometheus, Grafana
+## Port Configuration
 
-## Getting Started
+- **Frontend**: Port 3469
+- **API Server**: Port 3470
+- **WebSocket**: Port 3471 (built into API)
+
+## Authentication
+
+Default credentials:
+
+- **Username**: `admin`
+- **Password**: `admin123`
+
+## Features
+
+- 🔐 JWT Authentication
+- 🤖 AI Integration with Ollama
+- 📝 Content Management
+- 👥 User Management
+- 🔌 MCP (Model Context Protocol) Tools
+- 🌙 Dark/Light Theme
+- 📱 Responsive Design
+- 🔄 Real-time WebSocket Updates
+
+## Development
 
 ### Prerequisites
-- Node.js 18+ and npm/pnpm
-- SQLite (included) or PostgreSQL
+
+- Node.js 18+
+- npm 8+
 - Ollama (for AI features)
 
-### Local Development
+### Environment Setup
+
+1. Install dependencies: `npm run install:all`
+2. Start development servers: `npm run dev`
+3. Open http://localhost:3469
+4. Login with admin credentials
+
+### AI Features Setup
+
+1. Install Ollama from https://ollama.ai
+2. Start Ollama: `ollama serve`
+3. Pull a model: `ollama pull llama3.2:3b`
+4. AI features will be available in the dashboard
+
+## Available Scripts
+
+| Command                | Description                                         |
+| ---------------------- | --------------------------------------------------- |
+| `npm run dev`          | Start both frontend and backend in development mode |
+| `npm run dev:frontend` | Start frontend only                                 |
+| `npm run dev:api`      | Start backend only                                  |
+| `npm run build`        | Build both frontend and backend for production      |
+| `npm run start`        | Start both servers in production mode               |
+| `npm run test`         | Run tests for both frontend and backend             |
+| `npm run install:all`  | Install dependencies for all packages               |
+
+## Troubleshooting
+
+### Port Conflicts
+
+If ports are already in use:
+
 ```bash
-# Clone repository
-git clone <repository-url>
-cd krapi-cms
+# Check what's using the ports
+netstat -ano | findstr :3469
+netstat -ano | findstr :3470
 
-# Install dependencies
-cd api-server && npm install
-cd ../admin-frontend && npm install
-
-# Set up environment
-cp api-server/.env.sample api-server/.env
-# Edit .env with your configuration
-
-# Start development servers
-# Terminal 1: Backend
-cd api-server && npm run dev
-
-# Terminal 2: Frontend  
-cd admin-frontend && npm run dev
+# Kill processes if needed
+taskkill /PID <process_id> /F
 ```
 
-### Environment Configuration
-```bash
-# api-server/.env
-MCP_ENABLED=true
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_DEFAULT_MODEL=llama3.2:3b
-JWT_SECRET=your-secret-key
-DATABASE_PATH=./data/app.db
-```
+### Hydration Issues
 
-## Documentation
+If the frontend shows blank on first load:
 
-### API Reference
-Complete API documentation and frontend-backend connections: [`docs/Connections between front and back end.md`](docs/Connections%20between%20front%20and%20back%20end.md)
+1. Ensure both servers are running
+2. Check browser console for errors
+3. Try refreshing the page
 
-### Development Guidelines
-- Follow TypeScript strict mode
-- Maintain API-first design principles
-- Implement comprehensive error handling
-- Write tests for all new features
-- Follow established authentication patterns
+### AI Features Not Working
 
-## Contributing
-
-### Development Workflow
-1. Create feature branch from `main`
-2. Implement changes with tests
-3. Update API documentation if needed
-4. Submit pull request with description
-5. Code review and merge
-
-### Code Standards
-- TypeScript strict mode
-- ESLint configuration
-- Prettier formatting
-- Conventional commits
-- Comprehensive testing
+1. Verify Ollama is installed and running
+2. Check if models are available: `ollama list`
+3. Ensure the API can connect to Ollama
 
 ## License
-[License Type] - See LICENSE file for details
 
-## Support
-- Documentation: [`docs/Connections between front and back end.md`](docs/Connections%20between%20front%20and%20back%20end.md)
-- Issues: GitHub Issues
-- Discussions: GitHub Discussions
-
----
-
-**Note**: This is a development project. Features are being implemented according to the roadmap. Current functionality represents the foundation upon which the full enterprise CMS will be built.
+MIT License

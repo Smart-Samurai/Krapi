@@ -134,15 +134,22 @@ export class McpController {
     res: express.Response
   ): Promise<void> {
     try {
-      const { 
-        messages, 
-        model, 
-        tools = true, 
+      console.log("🔍 MCP Chat Request:", {
+        body: req.body,
+        headers: req.headers,
+        timestamp: new Date().toISOString(),
+      });
+
+      const {
+        messages,
+        model,
+        tools = false,
         temperature = 0.7,
-        max_tokens = 2000 
+        max_tokens = 2000,
       } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
+        console.error("❌ Invalid messages format:", messages);
         res.status(400).json({
           success: false,
           error: "Messages array is required",
@@ -151,23 +158,37 @@ export class McpController {
       }
 
       // Convert frontend messages to OllamaMessage format
-      const ollamaMessages: OllamaMessage[] = messages.map((msg: any, index: number) => {
-        // Validate message structure
-        if (!msg || typeof msg !== 'object') {
-          throw new Error(`Invalid message format at index ${index}`);
+      const ollamaMessages: OllamaMessage[] = messages.map(
+        (msg: any, index: number) => {
+          // Validate message structure
+          if (!msg || typeof msg !== "object") {
+            throw new Error(`Invalid message format at index ${index}`);
+          }
+          if (!msg.role || !msg.content) {
+            throw new Error(
+              `Message at index ${index} must have role and content`
+            );
+          }
+
+          return {
+            role: msg.role as "system" | "user" | "assistant" | "tool",
+            content: String(msg.content),
+            tool_calls: msg.tool_calls || undefined,
+          };
         }
-        if (!msg.role || !msg.content) {
-          throw new Error(`Message at index ${index} must have role and content`);
-        }
-        
-        return {
-          role: msg.role as "system" | "user" | "assistant" | "tool",
-          content: String(msg.content),
-          tool_calls: msg.tool_calls || undefined,
-        };
+      );
+
+      console.log("🔍 Processed messages:", ollamaMessages.length);
+
+      // Get the MCP server
+      const mcpServer = getMcpServer();
+
+      console.log("🔍 MCP Server status:", {
+        enabled: mcpServer.isServerEnabled(),
+        toolsEnabled: tools,
       });
 
-      const mcpServer = getMcpServer();
+      // Use MCP server for chat with tool support
       const response = await (mcpServer as any).handleRequest({
         method: "ollama/chat",
         params: {
@@ -183,25 +204,31 @@ export class McpController {
       });
 
       if (response.error) {
-        res.status(400).json({
-          success: false,
-          error: response.error.message,
-          code: response.error.code,
-        });
-        return;
+        throw new Error(response.error.message);
       }
+
+      console.log("✅ Ollama response received");
 
       res.json({
         success: true,
-        data: response.result,
+        data: response,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      
+      console.error("❌ MCP Chat Error:", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      });
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       // Check if this is a validation error (client-side error)
-      if (errorMessage.includes('Invalid message format') || 
-          errorMessage.includes('must have role and content') ||
-          errorMessage.includes('Messages array is required')) {
+      if (
+        errorMessage.includes("Invalid message format") ||
+        errorMessage.includes("must have role and content") ||
+        errorMessage.includes("Messages array is required")
+      ) {
         res.status(400).json({
           success: false,
           error: errorMessage,
@@ -226,7 +253,7 @@ export class McpController {
     try {
       const mcpServer = getMcpServer();
       const ollamaService = mcpServer.getOllamaService();
-      
+
       const modelNames = await ollamaService.listModels();
 
       res.json({
@@ -265,7 +292,7 @@ export class McpController {
 
       const mcpServer = getMcpServer();
       const ollamaService = mcpServer.getOllamaService();
-      
+
       const success = await ollamaService.pullModel(model);
 
       if (!success) {

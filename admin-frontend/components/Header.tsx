@@ -447,11 +447,11 @@ export default function Header({
 
                   {/* Search Error Message */}
                   {searchError && (
-                                          <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-destructive/20 rounded-md shadow-lg z-50">
-                        <div className="p-4 text-center text-destructive text-sm">
-                          {searchError}
-                        </div>
+                    <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-destructive rounded-md shadow-lg z-50">
+                      <div className="p-4 text-center text-destructive text-sm">
+                        {searchError}
                       </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -704,7 +704,7 @@ export default function Header({
                   <p className="text-sm font-medium leading-none">
                     {user?.username}
                   </p>
-                                        <p className="text-xs leading-none text-text-500">
+                  <p className="text-xs leading-none text-text-500">
                     {user?.email || "admin@krapi.com"}
                   </p>
                 </div>

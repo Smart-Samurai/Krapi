@@ -1,21 +1,21 @@
 import { Request, Response } from "express";
-import { 
-  McpRequest, 
-  McpResponse, 
-  McpServerConfig, 
+import {
+  McpRequest,
+  McpResponse,
+  McpServerConfig,
   McpTool,
   McpToolResult,
-  OllamaMessage
+  OllamaMessage,
 } from "../types/mcp";
 import { OllamaService } from "./ollama";
 import { mcpTools, getAppStateContext } from "./mcp-tools";
-import { 
-  isValidToolResult, 
-  isValidOllamaMessage, 
+import {
+  isValidToolResult,
+  isValidOllamaMessage,
   isValidToolCall,
   assertDefined,
   createErrorResponse,
-  TypedError
+  TypedError,
 } from "../utils/type-guards";
 
 /**
@@ -83,6 +83,31 @@ export class McpServer {
    */
   getOllamaService(): OllamaService {
     return this.ollamaService;
+  }
+
+  /**
+   * Get MCP tool definitions for Ollama
+   */
+  getToolDefinitions(): McpTool[] {
+    return mcpTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    }));
+  }
+
+  /**
+   * Convert MCP tools to Ollama tool format
+   */
+  private convertToolsToOllamaFormat(): any[] {
+    return mcpTools.map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+      },
+    }));
   }
 
   /**
@@ -171,7 +196,7 @@ export class McpServer {
     try {
       const context = await getAppStateContext();
       const result = await tool.handler(args, context);
-      
+
       return {
         result,
         id: request.id,
@@ -205,40 +230,78 @@ export class McpServer {
     };
 
     try {
+      console.log(
+        "🔍 MCP Chat - Messages:",
+        messages.length,
+        "Tools enabled:",
+        tools
+      );
       // Create a working copy of messages
       let workingMessages = [...messages];
-      const mcpToolsForOllama: McpTool[] = tools 
-        ? mcpTools.map((tool) => ({
-            name: tool.name,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-          }))
-        : [];
+
+      // Convert MCP tools to Ollama tool format
+      const ollamaTools = tools ? this.convertToolsToOllamaFormat() : [];
+
+      console.log("🔍 MCP Server - Tools parameter:", tools);
+      console.log("🔍 MCP Server - Converted tools count:", ollamaTools.length);
+      console.log(
+        "🔍 MCP Server - Ollama tools format:",
+        JSON.stringify(ollamaTools, null, 2)
+      );
 
       // Make the initial chat request
       let response = await this.ollamaService.chat(workingMessages, {
         model,
-        tools: mcpToolsForOllama,
+        tools: ollamaTools,
         ...options,
       });
 
+      console.log("🔍 Ollama response:", JSON.stringify(response, null, 2));
+
       // Handle tool calls if present
-      if (response.message.tool_calls && response.message.tool_calls.length > 0) {
+      if (
+        response.message.tool_calls &&
+        response.message.tool_calls.length > 0
+      ) {
+        console.log("🔧 Tool calls detected:", response.message.tool_calls);
         const context = await getAppStateContext();
-        
+
         // Add the assistant's response with tool calls to the conversation
         workingMessages.push(response.message);
 
         // Execute each tool call
         for (const toolCall of response.message.tool_calls) {
+          console.log("🔧 Executing tool call:", toolCall);
+
           const tool = mcpTools.find((t) => t.name === toolCall.function.name);
           if (tool) {
             try {
-              const result = await tool.handler(toolCall.function.arguments, context);
-              
+              // Parse arguments if they're a string
+              let args = toolCall.function.arguments;
+              if (typeof args === "string") {
+                try {
+                  args = JSON.parse(args);
+                } catch (parseError) {
+                  console.error(
+                    `Failed to parse tool arguments for ${toolCall.function.name}:`,
+                    args
+                  );
+                  args = {};
+                }
+              }
+
+              console.log("🔧 Tool arguments:", args);
+
+              const result = await tool.handler(args, context);
+
+              console.log("🔧 Tool result:", result);
+
               // Safely extract content from the result
-              const content = this.extractToolResultContent(result, toolCall.function.name);
-              
+              const content = this.extractToolResultContent(
+                result,
+                toolCall.function.name
+              );
+
               // Add tool result as a message
               workingMessages.push({
                 role: "tool",
@@ -246,7 +309,9 @@ export class McpServer {
                 // Include tool call ID if available
               });
             } catch (error) {
-              const errorMessage = `Error executing tool ${toolCall.function.name}: ${error instanceof Error ? error.message : "Unknown error"}`;
+              const errorMessage = `Error executing tool ${
+                toolCall.function.name
+              }: ${error instanceof Error ? error.message : "Unknown error"}`;
               console.error(errorMessage, error);
               workingMessages.push({
                 role: "tool",
@@ -279,7 +344,9 @@ export class McpServer {
       return {
         error: {
           code: -32603,
-          message: `Ollama chat failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          message: `Ollama chat failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
         },
         id: request.id,
       };

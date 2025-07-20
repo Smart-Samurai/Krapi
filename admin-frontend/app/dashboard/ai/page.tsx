@@ -1,33 +1,51 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { mcpAPI, ollamaAPI } from "../../../lib/api";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { ollamaAPI, mcpAPI } from "@/lib/api";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card";
-import { Badge } from "../../../components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../../../components/ui/tabs";
-import {
-  AlertCircle,
   Bot,
-  Brain,
-  MessageSquare,
-  Zap,
+  Settings,
+  Database,
+  Users,
+  FileText,
+  Route,
+  BarChart3,
+  Play,
+  RefreshCw,
+  Download,
+  Trash2,
+  Plus,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
   Wifi,
   WifiOff,
+  Zap,
+  Brain,
+  MessageSquare,
   Send,
   Loader2,
 } from "lucide-react";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+}
+
+interface OllamaModel {
+  name: string;
+  size: number;
+  modified_at: string;
+  digest: string;
+  details: {
+    format: string;
+    family: string;
+    parameter_size: string;
+    quantization_level: string;
+  };
+}
 
 interface McpInfo {
   server: {
@@ -43,12 +61,6 @@ interface McpInfo {
   };
 }
 
-interface OllamaModel {
-  models: string[];
-  defaultModel: string;
-  baseUrl: string;
-}
-
 interface McpTool {
   name: string;
   description: string;
@@ -59,80 +71,100 @@ interface McpTool {
   };
 }
 
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: Date;
-}
-
 export default function AIPage() {
-  const [mcpInfo, setMcpInfo] = useState<McpInfo | null>(null);
-  const [models, setModels] = useState<OllamaModel | null>(null);
-  const [tools, setTools] = useState<McpTool[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>("");
-  const [ollamaEndpoint, setOllamaEndpoint] = useState<string>(
-    "http://localhost:11434"
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Initialize chat with system message
-  useEffect(() => {
-    if (selectedModel && messages.length === 0) {
-      const systemMessage: ChatMessage = {
-        role: "system",
-        content: "You are a helpful AI assistant with access to MCP tools. You can help manage content, users, files, and other system resources. Be concise and helpful in your responses.",
-        timestamp: new Date(),
-      };
-      setMessages([systemMessage]);
-    }
-  }, [selectedModel]);
+  // Ollama state
+  const [models, setModels] = useState<OllamaModel[]>([]);
+  const [currentModel, setCurrentModel] = useState("llama3.1:8b");
+  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
+  const [isOllamaHealthy, setIsOllamaHealthy] = useState(false);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+  // MCP state
+  const [mcpInfo, setMcpInfo] = useState<McpInfo | null>(null);
+  const [mcpTools, setMcpTools] = useState<McpTool[]>([]);
+  const [isMcpEnabled, setIsMcpEnabled] = useState(true);
 
   // Model management
-  const [newModel, setNewModel] = useState("");
-  const [pullLoading, setPullLoading] = useState(false);
+  const [newModelName, setNewModelName] = useState("");
+  const [isPullingModel, setIsPullingModel] = useState(false);
+  const [isLoadingModel, setIsLoadingModel] = useState(false);
 
+  // Show loading state while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="ml-3 text-gray-600">Checking authentication...</p>
+      </div>
+    );
+  }
+
+  // Show error if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Authentication Required
+          </h2>
+          <p className="text-gray-600">
+            Please log in to access the AI features.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Load initial data
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
   const loadData = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setIsLoadingModels(true);
 
-      const [mcpResponse, modelsResponse, toolsResponse] = await Promise.all([
-        mcpAPI.getInfo(),
-        ollamaAPI.listModels(),
-        mcpAPI.listTools(),
-      ]);
-
+      // Load MCP info
+      const mcpResponse = await mcpAPI.getInfo();
       if (mcpResponse.success) {
         setMcpInfo(mcpResponse.data);
+        setIsOllamaHealthy(mcpResponse.data.ollama.healthy);
       }
 
-      if (modelsResponse.success) {
-        setModels(modelsResponse.data);
-        setSelectedModel(modelsResponse.data.defaultModel);
-      }
-
+      // Load MCP tools
+      const toolsResponse = await mcpAPI.listTools();
       if (toolsResponse.success) {
-        setTools(toolsResponse.data);
+        setMcpTools(toolsResponse.data);
+      }
+
+      // Load Ollama models
+      const modelsResponse = await ollamaAPI.listModels();
+      if (modelsResponse.success) {
+        setModels(modelsResponse.data.models || []);
+        if (modelsResponse.data.defaultModel) {
+          setCurrentModel(modelsResponse.data.defaultModel);
+        }
       }
     } catch (err) {
+      console.error("Failed to load data:", err);
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
-      setLoading(false);
+      setIsLoadingModels(false);
     }
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || chatLoading) return;
+    if (!inputMessage.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
       role: "user",
@@ -142,468 +174,621 @@ export default function AIPage() {
 
     setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
-    setChatLoading(true);
+    setIsLoading(true);
+    setError("");
 
     try {
-      // Ensure proper message format for the API
-      const formattedMessages = [
-        ...messages
-          .filter((m) => m.role !== "system") // Exclude system messages from API call
-          .map((m) => ({ 
-            role: m.role, 
-            content: m.content 
-          })),
-        { role: "user", content: inputMessage },
-      ];
+      console.log("🔍 Sending message to MCP server:", inputMessage);
 
       const response = await ollamaAPI.chat(
-        formattedMessages,
+        [
+          {
+            role: "system",
+            content:
+              "You have access to MCP tools. When asked to create a route, use the create_test_route tool. Always use tools when appropriate.",
+          },
+          ...messages.map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+          })),
+          {
+            role: "user",
+            content: inputMessage,
+          },
+        ],
         {
-          model: selectedModel,
-          tools: true, // Enable MCP tools
+          model: currentModel,
+          tools: isMcpEnabled,
           temperature: 0.7,
+          max_tokens: 2000,
         }
       );
+
+      console.log("✅ MCP Response:", response);
 
       if (response.success) {
         const assistantMessage: ChatMessage = {
           role: "assistant",
-          content: response.data.message?.content || response.data.content || "No response content",
+          content:
+            response.data.result?.message?.content ||
+            response.data.message?.content ||
+            "No response content",
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
-        console.error("Chat API error:", response);
         throw new Error(response.error || "Chat failed");
       }
     } catch (err) {
-      console.error("Chat error:", err);
-      let errorContent = "Unknown error occurred";
-      
-      if (err instanceof Error) {
-        if (err.message.includes("Ollama is not running")) {
-          errorContent = "Ollama is not running. Please install and start Ollama:\n1. Install from https://ollama.ai\n2. Run: ollama serve\n3. Pull a model: ollama pull llama3.2:3b";
-        } else if (err.message.includes("status code 400")) {
-          errorContent = "Invalid request format. Please check your message and try again.";
-        } else {
-          errorContent = err.message;
-        }
-      }
-      
+      console.error("❌ Chat error:", err);
       const errorMessage: ChatMessage = {
         role: "assistant",
-        content: `Error: ${errorContent}`,
+        content: `Error: ${
+          err instanceof Error ? err.message : "Unknown error occurred"
+        }`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setChatLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const pullModel = async () => {
-    if (!newModel.trim() || pullLoading) return;
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
-    setPullLoading(true);
+  const clearChat = () => {
+    setMessages([]);
+    setError("");
+  };
+
+  const pullModel = async () => {
+    if (!newModelName.trim() || isPullingModel) return;
+
+    setIsPullingModel(true);
     try {
-      const response = await ollamaAPI.pullModel(newModel);
+      const response = await ollamaAPI.pullModel(newModelName);
       if (response.success) {
         await loadData(); // Reload models
-        setNewModel("");
+        setNewModelName("");
       } else {
         throw new Error(response.error || "Failed to pull model");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to pull model");
     } finally {
-      setPullLoading(false);
+      setIsPullingModel(false);
     }
   };
 
-  const updateSettings = async () => {
+  const loadModel = async (modelName: string) => {
+    setIsLoadingModel(true);
     try {
-      // Here you would update the Ollama endpoint
-      // For now, just reload the data
-      await loadData();
+      // Switch to the model
+      setCurrentModel(modelName);
+      // In a real implementation, you'd call the backend to load the model
+      console.log(`Loading model: ${modelName}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update settings");
+      setError(err instanceof Error ? err.message : "Failed to load model");
+    } finally {
+      setIsLoadingModel(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const deleteModel = async (modelName: string) => {
+    if (confirm(`Are you sure you want to delete model "${modelName}"?`)) {
+      try {
+        // In a real implementation, you'd call the backend to delete the model
+        console.log(`Deleting model: ${modelName}`);
+        await loadData(); // Reload models
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete model");
+      }
+    }
+  };
+
+  const updateOllamaUrl = async () => {
+    try {
+      // In a real implementation, you'd call the backend to update the Ollama URL
+      console.log(`Updating Ollama URL to: ${ollamaUrl}`);
+      await loadData(); // Reload data with new URL
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update Ollama URL"
+      );
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-900 dark:text-text-100">AI & MCP Management</h1>
-          <p className="text-text-600 dark:text-text-400">
-            Manage AI models and MCP tools for intelligent automation
-          </p>
-        </div>
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="space-y-3">
+        <h1 className="text-4xl font-bold text-text dark:text-text">
+          AI & MCP Management
+        </h1>
+        <p className="text-lg text-text-muted dark:text-text-muted">
+          Manage AI models and MCP tools for intelligent automation
+        </p>
       </div>
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 mr-2" />
+        <div className="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-lg flex items-center">
+          <AlertCircle className="h-5 w-5 mr-3" />
           {error}
         </div>
       )}
 
       {/* Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">MCP Server</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* MCP Server Status */}
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-primary mr-3"></div>
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                MCP Server
+              </h3>
+            </div>
+            <Zap className="h-5 w-5 text-primary" />
+          </div>
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Badge variant={mcpInfo?.enabled ? "default" : "secondary"}>
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Status
+              </span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  mcpInfo?.enabled
+                    ? "bg-success/10 text-success"
+                    : "bg-error/10 text-error"
+                }`}
+              >
                 {mcpInfo?.enabled ? "Enabled" : "Disabled"}
-              </Badge>
-              <span className="text-sm text-text-500 dark:text-text-400">
-                {mcpInfo?.server.version}
               </span>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ollama Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant={mcpInfo?.ollama.healthy ? "default" : "destructive"}
-                >
-                  {mcpInfo?.ollama.healthy ? "Healthy" : "Not Running"}
-                </Badge>
-                <span className="text-sm text-text-500 dark:text-text-400">
-                  {models?.models.length || 0} models
-                </span>
-              </div>
-              {!mcpInfo?.ollama.healthy && (
-                <div className="text-xs text-text-600 dark:text-text-400">
-                  <a 
-                    href="https://ollama.ai" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 underline"
-                  >
-                    Install Ollama
-                  </a>
-                  {" "}to use AI features
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">MCP Tools</CardTitle>
-          </CardHeader>
-          <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">{tools.length}</span>
-                                <Zap className="h-5 w-5 text-secondary-500 dark:text-secondary-400" />
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Version
+              </span>
+              <span className="text-sm font-medium text-text dark:text-text">
+                v{mcpInfo?.server.version || "Unknown"}
+              </span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Tools
+              </span>
+              <span className="text-sm font-medium text-text dark:text-text">
+                {mcpTools.length}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Ollama Status */}
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div
+                className={`w-3 h-3 rounded-full mr-3 ${
+                  isOllamaHealthy ? "bg-success" : "bg-error"
+                }`}
+              ></div>
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                Ollama
+              </h3>
+            </div>
+            {isOllamaHealthy ? (
+              <Wifi className="h-5 w-5 text-success" />
+            ) : (
+              <WifiOff className="h-5 w-5 text-error" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Status
+              </span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isOllamaHealthy
+                    ? "bg-success/10 text-success"
+                    : "bg-error/10 text-error"
+                }`}
+              >
+                {isOllamaHealthy ? "Connected" : "Disconnected"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Models
+              </span>
+              <span className="text-sm font-medium text-text dark:text-text">
+                {models.length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Current
+              </span>
+              <span className="text-sm font-medium text-text dark:text-text truncate max-w-24">
+                {currentModel}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* System Stats */}
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-accent mr-3"></div>
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                System
+              </h3>
+            </div>
+            <BarChart3 className="h-5 w-5 text-accent" />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Messages
+              </span>
+              <span className="text-sm font-medium text-text dark:text-text">
+                {messages.length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-text-muted dark:text-text-muted">
+                Status
+              </span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isLoading
+                    ? "bg-warning/10 text-warning"
+                    : "bg-success/10 text-success"
+                }`}
+              >
+                {isLoading ? "Processing" : "Ready"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-secondary mr-3"></div>
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                Actions
+              </h3>
+            </div>
+            <Settings className="h-5 w-5 text-secondary" />
+          </div>
+          <div className="space-y-2">
+            <button
+              onClick={loadData}
+              disabled={isLoadingModels}
+              className="w-full flex items-center justify-center px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 text-sm"
+            >
+              {isLoadingModels ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh
+            </button>
+            <button
+              onClick={clearChat}
+              className="w-full flex items-center justify-center px-3 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 text-sm"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Chat
+            </button>
+          </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="chat" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="chat">AI Chat</TabsTrigger>
-          <TabsTrigger value="tools">Available Tools</TabsTrigger>
-          <TabsTrigger value="models">Model Management</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="chat">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                AI Assistant with MCP Tools
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="h-96 border border-background-300 rounded-lg p-4 overflow-y-auto bg-background-50 dark:bg-background-900">
-                {messages.length === 0 && (
-                  <div className="text-center text-text-500 dark:text-text-400 py-8">
-                    {!mcpInfo?.ollama.healthy ? (
-                      <>
-                        <WifiOff className="h-12 w-12 mx-auto mb-4 text-red-400" />
-                        <p className="text-lg font-medium mb-2">Ollama Not Running</p>
-                        <p className="text-sm mb-4">To use AI features, you need to install and run Ollama:</p>
-                        <ol className="text-sm text-left max-w-md mx-auto space-y-2">
-                          <li>1. Install Ollama from <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 underline">ollama.ai</a></li>
-                          <li>2. Start Ollama: <code className="bg-background-200 dark:bg-background-800 px-2 py-1 rounded">ollama serve</code></li>
-                          <li>3. Pull a model: <code className="bg-background-200 dark:bg-background-800 px-2 py-1 rounded">ollama pull llama3.2:3b</code></li>
-                        </ol>
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="h-12 w-12 mx-auto mb-4 text-text-300 dark:text-text-600" />
-                        <p>Start a conversation! I can help you manage:</p>
-                        <ul className="mt-2 text-sm">
-                          <li>• Content items and routes</li>
-                          <li>• Users and permissions</li>
-                          <li>• Files and schemas</li>
-                          <li>• API endpoints and more</li>
-                        </ul>
-                        <p className="mt-4 text-xs">
-                          Try: &quot;Show me all users and their roles&quot;
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
-                {messages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`mb-4 ${
-                      msg.role === "user" ? "text-right" : "text-left"
-                    } ${msg.role === "system" ? "hidden" : ""}`}
-                  >
-                    <div
-                      className={`inline-block max-w-[80%] rounded-lg px-4 py-2 ${
-                        msg.role === "user"
-                          ? "bg-primary-500 text-text-50"
-                          : msg.content.startsWith("Error:")
-                          ? "bg-destructive/10 text-destructive border border-destructive/20"
-                          : "bg-background-100 dark:bg-background-800 text-text-900 dark:text-text-100"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        msg.role === "user" ? "text-text-100" : "text-text-500 dark:text-text-400"
-                      }`}>
-                        {msg.timestamp.toLocaleTimeString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="text-left">
-                    <div className="inline-block bg-background-100 dark:bg-background-800 rounded-lg px-4 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-text-600 dark:text-text-400" />
-                    </div>
-                  </div>
-                )}
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Chat Interface */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Chat Messages */}
+          <div className="bg-card border border-border rounded-lg h-96 overflow-y-auto p-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="text-center text-text-muted dark:text-text-muted py-8">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-text-muted/50 dark:text-text-muted/50" />
+                <p className="text-lg font-medium mb-2 text-text dark:text-text">
+                  Start a conversation!
+                </p>
+                <p className="text-sm text-text-muted dark:text-text-muted">
+                  Try: "Create a new route called 'my-route'"
+                </p>
+                <p className="text-sm text-text-muted dark:text-text-muted">
+                  Or: "Show me all admin users"
+                </p>
               </div>
-
-              <div className="flex gap-2">
-                <Input
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && !chatLoading && mcpInfo?.ollama.healthy && sendMessage()}
-                  placeholder={mcpInfo?.ollama.healthy ? "Ask me anything..." : "Ollama not available"}
-                  disabled={chatLoading || !mcpInfo?.ollama.healthy}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={sendMessage} 
-                  disabled={chatLoading || !mcpInfo?.ollama.healthy}
-                  title={!mcpInfo?.ollama.healthy ? "Ollama is not running" : "Send message"}
+            ) : (
+              messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
                 >
-                  {chatLoading ? (
+                  <div
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      message.role === "user"
+                        ? "bg-primary text-white"
+                        : "bg-background-100 dark:bg-background-100 text-text"
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-background-100 dark:bg-background-100 text-text px-4 py-2 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">AI is thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div className="flex space-x-4">
+            <div className="flex-1">
+              <textarea
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message here... (e.g., 'Create a new route called test')"
+                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none bg-background text-text placeholder:text-text-muted"
+                rows={3}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="flex flex-col space-y-2">
+              <button
+                onClick={sendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Model Management */}
+          <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <Brain className="h-5 w-5 text-primary mr-2" />
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                Model Management
+              </h3>
+            </div>
+
+            {/* Current Model */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-text dark:text-text mb-2">
+                Current Model
+              </label>
+              <select
+                value={currentModel}
+                onChange={(e) => setCurrentModel(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-text"
+              >
+                {models.map((model) => (
+                  <option
+                    key={model.name}
+                    value={model.name}
+                    className="bg-background text-text"
+                  >
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pull New Model */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-text dark:text-text mb-2">
+                Pull New Model
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newModelName}
+                  onChange={(e) => setNewModelName(e.target.value)}
+                  placeholder="e.g., llama3.1:8b"
+                  className="flex-1 px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-text placeholder:text-text-muted"
+                />
+                <button
+                  onClick={pullModel}
+                  disabled={!newModelName.trim() || isPullingModel}
+                  className="px-3 py-2 bg-success text-success-foreground rounded-md hover:bg-success/90 disabled:opacity-50 flex items-center"
+                >
+                  {isPullingModel ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                   )}
-                </Button>
+                </button>
               </div>
+            </div>
 
-              <div className="flex items-center gap-4 text-sm text-text-500 dark:text-text-400">
-                <div className="flex items-center gap-1">
-                  <Brain className="h-4 w-4" />
-                  <span>Model: {selectedModel || "Default"}</span>
-                </div>
-                {mcpInfo?.ollama.healthy && (
-                  <div className="flex items-center gap-1">
-                    <Wifi className="h-4 w-4 text-green-500" />
-                    <span>Connected</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="tools">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available MCP Tools</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {tools.map((tool) => (
+            {/* Model List */}
+            <div>
+              <label className="block text-sm font-medium text-text dark:text-text mb-2">
+                Available Models
+              </label>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {models.map((model) => (
                   <div
-                    key={tool.name}
-                    className="p-4 border border-background-300 rounded-lg bg-background-50 dark:bg-background-900 hover:shadow-md transition-shadow"
+                    key={model.name}
+                    className="flex items-center justify-between p-2 bg-background-100 dark:bg-background-100 border border-border rounded-md hover:bg-background-200 dark:hover:bg-background-200 transition-colors"
                   >
-                    <h4 className="font-medium text-lg mb-2 text-text-900 dark:text-text-100">{tool.name}</h4>
-                    <p className="text-sm text-text-600 dark:text-text-400 mb-3">
-                      {tool.description}
-                    </p>
-                    {tool.inputSchema.properties && (
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-text-500 dark:text-text-400">Parameters:</p>
-                        {Object.entries(tool.inputSchema.properties).map(([key, prop]: [string, any]) => (
-                          <div key={key} className="text-xs text-text-600 dark:text-text-400">
-                            • <span className="font-mono">{key}</span>
-                            {prop.description && `: ${prop.description}`}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <span className="text-sm font-medium text-text truncate">
+                      {model.name}
+                    </span>
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={() => loadModel(model.name)}
+                        className="p-1 text-primary hover:text-primary-hover hover:bg-primary/10 rounded transition-colors"
+                        title="Load model"
+                      >
+                        <Play className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => deleteModel(model.name)}
+                        className="p-1 text-error hover:text-error/80 hover:bg-error/10 rounded transition-colors"
+                        title="Delete model"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="models">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Available Models</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {models?.models.map((model) => (
-                    <div
-                      key={model}
-                      className={`p-3 border border-background-300 rounded-lg flex items-center justify-between ${
-                        model === selectedModel
-                          ? "bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800"
-                          : "bg-background-50 dark:bg-background-900"
-                      }`}
-                    >
-                      <span className="font-mono text-sm text-text-900 dark:text-text-100">{model}</span>
-                      {model === selectedModel && (
-                        <Badge variant="default">Active</Badge>
-                      )}
-                    </div>
-                  ))}
-                  {models?.models.length === 0 && (
-                    <p className="text-text-500 dark:text-text-400 text-center py-4">
-                      No models installed
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Pull New Model</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Model Name
-                  </label>
-                  <Input
-                    value={newModel}
-                    onChange={(e) => setNewModel(e.target.value)}
-                    placeholder="e.g., llama3.1:8b"
-                  />
-                  <p className="text-xs text-text-500 dark:text-text-400 mt-1">
-                    Enter the model name from Ollama library
-                  </p>
-                </div>
-                <Button
-                  onClick={pullModel}
-                  disabled={pullLoading}
-                  className="w-full"
-                >
-                  {pullLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Pulling...
-                    </>
-                  ) : (
-                    "Pull Model"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+            </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ollama Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          {/* Ollama Settings */}
+          <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <Settings className="h-5 w-5 text-secondary mr-2" />
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                Ollama Settings
+              </h3>
+            </div>
+
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Ollama Endpoint
+                <label className="block text-sm font-medium text-text dark:text-text mb-2">
+                  Ollama URL
                 </label>
-                <Input
-                  value={ollamaEndpoint}
-                  onChange={(e) => setOllamaEndpoint(e.target.value)}
-                  placeholder="http://localhost:11434"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Default Model
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full px-3 py-2 border border-background-300 rounded-lg bg-background-50 dark:bg-background-900 text-text-900 dark:text-text-100"
-                >
-                  {models?.models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <Button onClick={updateSettings} className="w-full">
-                Update Settings
-              </Button>
-
-              <div className="pt-4 border-t">
-                <div className="flex items-center gap-2 text-sm">
-                  {mcpInfo?.ollama.healthy ? (
-                    <>
-                      <Wifi className="h-4 w-4 text-green-500" />
-                      <span className="text-green-600 dark:text-green-400">
-                        Connected to Ollama at {mcpInfo.ollama.baseUrl}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <WifiOff className="h-4 w-4 text-red-500" />
-                      <span className="text-red-600 dark:text-red-400">
-                        Cannot connect to Ollama
-                      </span>
-                    </>
-                  )}
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={ollamaUrl}
+                    onChange={(e) => setOllamaUrl(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-text placeholder:text-text-muted"
+                  />
+                  <button
+                    onClick={updateOllamaUrl}
+                    className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                  >
+                    Update
+                  </button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-text dark:text-text">
+                  MCP Tools
+                </span>
+                <button
+                  onClick={() => setIsMcpEnabled(!isMcpEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isMcpEnabled
+                      ? "bg-primary"
+                      : "bg-background-200 dark:bg-background-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isMcpEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Available Tools */}
+          <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+            <div className="flex items-center mb-4">
+              <Zap className="h-5 w-5 text-accent mr-2" />
+              <h3 className="text-lg font-semibold text-text dark:text-text">
+                Available Tools
+              </h3>
+            </div>
+
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {mcpTools.map((tool) => (
+                <div
+                  key={tool.name}
+                  className="p-3 bg-background-100 dark:bg-background-100 rounded-md border border-border"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-text mb-1">
+                        {tool.name}
+                      </h4>
+                      <p className="text-xs text-text-muted">
+                        {tool.description}
+                      </p>
+                    </div>
+                    <div className="ml-2">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Bar */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between text-sm text-text-muted dark:text-text-muted">
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center">
+              <Brain className="h-4 w-4 mr-2" />
+              <span>Model: {currentModel}</span>
+            </div>
+            <div className="flex items-center">
+              <Zap className="h-4 w-4 mr-2" />
+              <span>MCP Tools: {isMcpEnabled ? "Enabled" : "Disabled"}</span>
+            </div>
+            <div className="flex items-center">
+              {isOllamaHealthy ? (
+                <Wifi className="h-4 w-4 mr-2 text-success" />
+              ) : (
+                <WifiOff className="h-4 w-4 mr-2 text-error" />
+              )}
+              <span>
+                Ollama: {isOllamaHealthy ? "Connected" : "Disconnected"}
+              </span>
+            </div>
+          </div>
+          <div className="text-xs">{mcpTools.length} tools available</div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,31 +1,28 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:focus-visible:ring-offset-background",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-white shadow hover:bg-primary-700 dark:bg-primary dark:text-background-950 dark:hover:bg-primary-300",
-        destructive:
-          "bg-red-600 text-white shadow hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700",
+        default: "bg-primary text-background shadow-md hover:bg-primary/90",
+        destructive: "bg-red-600 text-white shadow-md hover:bg-red-700",
         outline:
-          "border border-background-300 bg-transparent text-text hover:bg-background-100 dark:border-background-300 dark:text-text dark:hover:bg-background-200",
+          "border-2 border-secondary bg-transparent text-text hover:bg-secondary",
         secondary:
-          "bg-secondary text-white shadow hover:bg-secondary-600 dark:bg-secondary dark:text-background-950 dark:hover:bg-secondary-300",
-        ghost:
-          "text-text hover:bg-background-100 dark:text-text dark:hover:bg-background-200",
-        link: "text-primary underline-offset-4 hover:underline dark:text-primary",
+          "bg-secondary text-background shadow-md hover:bg-secondary/90",
+        ghost: "text-text hover:bg-background",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
+        default: "h-12 px-6 py-3 has-[>svg]:px-4",
+        sm: "h-10 rounded-md gap-1.5 px-4 py-2 has-[>svg]:px-3",
+        lg: "h-14 rounded-md px-8 py-4 has-[>svg]:px-6",
+        icon: "size-12",
       },
     },
     defaultVariants: {
@@ -33,7 +30,7 @@ const buttonVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 function Button({
   className,
@@ -43,9 +40,9 @@ function Button({
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
+    asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot : "button"
+  const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
@@ -53,7 +50,7 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
-  )
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };
