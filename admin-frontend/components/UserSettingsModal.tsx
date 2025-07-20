@@ -279,15 +279,15 @@ export default function UserSettingsModal({
           <TabsContent value="profile" className="space-y-6">
             <div className="flex items-center space-x-4">
               <Avatar className="h-16 w-16">
-                <AvatarFallback className="bg-blue-600 text-white text-lg">
+                <AvatarFallback className="bg-primary-600 text-white text-lg">
                   {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h3 className="text-lg font-medium">{user?.username}</h3>
-                <p className="text-sm text-gray-500 capitalize">{user?.role}</p>
+                <p className="text-sm text-text-500 capitalize">{user?.role}</p>
                 {profileData?.created_at && (
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-text-400">
                     Member since{" "}
                     {new Date(profileData.created_at).toLocaleDateString()}
                   </p>
@@ -334,7 +334,7 @@ export default function UserSettingsModal({
                 <Input
                   value={user?.role || ""}
                   disabled
-                  className="bg-gray-50"
+                  className="bg-background-50"
                 />
               </div>
             </div>
@@ -492,7 +492,7 @@ export default function UserSettingsModal({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Email Notifications</Label>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500">
                     Receive notifications via email
                   </p>
                 </div>
@@ -510,7 +510,7 @@ export default function UserSettingsModal({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Push Notifications</Label>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500">
                     Receive browser push notifications
                   </p>
                 </div>
@@ -530,7 +530,7 @@ export default function UserSettingsModal({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Content Updates</Label>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500">
                     Notifications about content changes
                   </p>
                 </div>
@@ -548,7 +548,7 @@ export default function UserSettingsModal({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>User Activities</Label>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500">
                     Notifications about user actions
                   </p>
                 </div>
@@ -566,7 +566,7 @@ export default function UserSettingsModal({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>System Alerts</Label>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500">
                     Important system notifications
                   </p>
                 </div>

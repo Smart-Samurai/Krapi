@@ -863,13 +863,13 @@ export default function EmailManagementPage() {
                     <div className="text-sm text-gray-500">Opened</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold text-secondary-600">
                       {stats.clicked}
                     </div>
                     <div className="text-sm text-gray-500">Clicked</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-2xl font-bold text-primary-600">
                       {stats.bounced}
                     </div>
                     <div className="text-sm text-gray-500">Bounced</div>

@@ -285,32 +285,32 @@ export default function Header({
   const getResultTypeColor = (type: string) => {
     switch (type) {
       case "content":
-        return "bg-blue-100 text-blue-800";
+        return "bg-primary-100 text-primary-800";
       case "route":
-        return "bg-green-100 text-green-800";
+        return "bg-secondary-100 text-secondary-800";
       case "user":
-        return "bg-purple-100 text-purple-800";
+        return "bg-accent-100 text-accent-800";
       case "file":
-        return "bg-orange-100 text-orange-800";
+        return "bg-primary-200 text-primary-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-background-200 text-text-800";
     }
   };
 
   const getNotificationTypeColor = (type: string) => {
     switch (type) {
       case "system_alert":
-        return "bg-red-100 text-red-800";
+        return "bg-destructive/10 text-destructive";
       case "content_created":
-        return "bg-green-100 text-green-800";
+        return "bg-secondary-100 text-secondary-800";
       case "content_updated":
-        return "bg-blue-100 text-blue-800";
+        return "bg-primary-100 text-primary-800";
       case "user_created":
-        return "bg-purple-100 text-purple-800";
+        return "bg-accent-100 text-accent-800";
       case "file_uploaded":
-        return "bg-orange-100 text-orange-800";
+        return "bg-primary-200 text-primary-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-background-200 text-text-800";
     }
   };
 
@@ -446,8 +446,8 @@ export default function Header({
 
                   {/* Search Error Message */}
                   {searchError && (
-                                          <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-red-200 rounded-md shadow-lg z-50">
-                        <div className="p-4 text-center text-red-500 text-sm">
+                                          <div className="absolute top-full left-0 w-96 mt-1 bg-background-100 border border-destructive/20 rounded-md shadow-lg z-50">
+                        <div className="p-4 text-center text-destructive text-sm">
                           {searchError}
                         </div>
                       </div>
@@ -469,7 +469,7 @@ export default function Header({
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
                     <Badge
-                      className="absolute -right-1 -top-1 h-5 w-5 p-0 text-xs bg-red-500 text-white"
+                      className="absolute -right-1 -top-1 h-5 w-5 p-0 text-xs bg-destructive text-white"
                       data-testid="desktop-notification-badge"
                     >
                       {unreadCount > 99 ? "99+" : unreadCount}
@@ -503,7 +503,7 @@ export default function Header({
                           <Loader2 className="h-6 w-6 animate-spin mx-auto text-text-400" />
                         </div>
                       ) : notificationError ? (
-                        <div className="p-4 text-center text-red-500 text-sm">
+                        <div className="p-4 text-center text-destructive text-sm">
                           {notificationError}
                         </div>
                       ) : notifications.length > 0 ? (
@@ -517,7 +517,7 @@ export default function Header({
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-1">
-                                  <span className="font-medium text-sm text-gray-900">
+                                  <span className="font-medium text-sm text-text-900">
                                     {notification.title}
                                   </span>
                                   <span
@@ -528,11 +528,11 @@ export default function Header({
                                     {notification.type.replace("_", " ")}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-600 mb-2">
+                                <p className="text-xs text-text-600 mb-2">
                                   {notification.message}
                                 </p>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-400">
+                                  <span className="text-xs text-text-400">
                                     {formatNotificationTime(
                                       notification.created_at
                                     )}
@@ -559,7 +559,7 @@ export default function Header({
                                       onClick={() =>
                                         deleteNotification(notification.id)
                                       }
-                                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                      className="h-6 w-6 p-0 text-destructive hover:text-destructive/80"
                                       data-testid={`delete-notification-${notification.id}`}
                                     >
                                       <Trash2 className="h-3 w-3" />
@@ -675,7 +675,7 @@ export default function Header({
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
               <Badge
-                className="absolute -right-1 -top-1 h-5 w-5 p-0 text-xs bg-red-500 text-white"
+                className="absolute -right-1 -top-1 h-5 w-5 p-0 text-xs bg-destructive text-white"
                 data-testid="mobile-notification-badge"
               >
                 {unreadCount > 99 ? "99+" : unreadCount}

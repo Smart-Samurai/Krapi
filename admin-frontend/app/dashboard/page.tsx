@@ -208,15 +208,15 @@ export default function DashboardPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Activity className="h-6 w-6 text-green-400" />
+                <Activity className="h-6 w-6 text-accent-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-sm font-medium text-text-500 truncate">
                     API Status
                   </dt>
-                  <dd className="flex items-center text-lg font-medium text-gray-900">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-1" />
+                  <dd className="flex items-center text-lg font-medium text-text-900">
+                    <CheckCircle className="h-4 w-4 text-accent-500 mr-1" />
                     {healthStatus?.status || "Unknown"}
                   </dd>
                 </dl>
@@ -229,14 +229,14 @@ export default function DashboardPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Clock className="h-6 w-6 text-blue-400" />
+                <Clock className="h-6 w-6 text-secondary-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-sm font-medium text-text-500 truncate">
                     Server Uptime
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-lg font-medium text-text-900">
                     {healthStatus ? formatUptime(healthStatus.uptime) : "N/A"}
                   </dd>
                 </dl>
@@ -249,14 +249,14 @@ export default function DashboardPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <User className="h-6 w-6 text-purple-400" />
+                <User className="h-6 w-6 text-primary-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-sm font-medium text-text-500 truncate">
                     Current User
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-lg font-medium text-text-900">
                     {user?.role || "Admin"}
                   </dd>
                 </dl>
@@ -272,14 +272,14 @@ export default function DashboardPage() {
       {/* Recent Content */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
+          <h3 className="text-lg leading-6 font-medium text-text-900">
             Recent Content Updates
           </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
+          <p className="mt-1 max-w-2xl text-sm text-text-500">
             Latest content items that have been modified.
           </p>
         </div>
-        <ul className="divide-y divide-gray-200">
+        <ul className="divide-y divide-background-200">
           {recentContent.length > 0 ? (
             recentContent.map((item) => (
               <li key={item.id}>
@@ -287,18 +287,18 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <TrendingUp className="h-5 w-5 text-gray-400" />
+                        <TrendingUp className="h-5 w-5 text-text-400" />
                       </div>
                       <div className="ml-4">
-                        <p className="text-sm font-medium text-blue-600">
+                        <p className="text-sm font-medium text-primary-600">
                           {item.key}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-text-500">
                           {item.description || "No description"}
                         </p>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-text-500">
                       {new Date(item.updated_at).toLocaleDateString()}
                     </div>
                   </div>
@@ -308,11 +308,11 @@ export default function DashboardPage() {
           ) : (
             <li>
               <div className="px-4 py-8 text-center">
-                <Database className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <Database className="mx-auto h-12 w-12 text-text-400" />
+                <h3 className="mt-2 text-sm font-medium text-text-900">
                   No content yet
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500">
                   Get started by creating your first content item.
                 </p>
               </div>
@@ -324,27 +324,27 @@ export default function DashboardPage() {
       {/* Quick Actions */}
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+          <h3 className="text-lg leading-6 font-medium text-text-900 mb-4">
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <a
               href="/dashboard/content"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <Database className="h-4 w-4 mr-2" />
               Manage Content
             </a>
             <a
               href="/dashboard/api-test"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background hover:bg-background-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <Activity className="h-4 w-4 mr-2" />
               Test API
             </a>
             <button
               onClick={loadDashboardData}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background hover:bg-background-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               Refresh Data

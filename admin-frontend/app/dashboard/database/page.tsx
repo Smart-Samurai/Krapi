@@ -220,7 +220,7 @@ export default function DatabasePage() {
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -231,24 +231,24 @@ export default function DatabasePage() {
             </h2>
             {dbStats ? (
               <div className="space-y-2">
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <div className="flex justify-between items-center p-2 bg-background-50 rounded">
                   <span>File Size:</span>
                   <span className="font-medium">
                     {((dbStats.fileSize as number) / (1024 * 1024)).toFixed(2)}{" "}
                     MB
                   </span>
                 </div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <div className="flex justify-between items-center p-2 bg-background-50 rounded">
                   <span>Total Tables:</span>
                   <span className="font-medium">{tables.length}</span>
                 </div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <div className="flex justify-between items-center p-2 bg-background-50 rounded">
                   <span>Total Records:</span>
                   <span className="font-medium">
                     {(dbStats.totalRecords as number) || "N/A"}
                   </span>
                 </div>
-                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                <div className="flex justify-between items-center p-2 bg-background-50 rounded">
                   <span>Last Modified:</span>
                   <span className="font-medium">
                     {(dbStats.lastModified as string) || "N/A"}
@@ -266,18 +266,18 @@ export default function DatabasePage() {
               <Table className="mr-2 h-5 w-5" /> Tables
             </h2>
             <div className="max-h-80 overflow-y-auto">
-              <ul className="divide-y divide-gray-200">
+              <ul className="divide-y divide-background-200">
                 {tables.map((table) => (
                   <li
                     key={table.name}
-                    className={`p-2 cursor-pointer hover:bg-blue-50 ${
-                      selectedTable === table.name ? "bg-blue-100" : ""
+                    className={`p-2 cursor-pointer hover:bg-primary-50 ${
+                      selectedTable === table.name ? "bg-primary-100" : ""
                     }`}
                     onClick={() => setSelectedTable(table.name)}
                   >
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{table.name}</span>
-                      <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">
+                      <span className="text-xs bg-background-200 px-2 py-1 rounded-full">
                         {table.rowCount} rows
                       </span>
                     </div>
@@ -305,14 +305,14 @@ export default function DatabasePage() {
             <div className="border rounded overflow-hidden">
               {tableData || queryResult ? (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-background-200">
+                    <thead className="bg-background-50">
                       <tr>
                         {(queryResult?.columns || tableData?.columns || []).map(
                           (column, i) => (
                             <th
                               key={i}
-                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                              className="px-6 py-3 text-left text-xs font-medium text-text-500 uppercase tracking-wider"
                             >
                               {column}
                             </th>
@@ -320,17 +320,17 @@ export default function DatabasePage() {
                         )}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-background divide-y divide-background-200">
                       {(queryResult?.rows || tableData?.rows || []).map(
                         (row, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
+                          <tr key={i} className="hover:bg-background-50">
                             {Object.values(row).map((value: unknown, j) => (
                               <td
                                 key={j}
-                                className="px-6 py-2 whitespace-nowrap text-sm text-gray-500"
+                                className="px-6 py-2 whitespace-nowrap text-sm text-text-500"
                               >
                                 {value === null ? (
-                                  <span className="text-gray-400 italic">
+                                  <span className="text-text-400 italic">
                                     null
                                   </span>
                                 ) : typeof value === "object" ? (
@@ -347,7 +347,7 @@ export default function DatabasePage() {
                   </table>
                 </div>
               ) : (
-                <div className="p-4 text-center text-gray-500">
+                <div className="p-4 text-center text-text-500">
                   {selectedTable
                     ? "Select a table to view data"
                     : "Run a query to see results"}
@@ -355,14 +355,14 @@ export default function DatabasePage() {
               )}
 
               {(queryResult?.error || tableData?.error) && (
-                <div className="p-4 bg-red-50 text-red-700 border-t border-red-200">
+                <div className="p-4 bg-destructive-50 text-destructive-700 border-t border-destructive-200">
                   Error: {queryResult?.error || tableData?.error}
                 </div>
               )}
 
               {(queryResult || tableData) &&
                 !(queryResult?.error || tableData?.error) && (
-                  <div className="p-2 bg-gray-50 text-sm text-gray-500 border-t">
+                  <div className="p-2 bg-background-50 text-sm text-text-500 border-t">
                     {queryResult?.executionTime && (
                       <span>
                         Execution time: {queryResult.executionTime}ms •{" "}

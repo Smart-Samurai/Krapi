@@ -68,9 +68,9 @@ export default function HealthCheckPage() {
   };
 
   const getStatusColor = () => {
-    if (error) return "text-red-600 bg-red-100";
-    if (healthStatus?.status === "OK") return "text-green-600 bg-green-100";
-    return "text-yellow-600 bg-yellow-100";
+    if (error) return "text-destructive-600 bg-destructive-100";
+    if (healthStatus?.status === "OK") return "text-accent-600 bg-accent-100";
+    return "text-secondary-600 bg-secondary-100";
   };
 
   const getStatusIcon = () => {
@@ -87,8 +87,8 @@ export default function HealthCheckPage() {
         <div className="px-4 py-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Health Check</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-text-900">Health Check</h1>
+              <p className="mt-1 text-sm text-text-500">
                 Monitor API server status and performance
               </p>
             </div>
@@ -98,14 +98,14 @@ export default function HealthCheckPage() {
                   type="checkbox"
                   checked={autoRefresh}
                   onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  className="rounded border-background-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Auto-refresh</span>
+                <span className="ml-2 text-sm text-text-700">Auto-refresh</span>
               </label>
               <button
                 onClick={checkHealth}
                 disabled={isLoading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="inline-flex items-center px-3 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background hover:bg-background-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
               >
                 <RefreshCw
                   className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
@@ -127,17 +127,17 @@ export default function HealthCheckPage() {
               {getStatusIcon()}
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-text-900">
                 API Server Status
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-text-500">
                 {error ? "Disconnected" : healthStatus?.status || "Unknown"}
               </p>
             </div>
           </div>
 
           {lastChecked && (
-            <div className="mt-4 text-sm text-gray-500">
+            <div className="mt-4 text-sm text-text-500">
               Last checked: {lastChecked.toLocaleString()}
             </div>
           )}
@@ -151,16 +151,16 @@ export default function HealthCheckPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Server className="h-6 w-6 text-blue-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Server Status
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {healthStatus.status}
-                    </dd>
+                                  <Server className="h-6 w-6 text-primary-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-text-500 truncate">
+                    Server Status
+                  </dt>
+                  <dd className="text-lg font-medium text-text-900">
+                    {healthStatus.status}
+                  </dd>
                   </dl>
                 </div>
               </div>
@@ -171,16 +171,16 @@ export default function HealthCheckPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Clock className="h-6 w-6 text-green-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Uptime
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {formatUptime(healthStatus.uptime)}
-                    </dd>
+                                  <Clock className="h-6 w-6 text-accent-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-text-500 truncate">
+                    Uptime
+                  </dt>
+                  <dd className="text-lg font-medium text-text-900">
+                    {formatUptime(healthStatus.uptime)}
+                  </dd>
                   </dl>
                 </div>
               </div>
@@ -191,16 +191,16 @@ export default function HealthCheckPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Wifi className="h-6 w-6 text-purple-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Connection
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      Active
-                    </dd>
+                                  <Wifi className="h-6 w-6 text-secondary-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-text-500 truncate">
+                    Connection
+                  </dt>
+                  <dd className="text-lg font-medium text-text-900">
+                    Active
+                  </dd>
                   </dl>
                 </div>
               </div>
@@ -213,23 +213,23 @@ export default function HealthCheckPage() {
       {error && (
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md bg-destructive-50 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <AlertCircle className="h-5 w-5 text-destructive-400" />
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
+                  <h3 className="text-sm font-medium text-destructive-800">
                     Connection Error
                   </h3>
-                  <div className="mt-2 text-sm text-red-700">
+                  <div className="mt-2 text-sm text-destructive-700">
                     <p>{error}</p>
                   </div>
                   <div className="mt-4">
                     <div className="-mx-2 -my-1.5 flex">
                       <button
                         onClick={checkHealth}
-                        className="bg-red-50 px-2 py-1.5 rounded-md text-sm font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-red-50 focus:ring-red-600"
+                        className="bg-destructive-50 px-2 py-1.5 rounded-md text-sm font-medium text-destructive-800 hover:bg-destructive-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-destructive-50 focus:ring-destructive-600"
                       >
                         Try Again
                       </button>
@@ -246,37 +246,37 @@ export default function HealthCheckPage() {
       {!error && healthStatus && (
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-text-900 mb-4">
               System Information
             </h3>
             <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
               <div>
-                <dt className="text-sm font-medium text-gray-500">
+                <dt className="text-sm font-medium text-text-500">
                   Server Time
                 </dt>
-                <dd className="mt-1 text-sm text-gray-900">
+                <dd className="mt-1 text-sm text-text-900">
                   {new Date(healthStatus.timestamp).toLocaleString()}
                 </dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">
+                <dt className="text-sm font-medium text-text-500">
                   Response Time
                 </dt>
-                <dd className="mt-1 text-sm text-gray-900">
+                <dd className="mt-1 text-sm text-text-900">
                   {lastChecked ? "Real-time" : "N/A"}
                 </dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">
+                <dt className="text-sm font-medium text-text-500">
                   API Version
                 </dt>
-                <dd className="mt-1 text-sm text-gray-900">v1.0.0</dd>
+                <dd className="mt-1 text-sm text-text-900">v1.0.0</dd>
               </div>
               <div>
-                <dt className="text-sm font-medium text-gray-500">
+                <dt className="text-sm font-medium text-text-500">
                   Environment
                 </dt>
-                <dd className="mt-1 text-sm text-gray-900">Development</dd>
+                <dd className="mt-1 text-sm text-text-900">Development</dd>
               </div>
             </dl>
           </div>
