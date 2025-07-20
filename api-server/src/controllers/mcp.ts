@@ -150,11 +150,28 @@ export class McpController {
         return;
       }
 
+      // Convert frontend messages to OllamaMessage format
+      const ollamaMessages: OllamaMessage[] = messages.map((msg: any, index: number) => {
+        // Validate message structure
+        if (!msg || typeof msg !== 'object') {
+          throw new Error(`Invalid message format at index ${index}`);
+        }
+        if (!msg.role || !msg.content) {
+          throw new Error(`Message at index ${index} must have role and content`);
+        }
+        
+        return {
+          role: msg.role as "system" | "user" | "assistant" | "tool",
+          content: String(msg.content),
+          tool_calls: msg.tool_calls || undefined,
+        };
+      });
+
       const mcpServer = getMcpServer();
       const response = await (mcpServer as any).handleRequest({
         method: "ollama/chat",
         params: {
-          messages: messages as OllamaMessage[],
+          messages: ollamaMessages,
           model,
           tools,
           options: {
@@ -179,10 +196,23 @@ export class McpController {
         data: response.result,
       });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      
+      // Check if this is a validation error (client-side error)
+      if (errorMessage.includes('Invalid message format') || 
+          errorMessage.includes('must have role and content') ||
+          errorMessage.includes('Messages array is required')) {
+        res.status(400).json({
+          success: false,
+          error: errorMessage,
+        });
+      } else {
+        // Server-side error
+        res.status(500).json({
+          success: false,
+          error: errorMessage,
+        });
+      }
     }
   }
 
