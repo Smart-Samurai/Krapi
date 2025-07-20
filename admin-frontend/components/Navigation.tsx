@@ -54,7 +54,7 @@ const SidebarContent = ({
   return (
     <div className="flex h-full w-64 flex-col overflow-y-auto border-r border-stone-200 bg-white py-5">
       <div className="flex items-center flex-shrink-0 px-4">
-        <Database className="h-8 w-8 text-blue-600" />
+                      <Database className="h-8 w-8 text-primary-600" />
         <span className="ml-2 text-xl font-bold text-stone-900">Krapi CMS</span>
       </div>
 
@@ -75,15 +75,15 @@ const SidebarContent = ({
                     className={cn(
                       "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
                       isActive
-                        ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                        : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                                        ? "bg-primary-50 text-primary-700 border-r-2 border-primary-700"
+                : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
                     )}
                   >
                     <item.icon
                       className={cn(
                         "mr-3 h-5 w-5 flex-shrink-0",
                         isActive
-                          ? "text-blue-700"
+                          ? "text-primary-700"
                           : "text-stone-400 group-hover:text-stone-500"
                       )}
                     />
@@ -93,11 +93,11 @@ const SidebarContent = ({
                         variant="secondary"
                         className={cn(
                           "ml-2 text-xs",
-                          item.badge === "New" && "bg-green-100 text-green-700",
+                          item.badge === "New" && "bg-secondary-100 text-secondary-700",
                           item.badge === "Pro" &&
-                            "bg-purple-100 text-purple-700",
+                            "bg-secondary-100 text-secondary-700",
                           item.badge === "Enterprise" &&
-                            "bg-orange-100 text-orange-700"
+                            "bg-primary-100 text-primary-700"
                         )}
                       >
                         {item.badge}
@@ -158,7 +158,7 @@ export default function Navigation() {
             </Sheet>
 
             <div className="ml-2 flex items-center">
-              <Database className="h-6 w-6 text-blue-600" />
+              <Database className="h-6 w-6 text-primary-600" />
               <span className="ml-2 text-lg font-semibold text-stone-900">
                 Krapi CMS
               </span>
@@ -179,7 +179,7 @@ export default function Navigation() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-blue-600 text-white text-xs">
+                    <AvatarFallback className="bg-primary-600 text-white text-xs">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
@@ -236,7 +236,7 @@ export default function Navigation() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-blue-600 text-white text-xs">
+                    <AvatarFallback className="bg-primary-600 text-white text-xs">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>

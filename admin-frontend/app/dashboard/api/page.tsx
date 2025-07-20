@@ -373,7 +373,7 @@ export default function ApiManagementPage() {
               <div className="text-sm text-gray-500">Today</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-2xl font-bold text-purple-600">
+                              <div className="text-2xl font-bold text-secondary-600">
                 {analytics.avg_response_time}ms
               </div>
               <div className="text-sm text-gray-500">Avg Response</div>
@@ -403,7 +403,7 @@ export default function ApiManagementPage() {
               <div className="text-sm text-gray-500">Bandwidth</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-2xl font-bold text-orange-600">
+                              <div className="text-2xl font-bold text-primary-600">
                 {endpoints.length}
               </div>
               <div className="text-sm text-gray-500">Endpoints</div>
@@ -512,7 +512,7 @@ export default function ApiManagementPage() {
 
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center">
-                  <Shield className="h-8 w-8 text-purple-600 mr-3" />
+                  <Shield className="h-8 w-8 text-secondary-600 mr-3" />
                   <div>
                     <h3 className="text-lg font-semibold">Security</h3>
                     <p className="text-sm text-gray-600">

@@ -38,23 +38,23 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
       <div
         role="complementary"
         className={cn(
-          "relative flex h-full flex-col border-r border-gray-200 bg-white transition-all duration-300",
+          "relative flex h-full flex-col border-r border-background-300 bg-background-100 transition-all duration-300",
           collapsed ? "w-16" : "w-64"
         )}
       >
         {/* Header */}
-        <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
+        <div className="flex h-16 items-center justify-between border-b border-background-300 px-4">
           {!collapsed && (
             <div className="flex items-center">
-              <Database className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">
+              <Database className="h-8 w-8 text-primary-500" />
+              <span className="ml-2 text-xl font-bold text-text-900">
                 Krapi CMS
               </span>
             </div>
           )}
           {collapsed && (
             <div className="flex w-full justify-center">
-              <Database className="h-8 w-8 text-blue-600" />
+              <Database className="h-8 w-8 text-primary-500" />
             </div>
           )}
         </div>
@@ -66,7 +66,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           onClick={onToggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
-            "absolute -right-6 top-24 z-20 h-10 w-10 rounded-full border border-gray-200 bg-white p-2 shadow-lg hover:bg-gray-50 hover:shadow-xl transition-all duration-200",
+            "absolute -right-6 top-24 z-20 h-10 w-10 rounded-full border border-background-300 bg-background-100 p-2 shadow-lg hover:bg-background-200 hover:shadow-xl transition-all duration-200",
             "hidden lg:flex"
           )}
         >
@@ -82,7 +82,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           {Object.entries(groupedNavigation).map(([category, items]) => (
             <div key={category} className="space-y-1">
               {!collapsed && (
-                <h3 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <h3 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-text-600">
                   {categories[category as keyof typeof categories]}
                 </h3>
               )}
@@ -111,8 +111,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                       className={cn(
                         "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                          ? "bg-primary-100 text-primary-700"
+                          : "text-text-600 hover:bg-background-200 hover:text-text-900",
                         collapsed && "justify-center"
                       )}
                       data-testid={`nav-${item.name
@@ -126,8 +126,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                         className={cn(
                           "h-5 w-5 flex-shrink-0",
                           isActive
-                            ? "text-blue-700"
-                            : "text-gray-400 group-hover:text-gray-500",
+                            ? "text-primary-700"
+                            : "text-text-400 group-hover:text-text-500",
                           !collapsed && "mr-3"
                         )}
                       >
@@ -142,11 +142,11 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                               className={cn(
                                 "ml-2 text-xs",
                                 item.badge === "New" &&
-                                  "bg-green-100 text-green-700",
+                                  "bg-secondary-100 text-secondary-700",
                                 item.badge === "Pro" &&
-                                  "bg-purple-100 text-purple-700",
+                                  "bg-accent-100 text-accent-700",
                                 item.badge === "Enterprise" &&
-                                  "bg-orange-100 text-orange-700"
+                                  "bg-primary-100 text-primary-700"
                               )}
                             >
                               {item.badge}
@@ -170,11 +170,11 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                                 className={cn(
                                   "ml-2 text-xs",
                                   item.badge === "New" &&
-                                    "bg-green-100 text-green-700",
+                                    "bg-secondary-100 text-secondary-700",
                                   item.badge === "Pro" &&
-                                    "bg-purple-100 text-purple-700",
+                                    "bg-accent-100 text-accent-700",
                                   item.badge === "Enterprise" &&
-                                    "bg-orange-100 text-orange-700"
+                                    "bg-primary-100 text-primary-700"
                                 )}
                               >
                                 {item.badge}

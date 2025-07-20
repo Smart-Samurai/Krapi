@@ -15,7 +15,7 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
-      <div className="h-screen bg-gray-50">
+      <div className="h-screen bg-background-50">
         {/* Desktop Layout */}
         <div className="hidden lg:flex lg:h-full">
           {/* Sidebar */}

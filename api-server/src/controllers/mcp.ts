@@ -227,11 +227,15 @@ export class McpController {
       const mcpServer = getMcpServer();
       const ollamaService = mcpServer.getOllamaService();
       
-      const models = await ollamaService.listModels();
+      const modelNames = await ollamaService.listModels();
 
       res.json({
         success: true,
-        data: models,
+        data: {
+          models: modelNames,
+          defaultModel: ollamaService.getDefaultModel(),
+          baseUrl: ollamaService.getBaseUrl(),
+        },
       });
     } catch (error) {
       res.status(500).json({

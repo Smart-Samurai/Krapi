@@ -556,7 +556,7 @@ export default function AuthPage() {
               <div className="text-sm text-gray-500">Unverified</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-2xl font-bold text-purple-600">
+                              <div className="text-2xl font-bold text-secondary-600">
                 {authStats.users_today}
               </div>
               <div className="text-sm text-gray-500">New Today</div>
@@ -568,7 +568,7 @@ export default function AuthPage() {
               <div className="text-sm text-gray-500">Logins Today</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-2xl font-bold text-orange-600">
+                              <div className="text-2xl font-bold text-primary-600">
                 {authStats.failed_logins_today}
               </div>
               <div className="text-sm text-gray-500">Failed Logins</div>
