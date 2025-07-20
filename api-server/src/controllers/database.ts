@@ -53,7 +53,7 @@ export class DatabaseController {
     res: Response
   ): Promise<void> {
     try {
-      const tableName = req.params.name;
+      const tableName = req.params.tableName;
 
       // Validate table name to prevent SQL injection
       if (!database.isValidTableName(tableName)) {

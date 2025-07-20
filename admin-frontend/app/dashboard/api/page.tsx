@@ -259,7 +259,6 @@ export default function ApiManagementPage() {
           name: data.name,
           permissions: data.permissions,
           rate_limit: data.rate_limit,
-          expires_at: data.expires_at || undefined,
         }
       );
 

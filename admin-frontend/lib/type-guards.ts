@@ -66,7 +66,7 @@ export function isPaginatedResponse<T>(
 ): response is PaginatedResponse<T> {
   if (!isApiResponse(response)) return false;
   
-  const r = response as Record<string, unknown>;
+  const r = response as unknown as Record<string, unknown>;
   
   if (typeof r.total !== 'number') return false;
   if (typeof r.page !== 'number') return false;

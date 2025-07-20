@@ -618,6 +618,8 @@ This document provides a comprehensive mapping of all connections between the fr
 - **Frontend**: `admin-frontend/lib/api.ts` - `databaseAPI.getTableData()`
 - **Backend**: `api-server/src/controllers/database.ts` - `DatabaseController.getTableData()`
 
+**Note**: Fixed parameter name from `req.params.name` to `req.params.tableName` to match route definition.
+
 ### Execute Query
 - **Endpoint**: `POST /api/admin/database/query`
 - **Frontend**: `admin-frontend/lib/api.ts` - `databaseAPI.executeQuery()`
@@ -761,6 +763,21 @@ This document provides a comprehensive mapping of all connections between the fr
 - **Endpoint**: `GET /api/ollama/models`
 - **Frontend**: `admin-frontend/lib/api.ts` - `ollamaAPI.listModels()`
 - **Backend**: `api-server/src/controllers/mcp.ts` - `McpController.listModels()`
+
+**Response**:
+```typescript
+{
+  success: boolean;
+  data?: {
+    models: string[];
+    defaultModel: string;
+    baseUrl: string;
+  };
+  error?: string;
+}
+```
+
+**Note**: Fixed response format to include `models` array property to match frontend expectations.
 
 ### Pull Ollama Model
 - **Endpoint**: `POST /api/ollama/models/pull`
@@ -1008,3 +1025,32 @@ WebSocket events include:
 - Real-time notifications
 - Live updates for collaborative features
 - System status monitoring
+
+## Recent Fixes and Updates
+
+### Database Management Page Fixes (Latest)
+**Date**: Current
+**Issues Fixed**:
+
+1. **Database Table Data 400 Error**:
+   - **Problem**: `req.params.name` was used instead of `req.params.tableName` in `DatabaseController.getTableData()`
+   - **Fix**: Changed parameter access from `req.params.name` to `req.params.tableName` to match route definition
+   - **Files Modified**: `api-server/src/controllers/database.ts`
+
+2. **AI Page Models Error**:
+   - **Problem**: `models?.models.length` error when `models` is undefined
+   - **Fix**: Updated `McpController.listModels()` to return proper object structure with `models` array property
+   - **Files Modified**: `api-server/src/controllers/mcp.ts`
+
+3. **Database Page Layout Improvements**:
+   - **Problem**: Duplicate table listings and narrow side-by-side layout
+   - **Fix**: 
+     - Separated database statistics and tables into distinct sections
+     - Changed grid layout from 3 columns to 4 columns for better spacing
+     - Removed redundant table listing from statistics section
+   - **Files Modified**: `admin-frontend/app/dashboard/database/page.tsx`
+
+**Frontend-Backend Connection Updates**:
+- Database table data endpoint now correctly handles parameter names
+- MCP models endpoint now returns consistent object structure
+- Database page UI improved for better user experience

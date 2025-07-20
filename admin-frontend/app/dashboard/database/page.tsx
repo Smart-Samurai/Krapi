@@ -223,7 +223,7 @@ export default function DatabasePage() {
           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Database Stats */}
           <div className="col-span-1 bg-white p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4 flex items-center">
@@ -258,8 +258,13 @@ export default function DatabasePage() {
             ) : (
               <p>No statistics available</p>
             )}
+          </div>
 
-            <h3 className="text-md font-semibold mt-6 mb-2">Tables</h3>
+          {/* Tables List */}
+          <div className="col-span-1 bg-white p-4 rounded-lg shadow">
+            <h2 className="text-lg font-semibold mb-4 flex items-center">
+              <Table className="mr-2 h-5 w-5" /> Tables
+            </h2>
             <div className="max-h-80 overflow-y-auto">
               <ul className="divide-y divide-gray-200">
                 {tables.map((table) => (

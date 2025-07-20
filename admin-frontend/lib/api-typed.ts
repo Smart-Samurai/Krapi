@@ -5,7 +5,6 @@
 import { api } from './api-client';
 import type {
   ApiResponse,
-  PaginatedResponse,
   User,
   CreateUserData,
   UpdateUserData,
@@ -44,7 +43,7 @@ import type {
   SecuritySettings,
   Session
 } from '../types/api';
-import { isApiResponse, safeAsync } from './type-guards';
+import { safeAsync } from './type-guards';
 
 /**
  * Type-safe API method wrapper
