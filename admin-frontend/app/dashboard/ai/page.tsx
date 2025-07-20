@@ -81,6 +81,18 @@ export default function AIPage() {
     "http://localhost:11434"
   );
 
+  // Initialize chat with system message
+  useEffect(() => {
+    if (selectedModel && messages.length === 0) {
+      const systemMessage: ChatMessage = {
+        role: "system",
+        content: "You are a helpful AI assistant with access to MCP tools. You can help manage content, users, files, and other system resources. Be concise and helpful in your responses.",
+        timestamp: new Date(),
+      };
+      setMessages([systemMessage]);
+    }
+  }, [selectedModel]);
+
   // Model management
   const [newModel, setNewModel] = useState("");
   const [pullLoading, setPullLoading] = useState(false);
@@ -133,11 +145,19 @@ export default function AIPage() {
     setChatLoading(true);
 
     try {
+      // Ensure proper message format for the API
+      const formattedMessages = [
+        ...messages
+          .filter((m) => m.role !== "system") // Exclude system messages from API call
+          .map((m) => ({ 
+            role: m.role, 
+            content: m.content 
+          })),
+        { role: "user", content: inputMessage },
+      ];
+
       const response = await ollamaAPI.chat(
-        [
-          ...messages.map((m) => ({ role: m.role, content: m.content })),
-          { role: "user", content: inputMessage },
-        ],
+        formattedMessages,
         {
           model: selectedModel,
           tools: true, // Enable MCP tools
@@ -148,14 +168,16 @@ export default function AIPage() {
       if (response.success) {
         const assistantMessage: ChatMessage = {
           role: "assistant",
-          content: response.data.message.content,
+          content: response.data.message?.content || response.data.content || "No response content",
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
+        console.error("Chat API error:", response);
         throw new Error(response.error || "Chat failed");
       }
     } catch (err) {
+      console.error("Chat error:", err);
       const errorMessage: ChatMessage = {
         role: "assistant",
         content: `Error: ${
@@ -210,15 +232,15 @@ export default function AIPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">AI & MCP Management</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-text-900 dark:text-text-100">AI & MCP Management</h1>
+          <p className="text-text-600 dark:text-text-400">
             Manage AI models and MCP tools for intelligent automation
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 mr-2" />
           {error}
         </div>
@@ -235,7 +257,7 @@ export default function AIPage() {
               <Badge variant={mcpInfo?.enabled ? "default" : "secondary"}>
                 {mcpInfo?.enabled ? "Enabled" : "Disabled"}
               </Badge>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-text-500 dark:text-text-400">
                 {mcpInfo?.server.version}
               </span>
             </div>
@@ -253,7 +275,7 @@ export default function AIPage() {
               >
                 {mcpInfo?.ollama.healthy ? "Healthy" : "Disconnected"}
               </Badge>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-text-500 dark:text-text-400">
                 {models?.models.length || 0} models
               </span>
             </div>
@@ -290,10 +312,10 @@ export default function AIPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="h-96 border rounded-lg p-4 overflow-y-auto bg-white">
+              <div className="h-96 border border-background-300 rounded-lg p-4 overflow-y-auto bg-background-50 dark:bg-background-900">
                 {messages.length === 0 && (
-                  <div className="text-center text-gray-500 py-8">
-                    <Bot className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <div className="text-center text-text-500 dark:text-text-400 py-8">
+                    <Bot className="h-12 w-12 mx-auto mb-4 text-text-300 dark:text-text-600" />
                     <p>Start a conversation! I can help you manage:</p>
                     <ul className="mt-2 text-sm">
                       <li>• Content items and routes</li>
@@ -311,20 +333,20 @@ export default function AIPage() {
                     key={idx}
                     className={`mb-4 ${
                       msg.role === "user" ? "text-right" : "text-left"
-                    }`}
+                    } ${msg.role === "system" ? "hidden" : ""}`}
                   >
                     <div
                       className={`inline-block max-w-[80%] rounded-lg px-4 py-2 ${
                         msg.role === "user"
-                          ? "bg-blue-500 text-white"
+                          ? "bg-primary-500 text-text-50"
                           : msg.content.startsWith("Error:")
-                          ? "bg-red-50 text-red-700 border border-red-200"
-                          : "bg-gray-100 text-gray-900"
+                          ? "bg-destructive/10 text-destructive border border-destructive/20"
+                          : "bg-background-100 dark:bg-background-800 text-text-900 dark:text-text-100"
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                       <p className={`text-xs mt-1 ${
-                        msg.role === "user" ? "text-blue-100" : "text-gray-500"
+                        msg.role === "user" ? "text-text-100" : "text-text-500 dark:text-text-400"
                       }`}>
                         {msg.timestamp.toLocaleTimeString()}
                       </p>
@@ -333,8 +355,8 @@ export default function AIPage() {
                 ))}
                 {chatLoading && (
                   <div className="text-left">
-                    <div className="inline-block bg-gray-100 rounded-lg px-4 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="inline-block bg-background-100 dark:bg-background-800 rounded-lg px-4 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-text-600 dark:text-text-400" />
                     </div>
                   </div>
                 )}
@@ -358,7 +380,7 @@ export default function AIPage() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-4 text-sm text-text-500 dark:text-text-400">
                 <div className="flex items-center gap-1">
                   <Brain className="h-4 w-4" />
                   <span>Model: {selectedModel || "Default"}</span>
@@ -384,17 +406,17 @@ export default function AIPage() {
                 {tools.map((tool) => (
                   <div
                     key={tool.name}
-                    className="p-4 border rounded-lg bg-white hover:shadow-md transition-shadow"
+                    className="p-4 border border-background-300 rounded-lg bg-background-50 dark:bg-background-900 hover:shadow-md transition-shadow"
                   >
-                    <h4 className="font-medium text-lg mb-2">{tool.name}</h4>
-                    <p className="text-sm text-gray-600 mb-3">
+                    <h4 className="font-medium text-lg mb-2 text-text-900 dark:text-text-100">{tool.name}</h4>
+                    <p className="text-sm text-text-600 dark:text-text-400 mb-3">
                       {tool.description}
                     </p>
                     {tool.inputSchema.properties && (
                       <div className="space-y-1">
-                        <p className="text-xs font-medium text-gray-500">Parameters:</p>
+                        <p className="text-xs font-medium text-text-500 dark:text-text-400">Parameters:</p>
                         {Object.entries(tool.inputSchema.properties).map(([key, prop]: [string, any]) => (
-                          <div key={key} className="text-xs text-gray-600">
+                          <div key={key} className="text-xs text-text-600 dark:text-text-400">
                             • <span className="font-mono">{key}</span>
                             {prop.description && `: ${prop.description}`}
                           </div>
@@ -419,20 +441,20 @@ export default function AIPage() {
                   {models?.models.map((model) => (
                     <div
                       key={model}
-                      className={`p-3 border rounded-lg flex items-center justify-between ${
+                      className={`p-3 border border-background-300 rounded-lg flex items-center justify-between ${
                         model === selectedModel
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-white"
+                          ? "bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800"
+                          : "bg-background-50 dark:bg-background-900"
                       }`}
                     >
-                      <span className="font-mono text-sm">{model}</span>
+                      <span className="font-mono text-sm text-text-900 dark:text-text-100">{model}</span>
                       {model === selectedModel && (
                         <Badge variant="default">Active</Badge>
                       )}
                     </div>
                   ))}
                   {models?.models.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">
+                    <p className="text-text-500 dark:text-text-400 text-center py-4">
                       No models installed
                     </p>
                   )}
@@ -454,7 +476,7 @@ export default function AIPage() {
                     onChange={(e) => setNewModel(e.target.value)}
                     placeholder="e.g., llama3.1:8b"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-text-500 dark:text-text-400 mt-1">
                     Enter the model name from Ollama library
                   </p>
                 </div>
@@ -501,7 +523,7 @@ export default function AIPage() {
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border border-background-300 rounded-lg bg-background-50 dark:bg-background-900 text-text-900 dark:text-text-100"
                 >
                   {models?.models.map((model) => (
                     <option key={model} value={model}>
@@ -520,14 +542,14 @@ export default function AIPage() {
                   {mcpInfo?.ollama.healthy ? (
                     <>
                       <Wifi className="h-4 w-4 text-green-500" />
-                      <span className="text-green-600">
+                      <span className="text-green-600 dark:text-green-400">
                         Connected to Ollama at {mcpInfo.ollama.baseUrl}
                       </span>
                     </>
                   ) : (
                     <>
                       <WifiOff className="h-4 w-4 text-red-500" />
-                      <span className="text-red-600">
+                      <span className="text-red-600 dark:text-red-400">
                         Cannot connect to Ollama
                       </span>
                     </>
