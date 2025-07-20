@@ -141,7 +141,7 @@ export default function UsersPage() {
       case "admin":
         return <Shield className="h-4 w-4 text-red-500" />;
       case "editor":
-        return <UserCheck className="h-4 w-4 text-primary-500 dark:text-primary-400" />;
+        return <UserCheck className="h-4 w-4 text-secondary dark:text-secondary" />;
       case "viewer":
         return <UserIcon className="h-4 w-4 text-text-500 dark:text-text-500" />;
       default:
@@ -155,14 +155,14 @@ export default function UsersPage() {
 
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text-900 dark:text-text-50">Users</h1>
-          <p className="text-text-600 dark:text-text-400">
+          <h1 className="text-3xl font-bold text-text dark:text-text">Users</h1>
+          <p className="text-text-600 dark:text-text-600">
             Manage system users and their permissions
           </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 bg-primary-500 dark:bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-300 dark:text-background-950 focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <Plus className="h-4 w-4" />
           <span>Add User</span>
@@ -234,7 +234,7 @@ export default function UsersPage() {
                           user.role as "admin" | "editor" | "viewer"
                         );
                       }}
-                      className="text-primary-600 dark:text-primary-400 hover:text-blue-900"
+                      className="text-accent dark:text-accent hover:text-accent-700 dark:hover:text-accent-300"
                     >
                       <Edit className="h-4 w-4" />
                     </button>

@@ -286,13 +286,13 @@ export default function Header({
   const getResultTypeColor = (type: string) => {
     switch (type) {
       case "content":
-        return "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200";
-      case "route":
         return "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200";
-      case "user":
+      case "route":
         return "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200";
+      case "user":
+        return "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-300";
       case "file":
-        return "bg-primary-200 text-primary-700 dark:bg-primary-800 dark:text-primary-200";
+        return "bg-background-300 text-text-800 dark:bg-background-300 dark:text-text-200";
       default:
         return "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-300";
     }
@@ -305,11 +305,11 @@ export default function Header({
       case "content_created":
         return "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200";
       case "content_updated":
-        return "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200";
-      case "user_created":
         return "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200";
+      case "user_created":
+        return "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-300";
       case "file_uploaded":
-        return "bg-primary-200 text-primary-700 dark:bg-primary-800 dark:text-primary-200";
+        return "bg-background-300 text-text-800 dark:bg-background-300 dark:text-text-200";
       default:
         return "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-300";
     }
@@ -512,7 +512,7 @@ export default function Header({
                           <div
                             key={notification.id}
                             className={`p-3 border-b border-background-200 last:border-b-0 hover:bg-background-200 ${
-                              !notification.read ? "bg-primary-100" : ""
+                              !notification.read ? "bg-background-200" : ""
                             }`}
                           >
                             <div className="flex items-start justify-between">
@@ -595,7 +595,7 @@ export default function Header({
                     data-testid="user-menu-button"
                   >
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary-500 text-text-50 text-xs">
+                      <AvatarFallback className="bg-text text-background text-xs">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -692,7 +692,7 @@ export default function Header({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary-500 text-text-50 text-xs">
+                  <AvatarFallback className="bg-text text-background text-xs">
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>

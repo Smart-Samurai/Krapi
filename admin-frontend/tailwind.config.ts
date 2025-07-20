@@ -10,6 +10,7 @@ export default {
     extend: {
       colors: {
         'text': {
+          DEFAULT: 'var(--text)',
           50: 'var(--text-50)',
           100: 'var(--text-100)',
           200: 'var(--text-200)',
@@ -23,6 +24,7 @@ export default {
           950: 'var(--text-950)',
         },
         'background': {
+          DEFAULT: 'var(--background)',
           50: 'var(--background-50)',
           100: 'var(--background-100)',
           200: 'var(--background-200)',
@@ -36,6 +38,7 @@ export default {
           950: 'var(--background-950)',
         },
         'primary': {
+          DEFAULT: 'var(--primary)',
           50: 'var(--primary-50)',
           100: 'var(--primary-100)',
           200: 'var(--primary-200)',
@@ -49,6 +52,7 @@ export default {
           950: 'var(--primary-950)',
         },
         'secondary': {
+          DEFAULT: 'var(--secondary)',
           50: 'var(--secondary-50)',
           100: 'var(--secondary-100)',
           200: 'var(--secondary-200)',
@@ -62,6 +66,7 @@ export default {
           950: 'var(--secondary-950)',
         },
         'accent': {
+          DEFAULT: 'var(--accent)',
           50: 'var(--accent-50)',
           100: 'var(--accent-100)',
           200: 'var(--accent-200)',
@@ -76,15 +81,14 @@ export default {
         },
 
         // Legacy support for existing components
-        background: "var(--background-50)",
-        foreground: "var(--text-900)",
+        foreground: "var(--text)",
         card: {
           DEFAULT: "var(--background-100)",
-          foreground: "var(--text-900)",
+          foreground: "var(--text)",
         },
         popover: {
           DEFAULT: "var(--background-100)",
-          foreground: "var(--text-900)",
+          foreground: "var(--text)",
         },
         muted: {
           DEFAULT: "var(--background-200)",
@@ -96,16 +100,16 @@ export default {
         },
         border: "var(--background-300)",
         input: "var(--background-200)",
-        ring: "var(--primary-500)",
+        ring: "var(--primary)",
         sidebar: {
           DEFAULT: "var(--background-100)",
-          foreground: "var(--text-900)",
-          primary: "var(--primary-500)",
+          foreground: "var(--text)",
+          primary: "var(--primary)",
           "primary-foreground": "var(--text-50)",
-          accent: "var(--accent-500)",
+          accent: "var(--accent)",
           "accent-foreground": "var(--text-50)",
           border: "var(--background-300)",
-          ring: "var(--primary-500)",
+          ring: "var(--primary)",
         },
       },
       fontSize: {
