@@ -220,6 +220,7 @@ export interface UpdateApiKeyData {
   permissions?: string[];
   rate_limit?: number;
   active?: boolean;
+  expires_at?: string;
 }
 
 // API Endpoint Types
