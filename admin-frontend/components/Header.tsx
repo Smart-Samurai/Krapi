@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import Sidebar from "./Sidebar";
 import UserSettingsModal from "./UserSettingsModal";
 import { notificationAPI, searchAPI } from "@/lib/api";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
@@ -582,6 +583,10 @@ export default function Header({
 
               <div className="h-6 w-px bg-background-300" />
 
+              <ThemeToggle />
+
+              <div className="h-6 w-px bg-background-300" />
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -682,6 +687,7 @@ export default function Header({
               </Badge>
             )}
           </Button>
+          <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
