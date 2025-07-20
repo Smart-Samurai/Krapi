@@ -1,24 +1,4 @@
-import {
-  McpToolDefinition,
-  McpToolResult,
-  AppStateContext,
-} from "../types/mcp";
-
-// Helper function to create proper McpToolResult
-function createMcpToolResult(
-  content: string,
-  isError: boolean = false
-): McpToolResult {
-  return {
-    content: [
-      {
-        type: "text",
-        text: content,
-      },
-    ],
-    isError,
-  };
-}
+import { McpToolDefinition, AppStateContext } from "../types/mcp";
 
 // Export the getAppStateContext function
 export function getAppStateContext(): AppStateContext {
@@ -101,21 +81,48 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const {
         route_name,
         description = `Test route created by MCP tool: ${route_name}`,
       } = args;
 
       try {
-        // Note: In a real implementation, you'd need to pass the database connection
-        // For now, we'll return a success message
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
         const routePath = `/test/${route_name}`;
+
+        // Check if route already exists
+        const existingRoute = databaseService.getRouteByPath(routePath);
+        if (existingRoute) {
+          return {
+            success: false,
+            error: `Route with path "${routePath}" already exists`,
+          };
+        }
+
+        // Create the route
+        const newRoute = databaseService.createRoute({
+          name: route_name,
+          path: routePath,
+          description: description,
+          access_level: "public",
+        });
+
         const message = `Route "${route_name}" created successfully with path "${routePath}". Description: ${description}`;
 
-        return createMcpToolResult(message);
+        return {
+          success: true,
+          message: message,
+          route_id: newRoute.id,
+          route_path: routePath,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error creating route: ${error}`, true);
+        return {
+          success: false,
+          error: `Error creating route: ${error}`,
+        };
       }
     },
   },
@@ -145,7 +152,7 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { role, active, limit = 50 } = args;
 
       try {
@@ -165,19 +172,17 @@ export const mcpTools: McpToolDefinition[] = [
 
         filteredUsers = filteredUsers.slice(0, Number(limit));
 
-        const userList = filteredUsers
-          .map(
-            (user: any) =>
-              `- ${user.username} (${user.role}) - ${
-                user.is_active ? "Active" : "Inactive"
-              }`
-          )
-          .join("\n");
-
-        const message = `Retrieved ${filteredUsers.length} users:\n${userList}`;
-        return createMcpToolResult(message);
+        return {
+          success: true,
+          users: filteredUsers,
+          count: filteredUsers.length,
+          message: `Retrieved ${filteredUsers.length} users`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error retrieving users: ${error}`, true);
+        return {
+          success: false,
+          error: `Error retrieving users: ${error}`,
+        };
       }
     },
   },
@@ -216,33 +221,50 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
-      const {
-        username,
-        email,
-        _password,
-        role = "user",
-        _active = true,
-      } = args;
+    ) => {
+      const { username, email, password, role = "user", active = true } = args;
 
       try {
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
         // Check if username already exists
-        const existingUser = context.users.find(
-          (user: any) => user.username === username
-        );
+        const existingUser = databaseService.getUserByUsername(username);
         if (existingUser) {
-          return createMcpToolResult(
-            `User with username "${username}" already exists`,
-            true
-          );
+          return {
+            success: false,
+            error: `User with username "${username}" already exists`,
+          };
         }
 
-        const message = `User "${username}" would be created successfully with role "${role}" and email "${
-          email || "not provided"
-        }"`;
-        return createMcpToolResult(message);
+        // Create the user
+        const newUser = databaseService.createUser({
+          username: username,
+          email: email || "",
+          password: password,
+          role: role,
+          active: active,
+        });
+
+        if (!newUser) {
+          return {
+            success: false,
+            error: "Failed to create user",
+          };
+        }
+
+        return {
+          success: true,
+          user_id: newUser.id,
+          username: username,
+          role: role,
+          message: `User "${username}" created successfully with role "${role}"`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error creating user: ${error}`, true);
+        return {
+          success: false,
+          error: `Error creating user: ${error}`,
+        };
       }
     },
   },
@@ -267,7 +289,7 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { access_level, limit = 50 } = args;
 
       try {
@@ -280,19 +302,17 @@ export const mcpTools: McpToolDefinition[] = [
 
         filteredRoutes = filteredRoutes.slice(0, Number(limit));
 
-        const routeList = filteredRoutes
-          .map(
-            (route: any) =>
-              `- ${route.name} (${route.path}) - ${
-                route.description || "No description"
-              }`
-          )
-          .join("\n");
-
-        const message = `Retrieved ${filteredRoutes.length} routes:\n${routeList}`;
-        return createMcpToolResult(message);
+        return {
+          success: true,
+          routes: filteredRoutes,
+          count: filteredRoutes.length,
+          message: `Retrieved ${filteredRoutes.length} routes`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error retrieving routes: ${error}`, true);
+        return {
+          success: false,
+          error: `Error retrieving routes: ${error}`,
+        };
       }
     },
   },
@@ -328,27 +348,43 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { name, path, description, access_level = "public" } = args;
 
       try {
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
         // Check if route already exists
-        const existingRoute = context.routes.find(
-          (route: any) => route.path === path
-        );
+        const existingRoute = databaseService.getRouteByPath(path);
         if (existingRoute) {
-          return createMcpToolResult(
-            `Route with path "${path}" already exists`,
-            true
-          );
+          return {
+            success: false,
+            error: `Route with path "${path}" already exists`,
+          };
         }
 
-        const message = `Route "${name}" would be created successfully with path "${path}", access level "${access_level}", and description "${
-          description || "No description provided"
-        }"`;
-        return createMcpToolResult(message);
+        // Create the route
+        const newRoute = databaseService.createRoute({
+          name: name,
+          path: path,
+          description: description || "",
+          access_level: access_level,
+        });
+
+        return {
+          success: true,
+          route_id: newRoute.id,
+          name: name,
+          path: path,
+          access_level: access_level,
+          message: `Route "${name}" created successfully with path "${path}"`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error creating route: ${error}`, true);
+        return {
+          success: false,
+          error: `Error creating route: ${error}`,
+        };
       }
     },
   },
@@ -370,24 +406,40 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { path } = args;
 
       try {
-        const routeToDelete = context.routes.find(
-          (route: any) => route.path === path
-        );
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
+        const routeToDelete = databaseService.getRouteByPath(path);
         if (!routeToDelete) {
-          return createMcpToolResult(
-            `Route with path "${path}" not found`,
-            true
-          );
+          return {
+            success: false,
+            error: `Route with path "${path}" not found`,
+          };
         }
 
-        const message = `Route "${routeToDelete.name}" with path "${path}" would be deleted successfully`;
-        return createMcpToolResult(message);
+        // Delete the route
+        const deleted = databaseService.deleteRoute(path);
+        if (!deleted) {
+          return {
+            success: false,
+            error: `Failed to delete route "${path}"`,
+          };
+        }
+
+        return {
+          success: true,
+          deleted_route: routeToDelete,
+          message: `Route "${routeToDelete.name}" with path "${path}" deleted successfully`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error deleting route: ${error}`, true);
+        return {
+          success: false,
+          error: `Error deleting route: ${error}`,
+        };
       }
     },
   },
@@ -423,34 +475,55 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
-      const { key, content_type = "text", _value, route_path } = args;
+    ) => {
+      const { key, content_type = "text", value, route_path } = args;
 
       try {
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
         // Check if route exists
-        const route = context.routes.find((r: any) => r.path === route_path);
+        const route = databaseService.getRouteByPath(route_path);
         if (!route) {
-          return createMcpToolResult(
-            `Route with path "${route_path}" not found`,
-            true
-          );
+          return {
+            success: false,
+            error: `Route with path "${route_path}" not found`,
+          };
         }
 
         // Check if content key already exists for this route
-        const existingContent = context.contentItems.find(
-          (item: any) => item.key === key && item.route_path === route_path
+        const existingContent = databaseService.getContentByKeyAndRoute(
+          key,
+          route_path
         );
         if (existingContent) {
-          return createMcpToolResult(
-            `Content with key "${key}" already exists for route "${route_path}"`,
-            true
-          );
+          return {
+            success: false,
+            error: `Content with key "${key}" already exists for route "${route_path}"`,
+          };
         }
 
-        const message = `Content item "${key}" would be created successfully with type "${content_type}" for route "${route_path}"`;
-        return createMcpToolResult(message);
+        // Create the content
+        const newContent = databaseService.createContent({
+          key: key,
+          data: value,
+          description: `Content created by MCP tool`,
+          route_path: route_path,
+          content_type: content_type,
+        });
+
+        return {
+          success: true,
+          content_id: newContent.id,
+          key: key,
+          content_type: content_type,
+          message: `Content item "${key}" created successfully with type "${content_type}" for route "${route_path}"`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error creating content: ${error}`, true);
+        return {
+          success: false,
+          error: `Error creating content: ${error}`,
+        };
       }
     },
   },
@@ -480,11 +553,14 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { route_path, content_type, limit = 50 } = args;
 
       try {
-        let filteredContent = context.contentItems;
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
+        let filteredContent = databaseService.getAllContent();
 
         if (route_path) {
           filteredContent = filteredContent.filter(
@@ -494,22 +570,23 @@ export const mcpTools: McpToolDefinition[] = [
 
         if (content_type) {
           filteredContent = filteredContent.filter(
-            (item: any) => item.type === content_type
+            (item: any) => item.content_type === content_type
           );
         }
 
         filteredContent = filteredContent.slice(0, Number(limit));
 
-        const contentList = filteredContent
-          .map(
-            (item: any) => `- ${item.key} (${item.type}) on ${item.route_path}`
-          )
-          .join("\n");
-
-        const message = `Retrieved ${filteredContent.length} content items:\n${contentList}`;
-        return createMcpToolResult(message);
+        return {
+          success: true,
+          content: filteredContent,
+          count: filteredContent.length,
+          message: `Retrieved ${filteredContent.length} content items`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error retrieving content: ${error}`, true);
+        return {
+          success: false,
+          error: `Error retrieving content: ${error}`,
+        };
       }
     },
   },
@@ -535,24 +612,43 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { key, route_path } = args;
 
       try {
-        const contentToDelete = context.contentItems.find(
-          (item: any) => item.key === key && item.route_path === route_path
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
+
+        const contentToDelete = databaseService.getContentByKeyAndRoute(
+          key,
+          route_path
         );
         if (!contentToDelete) {
-          return createMcpToolResult(
-            `Content with key "${key}" not found for route "${route_path}"`,
-            true
-          );
+          return {
+            success: false,
+            error: `Content with key "${key}" not found for route "${route_path}"`,
+          };
         }
 
-        const message = `Content item "${key}" would be deleted successfully from route "${route_path}"`;
-        return createMcpToolResult(message);
+        // Delete the content
+        const deleted = databaseService.deleteContent(key);
+        if (!deleted) {
+          return {
+            success: false,
+            error: `Failed to delete content "${key}"`,
+          };
+        }
+
+        return {
+          success: true,
+          deleted_content: contentToDelete,
+          message: `Content item "${key}" deleted successfully from route "${route_path}"`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error deleting content: ${error}`, true);
+        return {
+          success: false,
+          error: `Error deleting content: ${error}`,
+        };
       }
     },
   },
@@ -573,23 +669,26 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       const { limit = 50 } = args;
 
       try {
-        const schemas = context.schemas.slice(0, Number(limit));
+        // Import database service here to avoid circular dependencies
+        const databaseService = require("./database").default;
 
-        const schemaList = schemas
-          .map(
-            (schema: any) =>
-              `- ${schema.name}: ${schema.description || "No description"}`
-          )
-          .join("\n");
+        const schemas = databaseService.getAllSchemas().slice(0, Number(limit));
 
-        const message = `Retrieved ${schemas.length} schemas:\n${schemaList}`;
-        return createMcpToolResult(message);
+        return {
+          success: true,
+          schemas: schemas,
+          count: schemas.length,
+          message: `Retrieved ${schemas.length} schemas`,
+        };
       } catch (error) {
-        return createMcpToolResult(`Error retrieving schemas: ${error}`, true);
+        return {
+          success: false,
+          error: `Error retrieving schemas: ${error}`,
+        };
       }
     },
   },
@@ -605,7 +704,7 @@ export const mcpTools: McpToolDefinition[] = [
     handler: async (
       args: Record<string, unknown>,
       context: AppStateContext
-    ): Promise<McpToolResult> => {
+    ) => {
       try {
         const stats = {
           users: context.users.length,
@@ -621,21 +720,18 @@ export const mcpTools: McpToolDefinition[] = [
             context.files.length,
         };
 
-        const message = `System Statistics:
-- Users: ${stats.users}
-- Routes: ${stats.routes}
-- Content Items: ${stats.content}
-- Schemas: ${stats.schemas}
-- Files: ${stats.files}
-- Total Items: ${stats.total_items}
-Timestamp: ${new Date().toISOString()}`;
-
-        return createMcpToolResult(message);
+        return {
+          success: true,
+          stats: stats,
+          detailed: {},
+          timestamp: new Date().toISOString(),
+          message: `System statistics retrieved successfully`,
+        };
       } catch (error) {
-        return createMcpToolResult(
-          `Error retrieving system stats: ${error}`,
-          true
-        );
+        return {
+          success: false,
+          error: `Error retrieving system stats: ${error}`,
+        };
       }
     },
   },

@@ -137,7 +137,15 @@ export interface AppStateContext {
 export interface McpToolDefinition {
   name: string;
   description: string;
-  handler: (args: Record<string, unknown>, context: AppStateContext) => Promise<McpToolResult>;
+  handler: (
+    args: Record<string, unknown>,
+    context: AppStateContext
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+    [key: string]: unknown;
+  }>;
   inputSchema: {
     type: "object";
     properties: Record<string, unknown>;

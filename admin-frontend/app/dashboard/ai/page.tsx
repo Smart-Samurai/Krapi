@@ -149,10 +149,16 @@ export default function AIPage() {
 
       // Load Ollama models
       const modelsResponse = await ollamaAPI.listModels();
+      console.log("🔍 Models response:", modelsResponse);
       if (modelsResponse.success) {
-        setModels(modelsResponse.data.models || []);
+        const modelsList =
+          modelsResponse.data.models || modelsResponse.data || [];
+        console.log("🔍 Models list:", modelsList);
+        setModels(modelsList);
         if (modelsResponse.data.defaultModel) {
           setCurrentModel(modelsResponse.data.defaultModel);
+        } else if (modelsList.length > 0) {
+          setCurrentModel(modelsList[0].name || modelsList[0]);
         }
       }
     } catch (err) {
@@ -601,15 +607,31 @@ export default function AIPage() {
                 onChange={(e) => setCurrentModel(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent bg-background text-text"
               >
-                {models.map((model) => (
-                  <option
-                    key={model.name}
-                    value={model.name}
-                    className="bg-background text-text"
-                  >
-                    {model.name}
+                {models.length === 0 ? (
+                  <option value="" disabled>
+                    No models available
                   </option>
-                ))}
+                ) : (
+                  models.map((model, index) => {
+                    const modelName =
+                      typeof model === "string"
+                        ? model
+                        : model.name || `Model ${index}`;
+                    const modelValue =
+                      typeof model === "string"
+                        ? model
+                        : model.name || `model-${index}`;
+                    return (
+                      <option
+                        key={`model-${index}-${modelValue}`}
+                        value={modelValue}
+                        className="bg-background text-text"
+                      >
+                        {modelName}
+                      </option>
+                    );
+                  })
+                )}
               </select>
             </div>
 
@@ -646,32 +668,48 @@ export default function AIPage() {
                 Available Models
               </label>
               <div className="space-y-2 max-h-32 overflow-y-auto">
-                {models.map((model) => (
-                  <div
-                    key={model.name}
-                    className="flex items-center justify-between p-2 bg-background-100 dark:bg-background-100 border border-border rounded-md hover:bg-background-200 dark:hover:bg-background-200 transition-colors"
-                  >
-                    <span className="text-sm font-medium text-text truncate">
-                      {model.name}
-                    </span>
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => loadModel(model.name)}
-                        className="p-1 text-primary hover:text-primary-hover hover:bg-primary/10 rounded transition-colors"
-                        title="Load model"
-                      >
-                        <Play className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => deleteModel(model.name)}
-                        className="p-1 text-error hover:text-error/80 hover:bg-error/10 rounded transition-colors"
-                        title="Delete model"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
+                {models.length === 0 ? (
+                  <div className="text-center text-text-muted py-4">
+                    No models available
                   </div>
-                ))}
+                ) : (
+                  models.map((model, index) => {
+                    const modelName =
+                      typeof model === "string"
+                        ? model
+                        : model.name || `Model ${index}`;
+                    const modelValue =
+                      typeof model === "string"
+                        ? model
+                        : model.name || `model-${index}`;
+                    return (
+                      <div
+                        key={`model-item-${index}-${modelValue}`}
+                        className="flex items-center justify-between p-2 bg-background-100 dark:bg-background-100 border border-border rounded-md hover:bg-background-200 dark:hover:bg-background-200 transition-colors"
+                      >
+                        <span className="text-sm font-medium text-text truncate">
+                          {modelName}
+                        </span>
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => loadModel(modelValue)}
+                            className="p-1 text-primary hover:text-primary-hover hover:bg-primary/10 rounded transition-colors"
+                            title="Load model"
+                          >
+                            <Play className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => deleteModel(modelValue)}
+                            className="p-1 text-error hover:text-error/80 hover:bg-error/10 rounded transition-colors"
+                            title="Delete model"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
