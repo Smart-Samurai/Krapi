@@ -142,8 +142,8 @@ export default function SchemaFormGenerator({
     const fieldValue = formData[field.key];
     const fieldId = `field-${field.key}`;
 
-    const baseClasses = `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-      readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+    const baseClasses = `w-full px-3 py-2 border border-background-300 dark:border-background-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+      readOnly ? "bg-background-100 dark:bg-background-100 cursor-not-allowed" : ""
     }`;
 
     switch (field.type) {
@@ -188,7 +188,7 @@ export default function SchemaFormGenerator({
                     : undefined
                 }
               />
-              <Calendar className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Calendar className="absolute right-3 top-3 h-4 w-4 text-text-400 dark:text-text-600 pointer-events-none" />
             </div>
           );
         } else if (field.format === "email") {
@@ -274,10 +274,10 @@ export default function SchemaFormGenerator({
               type="checkbox"
               checked={Boolean(fieldValue)}
               onChange={(e) => updateFieldValue(field.key, e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
               disabled={readOnly}
             />
-            <label htmlFor={fieldId} className="text-sm text-gray-700">
+            <label htmlFor={fieldId} className="text-sm text-text-700 dark:text-text-300">
               {field.title}
             </label>
           </div>
@@ -330,7 +330,7 @@ export default function SchemaFormGenerator({
                   <button
                     type="button"
                     onClick={() => removeArrayItem(field.key, index)}
-                    className="p-1 text-red-600 hover:text-red-800"
+                    className="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -341,7 +341,7 @@ export default function SchemaFormGenerator({
               <button
                 type="button"
                 onClick={() => addArrayItem(field.key)}
-                className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800"
+                className="flex items-center space-x-1 px-3 py-1 text-sm text-primary-600 dark:text-primary-400 hover:text-blue-800"
               >
                 <Plus className="h-4 w-4" />
                 <span>Add item</span>
@@ -366,7 +366,7 @@ export default function SchemaFormGenerator({
 
   if (fields.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-text-500 dark:text-text-500">
         <div className="mb-2">No schema defined</div>
         <div className="text-sm">
           Add a schema to automatically generate form fields
@@ -381,14 +381,14 @@ export default function SchemaFormGenerator({
         <div key={field.key} className="space-y-2">
           <label
             htmlFor={`field-${field.key}`}
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-text-700 dark:text-text-300"
           >
             {field.title}
             {field.required && <span className="text-red-500 ml-1">*</span>}
           </label>
 
           {field.description && (
-            <p className="text-sm text-gray-500">{field.description}</p>
+            <p className="text-sm text-text-500 dark:text-text-500">{field.description}</p>
           )}
 
           {field.type !== "boolean" && renderField(field)}

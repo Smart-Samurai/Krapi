@@ -513,16 +513,16 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background-50 dark:bg-background-50 p-6">
       <NotificationContainer />
 
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Shield className="h-8 w-8 mr-3 text-blue-600" />
+          <h1 className="text-3xl font-bold text-text-900 dark:text-text-50 flex items-center">
+            <Shield className="h-8 w-8 mr-3 text-primary-600 dark:text-primary-400" />
             Authentication & Security
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-text-600 dark:text-text-400 mt-2">
             Manage users, authentication providers, security settings, and
             monitor sessions
           </p>
@@ -531,53 +531,53 @@ export default function AuthPage() {
         {/* Quick stats */}
         {authStats && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8 mb-8">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-2xl font-bold text-blue-600">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
+              <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                 {authStats.total_users}
               </div>
-              <div className="text-sm text-gray-500">Total Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Total Users</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-green-600">
                 {authStats.active_users}
               </div>
-              <div className="text-sm text-gray-500">Active Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Active Users</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-red-600">
                 {authStats.locked_users}
               </div>
-              <div className="text-sm text-gray-500">Locked Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Locked Users</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-yellow-600">
                 {authStats.unverified_users}
               </div>
-              <div className="text-sm text-gray-500">Unverified</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Unverified</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
                               <div className="text-2xl font-bold text-secondary-600">
                 {authStats.users_today}
               </div>
-              <div className="text-sm text-gray-500">New Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">New Today</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-indigo-600">
                 {authStats.logins_today}
               </div>
-              <div className="text-sm text-gray-500">Logins Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Logins Today</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
                               <div className="text-2xl font-bold text-primary-600">
                 {authStats.failed_logins_today}
               </div>
-              <div className="text-sm text-gray-500">Failed Logins</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Failed Logins</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-teal-600">
                 {authStats.sessions_active}
               </div>
-              <div className="text-sm text-gray-500">Active Sessions</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Active Sessions</div>
             </div>
           </div>
         )}
@@ -598,8 +598,8 @@ export default function AuthPage() {
                 onClick={() => setActiveTab(key as TabType)}
                 className={`${
                   activeTab === key
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? "border-blue-500 text-primary-600 dark:text-primary-400"
+                    : "border-transparent text-text-500 dark:text-text-500 hover:text-text-700 dark:text-text-300 hover:border-background-300 dark:border-background-300"
                 } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center`}
               >
                 <Icon className="h-4 w-4 mr-2" />
@@ -611,23 +611,23 @@ export default function AuthPage() {
 
         {/* Tab Content */}
         {activeTab === "users" && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow">
+            <div className="p-6 border-b border-background-200 dark:border-background-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">User Management</h2>
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => openUserModal()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add User
                   </button>
-                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                  <button className="inline-flex items-center px-4 py-2 border border-background-300 dark:border-background-300 rounded-md shadow-sm text-sm font-medium text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50">
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </button>
-                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                  <button className="inline-flex items-center px-4 py-2 border border-background-300 dark:border-background-300 rounded-md shadow-sm text-sm font-medium text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50">
                     <Upload className="h-4 w-4 mr-2" />
                     Import
                   </button>
@@ -641,12 +641,12 @@ export default function AuthPage() {
                   placeholder="Search users..."
                   value={usersSearch}
                   onChange={(e) => setUsersSearch(e.target.value)}
-                  className="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
                 <select
                   value={usersRole}
                   onChange={(e) => setUsersRole(e.target.value)}
-                  className="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">All roles</option>
                   <option value="admin">Admin</option>
@@ -655,7 +655,7 @@ export default function AuthPage() {
                 </select>
                 <button
                   onClick={loadUsers}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  className="inline-flex items-center px-4 py-2 border border-background-300 dark:border-background-300 rounded-md shadow-sm text-sm font-medium text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
                 >
                   Search
                 </button>
@@ -664,41 +664,41 @@ export default function AuthPage() {
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-background-50 dark:bg-background-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Security
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Last Login
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-background-100 dark:bg-background-100 divide-y divide-gray-200">
                   {users.map((user) => (
                     <tr key={user.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <Users className="h-5 w-5 text-gray-600" />
+                            <Users className="h-5 w-5 text-text-600 dark:text-text-400" />
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-text-900 dark:text-text-50">
                               {user.username}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-text-500 dark:text-text-500">
                               {user.email}
                             </div>
                           </div>
@@ -737,7 +737,7 @@ export default function AuthPage() {
                             {user.email_verified ? (
                               <Mail className="h-4 w-4 text-green-500 mr-1" />
                             ) : (
-                              <Mail className="h-4 w-4 text-gray-400 mr-1" />
+                              <Mail className="h-4 w-4 text-text-400 dark:text-text-600 mr-1" />
                             )}
                             <span className="text-xs">Email</span>
                           </div>
@@ -746,20 +746,20 @@ export default function AuthPage() {
                               {user.phone_verified ? (
                                 <Phone className="h-4 w-4 text-green-500 mr-1" />
                               ) : (
-                                <Phone className="h-4 w-4 text-gray-400 mr-1" />
+                                <Phone className="h-4 w-4 text-text-400 dark:text-text-600 mr-1" />
                               )}
                               <span className="text-xs">Phone</span>
                             </div>
                           )}
                           {user.two_factor_enabled && (
                             <div className="flex items-center">
-                              <Smartphone className="h-4 w-4 text-blue-500 mr-1" />
+                              <Smartphone className="h-4 w-4 text-primary-500 dark:text-primary-400 mr-1" />
                               <span className="text-xs">2FA</span>
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-500 dark:text-text-500">
                         {user.last_login
                           ? new Date(user.last_login).toLocaleString()
                           : "Never"}
@@ -768,7 +768,7 @@ export default function AuthPage() {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => openUserModal(user)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-primary-600 dark:text-primary-400 hover:text-blue-900"
                             title="Edit user"
                           >
                             <Edit className="h-4 w-4" />
@@ -818,11 +818,11 @@ export default function AuthPage() {
 
             {users.length === 0 && (
               <div className="p-8 text-center">
-                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <Users className="mx-auto h-12 w-12 text-text-400 dark:text-text-600" />
+                <h3 className="mt-2 text-sm font-medium text-text-900 dark:text-text-50">
                   No users found
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   Get started by creating your first user.
                 </p>
               </div>
@@ -830,9 +830,9 @@ export default function AuthPage() {
 
             {/* Pagination */}
             {usersTotal > 20 && (
-              <div className="px-6 py-3 border-t border-gray-200">
+              <div className="px-6 py-3 border-t border-background-200 dark:border-background-200">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-text-700 dark:text-text-300">
                     Showing {(usersPage - 1) * 20 + 1} to{" "}
                     {Math.min(usersPage * 20, usersTotal)} of {usersTotal} users
                   </div>
@@ -840,14 +840,14 @@ export default function AuthPage() {
                     <button
                       onClick={() => setUsersPage(Math.max(1, usersPage - 1))}
                       disabled={usersPage === 1}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                      className="px-3 py-1 border border-background-300 dark:border-background-300 rounded text-sm disabled:opacity-50"
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setUsersPage(usersPage + 1)}
                       disabled={usersPage * 20 >= usersTotal}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                      className="px-3 py-1 border border-background-300 dark:border-background-300 rounded text-sm disabled:opacity-50"
                     >
                       Next
                     </button>
@@ -864,15 +864,15 @@ export default function AuthPage() {
 
       {/* User Modal */}
       {showUserModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-background-900 dark:bg-background-900 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-background-100 dark:bg-background-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">
                 {editingUser ? "Edit User" : "Create User"}
               </h3>
               <button
                 onClick={() => setShowUserModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
               >
                 ×
               </button>
@@ -886,13 +886,13 @@ export default function AuthPage() {
             >
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Username *
                   </label>
                   <input
                     {...userForm.register("username")}
                     type="text"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   />
                   {userForm.formState.errors.username && (
                     <p className="mt-1 text-sm text-red-600">
@@ -902,13 +902,13 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Email *
                   </label>
                   <input
                     {...userForm.register("email")}
                     type="email"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   />
                   {userForm.formState.errors.email && (
                     <p className="mt-1 text-sm text-red-600">
@@ -918,13 +918,13 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Password {!editingUser && "*"}
                   </label>
                   <input
                     {...userForm.register("password")}
                     type="password"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder={
                       editingUser
                         ? "Leave blank to keep current"
@@ -939,12 +939,12 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Role *
                   </label>
                   <select
                     {...userForm.register("role")}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="viewer">Viewer</option>
                     <option value="editor">Editor</option>
@@ -958,13 +958,13 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Phone
                   </label>
                   <input
                     {...userForm.register("phone")}
                     type="tel"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="+1234567890"
                   />
                 </div>
@@ -975,9 +975,9 @@ export default function AuthPage() {
                   <input
                     {...userForm.register("active")}
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                   />
-                  <label className="ml-2 block text-sm text-gray-900">
+                  <label className="ml-2 block text-sm text-text-900 dark:text-text-50">
                     Active user
                   </label>
                 </div>
@@ -986,9 +986,9 @@ export default function AuthPage() {
                   <input
                     {...userForm.register("email_verified")}
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                   />
-                  <label className="ml-2 block text-sm text-gray-900">
+                  <label className="ml-2 block text-sm text-text-900 dark:text-text-50">
                     Email verified
                   </label>
                 </div>
@@ -997,9 +997,9 @@ export default function AuthPage() {
                   <input
                     {...userForm.register("phone_verified")}
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                   />
-                  <label className="ml-2 block text-sm text-gray-900">
+                  <label className="ml-2 block text-sm text-text-900 dark:text-text-50">
                     Phone verified
                   </label>
                 </div>
@@ -1008,9 +1008,9 @@ export default function AuthPage() {
                   <input
                     {...userForm.register("two_factor_enabled")}
                     type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                   />
-                  <label className="ml-2 block text-sm text-gray-900">
+                  <label className="ml-2 block text-sm text-text-900 dark:text-text-50">
                     Two-factor authentication
                   </label>
                 </div>
@@ -1020,13 +1020,13 @@ export default function AuthPage() {
                 <button
                   type="button"
                   onClick={() => setShowUserModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-background-300 dark:border-background-300 rounded-md text-sm font-medium text-text-700 dark:text-text-300 hover:bg-background-50 dark:bg-background-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                 >
                   {editingUser ? "Update" : "Create"}
                 </button>

@@ -52,7 +52,7 @@ const SidebarContent = ({
   }, {} as Record<string, typeof navigation>);
 
   return (
-    <div className="flex h-full w-64 flex-col overflow-y-auto border-r border-stone-200 bg-white py-5">
+    <div className="flex h-full w-64 flex-col overflow-y-auto border-r border-stone-200 bg-background-100 dark:bg-background-100 py-5">
       <div className="flex items-center flex-shrink-0 px-4">
                       <Database className="h-8 w-8 text-primary-600" />
         <span className="ml-2 text-xl font-bold text-stone-900">Krapi CMS</span>
@@ -139,7 +139,7 @@ export default function Navigation() {
       {/* Mobile Navigation */}
       <div className="lg:hidden">
         {/* Mobile Header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-stone-200 bg-white">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-stone-200 bg-background-100 dark:bg-background-100">
           <div className="flex items-center">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -214,7 +214,7 @@ export default function Navigation() {
 
       {/* Desktop Header */}
       <div className="hidden lg:block">
-        <div className="flex items-center justify-between h-16 px-6 border-b border-stone-200 bg-white">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-stone-200 bg-background-100 dark:bg-background-100">
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="sm">
               <Search className="h-5 w-5 mr-2" />

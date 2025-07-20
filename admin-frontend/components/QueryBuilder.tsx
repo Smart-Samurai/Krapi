@@ -522,7 +522,7 @@ export default function QueryBuilder({
           <Button
             onClick={handleExecute}
             disabled={isExecuting || !query.trim()}
-            className="bg-green-600 hover:bg-green-700"
+                            className="bg-accent-500 hover:bg-accent-600 dark:bg-accent-500 dark:hover:bg-accent-400 text-white"
           >
             <Play className="h-4 w-4 mr-1" />
             {isExecuting ? "Executing..." : "Execute"}
@@ -534,7 +534,7 @@ export default function QueryBuilder({
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-4">
           {/* Tables */}
-          <div className="bg-white border rounded-lg p-4">
+          <div className="bg-background-100 dark:bg-background-100 border rounded-lg p-4">
             <h4 className="font-medium mb-3 flex items-center">
               <Table className="h-4 w-4 mr-2" />
               Database Schema
@@ -542,7 +542,7 @@ export default function QueryBuilder({
             <div className="space-y-2">
               {tables.map((table) => (
                 <Collapsible key={table.name}>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-left hover:bg-gray-50 rounded">
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-left hover:bg-background-50 dark:bg-background-50 rounded">
                     <div className="flex items-center space-x-2">
                       <ChevronRight className="h-3 w-3" />
                       <span className="font-medium">{table.name}</span>
@@ -555,7 +555,7 @@ export default function QueryBuilder({
                     {table.columns.map((column) => (
                       <div
                         key={column.name}
-                        className="flex items-center justify-between text-sm p-1 hover:bg-gray-50 rounded cursor-pointer"
+                        className="flex items-center justify-between text-sm p-1 hover:bg-background-50 dark:bg-background-50 rounded cursor-pointer"
                         onClick={() => {
                           if (mode === "code" && editorRef.current) {
                             const { editor } = editorRef.current;
@@ -578,8 +578,8 @@ export default function QueryBuilder({
                           }
                         }}
                       >
-                        <span className="text-gray-600">{column.name}</span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-text-600 dark:text-text-400">{column.name}</span>
+                        <span className="text-xs text-text-400 dark:text-text-600">
                           {column.type}
                         </span>
                       </div>
@@ -592,7 +592,7 @@ export default function QueryBuilder({
 
           {/* Saved Queries */}
           {savedQueries.length > 0 && (
-            <div className="bg-white border rounded-lg p-4">
+            <div className="bg-background-100 dark:bg-background-100 border rounded-lg p-4">
               <h4 className="font-medium mb-3 flex items-center">
                 <Save className="h-4 w-4 mr-2" />
                 Saved Queries
@@ -601,11 +601,11 @@ export default function QueryBuilder({
                 {savedQueries.slice(0, 5).map((saved, index) => (
                   <div
                     key={index}
-                    className="p-2 text-sm hover:bg-gray-50 rounded cursor-pointer"
+                    className="p-2 text-sm hover:bg-background-50 dark:bg-background-50 rounded cursor-pointer"
                     onClick={() => loadSavedQuery(saved.query)}
                   >
                     <div className="font-medium truncate">{saved.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-text-500 dark:text-text-500">
                       {new Date(saved.created).toLocaleDateString()}
                     </div>
                   </div>
@@ -616,7 +616,7 @@ export default function QueryBuilder({
 
           {/* Query History */}
           {queryHistory.length > 0 && (
-            <div className="bg-white border rounded-lg p-4">
+            <div className="bg-background-100 dark:bg-background-100 border rounded-lg p-4">
               <h4 className="font-medium mb-3 flex items-center">
                 <History className="h-4 w-4 mr-2" />
                 Recent Queries
@@ -625,14 +625,14 @@ export default function QueryBuilder({
                 {queryHistory.slice(0, 3).map((historyQuery, index) => (
                   <div
                     key={index}
-                    className="p-2 text-xs hover:bg-gray-50 rounded cursor-pointer"
+                    className="p-2 text-xs hover:bg-background-50 dark:bg-background-50 rounded cursor-pointer"
                     onClick={() =>
                       loadSavedQuery(
                         typeof historyQuery === "string" ? historyQuery : ""
                       )
                     }
                   >
-                    <code className="text-gray-600 truncate block">
+                    <code className="text-text-600 dark:text-text-400 truncate block">
                       {typeof historyQuery === "string"
                         ? historyQuery.substring(0, 50)
                         : ""}
@@ -650,7 +650,7 @@ export default function QueryBuilder({
           {mode === "visual" ? (
             /* Visual Query Builder */
             <div
-              className="bg-white border rounded-lg p-4 space-y-4"
+              className="bg-background-100 dark:bg-background-100 border rounded-lg p-4 space-y-4"
               role="tabpanel"
               aria-label="Visual Query Builder"
             >
@@ -860,7 +860,7 @@ export default function QueryBuilder({
               {/* Generated SQL Preview */}
               <div>
                 <Label>Generated SQL</Label>
-                <div className="mt-2 p-3 bg-gray-50 rounded border font-mono text-sm">
+                <div className="mt-2 p-3 bg-background-50 dark:bg-background-50 rounded border font-mono text-sm">
                   {visualQuery.table
                     ? generateSQL(visualQuery)
                     : "Select a table to see generated SQL..."}
@@ -870,7 +870,7 @@ export default function QueryBuilder({
           ) : (
             /* Code Editor */
             <div
-              className="bg-white border rounded-lg overflow-hidden"
+              className="bg-background-100 dark:bg-background-100 border rounded-lg overflow-hidden"
               role="tabpanel"
               aria-label="Code Editor"
             >

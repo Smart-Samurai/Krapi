@@ -110,7 +110,7 @@ export default function ContentEditor({
   const renderPreview = () => {
     if (!value.trim()) {
       return (
-        <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="flex items-center justify-center h-full text-text-500 dark:text-text-500">
           No content to preview
         </div>
       );
@@ -211,10 +211,10 @@ export default function ContentEditor({
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b">
+      <div className="flex items-center justify-between px-3 py-2 bg-background-50 dark:bg-background-50 border-b">
         <div className="flex items-center space-x-2">
           {getContentTypeIcon()}
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-text-700 dark:text-text-300">
             {getContentTypeLabel()}
           </span>
         </div>
@@ -227,7 +227,7 @@ export default function ContentEditor({
               className={`px-2 py-1 text-xs rounded ${
                 mode === "edit"
                   ? "bg-blue-100 text-blue-700"
-                  : "text-gray-500 hover:text-gray-700"
+                  : "text-text-500 dark:text-text-500 hover:text-text-700 dark:text-text-300"
               }`}
             >
               Edit
@@ -238,7 +238,7 @@ export default function ContentEditor({
               className={`px-2 py-1 text-xs rounded flex items-center space-x-1 ${
                 mode === "preview"
                   ? "bg-blue-100 text-blue-700"
-                  : "text-gray-500 hover:text-gray-700"
+                  : "text-text-500 dark:text-text-500 hover:text-text-700 dark:text-text-300"
               }`}
             >
               {mode === "preview" ? (
@@ -270,8 +270,8 @@ export default function ContentEditor({
 
       {/* Footer with hints */}
       {mode === "edit" && (
-        <div className="px-3 py-2 bg-gray-50 border-t">
-          <div className="text-xs text-gray-500">
+        <div className="px-3 py-2 bg-background-50 dark:bg-background-50 border-t">
+          <div className="text-xs text-text-500 dark:text-text-500">
             {contentType.toLowerCase() === "markdown" && (
               <span>
                 <strong>Markdown tips:</strong> # Heading, **bold**, *italic*,

@@ -301,7 +301,7 @@ export default function Header({
   const getNotificationTypeColor = (type: string) => {
     switch (type) {
       case "system_alert":
-        return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
+        return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200 dark:bg-red-900 dark:text-red-200";
       case "content_created":
         return "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200";
       case "content_updated":

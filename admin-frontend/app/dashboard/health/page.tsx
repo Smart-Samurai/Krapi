@@ -83,7 +83,7 @@ export default function HealthCheckPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -118,7 +118,7 @@ export default function HealthCheckPage() {
       </div>
 
       {/* Status Overview */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <div className="flex items-center">
             <div
@@ -147,7 +147,7 @@ export default function HealthCheckPage() {
       {/* Detailed Information */}
       {!error && healthStatus && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -167,7 +167,7 @@ export default function HealthCheckPage() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -187,7 +187,7 @@ export default function HealthCheckPage() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -211,7 +211,7 @@ export default function HealthCheckPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <div className="rounded-md bg-destructive-50 p-4">
               <div className="flex">
@@ -244,7 +244,7 @@ export default function HealthCheckPage() {
 
       {/* System Information */}
       {!error && healthStatus && (
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg font-medium text-text-900 mb-4">
               System Information
