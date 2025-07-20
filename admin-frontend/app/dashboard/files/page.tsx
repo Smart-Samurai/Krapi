@@ -237,7 +237,7 @@ export default function FilesPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-lg shadow space-y-4">
+      <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow space-y-4">
         <div className="flex gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -297,7 +297,7 @@ export default function FilesPage() {
 
       <NotificationContainer />
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-background-200">
           <thead className="bg-background-50">
             <tr>

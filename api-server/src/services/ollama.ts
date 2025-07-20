@@ -127,6 +127,9 @@ export class OllamaService {
     } catch (error) {
       console.error("Ollama chat request failed:", error);
       if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNREFUSED') {
+          throw new Error('Ollama is not running. Please start Ollama with: ollama serve');
+        }
         throw new Error(`Ollama request failed: ${error.response?.data?.error || error.message}`);
       }
       throw error;

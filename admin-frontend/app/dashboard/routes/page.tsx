@@ -150,11 +150,11 @@ export default function RoutesPage() {
       case "public":
         return <Globe className="h-4 w-4 text-green-500" />;
       case "protected":
-        return <Shield className="h-4 w-4 text-yellow-500" />;
+        return <Shield className="h-4 w-4 text-secondary-500 dark:text-secondary-400" />;
       case "private":
         return <Lock className="h-4 w-4 text-red-500" />;
       default:
-        return <Globe className="h-4 w-4 text-gray-500" />;
+        return <Globe className="h-4 w-4 text-text-500 dark:text-text-500" />;
     }
   };
 
@@ -163,13 +163,13 @@ export default function RoutesPage() {
       "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium gap-1";
     switch (level) {
       case "public":
-        return `${baseClasses} bg-green-100 text-green-700`;
+        return `${baseClasses} bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200`;
       case "protected":
-        return `${baseClasses} bg-yellow-100 text-yellow-700`;
+        return `${baseClasses} bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200`;
       case "private":
-        return `${baseClasses} bg-red-100 text-red-700`;
+        return `${baseClasses} bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200`;
       default:
-        return `${baseClasses} bg-gray-100 text-gray-700`;
+        return `${baseClasses} bg-background-100 dark:bg-background-100 text-text-700 dark:text-text-300`;
     }
   };
 
@@ -198,14 +198,14 @@ export default function RoutesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Route Management</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-text-900 dark:text-text-50">Route Management</h1>
+          <p className="text-text-600 dark:text-text-400">
             Manage your content routes and their structure
           </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
         >
           <Plus className="h-4 w-4 mr-2" />
           Create Route
@@ -217,53 +217,53 @@ export default function RoutesPage() {
           <div className="text-red-700">{error}</div>
           <button
             onClick={() => setError(null)}
-            className="text-red-600 hover:text-red-800 text-sm mt-2"
+            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm mt-2"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-background-50 dark:bg-background-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                 Route
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                 Access Level
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                 Parent
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                 Created
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-background-100 dark:bg-background-100 divide-y divide-gray-200">
             {routes.map((route) => {
               const parentRoute = routes.find((r) => r.id === route.parent_id);
               return (
                 <tr key={route.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <FolderTree className="h-4 w-4 text-gray-400 mr-2" />
+                      <FolderTree className="h-4 w-4 text-text-400 dark:text-text-600 mr-2" />
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
-                          <code className="text-sm font-medium text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                          <code className="text-sm font-medium text-text-900 dark:text-text-50 bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                             {route.path}
                           </code>
                           <button
                             onClick={() => copyApiUrl(route.path)}
-                            className="text-gray-400 hover:text-gray-600"
+                            className="text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
                             title="Copy API URL"
                           >
                             <Copy className="h-4 w-4" />
@@ -272,21 +272,21 @@ export default function RoutesPage() {
                             href={`/api/content${route.path}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-gray-600"
+                            className="text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
                             title="Open API endpoint"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </a>
                         </div>
                         {route.description && (
-                          <div className="text-sm text-gray-500 mt-1">
+                          <div className="text-sm text-text-500 dark:text-text-500 mt-1">
                             {route.description}
                           </div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-text-900 dark:text-text-50">
                     {route.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -295,16 +295,16 @@ export default function RoutesPage() {
                       {route.access_level}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-text-500 dark:text-text-500">
                     {parentRoute ? parentRoute.name : "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-text-500 dark:text-text-500">
                     {new Date(route.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <button
                       onClick={() => startEditingRoute(route)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-primary-600 dark:text-primary-400 hover:text-blue-900"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
@@ -316,7 +316,7 @@ export default function RoutesPage() {
                     </button>
                     <button
                       onClick={() => copyApiUrl(route.path)}
-                      className="text-gray-600 hover:text-gray-900"
+                      className="text-text-600 dark:text-text-400 hover:text-text-900 dark:text-text-50"
                     >
                       <Copy className="h-4 w-4" />
                     </button>
@@ -330,8 +330,8 @@ export default function RoutesPage() {
 
       {/* Create Route Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-background-900 dark:bg-background-900 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-medium mb-4">Create New Route</h3>
 
             <form
@@ -339,13 +339,13 @@ export default function RoutesPage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Path
                 </label>
                 <input
                   type="text"
                   {...createForm.register("path")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                   placeholder="/api/v1/example"
                 />
                 {createForm.formState.errors.path && (
@@ -356,13 +356,13 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Name
                 </label>
                 <input
                   type="text"
                   {...createForm.register("name")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                   placeholder="Example Route"
                 />
                 {createForm.formState.errors.name && (
@@ -373,12 +373,12 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Description
                 </label>
                 <textarea
                   {...createForm.register("description")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                   rows={3}
                   placeholder="Optional description"
                 />
@@ -390,12 +390,12 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Access Level
                 </label>
                 <select
                   {...createForm.register("access_level")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                 >
                   <option value="public">Public</option>
                   <option value="protected">Protected</option>
@@ -409,7 +409,7 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Parent Route
                 </label>
                 <select
@@ -417,7 +417,7 @@ export default function RoutesPage() {
                     setValueAs: (value) =>
                       value === "" ? undefined : parseInt(value),
                   })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                 >
                   <option value="">No parent (root route)</option>
                   {parentRoutes.map((route) => (
@@ -437,13 +437,13 @@ export default function RoutesPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-background-300 dark:border-background-300 rounded-md text-sm font-medium text-text-700 dark:text-text-300 hover:bg-background-50 dark:bg-background-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                 >
                   Create Route
                 </button>
@@ -455,8 +455,8 @@ export default function RoutesPage() {
 
       {/* Edit Route Modal */}
       {editingRoute && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-background-900 dark:bg-background-900 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-medium mb-4">Edit Route</h3>
 
             <form
@@ -464,13 +464,13 @@ export default function RoutesPage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Path
                 </label>
                 <input
                   type="text"
                   {...editForm.register("path")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                 />
                 {editForm.formState.errors.path && (
                   <p className="mt-1 text-sm text-red-600">
@@ -480,13 +480,13 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Name
                 </label>
                 <input
                   type="text"
                   {...editForm.register("name")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                 />
                 {editForm.formState.errors.name && (
                   <p className="mt-1 text-sm text-red-600">
@@ -496,12 +496,12 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Description
                 </label>
                 <textarea
                   {...editForm.register("description")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                   rows={3}
                 />
                 {editForm.formState.errors.description && (
@@ -512,12 +512,12 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Access Level
                 </label>
                 <select
                   {...editForm.register("access_level")}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                 >
                   <option value="public">Public</option>
                   <option value="protected">Protected</option>
@@ -531,7 +531,7 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Parent Route
                 </label>
                 <select
@@ -539,7 +539,7 @@ export default function RoutesPage() {
                     setValueAs: (value) =>
                       value === "" ? undefined : parseInt(value),
                   })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  className="mt-1 block w-full border border-background-300 dark:border-background-300 rounded-md px-3 py-2"
                 >
                   <option value="">No parent (root route)</option>
                   {parentRoutes
@@ -561,13 +561,13 @@ export default function RoutesPage() {
                 <button
                   type="button"
                   onClick={() => setEditingRoute(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-background-300 dark:border-background-300 rounded-md text-sm font-medium text-text-700 dark:text-text-300 hover:bg-background-50 dark:bg-background-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                 >
                   Update Route
                 </button>

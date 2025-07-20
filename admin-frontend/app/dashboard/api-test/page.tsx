@@ -122,34 +122,34 @@ export default function ApiTestPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h1 className="text-2xl font-bold text-gray-900">API Testing</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-text-900 dark:text-text-50">API Testing</h1>
+          <p className="mt-1 text-sm text-text-500 dark:text-text-500">
             Test your API endpoints and view responses
           </p>
         </div>
       </div>
 
       {/* Test Configuration */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 className="text-lg font-medium text-text-900 dark:text-text-50 mb-4">
             Test Configuration
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                 Test Content Key (Optional)
               </label>
               <input
                 type="text"
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="e.g., homepage.title"
                 value={testKey}
                 onChange={(e) => setTestKey(e.target.value)}
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-text-500 dark:text-text-500">
                 Enter a content key to test content-specific endpoints
               </p>
             </div>
@@ -157,7 +157,7 @@ export default function ApiTestPage() {
               <button
                 onClick={runAllTests}
                 disabled={isRunningTests}
-                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play className="h-4 w-4 mr-2" />
                 {isRunningTests ? "Running Tests..." : "Run All Tests"}
@@ -168,9 +168,9 @@ export default function ApiTestPage() {
       </div>
 
       {/* Individual Test Buttons */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 className="text-lg font-medium text-text-900 dark:text-text-50 mb-4">
             Individual Tests
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -178,7 +178,7 @@ export default function ApiTestPage() {
               onClick={() =>
                 runSingleTest("/api/health", "GET", () => healthAPI.check())
               }
-              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
             >
               <Play className="h-4 w-4 mr-2" />
               Health Check
@@ -188,7 +188,7 @@ export default function ApiTestPage() {
               onClick={() =>
                 runSingleTest("/api/auth/verify", "GET", () => authAPI.verify())
               }
-              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
             >
               <Play className="h-4 w-4 mr-2" />
               Auth Verify
@@ -200,7 +200,7 @@ export default function ApiTestPage() {
                   contentAPI.getAllContent()
                 )
               }
-              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
             >
               <Play className="h-4 w-4 mr-2" />
               Get All Content
@@ -214,7 +214,7 @@ export default function ApiTestPage() {
                       contentAPI.getPublicContent("test", testKey)
                     )
                   }
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
                 >
                   <Play className="h-4 w-4 mr-2" />
                   Get Public Content
@@ -226,7 +226,7 @@ export default function ApiTestPage() {
                       contentAPI.getContentById(1)
                     )
                   }
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
                 >
                   <Play className="h-4 w-4 mr-2" />
                   Get Admin Content
@@ -239,9 +239,9 @@ export default function ApiTestPage() {
 
       {/* Results */}
       {results.length > 0 && (
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-text-900 dark:text-text-50 mb-4">
               Test Results
             </h3>
             <div className="space-y-4">
@@ -264,7 +264,7 @@ export default function ApiTestPage() {
                       <span className="font-medium text-sm">
                         {result.method} {result.endpoint}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-text-500 dark:text-text-500">
                         ({result.duration}ms)
                       </span>
                     </div>
@@ -276,7 +276,7 @@ export default function ApiTestPage() {
                             : result.error || "No data"
                         )
                       }
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
                     >
                       <Copy className="h-4 w-4" />
                     </button>
@@ -285,10 +285,10 @@ export default function ApiTestPage() {
                   {result.status === "success" &&
                     result.response !== undefined && (
                       <div className="mt-2">
-                        <div className="text-xs font-medium text-gray-700 mb-1">
+                        <div className="text-xs font-medium text-text-700 dark:text-text-300 mb-1">
                           Response:
                         </div>
-                        <pre className="text-xs bg-white p-2 rounded border overflow-x-auto max-h-40">
+                        <pre className="text-xs bg-background-100 dark:bg-background-100 p-2 rounded border overflow-x-auto max-h-40">
                           {formatResponse(result.response)}
                         </pre>
                       </div>
@@ -299,7 +299,7 @@ export default function ApiTestPage() {
                       <div className="text-xs font-medium text-red-700 mb-1">
                         Error:
                       </div>
-                      <div className="text-xs text-red-600 bg-white p-2 rounded border">
+                      <div className="text-xs text-red-600 bg-background-100 dark:bg-background-100 p-2 rounded border">
                         {result.error}
                       </div>
                     </div>
@@ -312,23 +312,23 @@ export default function ApiTestPage() {
       )}
 
       {/* API Documentation */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 className="text-lg font-medium text-text-900 dark:text-text-50 mb-4">
             API Endpoints
           </h3>
           <div className="space-y-3">
             <div className="border-l-4 border-green-400 pl-4">
               <h4 className="font-medium text-sm">Public Endpoints</h4>
-              <ul className="mt-2 text-sm text-gray-600 space-y-1">
+              <ul className="mt-2 text-sm text-text-600 dark:text-text-400 space-y-1">
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     GET /api/health
                   </code>{" "}
                   - Health check
                 </li>
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     GET /api/content/:key
                   </code>{" "}
                   - Get public content by key
@@ -339,39 +339,39 @@ export default function ApiTestPage() {
               <h4 className="font-medium text-sm">
                 Protected Endpoints (Require Authentication)
               </h4>
-              <ul className="mt-2 text-sm text-gray-600 space-y-1">
+              <ul className="mt-2 text-sm text-text-600 dark:text-text-400 space-y-1">
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     GET /api/auth/verify
                   </code>{" "}
                   - Verify token
                 </li>
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     GET /api/admin/content
                   </code>{" "}
                   - Get all content
                 </li>
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     GET /api/admin/content/:key
                   </code>{" "}
                   - Get content by key
                 </li>
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     POST /api/admin/content
                   </code>{" "}
                   - Create content
                 </li>
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     PUT /api/admin/content/:key
                   </code>{" "}
                   - Update content
                 </li>
                 <li>
-                  <code className="bg-gray-100 px-2 py-1 rounded">
+                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                     DELETE /api/admin/content/:key
                   </code>{" "}
                   - Delete content

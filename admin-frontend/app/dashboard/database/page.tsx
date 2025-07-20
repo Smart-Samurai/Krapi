@@ -225,7 +225,7 @@ export default function DatabasePage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Database Stats */}
-          <div className="col-span-1 bg-white p-4 rounded-lg shadow">
+          <div className="col-span-1 bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4 flex items-center">
               <FileJson className="mr-2 h-5 w-5" /> Database Statistics
             </h2>
@@ -261,7 +261,7 @@ export default function DatabasePage() {
           </div>
 
           {/* Tables List */}
-          <div className="col-span-1 bg-white p-4 rounded-lg shadow">
+          <div className="col-span-1 bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4 flex items-center">
               <Table className="mr-2 h-5 w-5" /> Tables
             </h2>
@@ -288,7 +288,7 @@ export default function DatabasePage() {
           </div>
 
           {/* Table Data / Query Result */}
-          <div className="col-span-1 lg:col-span-2 bg-white p-4 rounded-lg shadow">
+          <div className="col-span-1 lg:col-span-2 bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
             <div className="mb-4">
               <h2 className="text-lg font-semibold mb-2 flex items-center">
                 <Table className="mr-2 h-5 w-5" />

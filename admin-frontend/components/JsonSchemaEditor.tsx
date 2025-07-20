@@ -278,7 +278,7 @@ export default function JsonSchemaEditor({
         />
       </div>
 
-      <div className="text-xs text-gray-500 space-y-1">
+      <div className="text-xs text-text-500 dark:text-text-500 space-y-1">
         <p>
           <strong>Tip:</strong> Use Ctrl+Space for autocomplete, Ctrl+Shift+F to
           format

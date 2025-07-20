@@ -58,7 +58,7 @@ export default function WebSocketStatus() {
   const isConnected = socket && socket.readyState === WebSocket.OPEN;
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
+    <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           {isConnected ? (
@@ -71,8 +71,8 @@ export default function WebSocketStatus() {
         <span
           className={`px-2 py-1 rounded text-sm ${
             isConnected
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+              ? "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200"
+              : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200 dark:bg-red-900 dark:text-red-200"
           }`}
         >
           {isConnected ? "Connected" : "Disconnected"}
@@ -81,11 +81,11 @@ export default function WebSocketStatus() {
 
       <div className="space-y-3">
         <div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-text-600 dark:text-text-400">
             Messages received: {messageCount}
           </p>
           {lastMessage && (
-            <p className="text-sm bg-gray-100 p-2 rounded mt-1 font-mono">
+            <p className="text-sm bg-background-100 dark:bg-background-100 p-2 rounded mt-1 font-mono">
               {lastMessage}
             </p>
           )}
@@ -95,13 +95,13 @@ export default function WebSocketStatus() {
           <div className="flex gap-2">
             <button
               onClick={sendTestMessage}
-              className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+              className="px-3 py-1 bg-primary-500 text-white rounded text-sm hover:bg-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400"
             >
               Send Ping
             </button>
             <button
               onClick={sendBroadcastMessage}
-              className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+              className="px-3 py-1 bg-accent-500 text-white rounded text-sm hover:bg-accent-600 dark:bg-accent-500 dark:hover:bg-accent-400"
             >
               Send Broadcast
             </button>

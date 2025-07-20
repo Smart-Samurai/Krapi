@@ -185,20 +185,20 @@ export default function ContentManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-text-900 dark:text-text-50">
                 Content Management
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                 Manage your API content data
               </p>
             </div>
             <button
               onClick={() => setIsCreating(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Content
@@ -208,15 +208,15 @@ export default function ContentManagementPage() {
       </div>
 
       {/* Search */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+              <Search className="h-5 w-5 text-text-400 dark:text-text-600" />
             </div>
             <input
               type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-background-300 dark:border-background-300 rounded-md leading-5 bg-background-100 dark:bg-background-100 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               placeholder="Search content..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -227,19 +227,19 @@ export default function ContentManagementPage() {
 
       {/* Create Form */}
       {isCreating && (
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-text-900 dark:text-text-50 mb-4">
               Create New Content
             </h3>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Key
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   value={newItem.key}
                   onChange={(e) =>
                     setNewItem({ ...newItem, key: e.target.value })
@@ -248,12 +248,12 @@ export default function ContentManagementPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Value
                 </label>
                 <textarea
                   rows={4}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm font-mono"
                   value={newItem.value}
                   onChange={(e) =>
                     setNewItem({ ...newItem, value: e.target.value })
@@ -262,11 +262,11 @@ export default function ContentManagementPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Route Assignment
                 </label>
                 <select
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   value={selectedRoute}
                   onChange={(e) => setSelectedRoute(e.target.value)}
                 >
@@ -277,17 +277,17 @@ export default function ContentManagementPage() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   Choose which route this content belongs to
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Content Type
                   </label>
                   <select
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                     value={newItem.content_type || "json"}
                     onChange={(e) =>
                       setNewItem({ ...newItem, content_type: e.target.value })
@@ -301,12 +301,12 @@ export default function ContentManagementPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Description (Optional)
                 </label>
                 <input
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   value={newItem.description}
                   onChange={(e) =>
                     setNewItem({ ...newItem, description: e.target.value })
@@ -326,7 +326,7 @@ export default function ContentManagementPage() {
                       content_type: "json",
                     });
                   }}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  className="inline-flex items-center px-4 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
                 >
                   <X className="h-4 w-4 mr-2" />
                   Cancel
@@ -334,7 +334,7 @@ export default function ContentManagementPage() {
                 <button
                   onClick={handleCreate}
                   disabled={!newItem.key || !newItem.value}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   Create
@@ -349,7 +349,7 @@ export default function ContentManagementPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <div className="flex items-start">
           <div className="flex-shrink-0">
-            <Database className="h-5 w-5 text-blue-600" />
+            <Database className="h-5 w-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div className="ml-3 flex-1">
             <h3 className="text-sm font-medium text-blue-800">
@@ -373,7 +373,7 @@ export default function ContentManagementPage() {
               </h4>
               <p className="mb-2">
                 Base API URL:{" "}
-                <code className="bg-white px-2 py-1 rounded">
+                <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                   {process.env.NEXT_PUBLIC_API_BASE_URL ||
                     window.location.origin}
                   /api
@@ -381,20 +381,20 @@ export default function ContentManagementPage() {
               </p>
               <p className="mb-2">
                 Public content:{" "}
-                <code className="bg-white px-2 py-1 rounded">
+                <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                   GET /api/content/[route_path]/[key]
                 </code>
               </p>
               <p className="mb-2">
                 Protected/Private content: Include{" "}
-                <code className="bg-white px-2 py-1 rounded">
+                <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                   Authorization: Bearer [token]
                 </code>{" "}
                 header
               </p>
               <p>
                 Get token from:{" "}
-                <code className="bg-white px-2 py-1 rounded">
+                <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
                   POST /api/auth/login
                 </code>
               </p>
@@ -404,7 +404,7 @@ export default function ContentManagementPage() {
       </div>
 
       {/* Content List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-background-100 dark:bg-background-100 shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
           {filteredContent.length > 0 ? (
             filteredContent.map((item) => (
@@ -412,23 +412,23 @@ export default function ContentManagementPage() {
                 {editingItem?.id === item.id ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                         Key
                       </label>
                       <input
                         type="text"
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-100"
+                        className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-background-100 dark:bg-background-100"
                         value={editingItem.key}
                         disabled
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                         Value
                       </label>
                       <textarea
                         rows={6}
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
+                        className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm font-mono"
                         value={formatValue(editingItem.value)}
                         onChange={(e) =>
                           setEditingItem({
@@ -439,12 +439,12 @@ export default function ContentManagementPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                         Description
                       </label>
                       <input
                         type="text"
-                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                         value={editingItem.description || ""}
                         onChange={(e) =>
                           setEditingItem({
@@ -457,14 +457,14 @@ export default function ContentManagementPage() {
                     <div className="flex justify-end space-x-3">
                       <button
                         onClick={() => setEditingItem(null)}
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
                       >
                         <X className="h-4 w-4 mr-1" />
                         Cancel
                       </button>
                       <button
                         onClick={() => handleUpdate(editingItem)}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                       >
                         <Save className="h-4 w-4 mr-1" />
                         Save
@@ -475,23 +475,23 @@ export default function ContentManagementPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-3">
-                        <Database className="h-5 w-5 text-gray-400" />
-                        <h3 className="text-lg font-medium text-gray-900 truncate">
+                        <Database className="h-5 w-5 text-text-400 dark:text-text-600" />
+                        <h3 className="text-lg font-medium text-text-900 dark:text-text-50 truncate">
                           {item.key}
                         </h3>
                       </div>
                       {item.description && (
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                           {item.description}
                         </p>
                       )}
                       <div className="mt-2">
-                        <pre className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md overflow-x-auto max-h-40">
+                        <pre className="text-sm text-text-600 dark:text-text-400 bg-background-50 dark:bg-background-50 p-3 rounded-md overflow-x-auto max-h-40">
                           {formatValue(item.value)}
                         </pre>
                       </div>
                       <div className="mt-2 flex items-center justify-between">
-                        <div className="flex items-center text-sm text-gray-500">
+                        <div className="flex items-center text-sm text-text-500 dark:text-text-500">
                           <Calendar className="h-4 w-4 mr-1" />
                           Updated: {new Date(item.updated_at).toLocaleString()}
                         </div>
@@ -513,19 +513,19 @@ export default function ContentManagementPage() {
                     <div className="flex-shrink-0 ml-4 flex space-x-2">
                       <button
                         onClick={() => setEditingItem(item)}
-                        className="inline-flex items-center p-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        className="inline-flex items-center p-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="inline-flex items-center p-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                        className="inline-flex items-center p-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-background-100 dark:bg-background-100 hover:bg-red-50"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => copyApiUrl(item)}
-                        className="inline-flex items-center p-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50"
+                        className="inline-flex items-center p-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-background-100 dark:bg-background-100 hover:bg-green-50"
                       >
                         <Link className="h-4 w-4" />
                       </button>
@@ -537,11 +537,11 @@ export default function ContentManagementPage() {
           ) : (
             <li>
               <div className="px-6 py-12 text-center">
-                <Database className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <Database className="mx-auto h-12 w-12 text-text-400 dark:text-text-600" />
+                <h3 className="mt-2 text-sm font-medium text-text-900 dark:text-text-50">
                   {searchTerm ? "No matching content found" : "No content yet"}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   {searchTerm
                     ? "Try adjusting your search terms."
                     : "Get started by creating your first content item."}

@@ -12,7 +12,7 @@ export default function Notification({
   onClose,
 }: NotificationProps) {
   const bgColor = type === "error" ? "bg-red-50" : "bg-green-50";
-  const textColor = type === "error" ? "text-red-800" : "text-green-800";
+  const textColor = type === "error" ? "text-red-700 dark:text-red-300" : "text-accent-700 dark:text-accent-300";
   const borderColor = type === "error" ? "border-red-200" : "border-green-200";
   const iconColor = type === "error" ? "text-red-400" : "text-green-400";
   const Icon = type === "error" ? AlertCircle : CheckCircle;

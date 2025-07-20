@@ -191,7 +191,7 @@ describe("Sidebar", () => {
     expect(activeLink).toHaveClass("bg-blue-50", "text-blue-700");
 
     const inactiveLink = screen.getByRole("link", { name: /users/i });
-    expect(inactiveLink).toHaveClass("text-gray-600");
+    expect(inactiveLink).toHaveClass("text-text-600 dark:text-text-400");
   });
 
   it("groups navigation items by category", () => {
@@ -238,7 +238,7 @@ describe("Sidebar", () => {
     render(<Sidebar />);
 
     const sidebar = screen.getByRole("complementary");
-    expect(sidebar).toHaveClass("h-full", "border-r", "bg-white");
+    expect(sidebar).toHaveClass("h-full", "border-r", "bg-background-100 dark:bg-background-100");
   });
 
   it("handles overflow with scrollable navigation", () => {

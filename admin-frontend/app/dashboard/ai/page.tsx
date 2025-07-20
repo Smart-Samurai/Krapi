@@ -178,11 +178,21 @@ export default function AIPage() {
       }
     } catch (err) {
       console.error("Chat error:", err);
+      let errorContent = "Unknown error occurred";
+      
+      if (err instanceof Error) {
+        if (err.message.includes("Ollama is not running")) {
+          errorContent = "Ollama is not running. Please install and start Ollama:\n1. Install from https://ollama.ai\n2. Run: ollama serve\n3. Pull a model: ollama pull llama3.2:3b";
+        } else if (err.message.includes("status code 400")) {
+          errorContent = "Invalid request format. Please check your message and try again.";
+        } else {
+          errorContent = err.message;
+        }
+      }
+      
       const errorMessage: ChatMessage = {
         role: "assistant",
-        content: `Error: ${
-          err instanceof Error ? err.message : "Unknown error"
-        }`,
+        content: `Error: ${errorContent}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -269,15 +279,30 @@ export default function AIPage() {
             <CardTitle className="text-sm font-medium">Ollama Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <Badge
-                variant={mcpInfo?.ollama.healthy ? "default" : "destructive"}
-              >
-                {mcpInfo?.ollama.healthy ? "Healthy" : "Disconnected"}
-              </Badge>
-              <span className="text-sm text-text-500 dark:text-text-400">
-                {models?.models.length || 0} models
-              </span>
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center justify-between">
+                <Badge
+                  variant={mcpInfo?.ollama.healthy ? "default" : "destructive"}
+                >
+                  {mcpInfo?.ollama.healthy ? "Healthy" : "Not Running"}
+                </Badge>
+                <span className="text-sm text-text-500 dark:text-text-400">
+                  {models?.models.length || 0} models
+                </span>
+              </div>
+              {!mcpInfo?.ollama.healthy && (
+                <div className="text-xs text-text-600 dark:text-text-400">
+                  <a 
+                    href="https://ollama.ai" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 underline"
+                  >
+                    Install Ollama
+                  </a>
+                  {" "}to use AI features
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -289,7 +314,7 @@ export default function AIPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold">{tools.length}</span>
-              <Zap className="h-5 w-5 text-yellow-500" />
+                                <Zap className="h-5 w-5 text-secondary-500 dark:text-secondary-400" />
             </div>
           </CardContent>
         </Card>
@@ -315,17 +340,32 @@ export default function AIPage() {
               <div className="h-96 border border-background-300 rounded-lg p-4 overflow-y-auto bg-background-50 dark:bg-background-900">
                 {messages.length === 0 && (
                   <div className="text-center text-text-500 dark:text-text-400 py-8">
-                    <Bot className="h-12 w-12 mx-auto mb-4 text-text-300 dark:text-text-600" />
-                    <p>Start a conversation! I can help you manage:</p>
-                    <ul className="mt-2 text-sm">
-                      <li>• Content items and routes</li>
-                      <li>• Users and permissions</li>
-                      <li>• Files and schemas</li>
-                      <li>• API endpoints and more</li>
-                    </ul>
-                    <p className="mt-4 text-xs">
-                      Try: &quot;Show me all users and their roles&quot;
-                    </p>
+                    {!mcpInfo?.ollama.healthy ? (
+                      <>
+                        <WifiOff className="h-12 w-12 mx-auto mb-4 text-red-400" />
+                        <p className="text-lg font-medium mb-2">Ollama Not Running</p>
+                        <p className="text-sm mb-4">To use AI features, you need to install and run Ollama:</p>
+                        <ol className="text-sm text-left max-w-md mx-auto space-y-2">
+                          <li>1. Install Ollama from <a href="https://ollama.ai" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 underline">ollama.ai</a></li>
+                          <li>2. Start Ollama: <code className="bg-background-200 dark:bg-background-800 px-2 py-1 rounded">ollama serve</code></li>
+                          <li>3. Pull a model: <code className="bg-background-200 dark:bg-background-800 px-2 py-1 rounded">ollama pull llama3.2:3b</code></li>
+                        </ol>
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-12 w-12 mx-auto mb-4 text-text-300 dark:text-text-600" />
+                        <p>Start a conversation! I can help you manage:</p>
+                        <ul className="mt-2 text-sm">
+                          <li>• Content items and routes</li>
+                          <li>• Users and permissions</li>
+                          <li>• Files and schemas</li>
+                          <li>• API endpoints and more</li>
+                        </ul>
+                        <p className="mt-4 text-xs">
+                          Try: &quot;Show me all users and their roles&quot;
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
                 {messages.map((msg, idx) => (
@@ -366,12 +406,16 @@ export default function AIPage() {
                 <Input
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Ask me anything..."
-                  disabled={chatLoading}
+                  onKeyPress={(e) => e.key === "Enter" && !chatLoading && mcpInfo?.ollama.healthy && sendMessage()}
+                  placeholder={mcpInfo?.ollama.healthy ? "Ask me anything..." : "Ollama not available"}
+                  disabled={chatLoading || !mcpInfo?.ollama.healthy}
                   className="flex-1"
                 />
-                <Button onClick={sendMessage} disabled={chatLoading}>
+                <Button 
+                  onClick={sendMessage} 
+                  disabled={chatLoading || !mcpInfo?.ollama.healthy}
+                  title={!mcpInfo?.ollama.healthy ? "Ollama is not running" : "Send message"}
+                >
                   {chatLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (

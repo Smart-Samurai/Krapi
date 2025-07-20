@@ -6,29 +6,29 @@
 
 @layer base {
   :root {
-    --text-50: #fafafa;
-    --text-100: #f5f5f5;
-    --text-200: #e5e5e5;
-    --text-300: #d4d4d4;
-    --text-400: #a3a3a3;
-    --text-500: #737373;
-    --text-600: #525252;
-    --text-700: #404040;
-    --text-800: #262626;
-    --text-900: #171717;
-    --text-950: #0a0a0a;
+    --text-50: #fff5e5;
+    --text-100: #ffebcc;
+    --text-200: #ffd899;
+    --text-300: #ffc466;
+    --text-400: #ffb133;
+    --text-500: #ff9d00;
+    --text-600: #cc7e00;
+    --text-700: #995e00;
+    --text-800: #663f00;
+    --text-900: #331f00;
+    --text-950: #1a1000;
     
-    --background-50: #ffffff;
-    --background-100: #fafafa;
-    --background-200: #f5f5f5;
-    --background-300: #e5e5e5;
-    --background-400: #d4d4d4;
-    --background-500: #a3a3a3;
-    --background-600: #737373;
-    --background-700: #525252;
-    --background-800: #404040;
-    --background-900: #262626;
-    --background-950: #171717;
+    --background-50: #fff3e5;
+    --background-100: #ffe7cc;
+    --background-200: #ffcf99;
+    --background-300: #ffb866;
+    --background-400: #ffa033;
+    --background-500: #ff8800;
+    --background-600: #cc6d00;
+    --background-700: #995200;
+    --background-800: #663600;
+    --background-900: #331b00;
+    --background-950: #1a0e00;
     
     --primary-50: #fff6e6;
     --primary-100: #ffeccc;
@@ -70,29 +70,29 @@
   }
   
   .dark {
-    --text-50: #0a0a0a;
-    --text-100: #171717;
-    --text-200: #262626;
-    --text-300: #404040;
-    --text-400: #525252;
-    --text-500: #737373;
-    --text-600: #a3a3a3;
-    --text-700: #d4d4d4;
-    --text-800: #e5e5e5;
-    --text-900: #f5f5f5;
-    --text-950: #fafafa;
+    --text-50: #1a1000;
+    --text-100: #331f00;
+    --text-200: #663f00;
+    --text-300: #995e00;
+    --text-400: #cc7e00;
+    --text-500: #ff9d00;
+    --text-600: #ffb133;
+    --text-700: #ffc466;
+    --text-800: #ffd899;
+    --text-900: #ffebcc;
+    --text-950: #fff5e5;
     
-    --background-50: #171717;
-    --background-100: #262626;
-    --background-200: #404040;
-    --background-300: #525252;
-    --background-400: #737373;
-    --background-500: #a3a3a3;
-    --background-600: #d4d4d4;
-    --background-700: #e5e5e5;
-    --background-800: #f5f5f5;
-    --background-900: #fafafa;
-    --background-950: #ffffff;
+    --background-50: #1a0e00;
+    --background-100: #331b00;
+    --background-200: #663600;
+    --background-300: #995200;
+    --background-400: #cc6d00;
+    --background-500: #ff8800;
+    --background-600: #ffa033;
+    --background-700: #ffb866;
+    --background-800: #ffcf99;
+    --background-900: #ffe7cc;
+    --background-950: #fff3e5;
     
     --primary-50: #191000;
     --primary-100: #332000;
@@ -147,6 +147,11 @@ body {
   color: var(--text-900);
   background-color: var(--background-50);
   transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.dark body {
+  color: var(--text-50);
+  background-color: var(--background-50);
 }
 
 html {
@@ -238,12 +243,18 @@ button:disabled {
 
 /* Error states */
 .error {
-  color: #ef4444;
+  color: #dc2626;
   background-color: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: var(--radius);
   padding: 0.75rem;
   margin: 0.5rem 0;
+}
+
+.dark .error {
+  color: #fca5a5;
+  background-color: #450a0a;
+  border: 1px solid #991b1b;
 }
 
 /* Success states */
@@ -254,6 +265,12 @@ button:disabled {
   border-radius: var(--radius);
   padding: 0.75rem;
   margin: 0.5rem 0;
+}
+
+.dark .success {
+  color: #86efac;
+  background-color: #052e16;
+  border: 1px solid #166534;
 }
 
 @layer base {

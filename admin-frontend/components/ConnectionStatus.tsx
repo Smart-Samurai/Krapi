@@ -88,7 +88,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   }
 
   return (
-    <div className={cn("bg-white border rounded-lg p-4 space-y-3", className)}>
+    <div className={cn("bg-background-100 dark:bg-background-100 border rounded-lg p-4 space-y-3", className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-text-900">Connection Status</h3>
         <button

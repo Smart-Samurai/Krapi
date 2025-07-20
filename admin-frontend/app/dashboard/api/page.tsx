@@ -343,16 +343,16 @@ export default function ApiManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background-50 dark:bg-background-50 p-6">
       <NotificationContainer />
 
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Globe className="h-8 w-8 mr-3 text-blue-600" />
+          <h1 className="text-3xl font-bold text-text-900 dark:text-text-50 flex items-center">
+            <Globe className="h-8 w-8 mr-3 text-primary-600 dark:text-primary-400" />
             API Management
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-text-600 dark:text-text-400 mt-2">
             Manage API keys, endpoints, rate limits, and monitor API usage
           </p>
         </div>
@@ -360,53 +360,53 @@ export default function ApiManagementPage() {
         {/* Quick stats */}
         {analytics && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8 mb-8">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <div className="text-2xl font-bold text-blue-600">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
+              <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                 {analytics.total_requests.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-500">Total Requests</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Total Requests</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-green-600">
                 {analytics.requests_today.toLocaleString()}
               </div>
-              <div className="text-sm text-gray-500">Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Today</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
                               <div className="text-2xl font-bold text-secondary-600">
                 {analytics.avg_response_time}ms
               </div>
-              <div className="text-sm text-gray-500">Avg Response</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Avg Response</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-red-600">
                 {analytics.error_rate}%
               </div>
-              <div className="text-sm text-gray-500">Error Rate</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Error Rate</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-indigo-600">
                 {analytics.active_keys}
               </div>
-              <div className="text-sm text-gray-500">Active Keys</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Active Keys</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-yellow-600">
                 {analytics.blocked_requests}
               </div>
-              <div className="text-sm text-gray-500">Blocked</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Blocked</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-teal-600">
                 {analytics.bandwidth_used}
               </div>
-              <div className="text-sm text-gray-500">Bandwidth</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Bandwidth</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
                               <div className="text-2xl font-bold text-primary-600">
                 {endpoints.length}
               </div>
-              <div className="text-sm text-gray-500">Endpoints</div>
+              <div className="text-sm text-text-500 dark:text-text-500">Endpoints</div>
             </div>
           </div>
         )}
@@ -427,8 +427,8 @@ export default function ApiManagementPage() {
                 onClick={() => setActiveTab(key as TabType)}
                 className={`${
                   activeTab === key
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? "border-blue-500 text-primary-600 dark:text-primary-400"
+                    : "border-transparent text-text-500 dark:text-text-500 hover:text-text-700 dark:text-text-300 hover:border-background-300 dark:border-background-300"
                 } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center`}
               >
                 <Icon className="h-4 w-4 mr-2" />
@@ -442,17 +442,17 @@ export default function ApiManagementPage() {
         {activeTab === "overview" && analytics && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-background-100 dark:bg-background-100 p-6 rounded-lg shadow">
                 <div className="flex items-center">
-                  <Zap className="h-8 w-8 text-blue-600 mr-3" />
+                  <Zap className="h-8 w-8 text-primary-600 dark:text-primary-400 mr-3" />
                   <div>
                     <h3 className="text-lg font-semibold">API Performance</h3>
-                    <p className="text-sm text-gray-600">Real-time metrics</p>
+                    <p className="text-sm text-text-600 dark:text-text-400">Real-time metrics</p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-text-500 dark:text-text-500">
                       Avg Response Time
                     </span>
                     <span className="text-sm font-medium">
@@ -460,13 +460,13 @@ export default function ApiManagementPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Error Rate</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">Error Rate</span>
                     <span className="text-sm font-medium">
                       {analytics.error_rate}%
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-text-500 dark:text-text-500">
                       Requests Today
                     </span>
                     <span className="text-sm font-medium">
@@ -476,31 +476,31 @@ export default function ApiManagementPage() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-background-100 dark:bg-background-100 p-6 rounded-lg shadow">
                 <div className="flex items-center">
                   <Key className="h-8 w-8 text-green-600 mr-3" />
                   <div>
                     <h3 className="text-lg font-semibold">API Keys</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-text-600 dark:text-text-400">
                       Active keys and usage
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Total Keys</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">Total Keys</span>
                     <span className="text-sm font-medium">
                       {apiKeys.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Active Keys</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">Active Keys</span>
                     <span className="text-sm font-medium">
                       {analytics.active_keys}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Total Usage</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">Total Usage</span>
                     <span className="text-sm font-medium">
                       {apiKeys
                         .reduce((sum, key) => sum + key.usage_count, 0)
@@ -510,31 +510,31 @@ export default function ApiManagementPage() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-background-100 dark:bg-background-100 p-6 rounded-lg shadow">
                 <div className="flex items-center">
                   <Shield className="h-8 w-8 text-secondary-600 mr-3" />
                   <div>
                     <h3 className="text-lg font-semibold">Security</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-text-600 dark:text-text-400">
                       Rate limits and blocks
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Rate Limits</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">Rate Limits</span>
                     <span className="text-sm font-medium">
                       {rateLimits.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Blocked Today</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">Blocked Today</span>
                     <span className="text-sm font-medium">
                       {analytics.blocked_requests}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-text-500 dark:text-text-500">
                       Bandwidth Used
                     </span>
                     <span className="text-sm font-medium">
@@ -545,8 +545,8 @@ export default function ApiManagementPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200">
+            <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow">
+              <div className="p-6 border-b border-background-200 dark:border-background-200">
                 <h3 className="text-lg font-semibold">Top Endpoints</h3>
               </div>
               <div className="p-6">
@@ -562,12 +562,12 @@ export default function ApiManagementPage() {
                             endpoint.method === "GET"
                               ? "bg-blue-100 text-blue-800"
                               : endpoint.method === "POST"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200"
                               : endpoint.method === "PUT"
-                              ? "bg-yellow-100 text-yellow-800"
+                              ? "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200"
                               : endpoint.method === "DELETE"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
+                              ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200 dark:bg-red-900 dark:text-red-200"
+                              : "bg-background-100 dark:bg-background-100 text-gray-800"
                           }`}
                         >
                           {endpoint.method}
@@ -576,7 +576,7 @@ export default function ApiManagementPage() {
                           {endpoint.path}
                         </span>
                       </div>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-text-500 dark:text-text-500">
                         {endpoint.requests.toLocaleString()} requests
                       </span>
                     </div>
@@ -588,19 +588,19 @@ export default function ApiManagementPage() {
         )}
 
         {activeTab === "keys" && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow">
+            <div className="p-6 border-b border-background-200 dark:border-background-200">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">API Keys</h2>
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => openKeyModal()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Create API Key
                   </button>
-                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                  <button className="inline-flex items-center px-4 py-2 border border-background-300 dark:border-background-300 rounded-md shadow-sm text-sm font-medium text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50">
                     <Download className="h-4 w-4 mr-2" />
                     Export Keys
                   </button>
@@ -610,41 +610,41 @@ export default function ApiManagementPage() {
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-background-50 dark:bg-background-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Name & Key
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Permissions
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Usage
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Last Used
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-background-100 dark:bg-background-100 divide-y divide-gray-200">
                   {apiKeys.map((key) => (
                     <tr key={key.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-text-900 dark:text-text-50">
                             {key.name}
                           </div>
-                          <div className="text-sm text-gray-500 font-mono flex items-center">
+                          <div className="text-sm text-text-500 dark:text-text-500 font-mono flex items-center">
                             {`${key.key.slice(0, 12)}...`}
                             <button
                               onClick={() => handleCopyApiKey(key.key)}
-                              className="ml-2 text-gray-400 hover:text-gray-600"
+                              className="ml-2 text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
                             >
                               <Copy className="h-4 w-4" />
                             </button>
@@ -664,10 +664,10 @@ export default function ApiManagementPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-text-900 dark:text-text-50">
                           {key.usage_count.toLocaleString()}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-text-500 dark:text-text-500">
                           Limit: {key.rate_limit}/min
                         </div>
                       </td>
@@ -690,13 +690,13 @@ export default function ApiManagementPage() {
                           )}
                         </div>
                         {key.expires_at && (
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs text-text-500 dark:text-text-500 mt-1">
                             Expires:{" "}
                             {new Date(key.expires_at).toLocaleDateString()}
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-500 dark:text-text-500">
                         {key.last_used
                           ? new Date(key.last_used).toLocaleString()
                           : "Never"}
@@ -705,7 +705,7 @@ export default function ApiManagementPage() {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => openKeyModal(key)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-primary-600 dark:text-primary-400 hover:text-blue-900"
                             title="Edit API key"
                           >
                             <Edit className="h-4 w-4" />
@@ -744,11 +744,11 @@ export default function ApiManagementPage() {
 
             {apiKeys.length === 0 && (
               <div className="p-8 text-center">
-                <Key className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <Key className="mx-auto h-12 w-12 text-text-400 dark:text-text-600" />
+                <h3 className="mt-2 text-sm font-medium text-text-900 dark:text-text-50">
                   No API keys
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   Get started by creating your first API key.
                 </p>
               </div>
@@ -761,15 +761,15 @@ export default function ApiManagementPage() {
 
       {/* API Key Modal */}
       {showKeyModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-background-900 dark:bg-background-900 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-background-100 dark:bg-background-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">
                 {editingKey ? "Edit API Key" : "Create API Key"}
               </h3>
               <button
                 onClick={() => setShowKeyModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
               >
                 ×
               </button>
@@ -782,13 +782,13 @@ export default function ApiManagementPage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Name *
                 </label>
                 <input
                   {...keyForm.register("name")}
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Production API Key"
                 />
                 {keyForm.formState.errors.name && (
@@ -799,7 +799,7 @@ export default function ApiManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300 mb-2">
                   Permissions *
                 </label>
                 <div className="space-y-2">
@@ -809,9 +809,9 @@ export default function ApiManagementPage() {
                         type="checkbox"
                         value={permission}
                         {...keyForm.register("permissions")}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                       />
-                      <span className="ml-2 text-sm text-gray-900 capitalize">
+                      <span className="ml-2 text-sm text-text-900 dark:text-text-50 capitalize">
                         {permission}
                       </span>
                     </label>
@@ -825,7 +825,7 @@ export default function ApiManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Rate Limit (requests per minute) *
                 </label>
                 <input
@@ -833,7 +833,7 @@ export default function ApiManagementPage() {
                   type="number"
                   min="1"
                   max="10000"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
                 {keyForm.formState.errors.rate_limit && (
                   <p className="mt-1 text-sm text-red-600">
@@ -843,15 +843,15 @@ export default function ApiManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Expiration Date (optional)
                 </label>
                 <input
                   {...keyForm.register("expires_at")}
                   type="date"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   Leave blank for no expiration
                 </p>
               </div>
@@ -860,13 +860,13 @@ export default function ApiManagementPage() {
                 <button
                   type="button"
                   onClick={() => setShowKeyModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-background-300 dark:border-background-300 rounded-md text-sm font-medium text-text-700 dark:text-text-300 hover:bg-background-50 dark:bg-background-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                 >
                   {editingKey ? "Update" : "Create"}
                 </button>

@@ -382,11 +382,11 @@ export default function EmailManagementPage() {
       case "bounced":
         return <XCircle className="h-4 w-4 text-red-500" />;
       case "pending":
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return <Clock className="h-4 w-4 text-secondary-500 dark:text-secondary-400" />;
       case "opened":
-        return <Eye className="h-4 w-4 text-blue-500" />;
+        return <Eye className="h-4 w-4 text-primary-500 dark:text-primary-400" />;
       default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+        return <AlertCircle className="h-4 w-4 text-text-500 dark:text-text-500" />;
     }
   };
 
@@ -421,16 +421,16 @@ export default function EmailManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-background-50 dark:bg-background-50 p-6">
       <NotificationContainer />
 
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Mail className="h-8 w-8 mr-3 text-blue-600" />
+          <h1 className="text-3xl font-bold text-text-900 dark:text-text-50 flex items-center">
+            <Mail className="h-8 w-8 mr-3 text-primary-600 dark:text-primary-400" />
             Email Management
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-text-600 dark:text-text-400 mt-2">
             Configure SMTP settings, manage email templates, and monitor email
             delivery
           </p>
@@ -441,8 +441,8 @@ export default function EmailManagementPage() {
           <div
             className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
               isConfigured
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
+                ? "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200"
+                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200 dark:bg-red-900 dark:text-red-200"
             }`}
           >
             {isConfigured ? (
@@ -474,8 +474,8 @@ export default function EmailManagementPage() {
                 onClick={() => setActiveTab(key as TabType)}
                 className={`${
                   activeTab === key
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? "border-blue-500 text-primary-600 dark:text-primary-400"
+                    : "border-transparent text-text-500 dark:text-text-500 hover:text-text-700 dark:text-text-300 hover:border-background-300 dark:border-background-300"
                 } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center`}
               >
                 <Icon className="h-4 w-4 mr-2" />
@@ -487,13 +487,13 @@ export default function EmailManagementPage() {
 
         {/* Tab Content */}
         {activeTab === "config" && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">SMTP Configuration</h2>
               <button
                 onClick={handleTestConnection}
                 disabled={!isConfigured}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-4 py-2 border border-background-300 dark:border-background-300 rounded-md shadow-sm text-sm font-medium text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <TestTube className="h-4 w-4 mr-2" />
                 Test Connection
@@ -506,13 +506,13 @@ export default function EmailManagementPage() {
             >
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     SMTP Host *
                   </label>
                   <input
                     {...configForm.register("smtp_host")}
                     type="text"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="smtp.gmail.com"
                   />
                   {configForm.formState.errors.smtp_host && (
@@ -523,7 +523,7 @@ export default function EmailManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     SMTP Port *
                   </label>
                   <input
@@ -531,7 +531,7 @@ export default function EmailManagementPage() {
                       valueAsNumber: true,
                     })}
                     type="number"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="587"
                   />
                   {configForm.formState.errors.smtp_port && (
@@ -542,13 +542,13 @@ export default function EmailManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Username *
                   </label>
                   <input
                     {...configForm.register("smtp_user")}
                     type="text"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="your-email@domain.com"
                   />
                   {configForm.formState.errors.smtp_user && (
@@ -559,13 +559,13 @@ export default function EmailManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Password *
                   </label>
                   <input
                     {...configForm.register("smtp_pass")}
                     type="password"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="Enter password"
                   />
                   {configForm.formState.errors.smtp_pass && (
@@ -576,13 +576,13 @@ export default function EmailManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     From Email *
                   </label>
                   <input
                     {...configForm.register("smtp_from")}
                     type="email"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="noreply@yourdomain.com"
                   />
                   {configForm.formState.errors.smtp_from && (
@@ -593,13 +593,13 @@ export default function EmailManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                     Reply-To Email
                   </label>
                   <input
                     {...configForm.register("smtp_reply_to")}
                     type="email"
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                     placeholder="support@yourdomain.com"
                   />
                   {configForm.formState.errors.smtp_reply_to && (
@@ -614,9 +614,9 @@ export default function EmailManagementPage() {
                 <input
                   {...configForm.register("smtp_secure")}
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
-                <label className="ml-2 block text-sm text-gray-900">
+                <label className="ml-2 block text-sm text-text-900 dark:text-text-50">
                   Use SSL/TLS (recommended for port 465)
                 </label>
               </div>
@@ -624,7 +624,7 @@ export default function EmailManagementPage() {
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   Save Configuration
                 </button>
@@ -634,13 +634,13 @@ export default function EmailManagementPage() {
         )}
 
         {activeTab === "templates" && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow">
+            <div className="p-6 border-b border-background-200 dark:border-background-200">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Email Templates</h2>
                 <button
                   onClick={() => openTemplateModal()}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Template
@@ -651,11 +651,11 @@ export default function EmailManagementPage() {
             <div className="divide-y divide-gray-200">
               {templates.length === 0 ? (
                 <div className="p-8 text-center">
-                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  <FileText className="mx-auto h-12 w-12 text-text-400 dark:text-text-600" />
+                  <h3 className="mt-2 text-sm font-medium text-text-900 dark:text-text-50">
                     No templates
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                     Get started by creating your first email template.
                   </p>
                 </div>
@@ -664,14 +664,14 @@ export default function EmailManagementPage() {
                   <div key={template.id} className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="text-lg font-medium text-gray-900">
+                        <h3 className="text-lg font-medium text-text-900 dark:text-text-50">
                           {template.name}
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-text-600 dark:text-text-400 mt-1">
                           {template.subject}
                         </p>
                         {template.description && (
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-text-500 dark:text-text-500 mt-1">
                             {template.description}
                           </p>
                         )}
@@ -679,13 +679,13 @@ export default function EmailManagementPage() {
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               template.active
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200"
+                                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200 dark:bg-red-900 dark:text-red-200"
                             }`}
                           >
                             {template.active ? "Active" : "Inactive"}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-text-500 dark:text-text-500">
                             Variables: {template.variables.length}
                           </span>
                         </div>
@@ -693,7 +693,7 @@ export default function EmailManagementPage() {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => openTemplateModal(template)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-primary-600 dark:text-primary-400 hover:text-blue-900"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
@@ -713,7 +713,7 @@ export default function EmailManagementPage() {
         )}
 
         {activeTab === "send" && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-6">Send Email</h2>
 
             <form
@@ -721,16 +721,16 @@ export default function EmailManagementPage() {
               className="space-y-6"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Recipients *
                 </label>
                 <input
                   {...sendEmailForm.register("to")}
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   placeholder="recipient@example.com, another@example.com"
                 />
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   Separate multiple email addresses with commas
                 </p>
                 {sendEmailForm.formState.errors.to && (
@@ -741,12 +741,12 @@ export default function EmailManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Template (Optional)
                 </label>
                 <select
                   {...sendEmailForm.register("template_name")}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">
                     Select a template (or compose manually)
@@ -762,40 +762,40 @@ export default function EmailManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Subject
                 </label>
                 <input
                   {...sendEmailForm.register("subject")}
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Enter email subject (or use template)"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   HTML Content
                 </label>
                 <textarea
                   {...sendEmailForm.register("html")}
                   rows={8}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Enter HTML content (or use template)"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Template Variables (JSON)
                 </label>
                 <textarea
                   {...sendEmailForm.register("variables")}
                   rows={4}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   placeholder='{"variable1": "value1", "variable2": "value2"}'
                 />
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   JSON object with variables to substitute in the template
                 </p>
               </div>
@@ -804,7 +804,7 @@ export default function EmailManagementPage() {
                 <button
                   type="submit"
                   disabled={!isConfigured}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4 mr-2" />
                   Send Email
@@ -815,15 +815,15 @@ export default function EmailManagementPage() {
         )}
 
         {activeTab === "logs" && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow">
+            <div className="p-6 border-b border-background-200 dark:border-background-200">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Email Logs</h2>
                 <div className="flex items-center space-x-4">
                   <select
                     value={logsStatus}
                     onChange={(e) => setLogsStatus(e.target.value)}
-                    className="border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    className="border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="">All statuses</option>
                     <option value="sent">Sent</option>
@@ -836,43 +836,43 @@ export default function EmailManagementPage() {
             </div>
 
             {stats && (
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-6 border-b border-background-200 dark:border-background-200">
                 <div className="grid grid-cols-2 gap-6 sm:grid-cols-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">
+                    <div className="text-2xl font-bold text-text-900 dark:text-text-50">
                       {stats.total}
                     </div>
-                    <div className="text-sm text-gray-500">Total</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">Total</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
                       {stats.sent}
                     </div>
-                    <div className="text-sm text-gray-500">Sent</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">Sent</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
                       {stats.failed}
                     </div>
-                    <div className="text-sm text-gray-500">Failed</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">Failed</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                       {stats.opened}
                     </div>
-                    <div className="text-sm text-gray-500">Opened</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">Opened</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-secondary-600">
                       {stats.clicked}
                     </div>
-                    <div className="text-sm text-gray-500">Clicked</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">Clicked</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary-600">
                       {stats.bounced}
                     </div>
-                    <div className="text-sm text-gray-500">Bounced</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">Bounced</div>
                   </div>
                 </div>
               </div>
@@ -880,43 +880,43 @@ export default function EmailManagementPage() {
 
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-background-50 dark:bg-background-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Recipient
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Subject
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Sent At
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-500 dark:text-text-500 uppercase tracking-wider">
                       Error
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-background-100 dark:bg-background-100 divide-y divide-gray-200">
                   {logs.map((log) => (
                     <tr key={log.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           {getStatusIcon(log.status)}
-                          <span className="ml-2 text-sm text-gray-900 capitalize">
+                          <span className="ml-2 text-sm text-text-900 dark:text-text-50 capitalize">
                             {log.status}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-900 dark:text-text-50">
                         {log.recipient_email}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td className="px-6 py-4 text-sm text-text-900 dark:text-text-50">
                         {log.subject}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-500 dark:text-text-500">
                         {log.sent_at
                           ? new Date(log.sent_at).toLocaleString()
                           : "-"}
@@ -932,11 +932,11 @@ export default function EmailManagementPage() {
 
             {logs.length === 0 && (
               <div className="p-8 text-center">
-                <BarChart3 className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <BarChart3 className="mx-auto h-12 w-12 text-text-400 dark:text-text-600" />
+                <h3 className="mt-2 text-sm font-medium text-text-900 dark:text-text-50">
                   No email logs
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-text-500 dark:text-text-500">
                   Email logs will appear here once you start sending emails.
                 </p>
               </div>
@@ -944,9 +944,9 @@ export default function EmailManagementPage() {
 
             {/* Pagination */}
             {logsTotal > 20 && (
-              <div className="px-6 py-3 border-t border-gray-200">
+              <div className="px-6 py-3 border-t border-background-200 dark:border-background-200">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700">
+                  <div className="text-sm text-text-700 dark:text-text-300">
                     Showing {(logsPage - 1) * 20 + 1} to{" "}
                     {Math.min(logsPage * 20, logsTotal)} of {logsTotal} logs
                   </div>
@@ -954,14 +954,14 @@ export default function EmailManagementPage() {
                     <button
                       onClick={() => setLogsPage(Math.max(1, logsPage - 1))}
                       disabled={logsPage === 1}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                      className="px-3 py-1 border border-background-300 dark:border-background-300 rounded text-sm disabled:opacity-50"
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setLogsPage(logsPage + 1)}
                       disabled={logsPage * 20 >= logsTotal}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
+                      className="px-3 py-1 border border-background-300 dark:border-background-300 rounded text-sm disabled:opacity-50"
                     >
                       Next
                     </button>
@@ -973,7 +973,7 @@ export default function EmailManagementPage() {
         )}
 
         {activeTab === "preferences" && preferences && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-background-100 dark:bg-background-100 rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-6">
               Notification Preferences
             </h2>
@@ -981,10 +981,10 @@ export default function EmailManagementPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">
+                  <h3 className="text-sm font-medium text-text-900 dark:text-text-50">
                     Email Notifications
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500 dark:text-text-500">
                     Receive email notifications
                   </p>
                 </div>
@@ -996,16 +996,16 @@ export default function EmailManagementPage() {
                       email_notifications: e.target.checked,
                     })
                   }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">
+                  <h3 className="text-sm font-medium text-text-900 dark:text-text-50">
                     Content Updates
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500 dark:text-text-500">
                     Notifications when content is created or updated
                   </p>
                 </div>
@@ -1017,16 +1017,16 @@ export default function EmailManagementPage() {
                       content_updates: e.target.checked,
                     })
                   }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">
+                  <h3 className="text-sm font-medium text-text-900 dark:text-text-50">
                     User Management
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500 dark:text-text-500">
                     Notifications when users are created, updated, or deleted
                   </p>
                 </div>
@@ -1038,16 +1038,16 @@ export default function EmailManagementPage() {
                       user_management: e.target.checked,
                     })
                   }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">
+                  <h3 className="text-sm font-medium text-text-900 dark:text-text-50">
                     System Alerts
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500 dark:text-text-500">
                     Critical system alerts and errors
                   </p>
                 </div>
@@ -1057,16 +1057,16 @@ export default function EmailManagementPage() {
                   onChange={(e) =>
                     handleUpdatePreferences({ system_alerts: e.target.checked })
                   }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">
+                  <h3 className="text-sm font-medium text-text-900 dark:text-text-50">
                     Marketing Emails
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-500 dark:text-text-500">
                     Product updates and marketing communications
                   </p>
                 </div>
@@ -1078,7 +1078,7 @@ export default function EmailManagementPage() {
                       marketing_emails: e.target.checked,
                     })
                   }
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
               </div>
             </div>
@@ -1088,15 +1088,15 @@ export default function EmailManagementPage() {
 
       {/* Template Modal */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-background-900 dark:bg-background-900 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-background-100 dark:bg-background-100">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">
                 {editingTemplate ? "Edit Template" : "Create Template"}
               </h3>
               <button
                 onClick={() => setShowTemplateModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-text-400 dark:text-text-600 hover:text-text-600 dark:text-text-400"
               >
                 ×
               </button>
@@ -1109,13 +1109,13 @@ export default function EmailManagementPage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Template Name *
                 </label>
                 <input
                   {...templateForm.register("name")}
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
                 {templateForm.formState.errors.name && (
                   <p className="mt-1 text-sm text-red-600">
@@ -1125,13 +1125,13 @@ export default function EmailManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Subject *
                 </label>
                 <input
                   {...templateForm.register("subject")}
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
                 {templateForm.formState.errors.subject && (
                   <p className="mt-1 text-sm text-red-600">
@@ -1141,13 +1141,13 @@ export default function EmailManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   HTML Template *
                 </label>
                 <textarea
                   {...templateForm.register("template_html")}
                   rows={8}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
                 {templateForm.formState.errors.template_html && (
                   <p className="mt-1 text-sm text-red-600">
@@ -1157,24 +1157,24 @@ export default function EmailManagementPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Text Template
                 </label>
                 <textarea
                   {...templateForm.register("template_text")}
                   rows={4}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-text-700 dark:text-text-300">
                   Description
                 </label>
                 <input
                   {...templateForm.register("description")}
                   type="text"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full border-background-300 dark:border-background-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
@@ -1182,9 +1182,9 @@ export default function EmailManagementPage() {
                 <input
                   {...templateForm.register("active")}
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 dark:text-primary-400 focus:ring-primary-500 border-background-300 dark:border-background-300 rounded"
                 />
-                <label className="ml-2 block text-sm text-gray-900">
+                <label className="ml-2 block text-sm text-text-900 dark:text-text-50">
                   Active template
                 </label>
               </div>
@@ -1193,13 +1193,13 @@ export default function EmailManagementPage() {
                 <button
                   type="button"
                   onClick={() => setShowTemplateModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border border-background-300 dark:border-background-300 rounded-md text-sm font-medium text-text-700 dark:text-text-300 hover:bg-background-50 dark:bg-background-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 dark:bg-primary-500 hover:bg-primary-600 dark:hover:bg-primary-400"
                 >
                   {editingTemplate ? "Update" : "Create"}
                 </button>

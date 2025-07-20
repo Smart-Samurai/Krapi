@@ -109,16 +109,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background-50 dark:bg-background-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100">
-            <LogIn className="h-6 w-6 text-primary-600" />
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900">
+            <LogIn className="h-6 w-6 text-primary-600 dark:text-primary-300" />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-text-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-text-900 dark:text-text-50">
             Krapi Admin Dashboard
           </h2>
-          <p className="mt-2 text-center text-sm text-text-600">
+          <p className="mt-2 text-center text-sm text-text-600 dark:text-text-400">
             Sign in to manage your content
           </p>
         </div>
@@ -136,10 +136,10 @@ export default function LoginPage() {
                 id="username"
                 type="text"
                 {...form.register("username")}
-                className={`relative block w-full px-3 py-2 border placeholder-text-500 text-text-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm ${
+                className={`relative block w-full px-3 py-2 border placeholder-text-500 text-text-900 dark:text-text-50 bg-background-50 dark:bg-background-100 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm ${
                   form.formState.errors.username
-                    ? "border-destructive"
-                    : "border-background-300"
+                    ? "border-red-500"
+                    : "border-background-300 dark:border-background-300"
                 }`}
                 placeholder="Username"
                 disabled={
@@ -147,7 +147,7 @@ export default function LoginPage() {
                 }
               />
               {form.formState.errors.username && (
-                <p className="mt-1 text-sm text-destructive">
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                   {form.formState.errors.username.message}
                 </p>
               )}
@@ -160,10 +160,10 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 {...form.register("password")}
-                className={`relative block w-full px-3 py-2 pr-10 border placeholder-text-500 text-text-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm ${
+                className={`relative block w-full px-3 py-2 pr-10 border placeholder-text-500 text-text-900 dark:text-text-50 bg-background-50 dark:bg-background-100 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm ${
                   form.formState.errors.password
-                    ? "border-destructive"
-                    : "border-background-300"
+                    ? "border-red-500"
+                    : "border-background-300 dark:border-background-300"
                 }`}
                 placeholder="Password"
                 disabled={
@@ -183,7 +183,7 @@ export default function LoginPage() {
                 )}
               </button>
               {form.formState.errors.password && (
-                <p className="mt-1 text-sm text-destructive">
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                   {form.formState.errors.password.message}
                 </p>
               )}
@@ -191,21 +191,21 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="rounded-md bg-destructive/10 p-4">
-              <div className="text-sm text-destructive">{error}</div>
+            <div className="rounded-md bg-red-100 dark:bg-red-900/20 p-4">
+              <div className="text-sm text-red-700 dark:text-red-300">{error}</div>
             </div>
           )}
 
           {loginStatus && (
-            <div className="rounded-md bg-primary-50 p-4">
+            <div className="rounded-md bg-primary-100 dark:bg-primary-900/20 p-4">
               <div className="flex items-center">
                 {loginSuccess ? (
-                  <div className="flex items-center text-sm text-primary-700">
+                  <div className="flex items-center text-sm text-primary-700 dark:text-primary-300">
                     <Loader2 className="animate-spin h-4 w-4 mr-2" />
                     {loginStatus}
                   </div>
                 ) : (
-                  <div className="flex items-center text-sm text-primary-700">
+                  <div className="flex items-center text-sm text-primary-700 dark:text-primary-300">
                     <Loader2 className="animate-spin h-4 w-4 mr-2" />
                     {loginStatus}
                   </div>
@@ -220,7 +220,7 @@ export default function LoginPage() {
               disabled={
                 form.formState.isSubmitting || isConnecting || loginSuccess
               }
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 hover:bg-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isConnecting || loginSuccess ? (
                 <span className="flex items-center">
