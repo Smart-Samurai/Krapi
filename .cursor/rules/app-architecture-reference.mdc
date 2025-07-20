@@ -1,0 +1,43 @@
+# App Architecture Reference
+
+## Overview
+This rule provides essential context about the KRAPI CMS application architecture and API structure.
+
+## Key Reference Document
+**ALWAYS READ FIRST**: `docs/Connections between front and back end.md`
+This document contains the complete mapping of all frontend-backend connections, API endpoints, data structures, and integration patterns.
+
+## Application Structure
+- **Frontend**: Next.js React application (`admin-frontend/`)
+- **Backend**: Node.js Express API server (`api-server/`)
+- **Database**: SQLite (development), scalable to PostgreSQL/MySQL
+- **AI Integration**: MCP (Model Context Protocol) with Ollama
+- **File Storage**: Local file system (scalable to cloud storage)
+
+## Core Principles
+1. **Modular Architecture**: Each feature is self-contained with clear interfaces
+2. **Type Safety**: Full TypeScript implementation with strict typing
+3. **API-First Design**: All functionality exposed through RESTful APIs
+4. **Scalable Foundation**: Built for horizontal scaling and cloud deployment
+5. **AI-Native**: Integrated AI capabilities for content management and automation
+
+## Development Guidelines
+- Always refer to the connections document for API specifications
+- Maintain type consistency between frontend and backend
+- Follow the established authentication and error handling patterns
+- Ensure all new features integrate with the existing API structure
+- Test both frontend and backend integration points
+
+## Technology Stack
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **Backend**: Node.js, Express, TypeScript, SQLite/PostgreSQL
+- **AI**: Ollama, MCP Protocol, Custom AI tools
+- **Authentication**: JWT tokens with role-based access
+- **Real-time**: WebSocket connections for live updates
+
+## Important Notes
+- The application is designed for eventual Kubernetes/Swarm deployment
+- Database scalability is a core requirement
+- AI functionality is integrated throughout the system
+- All endpoints require proper authentication (except health checks)
+- File storage is designed to be cloud-storage compatible
