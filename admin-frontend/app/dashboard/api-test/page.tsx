@@ -124,8 +124,8 @@ export default function ApiTestPage() {
       {/* Header */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h1 className="text-2xl font-bold text-gray-900">API Testing</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-text-900 dark:text-text-50">API Testing</h1>
+          <p className="mt-1 text-sm text-text-500 dark:text-text-500">
             Test your API endpoints and view responses
           </p>
         </div>

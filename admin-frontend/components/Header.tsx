@@ -286,32 +286,32 @@ export default function Header({
   const getResultTypeColor = (type: string) => {
     switch (type) {
       case "content":
-        return "bg-primary-100 text-primary-800";
+        return "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200";
       case "route":
-        return "bg-secondary-100 text-secondary-800";
+        return "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200";
       case "user":
-        return "bg-accent-100 text-accent-800";
+        return "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200";
       case "file":
-        return "bg-primary-200 text-primary-800";
+        return "bg-primary-200 text-primary-700 dark:bg-primary-800 dark:text-primary-200";
       default:
-        return "bg-background-200 text-text-800";
+        return "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-300";
     }
   };
 
   const getNotificationTypeColor = (type: string) => {
     switch (type) {
       case "system_alert":
-        return "bg-destructive/10 text-destructive";
+        return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
       case "content_created":
-        return "bg-secondary-100 text-secondary-800";
+        return "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-200";
       case "content_updated":
-        return "bg-primary-100 text-primary-800";
+        return "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200";
       case "user_created":
-        return "bg-accent-100 text-accent-800";
+        return "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-200";
       case "file_uploaded":
-        return "bg-primary-200 text-primary-800";
+        return "bg-primary-200 text-primary-700 dark:bg-primary-800 dark:text-primary-200";
       default:
-        return "bg-background-200 text-text-800";
+        return "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-300";
     }
   };
 

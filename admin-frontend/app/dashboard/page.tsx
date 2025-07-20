@@ -166,16 +166,16 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-background-100 overflow-hidden shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h1 className="text-3xl font-bold text-text-900">
+          <h1 className="text-3xl font-bold text-text-900 dark:text-text-50">
             Welcome back, {user?.username}!
           </h1>
-          <p className="mt-1 text-sm text-text-500">
+          <p className="mt-1 text-sm text-text-500 dark:text-text-500">
             Here&apos;s what&apos;s happening with your Krapi CMS.
           </p>
           <div className="mt-2 flex items-center">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-700">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200">
               {user?.role}
             </span>
           </div>
@@ -204,19 +204,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Activity className="h-6 w-6 text-accent-400" />
+                <Activity className="h-6 w-6 text-accent-400 dark:text-accent-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
+                  <dt className="text-sm font-medium text-text-500 dark:text-text-500 truncate">
                     API Status
                   </dt>
-                  <dd className="flex items-center text-lg font-medium text-text-900">
-                    <CheckCircle className="h-4 w-4 text-accent-500 mr-1" />
+                  <dd className="flex items-center text-lg font-medium text-text-900 dark:text-text-50">
+                    <CheckCircle className="h-4 w-4 text-accent-500 dark:text-accent-400 mr-1" />
                     {healthStatus?.status || "Unknown"}
                   </dd>
                 </dl>
@@ -225,11 +225,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Clock className="h-6 w-6 text-secondary-400" />
+                <Clock className="h-6 w-6 text-secondary-400 dark:text-secondary-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -245,11 +245,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <User className="h-6 w-6 text-primary-400" />
+                <User className="h-6 w-6 text-primary-400 dark:text-primary-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -270,12 +270,12 @@ export default function DashboardPage() {
       <WebSocketStatus />
 
       {/* Recent Content */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-background-100 dark:bg-background-100 shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-text-900">
+          <h3 className="text-lg leading-6 font-medium text-text-900 dark:text-text-50">
             Recent Content Updates
           </h3>
-          <p className="mt-1 max-w-2xl text-sm text-text-500">
+          <p className="mt-1 max-w-2xl text-sm text-text-500 dark:text-text-500">
             Latest content items that have been modified.
           </p>
         </div>
@@ -322,29 +322,29 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white overflow-hidden shadow rounded-lg">
+      <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-text-900 mb-4">
+          <h3 className="text-lg leading-6 font-medium text-text-900 dark:text-text-50 mb-4">
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <a
               href="/dashboard/content"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 hover:bg-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <Database className="h-4 w-4 mr-2" />
               Manage Content
             </a>
             <a
               href="/dashboard/api-test"
-              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background hover:bg-background-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <Activity className="h-4 w-4 mr-2" />
               Test API
             </a>
             <button
               onClick={loadDashboardData}
-              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background hover:bg-background-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               Refresh Data
