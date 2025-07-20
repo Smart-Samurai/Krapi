@@ -109,16 +109,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background-50 dark:bg-background-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background dark:bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900">
-            <LogIn className="h-6 w-6 text-primary-600 dark:text-primary-300" />
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-background-200 dark:bg-background-200">
+            <LogIn className="h-6 w-6 text-text dark:text-text" />
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-text-900 dark:text-text-50">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-text dark:text-text">
             Krapi Admin Dashboard
           </h2>
-          <p className="mt-2 text-center text-sm text-text-600 dark:text-text-400">
+          <p className="mt-2 text-center text-sm text-text-600 dark:text-text-600">
             Sign in to manage your content
           </p>
         </div>
@@ -136,7 +136,7 @@ export default function LoginPage() {
                 id="username"
                 type="text"
                 {...form.register("username")}
-                className={`relative block w-full px-3 py-2 border placeholder-text-500 text-text-900 dark:text-text-50 bg-background-50 dark:bg-background-100 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm ${
+                className={`relative block w-full px-3 py-2 border placeholder-text-500 text-text dark:text-text bg-background-50 dark:bg-background-200 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm ${
                   form.formState.errors.username
                     ? "border-red-500"
                     : "border-background-300 dark:border-background-300"
@@ -160,7 +160,7 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 {...form.register("password")}
-                className={`relative block w-full px-3 py-2 pr-10 border placeholder-text-500 text-text-900 dark:text-text-50 bg-background-50 dark:bg-background-100 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm ${
+                className={`relative block w-full px-3 py-2 pr-10 border placeholder-text-500 text-text dark:text-text bg-background-50 dark:bg-background-200 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm ${
                   form.formState.errors.password
                     ? "border-red-500"
                     : "border-background-300 dark:border-background-300"
@@ -197,15 +197,15 @@ export default function LoginPage() {
           )}
 
           {loginStatus && (
-            <div className="rounded-md bg-primary-100 dark:bg-primary-900/20 p-4">
+            <div className="rounded-md bg-background-200 dark:bg-background-200 p-4">
               <div className="flex items-center">
                 {loginSuccess ? (
-                  <div className="flex items-center text-sm text-primary-700 dark:text-primary-300">
+                  <div className="flex items-center text-sm text-text dark:text-text">
                     <Loader2 className="animate-spin h-4 w-4 mr-2" />
                     {loginStatus}
                   </div>
                 ) : (
-                  <div className="flex items-center text-sm text-primary-700 dark:text-primary-300">
+                  <div className="flex items-center text-sm text-text dark:text-text">
                     <Loader2 className="animate-spin h-4 w-4 mr-2" />
                     {loginStatus}
                   </div>
@@ -220,7 +220,7 @@ export default function LoginPage() {
               disabled={
                 form.formState.isSubmitting || isConnecting || loginSuccess
               }
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 hover:bg-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-300 dark:text-background-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isConnecting || loginSuccess ? (
                 <span className="flex items-center">

@@ -46,15 +46,15 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         <div className="flex h-16 items-center justify-between border-b border-background-300 px-4">
           {!collapsed && (
             <div className="flex items-center">
-              <Database className="h-8 w-8 text-primary-500" />
-              <span className="ml-2 text-xl font-bold text-text-900">
+              <Database className="h-8 w-8 text-text" />
+              <span className="ml-2 text-xl font-bold text-text">
                 Krapi CMS
               </span>
             </div>
           )}
           {collapsed && (
             <div className="flex w-full justify-center">
-              <Database className="h-8 w-8 text-primary-500" />
+              <Database className="h-8 w-8 text-text" />
             </div>
           )}
         </div>
@@ -111,8 +111,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                       className={cn(
                         "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-primary-100 text-primary-700"
-                          : "text-text-600 hover:bg-background-200 hover:text-text-900",
+                          ? "bg-primary text-white"
+                          : "text-text-600 hover:bg-background-200 hover:text-text",
                         collapsed && "justify-center"
                       )}
                       data-testid={`nav-${item.name
@@ -126,8 +126,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                         className={cn(
                           "h-5 w-5 flex-shrink-0",
                           isActive
-                            ? "text-primary-700"
-                            : "text-text-400 group-hover:text-text-500",
+                            ? "text-white"
+                            : "text-text-400 group-hover:text-text-600",
                           !collapsed && "mr-3"
                         )}
                       >
@@ -142,11 +142,11 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                               className={cn(
                                 "ml-2 text-xs",
                                 item.badge === "New" &&
-                                  "bg-secondary-100 text-secondary-700",
+                                  "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-300",
                                 item.badge === "Pro" &&
-                                  "bg-accent-100 text-accent-700",
+                                  "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-300",
                                 item.badge === "Enterprise" &&
-                                  "bg-primary-100 text-primary-700"
+                                  "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-700"
                               )}
                             >
                               {item.badge}
@@ -170,11 +170,11 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                                 className={cn(
                                   "ml-2 text-xs",
                                   item.badge === "New" &&
-                                    "bg-secondary-100 text-secondary-700",
+                                    "bg-secondary-100 text-secondary-700 dark:bg-secondary-900 dark:text-secondary-300",
                                   item.badge === "Pro" &&
-                                    "bg-accent-100 text-accent-700",
+                                    "bg-accent-100 text-accent-700 dark:bg-accent-900 dark:text-accent-300",
                                   item.badge === "Enterprise" &&
-                                    "bg-primary-100 text-primary-700"
+                                    "bg-background-200 text-text-700 dark:bg-background-200 dark:text-text-700"
                                 )}
                               >
                                 {item.badge}
