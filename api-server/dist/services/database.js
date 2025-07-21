@@ -1763,67 +1763,69 @@ This email was sent from {{siteName}} CMS. If you didn't expect this email, plea
         }
     }
     getApiStats() {
-        // Get total requests from all endpoints
-        const totalResult = this.db
-            .prepare("SELECT SUM(request_count) as total FROM api_endpoints")
-            .get();
-        // Get today's requests from api_requests table
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayResult = this.db
-            .prepare("SELECT COUNT(*) as count FROM api_requests WHERE timestamp >= ?")
-            .get(today.toISOString());
-        // Get average response time from actual requests
-        const avgTimeResult = this.db
-            .prepare(`SELECT AVG(response_time) as avg_time 
-         FROM api_requests 
+        try {
+            console.log("🔍 Getting API stats...");
+            // Get total requests from all endpoints
+            const totalResult = this.db
+                .prepare("SELECT SUM(request_count) as total FROM api_endpoints")
+                .get();
+            console.log("📊 Total requests result:", totalResult);
+            // Get today's requests from api_request_logs table
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayResult = this.db
+                .prepare("SELECT COUNT(*) as count FROM api_request_logs WHERE created_at >= ?")
+                .get(today.toISOString());
+            // Get average response time from actual requests
+            const avgTimeResult = this.db
+                .prepare(`SELECT AVG(response_time) as avg_time 
+         FROM api_request_logs 
          WHERE response_time IS NOT NULL 
-         AND timestamp >= datetime('now', '-7 days')`)
-            .get();
-        // Calculate error rate from actual requests
-        const errorResult = this.db
-            .prepare(`SELECT 
+         AND created_at >= datetime('now', '-7 days')`)
+                .get();
+            // Calculate error rate from actual requests
+            const errorResult = this.db
+                .prepare(`SELECT 
           COUNT(CASE WHEN status_code >= 400 THEN 1 END) as errors,
           COUNT(*) as total
-         FROM api_requests 
-         WHERE timestamp >= datetime('now', '-7 days')`)
-            .get();
-        const errorRate = errorResult.total > 0
-            ? (errorResult.errors / errorResult.total) * 100
-            : 0;
-        // Get active keys count
-        const activeKeysResult = this.db
-            .prepare("SELECT COUNT(*) as count FROM api_keys WHERE active = 1")
-            .get();
-        // Get top endpoints by request count
-        const topEndpoints = this.db
-            .prepare("SELECT path, method, request_count as requests FROM api_endpoints ORDER BY request_count DESC LIMIT 5")
-            .all();
-        // Get blocked requests from rate limit violations
-        const blockedResult = this.db
-            .prepare(`SELECT COUNT(*) as count 
-         FROM api_requests 
+         FROM api_request_logs 
+         WHERE created_at >= datetime('now', '-7 days')`)
+                .get();
+            const errorRate = errorResult.total > 0
+                ? (errorResult.errors / errorResult.total) * 100
+                : 0;
+            // Get active keys count
+            const activeKeysResult = this.db
+                .prepare("SELECT COUNT(*) as count FROM api_keys WHERE active = 1")
+                .get();
+            // Get top endpoints by request count
+            const topEndpoints = this.db
+                .prepare("SELECT path, method, request_count as requests FROM api_endpoints ORDER BY request_count DESC LIMIT 5")
+                .all();
+            // Get blocked requests from rate limit violations
+            const blockedResult = this.db
+                .prepare(`SELECT COUNT(*) as count 
+         FROM api_request_logs 
          WHERE status_code = 429 
-         AND timestamp >= datetime('now', '-1 day')`)
-            .get();
-        // Calculate bandwidth based on actual request/response sizes
-        const bandwidthResult = this.db
-            .prepare(`SELECT 
-          SUM(COALESCE(request_size, 0) + COALESCE(response_size, 0)) as total_bytes
-         FROM api_requests 
-         WHERE timestamp >= datetime('now', '-30 days')`)
-            .get();
-        const bandwidthMB = Math.round((bandwidthResult.total_bytes || 0) / (1024 * 1024));
-        return {
-            total_requests: totalResult.total || 0,
-            requests_today: todayResult.count,
-            avg_response_time: Math.round(avgTimeResult.avg_time || 0),
-            error_rate: Math.round(errorRate * 10) / 10,
-            active_keys: activeKeysResult.count,
-            blocked_requests: blockedResult.count,
-            bandwidth_used: `${bandwidthMB} MB`,
-            top_endpoints: topEndpoints,
-        };
+         AND created_at >= datetime('now', '-1 day')`)
+                .get();
+            // Calculate bandwidth (simplified since we don't track request/response sizes yet)
+            const bandwidthMB = 0; // TODO: Add request_size and response_size columns to api_request_logs
+            return {
+                total_requests: totalResult.total || 0,
+                requests_today: todayResult.count,
+                avg_response_time: Math.round(avgTimeResult.avg_time || 0),
+                error_rate: Math.round(errorRate * 10) / 10,
+                active_keys: activeKeysResult.count,
+                blocked_requests: blockedResult.count,
+                bandwidth_used: `${bandwidthMB} MB`,
+                top_endpoints: topEndpoints,
+            };
+        }
+        catch (error) {
+            console.error("❌ Error in getApiStats:", error);
+            throw error;
+        }
     }
     getRateLimits() {
         const results = this.db

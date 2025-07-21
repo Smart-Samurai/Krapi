@@ -8,6 +8,8 @@ import routes from "./routes";
 import { AuthService } from "./services/auth";
 import { setBroadcastFunction } from "./services/email";
 import { initializeMcpServer, shutdownMcpServer } from "./controllers/mcp";
+// Initialize project database
+import "./services/project-database";
 import * as http from "http";
 import { IncomingMessage } from "http";
 import WebSocket, { WebSocketServer } from "ws";

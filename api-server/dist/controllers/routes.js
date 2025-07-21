@@ -145,19 +145,38 @@ class RoutesController {
     }
     static deleteRoute(req, res) {
         try {
-            const { path } = req.params;
-            const deleted = database_1.default.deleteRoute(path);
+            const { id } = req.params;
+            const routeId = parseInt(id);
+            if (isNaN(routeId)) {
+                const response = {
+                    success: false,
+                    error: "Invalid route ID",
+                };
+                res.status(400).json(response);
+                return;
+            }
+            // First get the route to find its path
+            const route = database_1.default.getRouteById(routeId);
+            if (!route) {
+                const response = {
+                    success: false,
+                    error: `Route with ID ${routeId} not found`,
+                };
+                res.status(404).json(response);
+                return;
+            }
+            const deleted = database_1.default.deleteRoute(route.path);
             if (!deleted) {
                 const response = {
                     success: false,
-                    error: `Route with path '${path}' not found`,
+                    error: `Route with path '${route.path}' not found`,
                 };
                 res.status(404).json(response);
                 return;
             }
             const response = {
                 success: true,
-                message: `Route with path '${path}' deleted successfully`,
+                message: `Route with path '${route.path}' deleted successfully`,
             };
             res.json(response);
         }

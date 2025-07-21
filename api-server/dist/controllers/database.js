@@ -47,7 +47,7 @@ class DatabaseController {
      */
     static async getTableData(req, res) {
         try {
-            const tableName = req.params.name;
+            const tableName = req.params.tableName;
             // Validate table name to prevent SQL injection
             if (!database_1.default.isValidTableName(tableName)) {
                 res.status(400).json({

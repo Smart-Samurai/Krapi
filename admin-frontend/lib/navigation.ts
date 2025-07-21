@@ -1,15 +1,14 @@
 import {
   Database,
   Users,
-  FileText,
   Mail,
   Upload,
-  Route,
   Code,
   Shield,
   Activity,
   Home,
   Brain,
+  FolderOpen,
 } from "lucide-react";
 
 export const categories = {
@@ -28,18 +27,12 @@ export const navigation = [
     icon: Home,
     category: "main",
   },
-  // Content Management
   {
-    name: "Content",
-    href: "/dashboard/content",
-    icon: FileText,
-    category: "content",
-  },
-  {
-    name: "Routes",
-    href: "/dashboard/routes",
-    icon: Route,
-    category: "content",
+    name: "Projects",
+    href: "/projects",
+    icon: FolderOpen,
+    category: "main",
+    badge: "New",
   },
 
   // Administration
@@ -102,5 +95,4 @@ export const navigation = [
     icon: Code,
     category: "tools",
   },
-
 ];

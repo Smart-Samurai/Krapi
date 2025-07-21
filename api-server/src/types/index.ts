@@ -390,3 +390,6 @@ export interface DatabaseRateLimitRow {
   active: number;
   created_at: string;
 }
+
+// Import new project-based types
+export * from "./projects";

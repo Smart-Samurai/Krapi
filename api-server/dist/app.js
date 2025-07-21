@@ -47,6 +47,8 @@ const routes_1 = __importDefault(require("./routes"));
 const auth_1 = require("./services/auth");
 const email_1 = require("./services/email");
 const mcp_1 = require("./controllers/mcp");
+// Initialize project database
+require("./services/project-database");
 const http = __importStar(require("http"));
 const ws_1 = __importStar(require("ws"));
 const url_1 = require("url");

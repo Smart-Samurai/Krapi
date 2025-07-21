@@ -17,9 +17,12 @@ const api_management_1 = require("../controllers/api-management");
 const database_1 = require("../controllers/database");
 const mcp_1 = require("../controllers/mcp");
 const auth_2 = require("../middleware/auth");
+const project_api_1 = __importDefault(require("./project-api"));
 const router = express_1.default.Router();
 // Public routes
 router.post("/auth/login", auth_1.AuthController.login);
+// Project API routes (new unified API)
+router.use("/v2", project_api_1.default);
 // Health check
 router.get("/health", (req, res) => {
     const uptime = process.uptime();
@@ -39,17 +42,18 @@ router.get("/auth/verify", auth_1.AuthController.verify);
 router.get("/auth/profile", auth_1.AuthController.getProfile);
 router.put("/auth/profile", auth_1.AuthController.updateProfile);
 router.post("/auth/change-password", auth_1.AuthController.changePassword);
-// MCP Routes (Ollama + AI Integration)
+// MCP Routes (Ollama + AI Integration) - Protected
 router.get("/mcp/info", mcp_1.McpController.getServerInfo);
 router.get("/mcp/health", mcp_1.McpController.healthCheck);
 router.get("/mcp/tools", mcp_1.McpController.listTools);
 router.post("/mcp/tools/call", mcp_1.McpController.callTool);
 router.get("/mcp/app-state", mcp_1.McpController.getAppState);
-// Ollama Integration
+// Ollama Integration - Protected
 router.get("/ollama/models", mcp_1.McpController.listModels);
 router.post("/ollama/models/pull", mcp_1.McpController.pullModel);
 router.post("/ollama/chat", mcp_1.McpController.ollamaChat);
 router.post("/ollama/generate", mcp_1.McpController.generate);
+router.put("/ollama/config", mcp_1.McpController.updateOllamaConfig);
 // API Management routes
 router.get("/admin/api/stats", api_management_1.ApiManagementController.getApiStats);
 router.get("/admin/api/keys", api_management_1.ApiManagementController.getApiKeys);
@@ -66,11 +70,11 @@ router.get("/search", search_1.SearchController.searchAll);
 // Users
 router.get("/admin/users", users_1.UserController.getAllUsers);
 router.post("/admin/users", users_1.UserController.createUser);
+router.get("/admin/users/stats", users_1.UserController.getUserStats);
 router.get("/admin/users/:id", users_1.UserController.getUserById);
 router.put("/admin/users/:id", users_1.UserController.updateUser);
 router.delete("/admin/users/:id", users_1.UserController.deleteUser);
 router.patch("/admin/users/:id/toggle-status", users_1.UserController.toggleUserStatus);
-router.get("/admin/users/stats", users_1.UserController.getUserStats);
 // Auth Management
 router.get("/admin/auth/security-settings", auth_1.AuthController.getSecuritySettings);
 router.put("/admin/auth/security-settings", auth_1.AuthController.updateSecuritySettings);
