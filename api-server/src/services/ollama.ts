@@ -33,7 +33,7 @@ export class OllamaService {
     try {
       const response = await this.client.get("/api/tags");
       return response.status === 200;
-    } catch (error) {
+    } catch {
       // Don't log error details to reduce noise when Ollama is not available
       if (process.env.NODE_ENV === "development") {
         console.debug(
@@ -64,10 +64,26 @@ export class OllamaService {
    */
   async pullModel(modelName: string): Promise<boolean> {
     try {
-      const response = await this.client.post("/api/pull", { name: modelName });
-      return response.status === 200;
+      // Ollama pull API expects the model name in the request body
+      const response = await this.client.post("/api/pull", {
+        name: modelName,
+        stream: false,
+      });
+
+      // Check if the response indicates success
+      if (response.status === 200) {
+        console.log(`✅ Successfully pulled model: ${modelName}`);
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error(`Failed to pull model ${modelName}:`, error);
+      if (axios.isAxiosError(error)) {
+        console.error(
+          `Ollama API error: ${error.response?.data?.error || error.message}`
+        );
+      }
       return false;
     }
   }
@@ -124,7 +140,7 @@ export class OllamaService {
         options.tools.map((t) => t.name)
       );
 
-      // Format tools for Ollama's expected format
+      // Format tools for Ollama's expected format (official API)
       request.tools = options.tools.map((tool) => ({
         type: "function",
         function: {
@@ -250,5 +266,26 @@ export class OllamaService {
    */
   getBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  /**
+   * Update Ollama configuration
+   */
+  updateConfig(config: { baseUrl?: string; defaultModel?: string }): void {
+    if (config.baseUrl) {
+      this.baseUrl = config.baseUrl;
+      // Recreate the axios client with the new base URL
+      this.client = axios.create({
+        baseURL: this.baseUrl,
+        timeout: this.timeout,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    if (config.defaultModel) {
+      this.defaultModel = config.defaultModel;
+    }
   }
 }

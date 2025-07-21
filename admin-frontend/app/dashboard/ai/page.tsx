@@ -97,6 +97,13 @@ export default function AIPage() {
   const [isPullingModel, setIsPullingModel] = useState(false);
   const [isLoadingModel, setIsLoadingModel] = useState(false);
 
+  // Load initial data
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
+
   // Show loading state while authentication is being checked
   if (authLoading) {
     return (
@@ -122,13 +129,6 @@ export default function AIPage() {
       </div>
     );
   }
-
-  // Load initial data
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [isAuthenticated]);
 
   const loadData = async () => {
     try {
@@ -300,9 +300,21 @@ export default function AIPage() {
 
   const updateOllamaUrl = async () => {
     try {
-      // In a real implementation, you'd call the backend to update the Ollama URL
       console.log(`Updating Ollama URL to: ${ollamaUrl}`);
-      await loadData(); // Reload data with new URL
+
+      const response = await ollamaAPI.updateConfig({ baseUrl: ollamaUrl });
+
+      if (response.success) {
+        // Update local state with new data
+        setIsOllamaHealthy(response.data.healthy);
+        setModels(response.data.availableModels || []);
+        if (response.data.defaultModel) {
+          setCurrentModel(response.data.defaultModel);
+        }
+        setError(""); // Clear any previous errors
+      } else {
+        throw new Error(response.error || "Failed to update Ollama URL");
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to update Ollama URL"

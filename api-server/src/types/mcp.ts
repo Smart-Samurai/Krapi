@@ -25,6 +25,7 @@ export interface McpTool {
 }
 
 export interface McpToolCall {
+  id: string;
   function: {
     name: string;
     arguments: Record<string, unknown>;
@@ -43,6 +44,7 @@ export interface OllamaMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
   tool_calls?: McpToolCall[];
+  tool_call_id?: string;
 }
 
 export interface OllamaToolFormat {

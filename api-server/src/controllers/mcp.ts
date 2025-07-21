@@ -316,6 +316,52 @@ export class McpController {
   }
 
   /**
+   * Update Ollama configuration (URL, default model, etc.)
+   */
+  static async updateOllamaConfig(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    try {
+      const { baseUrl, defaultModel } = req.body;
+
+      if (!baseUrl) {
+        res.status(400).json({
+          success: false,
+          error: "Base URL is required",
+        });
+        return;
+      }
+
+      const mcpServer = getMcpServer();
+      const ollamaService = mcpServer.getOllamaService();
+
+      // Update the Ollama service configuration
+      ollamaService.updateConfig({ baseUrl, defaultModel });
+
+      // Test the new configuration
+      const isHealthy = await ollamaService.healthCheck();
+      const models = await ollamaService.listModels().catch(() => []);
+
+      res.json({
+        success: true,
+        data: {
+          message: "Ollama configuration updated successfully",
+          baseUrl,
+          defaultModel: defaultModel || ollamaService.getDefaultModel(),
+          healthy: isHealthy,
+          availableModels: models,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
    * Get current application state context
    */
   static async getAppState(

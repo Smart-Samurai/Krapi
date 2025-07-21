@@ -48,20 +48,50 @@ export class McpServer {
    * Safely extract text content from a tool result
    */
   private extractToolResultContent(result: unknown, toolName: string): string {
-    // Validate using type guard
-    if (!isValidToolResult(result)) {
-      console.error(`Tool ${toolName} returned invalid result:`, result);
-      return `Error: Tool ${toolName} returned invalid result structure`;
+    // Handle different result formats
+    if (result && typeof result === "object") {
+      // If result has a message property, use it
+      if ("message" in result && typeof result.message === "string") {
+        return result.message;
+      }
+
+      // If result has a success property and message, format it
+      if ("success" in result) {
+        if (result.success === true && "message" in result) {
+          return String(result.message);
+        } else if (result.success === false && "error" in result) {
+          return `Error: ${result.error}`;
+        }
+      }
+
+      // If result has content array (McpToolResult format)
+      if (
+        "content" in result &&
+        Array.isArray(result.content) &&
+        result.content.length > 0
+      ) {
+        const firstContent = result.content[0];
+        if (
+          firstContent &&
+          typeof firstContent === "object" &&
+          "text" in firstContent
+        ) {
+          return String(firstContent.text);
+        }
+      }
+
+      // Fallback: stringify the result
+      return JSON.stringify(result, null, 2);
     }
 
-    // At this point, TypeScript knows result is McpToolResult
-    if (result.content.length === 0) {
-      console.warn(`Tool ${toolName} returned empty content array`);
-      return `Tool ${toolName} completed but returned no content`;
+    // If result is a string, return it directly
+    if (typeof result === "string") {
+      return result;
     }
 
-    // Safe access - we know content[0] exists and has text property
-    return result.content[0].text;
+    // Fallback for unknown formats
+    console.warn(`Tool ${toolName} returned unexpected result format:`, result);
+    return `Tool ${toolName} completed with result: ${JSON.stringify(result)}`;
   }
 
   /**
@@ -302,11 +332,11 @@ export class McpServer {
                 toolCall.function.name
               );
 
-              // Add tool result as a message
+              // Add tool result as a message with tool_call_id (Ollama format)
               workingMessages.push({
                 role: "tool",
                 content,
-                // Include tool call ID if available
+                tool_call_id: toolCall.id,
               });
             } catch (error) {
               const errorMessage = `Error executing tool ${
@@ -316,6 +346,7 @@ export class McpServer {
               workingMessages.push({
                 role: "tool",
                 content: errorMessage,
+                tool_call_id: toolCall.id,
               });
             }
           } else {
@@ -324,6 +355,7 @@ export class McpServer {
             workingMessages.push({
               role: "tool",
               content: errorMessage,
+              tool_call_id: toolCall.id,
             });
           }
         }

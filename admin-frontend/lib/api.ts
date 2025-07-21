@@ -151,6 +151,12 @@ export const ollamaAPI = {
     return response.data;
   },
 
+  // Update Ollama configuration
+  updateConfig: async (config: { baseUrl: string; defaultModel?: string }) => {
+    const response = await api.put("/ollama/config", config);
+    return response.data;
+  },
+
   // Chat with Ollama
   chat: async (
     messages: Array<{ role: string; content: string }>,

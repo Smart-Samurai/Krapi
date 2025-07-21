@@ -52,6 +52,7 @@ router.get("/ollama/models", McpController.listModels);
 router.post("/ollama/models/pull", McpController.pullModel);
 router.post("/ollama/chat", McpController.ollamaChat);
 router.post("/ollama/generate", McpController.generate);
+router.put("/ollama/config", McpController.updateOllamaConfig);
 
 // API Management routes
 router.get("/admin/api/stats", ApiManagementController.getApiStats);
