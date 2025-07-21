@@ -19,15 +19,12 @@ router.get("/", (req, res) => {
                 login: "POST /api/auth/login",
                 verify: "GET /api/auth/verify",
             },
-            admin: {
-                getAllContent: "GET /api/admin/content",
-                getContent: "GET /api/admin/content/:key",
-                createContent: "POST /api/admin/content",
-                updateContent: "PUT /api/admin/content/:key",
-                deleteContent: "DELETE /api/admin/content/:key",
-            },
-            public: {
-                getContent: "GET /api/content/:key",
+            projects: {
+                list: "GET /api/v2/admin/projects",
+                create: "POST /api/v2/admin/projects",
+                get: "GET /api/v2/admin/projects/:projectId",
+                collections: "GET /api/v2/projects/:projectId/collections",
+                documents: "GET /api/v2/projects/:projectId/collections/:collectionId/documents",
             },
         },
     });

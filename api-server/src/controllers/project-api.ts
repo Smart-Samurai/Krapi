@@ -183,6 +183,7 @@ class ProjectApiController {
           success: false,
           error: "Project name is required",
         });
+        return;
       }
 
       const project: Omit<Project, "id" | "created_at" | "updated_at"> = {

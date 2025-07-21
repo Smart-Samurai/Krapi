@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { contentAPI, authAPI, healthAPI, routesAPI, usersAPI } from "@/lib/api";
+import { projectAPI, authAPI, healthAPI, usersAPI } from "@/lib/api";
 import { Play, Copy, CheckCircle, AlertCircle } from "lucide-react";
 
 interface TestResult {
@@ -62,14 +62,9 @@ export default function ApiTestPage() {
         testFn: () => authAPI.verify(),
       },
       {
-        endpoint: "/api/admin/content",
+        endpoint: "/api/v2/admin/projects",
         method: "GET",
-        testFn: () => contentAPI.getAllContent(),
-      },
-      {
-        endpoint: "/api/admin/routes",
-        method: "GET",
-        testFn: () => routesAPI.getAllRoutes(),
+        testFn: () => projectAPI.getAllProjects(),
       },
       {
         endpoint: "/api/admin/users",
@@ -78,13 +73,7 @@ export default function ApiTestPage() {
       },
     ];
 
-    if (testKey) {
-      tests.push({
-        endpoint: `/api/content/default/${testKey}`,
-        method: "GET",
-        testFn: () => contentAPI.getPublicContent("/default", testKey),
-      });
-    }
+
 
     const testResults: TestResult[] = [];
 
@@ -196,43 +185,15 @@ export default function ApiTestPage() {
 
             <button
               onClick={() =>
-                runSingleTest("/api/admin/content", "GET", () =>
-                  contentAPI.getAllContent()
+                runSingleTest("/api/v2/admin/projects", "GET", () =>
+                  projectAPI.getAllProjects()
                 )
               }
               className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
             >
               <Play className="h-4 w-4 mr-2" />
-              Get All Content
+              Get All Projects
             </button>
-
-            {testKey && (
-              <>
-                <button
-                  onClick={() =>
-                    runSingleTest(`/api/content/test/${testKey}`, "GET", () =>
-                      contentAPI.getPublicContent("test", testKey)
-                    )
-                  }
-                  className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Get Public Content
-                </button>
-
-                <button
-                  onClick={() =>
-                    runSingleTest(`/api/admin/content/1`, "GET", () =>
-                      contentAPI.getContentById(1)
-                    )
-                  }
-                  className="inline-flex items-center px-3 py-2 border border-background-300 dark:border-background-300 text-sm font-medium rounded-md text-text-700 dark:text-text-300 bg-background-100 dark:bg-background-100 hover:bg-background-50 dark:bg-background-50"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Get Admin Content
-                </button>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -348,33 +309,21 @@ export default function ApiTestPage() {
                 </li>
                 <li>
                   <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
-                    GET /api/admin/content
+                    GET /api/v2/admin/projects
                   </code>{" "}
-                  - Get all content
+                  - Get all projects
                 </li>
                 <li>
                   <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
-                    GET /api/admin/content/:key
+                    POST /api/v2/admin/projects
                   </code>{" "}
-                  - Get content by key
+                  - Create project
                 </li>
                 <li>
                   <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
-                    POST /api/admin/content
+                    GET /api/v2/admin/projects/:projectId
                   </code>{" "}
-                  - Create content
-                </li>
-                <li>
-                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
-                    PUT /api/admin/content/:key
-                  </code>{" "}
-                  - Update content
-                </li>
-                <li>
-                  <code className="bg-background-100 dark:bg-background-100 px-2 py-1 rounded">
-                    DELETE /api/admin/content/:key
-                  </code>{" "}
-                  - Delete content
+                  - Get project details
                 </li>
               </ul>
             </div>

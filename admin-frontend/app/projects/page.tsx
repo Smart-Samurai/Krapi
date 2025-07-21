@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, Settings, Users, Database, Activity } from "lucide-react";
 import { useNotification } from "@/hooks/useNotification";
-import { config } from "@/lib/config";
+import { projectAPI } from "@/lib/api";
 
 interface Project {
   id: string;
@@ -69,23 +69,15 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch(
-        `${config.getApiUrl("/v2/admin/projects")}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data.data || []);
+      const response = await projectAPI.getAllProjects();
+      if (response.success && response.data) {
+        setProjects(response.data);
       } else {
-        showError("Failed to fetch projects");
+        setProjects([]);
       }
-    } catch {
+    } catch (error) {
       showError("Error fetching projects");
+      console.error("Error fetching projects:", error);
     } finally {
       setLoading(false);
     }
@@ -93,29 +85,16 @@ export default function ProjectsPage() {
 
   const createProject = async () => {
     try {
-      const response = await fetch(
-        `${config.getApiUrl("/v2/admin/projects")}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify(newProject),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setProjects([...projects, data.data]);
-        setCreateDialogOpen(false);
-        setNewProject({ name: "", description: "", domain: "" });
-        showSuccess("Project created successfully");
-      } else {
-        showError("Failed to create project");
+      const response = await projectAPI.createProject(newProject);
+      if (response.success && response.data) {
+        setProjects([...projects, response.data]);
       }
-    } catch {
+      setCreateDialogOpen(false);
+      setNewProject({ name: "", description: "", domain: "" });
+      showSuccess("Project created successfully");
+    } catch (error) {
       showError("Error creating project");
+      console.error("Error creating project:", error);
     }
   };
 

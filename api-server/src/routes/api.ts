@@ -116,8 +116,8 @@ router.delete("/admin/schemas/:id", SchemasController.deleteSchema);
 router.get("/schema/:name", SchemasController.getSchemaByName);
 
 // Database
-router.get("/admin/content/tables", DatabaseController.getTables);
-router.post("/admin/content/tables", DatabaseController.createTable);
+router.get("/admin/database/tables", DatabaseController.getTables);
+router.post("/admin/database/tables", DatabaseController.createTable);
 router.get("/admin/database/stats", DatabaseController.getStats);
 router.get("/admin/database/info", DatabaseController.getDatabaseInfo);
 router.get("/admin/database/table/:tableName", DatabaseController.getTableData);

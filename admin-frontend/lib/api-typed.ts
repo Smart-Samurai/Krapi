@@ -9,12 +9,7 @@ import type {
   CreateUserData,
   UpdateUserData,
   ChangePasswordData,
-  ContentItem,
-  CreateContentData,
-  UpdateContentData,
-  Route,
-  CreateRouteData,
-  UpdateRouteData,
+
   Schema,
   CreateSchemaData,
   UpdateSchemaData,
@@ -127,57 +122,7 @@ export const usersAPI = {
   },
 };
 
-/**
- * Content Management API
- */
-export const contentAPI = {
-  getAllContent: async (filters?: { route_path?: string; content_type?: string }): Promise<ContentItem[]> => {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) params.append(key, String(value));
-      });
-    }
-    return apiCall(() => api.get(`/admin/content?${params.toString()}`));
-  },
-  
-  getContentByKey: async (key: string): Promise<ContentItem> => {
-    return apiCall(() => api.get(`/admin/content/${key}`));
-  },
-  
-  createContent: async (data: CreateContentData): Promise<ContentItem> => {
-    return apiCall(() => api.post('/admin/content', data));
-  },
-  
-  updateContent: async (key: string, data: UpdateContentData): Promise<ContentItem> => {
-    return apiCall(() => api.put(`/admin/content/${key}`, data));
-  },
-  
-  deleteContent: async (key: string): Promise<{ message: string }> => {
-    return apiCall(() => api.delete(`/admin/content/${key}`));
-  },
-};
 
-/**
- * Routes API
- */
-export const routesAPI = {
-  getAllRoutes: async (): Promise<Route[]> => {
-    return apiCall(() => api.get('/admin/routes'));
-  },
-  
-  createRoute: async (data: CreateRouteData): Promise<Route> => {
-    return apiCall(() => api.post('/admin/routes', data));
-  },
-  
-  updateRoute: async (id: number, data: UpdateRouteData): Promise<Route> => {
-    return apiCall(() => api.put(`/admin/routes/${id}`, data));
-  },
-  
-  deleteRoute: async (id: number): Promise<{ message: string }> => {
-    return apiCall(() => api.delete(`/admin/routes/${id}`));
-  },
-};
 
 /**
  * Schema API

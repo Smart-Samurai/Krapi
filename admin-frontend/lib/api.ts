@@ -1,14 +1,10 @@
 import axios from "axios";
 import {
-  ContentItem,
   CreateUserData,
   UpdateUserData,
   ChangePasswordData,
-  ContentFilters,
-  RouteFilters,
   FileFilters,
   UserFilters,
-  ContentSchema,
 } from "../types";
 import type {
   EmailConfig,
@@ -74,16 +70,7 @@ api.interceptors.response.use(
   }
 );
 
-// Transform backend content item to frontend format
-const transformContentItem = (item: Record<string, unknown>): ContentItem => {
-  const transformed = {
-    ...item,
-    value: item.data, // Transform 'data' to 'value'
-    type: item.content_type, // Transform 'content_type' to 'type'
-    route_id: item.parent_route_id || 1, // Default route_id if not available
-  };
-  return transformed as ContentItem;
-};
+
 
 // Auth API
 export const authAPI = {
@@ -213,10 +200,69 @@ export const ollamaAPI = {
   },
 };
 
-// Content API
-export const contentAPI = {
+// Project API
+export const projectAPI = {
   // Admin routes
-  getAllContent: async (filters?: ContentFilters) => {
+  getAllProjects: async () => {
+    const response = await api.get("/v2/admin/projects");
+    return response.data;
+  },
+  getProject: async (projectId: string) => {
+    const response = await api.get(`/v2/admin/projects/${projectId}`);
+    return response.data;
+  },
+  createProject: async (data: {
+    name: string;
+    description?: string;
+    domain?: string;
+    settings?: Record<string, unknown>;
+  }) => {
+    const response = await api.post("/v2/admin/projects", data);
+    return response.data;
+  },
+  updateProject: async (
+    projectId: string,
+    data: {
+      name?: string;
+      description?: string;
+      domain?: string;
+      settings?: Record<string, unknown>;
+      status?: string;
+    }
+  ) => {
+    const response = await api.put(`/v2/admin/projects/${projectId}`, data);
+    return response.data;
+  },
+  deleteProject: async (projectId: string) => {
+    const response = await api.delete(`/v2/admin/projects/${projectId}`);
+    return response.data;
+  },
+  // Collections
+  getCollections: async (projectId: string) => {
+    const response = await api.get(`/v2/projects/${projectId}/collections`);
+    return response.data;
+  },
+  createCollection: async (
+    projectId: string,
+    data: {
+      name: string;
+      description?: string;
+      schema: Record<string, unknown>;
+      indexes?: Array<{ field: string; type: string }>;
+    }
+  ) => {
+    const response = await api.post(
+      `/v2/projects/${projectId}/collections`,
+      data
+    );
+    return response.data;
+  },
+  // Documents
+  getDocuments: async (
+    projectId: string,
+    collectionId: string,
+    filters?: Record<string, unknown>
+  ) => {
     const params = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -225,82 +271,45 @@ export const contentAPI = {
         }
       });
     }
-    const response = await api.get(`/admin/content/get?${params.toString()}`);
-    if (response.data.success && response.data.data) {
-      response.data.data = response.data.data.map(transformContentItem);
-    }
+    const response = await api.get(
+      `/v2/projects/${projectId}/collections/${collectionId}/documents?${params.toString()}`
+    );
     return response.data;
   },
-  getContentById: async (id: number) => {
-    const response = await api.get(`/admin/content/get/${id}`);
-    if (response.data.success && response.data.data) {
-      response.data.data = transformContentItem(response.data.data);
-    }
+  createDocument: async (
+    projectId: string,
+    collectionId: string,
+    data: Record<string, unknown>
+  ) => {
+    const response = await api.post(
+      `/v2/projects/${projectId}/collections/${collectionId}/documents`,
+      { data }
+    );
     return response.data;
   },
-  createContent: async (data: {
-    key: string;
-    data: unknown;
-    description?: string;
-    route_path: string;
-    content_type: string;
-    schema?: ContentSchema;
-  }) => {
-    const response = await api.post("/admin/content/create", {
-      key: data.key,
-      data: data.data,
-      description: data.description,
-      route_path: data.route_path,
-      content_type: data.content_type,
-      schema: data.schema,
-    });
-    if (response.data.success && response.data.data) {
-      response.data.data = transformContentItem(response.data.data);
-    }
+  // API Keys
+  getApiKeys: async (projectId: string) => {
+    const response = await api.get(`/v2/admin/projects/${projectId}/keys`);
     return response.data;
   },
-  updateContent: async (
-    id: number,
+  createApiKey: async (
+    projectId: string,
     data: {
-      key?: string;
-      data?: unknown;
-      content_type?: string;
-      description?: string;
-      schema?: ContentSchema;
+      name: string;
+      permissions: string[];
+      expires_at?: string;
     }
   ) => {
-    const response = await api.put(`/admin/content/modify/id/${id}`, {
-      key: data.key,
-      data: data.data,
-      description: data.description,
-      content_type: data.content_type,
-      schema: data.schema,
-    });
-    if (response.data.success && response.data.data) {
-      response.data.data = transformContentItem(response.data.data);
-    }
+    const response = await api.post(
+      `/v2/admin/projects/${projectId}/keys`,
+      data
+    );
     return response.data;
   },
-  deleteContent: async (id: number) => {
-    const response = await api.delete(`/admin/content/delete/id/${id}`);
-    return response.data;
-  },
-  // Get content filtered by route path (admin method)
-  getContentByRoute: async (routePath: string) => {
-    const filters: ContentFilters = { route_path: routePath };
-    return contentAPI.getAllContent(filters);
-  },
-  // Public routes
-  getPublicContent: async (routePath: string, key: string) => {
-    const response = await api.get(`/content/${routePath}/${key}`);
-    // For public endpoints, data is returned directly, not as a content item object
-    return response.data;
-  },
-  getPublicContentByRoute: async (routePath: string) => {
-    const response = await api.get(`/content/${routePath}`);
-    if (response.data.success && response.data.data) {
-      response.data.data = response.data.data.map(transformContentItem);
-    }
+  deleteApiKey: async (projectId: string, keyId: string) => {
+    const response = await api.delete(
+      `/v2/admin/projects/${projectId}/keys/${keyId}`
+    );
     return response.data;
   },
 };
@@ -344,54 +353,7 @@ export const schemasAPI = {
   },
 };
 
-// Routes API
-export const routesAPI = {
-  getAllRoutes: async (filters?: RouteFilters) => {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-    const response = await api.get(`/admin/routes?${params.toString()}`);
-    return response.data;
-  },
-  getRouteById: async (id: number) => {
-    const response = await api.get(`/admin/routes/${id}`);
-    return response.data;
-  },
-  createRoute: async (route: {
-    path: string;
-    name: string;
-    description?: string;
-    parent_id?: number;
-  }) => {
-    const response = await api.post("/admin/routes", route);
-    return response.data;
-  },
-  updateRoute: async (
-    id: number,
-    route: {
-      path?: string;
-      name?: string;
-      description?: string;
-      parent_id?: number;
-    }
-  ) => {
-    const response = await api.put(`/admin/routes/${id}`, route);
-    return response.data;
-  },
-  deleteRoute: async (id: number) => {
-    const response = await api.delete(`/admin/routes/${id}`);
-    return response.data;
-  },
-  getRouteTree: async () => {
-    const response = await api.get("/admin/routes/tree");
-    return response.data;
-  },
-};
+
 
 // Users API
 export const usersAPI = {

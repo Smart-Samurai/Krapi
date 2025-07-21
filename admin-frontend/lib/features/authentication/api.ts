@@ -10,7 +10,7 @@ import axios from "axios";
 
 // Use environment variable or fallback to localhost
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3469/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/api";
 
 // Create axios instance specifically for auth
 const authAxios = axios.create({

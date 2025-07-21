@@ -4,13 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import WebSocketStatus from "@/components/WebSocketStatus";
 import {
-  contentAPI,
+  projectAPI,
   healthAPI,
-  routesAPI,
   filesAPI,
   usersAPI,
 } from "@/lib/api";
-import { ContentItem, HealthStatus } from "@/types";
+import { HealthStatus } from "@/types";
 import {
   Database,
   Activity,
@@ -24,13 +23,12 @@ import {
 export default function DashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState({
-    contentCount: 0,
-    routesCount: 0,
+    projectsCount: 0,
     filesCount: 0,
     usersCount: 0,
   });
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
-  const [recentContent, setRecentContent] = useState<ContentItem[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
 
   const loadDashboardData = useCallback(async () => {
@@ -44,22 +42,9 @@ export default function DashboardPage() {
       // Create base promises array
       const promises = [];
 
-      // Add content and health API calls first (these are always allowed)
-      promises.push(contentAPI.getAllContent());
+      // Add project and health API calls first (these are always allowed)
+      promises.push(projectAPI.getAllProjects());
       promises.push(healthAPI.check());
-
-      // Add admin-only API calls based on user permissions with small delays to reduce concurrent load
-      if (
-        user?.role === "admin" ||
-        user?.permissions?.includes("routes.read")
-      ) {
-        // Add a small delay to stagger the requests
-        promises.push(
-          new Promise((resolve) => setTimeout(resolve, 100)).then(() =>
-            routesAPI.getAllRoutes()
-          )
-        );
-      }
       if (user?.role === "admin" || user?.permissions?.includes("files.read")) {
         promises.push(
           new Promise((resolve) => setTimeout(resolve, 200)).then(() =>
@@ -77,38 +62,21 @@ export default function DashboardPage() {
 
       const responses = await Promise.all(promises);
       const [
-        contentResponse,
+        projectsResponse,
         healthResponse,
-        routesResponse,
         filesResponse,
         usersResponse,
       ] = responses;
 
-      if (contentResponse.success) {
+      if (projectsResponse.success) {
         setStats((prev) => ({
           ...prev,
-          contentCount: contentResponse.data.length,
+          projectsCount: projectsResponse.data.length,
         }));
-        // Get 5 most recent items
-        const sorted = contentResponse.data
-          .sort(
-            (a: ContentItem, b: ContentItem) =>
-              new Date(b.updated_at).getTime() -
-              new Date(a.updated_at).getTime()
-          )
-          .slice(0, 5);
-        setRecentContent(sorted);
       }
 
       if (healthResponse.success && healthResponse.status === "OK") {
         setHealthStatus(healthResponse);
-      }
-
-      if (routesResponse?.success) {
-        setStats((prev) => ({
-          ...prev,
-          routesCount: routesResponse.data.length,
-        }));
       }
 
       if (filesResponse?.success) {
@@ -193,10 +161,10 @@ export default function DashboardPage() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-text-500 truncate">
-                    Content Items
+                    Projects
                   </dt>
                   <dd className="text-lg font-medium text-text-900">
-                    {stats.contentCount}
+                    {stats.projectsCount}
                   </dd>
                 </dl>
               </div>
@@ -269,56 +237,54 @@ export default function DashboardPage() {
       {/* WebSocket Status */}
       <WebSocketStatus />
 
-      {/* Recent Content */}
+      {/* Quick Actions */}
       <div className="bg-background-100 dark:bg-background-100 shadow overflow-hidden sm:rounded-md">
         <div className="px-4 py-5 sm:px-6">
           <h3 className="text-lg leading-6 font-medium text-text-900 dark:text-text-50">
-            Recent Content Updates
+            Quick Actions
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-text-500 dark:text-text-500">
-            Latest content items that have been modified.
+            Common tasks and shortcuts.
           </p>
         </div>
-        <ul className="divide-y divide-background-200">
-          {recentContent.length > 0 ? (
-            recentContent.map((item) => (
-              <li key={item.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <TrendingUp className="h-5 w-5 text-text-400" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-primary-600">
-                          {item.key}
-                        </p>
-                        <p className="text-sm text-text-500">
-                          {item.description || "No description"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-sm text-text-500">
-                      {new Date(item.updated_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </li>
-            ))
-          ) : (
-            <li>
-              <div className="px-4 py-8 text-center">
-                <Database className="mx-auto h-12 w-12 text-text-400" />
-                <h3 className="mt-2 text-sm font-medium text-text-900">
-                  No content yet
-                </h3>
-                <p className="mt-1 text-sm text-text-500">
-                  Get started by creating your first content item.
+        <div className="px-4 py-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <a
+              href="/projects"
+              className="relative rounded-lg border border-background-300 bg-background-100 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-background-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
+            >
+              <div className="flex-shrink-0">
+                <Database className="h-6 w-6 text-primary-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="absolute inset-0" aria-hidden="true" />
+                <p className="text-sm font-medium text-text-900">
+                  Manage Projects
+                </p>
+                <p className="text-sm text-text-500 truncate">
+                  Create and manage your projects
                 </p>
               </div>
-            </li>
-          )}
-        </ul>
+            </a>
+            <a
+              href="/dashboard/api"
+              className="relative rounded-lg border border-background-300 bg-background-100 px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-background-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
+            >
+              <div className="flex-shrink-0">
+                <Activity className="h-6 w-6 text-accent-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="absolute inset-0" aria-hidden="true" />
+                <p className="text-sm font-medium text-text-900">
+                  API Management
+                </p>
+                <p className="text-sm text-text-500 truncate">
+                  Manage API keys and endpoints
+                </p>
+              </div>
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}

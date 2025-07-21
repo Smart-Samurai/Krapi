@@ -1,42 +1,38 @@
-// Content and Routes
-export interface ContentSchema {
-  id: number;
+// Projects and Collections
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  domain?: string;
+  settings: Record<string, unknown>;
+  status: "active" | "inactive" | "suspended";
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface Collection {
+  id: string;
+  project_id: string;
   name: string;
   description?: string;
   schema: Record<string, unknown>;
-  version: string;
+  indexes: Array<{ field: string; type: string }>;
+  permissions: Record<string, unknown>;
+  document_count: number;
   created_at: string;
   updated_at: string;
 }
 
-export interface ContentItem {
-  id: number;
-  key: string;
-  value: unknown; // Frontend uses 'value', transformed from backend 'data'
-  type: string; // Frontend uses 'type', transformed from backend 'content_type'
-  data: unknown; // Backend uses 'data' field
-  route_id: number; // Frontend uses 'route_id', transformed from backend route resolution
-  route_path: string; // Backend uses 'route_path'
-  parent_route_id?: number; // Backend uses 'parent_route_id'
-  content_type: string; // Backend uses 'content_type'
-  schema?: Record<string, unknown>;
-  description?: string;
+export interface Document {
+  id: string;
+  collection_id: string;
+  project_id: string;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
-}
-
-export interface ContentRoute {
-  id: number;
-  path: string;
-  name: string;
-  description?: string;
-  schema?: Record<string, unknown>;
-  access_level: "public" | "protected" | "private";
-  parent_id?: number;
-  created_at: string;
-  updated_at: string;
-  children?: ContentRoute[]; // For nested routes
-  content?: ContentItem[]; // Content items in this route
+  created_by: string;
+  updated_by: string;
 }
 
 // Users and Auth
@@ -175,22 +171,18 @@ export interface SchemaField {
 export type ContentSchemaDefinition = Record<string, SchemaField>;
 
 // Filter and search options
-export interface ContentFilters {
-  route_id?: number;
-  route_path?: string;
-  type?: string;
-  access_level?: "public" | "protected" | "private";
+export interface ProjectFilters {
+  status?: string;
   search?: string;
   page?: number;
   limit?: number;
 }
 
-export interface RouteFilters {
-  parent_id?: number;
-  access_level?: "public" | "protected" | "private";
+export interface DocumentFilters {
   search?: string;
   page?: number;
   limit?: number;
+  [key: string]: unknown; // Allow custom field filters
 }
 
 export interface FileFilters {
