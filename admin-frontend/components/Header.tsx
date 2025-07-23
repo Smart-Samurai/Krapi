@@ -40,6 +40,7 @@ import { ThemeToggle } from "./ThemeToggle";
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
   isMobileMenuOpen?: boolean;
+  projectId?: string;
 }
 
 interface SearchResult {

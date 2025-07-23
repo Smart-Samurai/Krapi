@@ -43,6 +43,7 @@ const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const routes_1 = __importDefault(require("./routes"));
+const unified_api_1 = __importDefault(require("./routes/unified-api"));
 // Removed express-ws in favor of ws
 const auth_1 = require("./services/auth");
 const email_1 = require("./services/email");
@@ -82,6 +83,8 @@ app.use(express_1.default.json({ limit: "10mb" }));
 app.use(express_1.default.urlencoded({ extended: true, limit: "10mb" }));
 // Routes
 app.use("/", routes_1.default);
+// Unified API (Appwrite-style)
+app.use("/krapi/v1", unified_api_1.default);
 // Error handling middleware
 app.use((err, req, res, _next) => {
     console.error("Error:", err);

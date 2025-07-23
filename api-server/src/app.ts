@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import routes from "./routes";
+import unifiedApiRoutes from "./routes/unified-api";
 // Removed express-ws in favor of ws
 import { AuthService } from "./services/auth";
 import { setBroadcastFunction } from "./services/email";
@@ -54,6 +55,9 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Routes
 app.use("/", routes);
+
+// Unified API (Appwrite-style)
+app.use("/krapi/v1", unifiedApiRoutes);
 
 // Error handling middleware
 app.use(

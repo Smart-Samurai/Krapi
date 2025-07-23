@@ -7,7 +7,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { authAPI } from "@/lib/api";
+import { unifiedAPI } from "@/lib/unified-api";
 import { User } from "@/types";
 import { config } from "@/lib/config";
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  const isAuthenticated = !!user && !!token;
+  const isAuthenticated = !!token; // Simplified: if we have a token, we're authenticated
 
   useEffect(() => {
     // Check for existing token on mount
@@ -183,12 +183,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyToken = async () => {
     try {
       console.log("🔍 Verifying token...");
-      const response = await authAPI.verify();
-      console.log("🔍 Token verification response:", response);
+      // For now, we'll use the old API for token verification since unified API doesn't have this yet
+      const response = await fetch(`${config.api.baseUrl}/auth/verify`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      console.log("🔍 Token verification response:", data);
 
-      if (response.success && response.data && response.data.user) {
-        console.log("✅ Token verified, setting user:", response.data.user);
-        setUser(response.data.user);
+      if (data.success && data.data && data.data.user) {
+        console.log("✅ Token verified, setting user:", data.data.user);
+        setUser(data.data.user);
       } else {
         console.log("❌ Token verification failed, clearing token");
         localStorage.removeItem("auth_token");
@@ -210,16 +216,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string
   ): Promise<boolean> => {
     try {
-      const response = await authAPI.login(username, password);
+      console.log("🔐 AuthContext: Attempting login...");
+      const response = await unifiedAPI.auth.login(username, password);
+      console.log("🔐 AuthContext: Login response:", response);
+
       if (response.success && response.token && response.user) {
+        // Set both token and user immediately to avoid timing issues
         setToken(response.token);
         setUser(response.user);
         localStorage.setItem("auth_token", response.token);
+        console.log("✅ AuthContext: Login successful - token and user set");
         return true;
       }
+      console.log("❌ AuthContext: Login failed - invalid response");
       return false;
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("❌ AuthContext: Login failed:", error);
       return false;
     }
   };
@@ -239,9 +251,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const response = await authAPI.verify();
-      if (response.success && response.data && response.data.user) {
-        setUser(response.data.user);
+      // For now, we'll use the old API for token verification since unified API doesn't have this yet
+      const response = await fetch(`${config.api.baseUrl}/auth/verify`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.user) {
+        setUser(data.data.user);
       } else {
         localStorage.removeItem("auth_token");
         setToken(null);

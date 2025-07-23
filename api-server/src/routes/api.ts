@@ -9,6 +9,8 @@ import { NotificationsController } from "../controllers/notifications";
 import { SearchController } from "../controllers/search";
 import { ApiManagementController } from "../controllers/api-management";
 import { DatabaseController } from "../controllers/database";
+import { ContentController } from "../controllers/content";
+import { RoutesController } from "../controllers/routes";
 import { McpController } from "../controllers/mcp";
 import { authenticateToken } from "../middleware/auth";
 import projectApiRoutes from "./project-api";
@@ -115,7 +117,31 @@ router.put("/admin/schemas/:id", SchemasController.updateSchema);
 router.delete("/admin/schemas/:id", SchemasController.deleteSchema);
 router.get("/schema/:name", SchemasController.getSchemaByName);
 
-// Database
+// Content Management
+router.get("/admin/content/get", ContentController.getAllContent);
+router.get("/admin/content/:key", ContentController.getContentByKey);
+router.get("/admin/content/id/:id", ContentController.getContentById);
+router.post("/admin/content", ContentController.createContent);
+router.put("/admin/content/:key", ContentController.updateContent);
+router.put("/admin/content/id/:id", ContentController.updateContentById);
+router.delete("/admin/content/:key", ContentController.deleteContent);
+router.delete("/admin/content/id/:id", ContentController.deleteContentById);
+
+// Public content routes
+router.get("/content/:routePath", ContentController.getPublicContentByRoute);
+router.get("/content", ContentController.getPublicContent);
+
+// Routes Management
+router.get("/admin/routes", RoutesController.getAllRoutes);
+router.get("/admin/routes/:id", RoutesController.getRouteById);
+router.get("/admin/routes/path/:path", RoutesController.getRouteByPath);
+router.post("/admin/routes", RoutesController.createRoute);
+router.put("/admin/routes/:id", RoutesController.updateRoute);
+router.delete("/admin/routes/:id", RoutesController.deleteRoute);
+router.get("/admin/routes/tree", RoutesController.getRouteTree);
+router.get("/admin/routes/nested/:parentId", RoutesController.getNestedRoutes);
+
+// Database (admin only)
 router.get("/admin/content/tables", DatabaseController.getTables);
 router.post("/admin/content/tables", DatabaseController.createTable);
 router.get("/admin/database/stats", DatabaseController.getStats);

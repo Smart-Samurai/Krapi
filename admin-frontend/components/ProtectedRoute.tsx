@@ -13,7 +13,20 @@ export default function ProtectedRoute({
   const router = useRouter();
 
   useEffect(() => {
+    console.log("🔒 ProtectedRoute: Auth state changed", {
+      isHydrated,
+      isLoading,
+      isAuthenticated,
+      hasToken:
+        typeof window !== "undefined"
+          ? !!localStorage.getItem("auth_token")
+          : false,
+    });
+
     if (isHydrated && !isLoading && !isAuthenticated) {
+      console.log(
+        "🔒 ProtectedRoute: Redirecting to login - not authenticated"
+      );
       router.push("/login");
     }
   }, [isAuthenticated, isLoading, isHydrated, router]);

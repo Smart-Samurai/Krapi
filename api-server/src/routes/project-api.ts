@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticateToken } from "../middleware/auth";
+import { authenticateToken, requireRole } from "../middleware/auth";
 import ProjectApiController from "../controllers/project-api";
 
 const router: express.Router = express.Router();
@@ -10,7 +10,7 @@ router.get("/health", (req, res) => {
     success: true,
     message: "Project API is healthy",
     timestamp: new Date().toISOString(),
-    version: "2.0.0",
+    version: "1.0.0",
   });
 });
 
@@ -20,6 +20,7 @@ router.post("/auth/verify", ProjectApiController.authenticateApiKey);
 
 // Admin routes (require admin authentication)
 router.use(authenticateToken);
+router.use(requireRole(["admin"]));
 
 // Project management (admin only)
 router.get("/admin/projects", ProjectApiController.getProjects);

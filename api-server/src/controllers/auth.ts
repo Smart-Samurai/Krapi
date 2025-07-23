@@ -12,9 +12,16 @@ import { AuthenticatedRequest } from "../middleware/auth";
 export class AuthController {
   static async login(req: Request, res: Response): Promise<void> {
     try {
+      console.log("🔐 AuthController: Login request received");
+      console.log("🔐 AuthController: Request body:", {
+        username: req.body.username ? "present" : "missing",
+        password: req.body.password ? "present" : "missing",
+      });
+
       const { username, password }: LoginRequest = req.body;
 
       if (!username || !password) {
+        console.log("🔐 AuthController: Missing username or password");
         const response: ApiResponse = {
           success: false,
           error: "Username and password are required",
@@ -23,7 +30,12 @@ export class AuthController {
         return;
       }
 
+      console.log("🔐 AuthController: Calling AuthService.login");
       const result = await AuthService.login(username, password);
+      console.log(
+        "🔐 AuthController: AuthService result:",
+        result ? "success" : "failed"
+      );
 
       // Log the login attempt
       database.createLoginLog({
@@ -36,6 +48,7 @@ export class AuthController {
       });
 
       if (!result) {
+        console.log("🔐 AuthController: Login failed - invalid credentials");
         const response: ApiResponse = {
           success: false,
           error: "Invalid username or password",
@@ -44,12 +57,14 @@ export class AuthController {
         return;
       }
 
+      console.log("🔐 AuthController: Login successful, sending response");
       const response: LoginResponse = {
         success: true,
         token: result.token,
         user: result.user,
       };
 
+      console.log("🔐 AuthController: Response:", response);
       res.json(response);
     } catch (error) {
       console.error("Login error:", error);

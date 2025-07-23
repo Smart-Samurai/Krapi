@@ -176,13 +176,15 @@ class ProjectApiController {
 
   createProject = async (req: Request, res: Response) => {
     try {
-      const { name, description, domain, settings } = req.body;
+      const { name, description, domain, settings } =
+        (req as any).unifiedOperation?.params || req.body;
 
       if (!name) {
         res.status(400).json({
           success: false,
           error: "Project name is required",
         });
+        return;
       }
 
       const project: Omit<Project, "id" | "created_at" | "updated_at"> = {
@@ -226,6 +228,79 @@ class ProjectApiController {
       res.status(500).json({
         success: false,
         error: "Failed to create project",
+      });
+    }
+  };
+
+  updateProject = async (req: Request, res: Response) => {
+    try {
+      const { projectId } = (req as any).unifiedOperation?.params || req.params;
+      const updates = (req as any).unifiedOperation?.params || req.body;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
+
+      const existingProject = projectDatabase.getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({
+          success: false,
+          error: "Project not found",
+        });
+        return;
+      }
+
+      const updatedProject = projectDatabase.updateProject(projectId, updates);
+
+      res.status(200).json({
+        success: true,
+        data: updatedProject,
+      });
+    } catch (error) {
+      console.error("Update project error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update project",
+      });
+    }
+  };
+
+  deleteProject = async (req: Request, res: Response) => {
+    try {
+      const { projectId } = (req as any).unifiedOperation?.params || req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
+
+      const existingProject = projectDatabase.getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({
+          success: false,
+          error: "Project not found",
+        });
+        return;
+      }
+
+      projectDatabase.deleteProject(projectId);
+
+      res.status(200).json({
+        success: true,
+        message: "Project deleted successfully",
+      });
+    } catch (error) {
+      console.error("Delete project error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete project",
       });
     }
   };

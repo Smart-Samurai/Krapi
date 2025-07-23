@@ -20,6 +20,7 @@ import {
 interface SidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
+  projectId?: string;
 }
 
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {

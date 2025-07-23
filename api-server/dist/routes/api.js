@@ -7,20 +7,23 @@ const express_1 = __importDefault(require("express"));
 const auth_1 = require("../controllers/auth");
 const users_1 = require("../controllers/users");
 const schemas_1 = require("../controllers/schemas");
-const content_1 = require("../controllers/content");
-const routes_1 = require("../controllers/routes");
 const email_1 = require("../controllers/email");
 const files_1 = require("../controllers/files");
 const notifications_1 = require("../controllers/notifications");
 const search_1 = require("../controllers/search");
 const api_management_1 = require("../controllers/api-management");
 const database_1 = require("../controllers/database");
+const content_1 = require("../controllers/content");
+const routes_1 = require("../controllers/routes");
 const mcp_1 = require("../controllers/mcp");
 const auth_2 = require("../middleware/auth");
 const project_api_1 = __importDefault(require("./project-api"));
+const project_specific_api_1 = __importDefault(require("./project-specific-api"));
 const router = express_1.default.Router();
 // Public routes
 router.post("/auth/login", auth_1.AuthController.login);
+// Project-specific API routes (require API key, no admin token) - MUST come before global auth
+router.use("/v2/projects/:projectId", project_specific_api_1.default);
 // Project API routes (new unified API)
 router.use("/v2", project_api_1.default);
 // Health check
@@ -88,21 +91,28 @@ router.get("/admin/schemas/:id", schemas_1.SchemasController.getSchemaById);
 router.put("/admin/schemas/:id", schemas_1.SchemasController.updateSchema);
 router.delete("/admin/schemas/:id", schemas_1.SchemasController.deleteSchema);
 router.get("/schema/:name", schemas_1.SchemasController.getSchemaByName);
-// Content - Support both key-based and ID-based operations
-router.get("/admin/content", content_1.ContentController.getAllContent);
-router.get("/admin/content/get", content_1.ContentController.getAllContent); // Alias for frontend compatibility
-router.post("/admin/content", content_1.ContentController.createContent);
-router.post("/admin/content/create", content_1.ContentController.createContent); // Alias for frontend compatibility
+// Content Management
+router.get("/admin/content/get", content_1.ContentController.getAllContent);
 router.get("/admin/content/:key", content_1.ContentController.getContentByKey);
-router.get("/admin/content/get/:id", content_1.ContentController.getContentById); // ID-based get
+router.get("/admin/content/id/:id", content_1.ContentController.getContentById);
+router.post("/admin/content", content_1.ContentController.createContent);
 router.put("/admin/content/:key", content_1.ContentController.updateContent);
-router.put("/admin/content/modify/id/:id", content_1.ContentController.updateContentById); // ID-based update
+router.put("/admin/content/id/:id", content_1.ContentController.updateContentById);
 router.delete("/admin/content/:key", content_1.ContentController.deleteContent);
-router.delete("/admin/content/delete/id/:id", content_1.ContentController.deleteContentById); // ID-based delete
+router.delete("/admin/content/id/:id", content_1.ContentController.deleteContentById);
 // Public content routes
 router.get("/content/:routePath", content_1.ContentController.getPublicContentByRoute);
-router.get("/content/:routePath/:key", content_1.ContentController.getPublicContent);
-// Database
+router.get("/content", content_1.ContentController.getPublicContent);
+// Routes Management
+router.get("/admin/routes", routes_1.RoutesController.getAllRoutes);
+router.get("/admin/routes/:id", routes_1.RoutesController.getRouteById);
+router.get("/admin/routes/path/:path", routes_1.RoutesController.getRouteByPath);
+router.post("/admin/routes", routes_1.RoutesController.createRoute);
+router.put("/admin/routes/:id", routes_1.RoutesController.updateRoute);
+router.delete("/admin/routes/:id", routes_1.RoutesController.deleteRoute);
+router.get("/admin/routes/tree", routes_1.RoutesController.getRouteTree);
+router.get("/admin/routes/nested/:parentId", routes_1.RoutesController.getNestedRoutes);
+// Database (admin only)
 router.get("/admin/content/tables", database_1.DatabaseController.getTables);
 router.post("/admin/content/tables", database_1.DatabaseController.createTable);
 router.get("/admin/database/stats", database_1.DatabaseController.getStats);
@@ -111,13 +121,6 @@ router.get("/admin/database/table/:tableName", database_1.DatabaseController.get
 router.post("/admin/database/query", database_1.DatabaseController.executeQuery);
 router.get("/admin/database/export", database_1.DatabaseController.exportDatabase);
 router.post("/admin/database/reset", database_1.DatabaseController.resetDatabase);
-// Routes
-router.get("/admin/routes", routes_1.RoutesController.getAllRoutes);
-router.post("/admin/routes", routes_1.RoutesController.createRoute);
-router.get("/admin/routes/:id", routes_1.RoutesController.getRouteById);
-router.put("/admin/routes/:id", routes_1.RoutesController.updateRoute);
-router.delete("/admin/routes/:id", routes_1.RoutesController.deleteRoute);
-router.get("/admin/routes/tree", routes_1.RoutesController.getRouteTree);
 // Email
 router.get("/admin/email/config", email_1.EmailController.getEmailConfiguration);
 router.put("/admin/email/config", email_1.EmailController.updateEmailConfiguration);

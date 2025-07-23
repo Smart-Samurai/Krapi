@@ -58,18 +58,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API Error:", error.message);
-    if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
-      console.error(
-        "Cannot connect to API server. Make sure the backend server is running on the correct port."
-      );
-    }
+    // Handle authentication errors immediately
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("auth_token");
         window.location.href = "/login";
       }
     }
+
+    // Let the error propagate to be handled by the new error system
     return Promise.reject(error);
   }
 );
@@ -231,8 +228,15 @@ export const contentAPI = {
     }
     return response.data;
   },
+  getContentByKey: async (key: string) => {
+    const response = await api.get(`/admin/content/${key}`);
+    if (response.data.success && response.data.data) {
+      response.data.data = transformContentItem(response.data.data);
+    }
+    return response.data;
+  },
   getContentById: async (id: number) => {
-    const response = await api.get(`/admin/content/get/${id}`);
+    const response = await api.get(`/admin/content/id/${id}`);
     if (response.data.success && response.data.data) {
       response.data.data = transformContentItem(response.data.data);
     }
@@ -246,7 +250,7 @@ export const contentAPI = {
     content_type: string;
     schema?: ContentSchema;
   }) => {
-    const response = await api.post("/admin/content/create", {
+    const response = await api.post("/admin/content", {
       key: data.key,
       data: data.data,
       description: data.description,
@@ -260,7 +264,7 @@ export const contentAPI = {
     return response.data;
   },
   updateContent: async (
-    id: number,
+    key: string,
     data: {
       key?: string;
       data?: unknown;
@@ -269,7 +273,7 @@ export const contentAPI = {
       schema?: ContentSchema;
     }
   ) => {
-    const response = await api.put(`/admin/content/modify/id/${id}`, {
+    const response = await api.put(`/admin/content/${key}`, {
       key: data.key,
       data: data.data,
       description: data.description,
@@ -281,8 +285,34 @@ export const contentAPI = {
     }
     return response.data;
   },
-  deleteContent: async (id: number) => {
-    const response = await api.delete(`/admin/content/delete/id/${id}`);
+  updateContentById: async (
+    id: number,
+    data: {
+      key?: string;
+      data?: unknown;
+      content_type?: string;
+      description?: string;
+      schema?: ContentSchema;
+    }
+  ) => {
+    const response = await api.put(`/admin/content/id/${id}`, {
+      key: data.key,
+      data: data.data,
+      description: data.description,
+      content_type: data.content_type,
+      schema: data.schema,
+    });
+    if (response.data.success && response.data.data) {
+      response.data.data = transformContentItem(response.data.data);
+    }
+    return response.data;
+  },
+  deleteContent: async (key: string) => {
+    const response = await api.delete(`/admin/content/${key}`);
+    return response.data;
+  },
+  deleteContentById: async (id: number) => {
+    const response = await api.delete(`/admin/content/id/${id}`);
     return response.data;
   },
   // Get content filtered by route path (admin method)
@@ -429,6 +459,110 @@ export const usersAPI = {
   },
   getUserStats: async () => {
     const response = await api.get("/admin/users/stats");
+    return response.data;
+  },
+};
+
+// Projects API - Using Unified API
+export const projectsAPI = {
+  getAllProjects: async () => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "projects",
+      action: "list",
+      params: {},
+    });
+    return response.data;
+  },
+  getProjectById: async (projectId: string) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "projects",
+      action: "get",
+      params: { projectId },
+    });
+    return response.data;
+  },
+  createProject: async (project: {
+    name: string;
+    description?: string;
+    domain?: string;
+    settings?: any;
+  }) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "projects",
+      action: "create",
+      params: project,
+    });
+    return response.data;
+  },
+  updateProject: async (
+    projectId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      domain?: string;
+      settings?: any;
+    }
+  ) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "projects",
+      action: "update",
+      params: { projectId, ...updates },
+    });
+    return response.data;
+  },
+  deleteProject: async (projectId: string) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "projects",
+      action: "delete",
+      params: { projectId },
+    });
+    return response.data;
+  },
+  getProjectStats: async (projectId: string) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "projects",
+      action: "stats",
+      params: { projectId },
+    });
+    return response.data;
+  },
+  getApiKeys: async (projectId: string) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "keys",
+      action: "list",
+      params: { projectId },
+    });
+    return response.data;
+  },
+  createApiKey: async (
+    projectId: string,
+    keyData: {
+      name: string;
+      permissions: string[];
+    }
+  ) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "keys",
+      action: "create",
+      params: { projectId, ...keyData },
+    });
+    return response.data;
+  },
+  deleteApiKey: async (projectId: string, keyId: string) => {
+    const response = await api.post("/krapi/v1/api", {
+      operation: "admin",
+      resource: "keys",
+      action: "delete",
+      params: { projectId, keyId },
+    });
     return response.data;
   },
 };

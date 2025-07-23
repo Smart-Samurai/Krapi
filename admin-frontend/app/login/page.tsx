@@ -7,14 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogIn, Eye, EyeOff, Loader2 } from "lucide-react";
 import { loginSchema, LoginFormData } from "@/lib/validations";
-import axios, { AxiosError } from "axios";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [loginStatus, setLoginStatus] = useState<string | null>(null);
-  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -22,35 +20,12 @@ export default function LoginPage() {
   // Check if already authenticated and redirect
   useEffect(() => {
     if (isAuthenticated) {
+      console.log(
+        "🔐 Login page: User is authenticated, redirecting to dashboard"
+      );
       router.push("/dashboard");
     }
   }, [isAuthenticated, router]);
-
-  // Handle successful login redirect with status messages
-  useEffect(() => {
-    if (loginSuccess) {
-      const messages = [
-        { message: "Authentication successful", delay: 500 },
-        { message: "Loading user profile", delay: 800 },
-        { message: "Preparing dashboard", delay: 1000 },
-        { message: "Redirecting to dashboard...", delay: 1500 },
-      ];
-
-      let currentIndex = 0;
-
-      const interval = setInterval(() => {
-        if (currentIndex < messages.length) {
-          setLoginStatus(messages[currentIndex].message);
-          currentIndex++;
-        } else {
-          clearInterval(interval);
-          router.push("/dashboard");
-        }
-      }, 700);
-
-      return () => clearInterval(interval);
-    }
-  }, [loginSuccess, router]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -66,44 +41,51 @@ export default function LoginPage() {
     setLoginStatus("Authenticating...");
 
     try {
-      // Simulate a slight delay to show the authentication process
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      console.log("🔐 Attempting login with AuthContext...");
+      console.log("🔐 Credentials:", {
+        username: data.username,
+        password: data.password ? "***" : "missing",
+      });
 
+      // Use AuthContext login function
       const success = await login(data.username, data.password);
 
       if (success) {
-        setLoginStatus("Verifying credentials...");
-        setLoginSuccess(true);
+        console.log("✅ Login successful via AuthContext");
+        setLoginStatus("Login successful! Redirecting...");
+        // AuthContext will handle the redirect automatically
       } else {
+        console.error("❌ Login failed via AuthContext");
         setError("Invalid username or password");
         setLoginStatus(null);
+        setIsConnecting(false);
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("❌ Login error:", error);
       setLoginStatus(null);
+      setIsConnecting(false);
 
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
+      if (error instanceof Error) {
         if (
-          axiosError.code === "ERR_NETWORK" ||
-          axiosError.code === "ECONNREFUSED"
+          error.message.includes("Network Error") ||
+          error.message.includes("ECONNREFUSED")
         ) {
           setError(
             "Cannot connect to API server. Please check if the server is running."
           );
-        } else if (axiosError.response?.status === 404) {
+        } else if (error.message.includes("404")) {
           setError(
             "API endpoint not found. Please check your API configuration."
           );
+        } else if (error.message.includes("401")) {
+          setError(
+            "Invalid username or password. Please check your credentials."
+          );
         } else {
-          setError(`Login failed: ${axiosError.message}`);
+          setError(`Login failed: ${error.message}`);
         }
       } else {
         setError("Login failed. Please try again.");
-      }
-    } finally {
-      if (!loginSuccess) {
-        setIsConnecting(false);
       }
     }
   };
@@ -142,9 +124,7 @@ export default function LoginPage() {
                     : "border-background-300 dark:border-background-300"
                 }`}
                 placeholder="Username"
-                disabled={
-                  form.formState.isSubmitting || isConnecting || loginSuccess
-                }
+                disabled={form.formState.isSubmitting || isConnecting}
               />
               {form.formState.errors.username && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -166,15 +146,13 @@ export default function LoginPage() {
                     : "border-background-300 dark:border-background-300"
                 }`}
                 placeholder="Password"
-                disabled={
-                  form.formState.isSubmitting || isConnecting || loginSuccess
-                }
+                disabled={form.formState.isSubmitting || isConnecting}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={isConnecting || loginSuccess}
+                disabled={isConnecting}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4 text-text-400" />
@@ -201,17 +179,10 @@ export default function LoginPage() {
           {loginStatus && (
             <div className="rounded-md bg-background-200 dark:bg-background-200 p-4">
               <div className="flex items-center">
-                {loginSuccess ? (
-                  <div className="flex items-center text-sm text-text dark:text-text">
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    {loginStatus}
-                  </div>
-                ) : (
-                  <div className="flex items-center text-sm text-text dark:text-text">
-                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                    {loginStatus}
-                  </div>
-                )}
+                <div className="flex items-center text-sm text-text dark:text-text">
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                  {loginStatus}
+                </div>
               </div>
             </div>
           )}
@@ -219,15 +190,13 @@ export default function LoginPage() {
           <div>
             <button
               type="submit"
-              disabled={
-                form.formState.isSubmitting || isConnecting || loginSuccess
-              }
+              disabled={form.formState.isSubmitting || isConnecting}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-300 dark:text-background-950 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isConnecting || loginSuccess ? (
+              {isConnecting ? (
                 <span className="flex items-center">
                   <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                  {loginSuccess ? "Signing in..." : "Authenticating..."}
+                  Authenticating...
                 </span>
               ) : (
                 "Sign in"
