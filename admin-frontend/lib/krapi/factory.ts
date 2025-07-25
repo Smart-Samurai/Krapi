@@ -1,0 +1,57 @@
+import KrapiClient, { KrapiConfig } from "./client";
+import { KrapiAuth, createKrapiAuth } from "./auth";
+import { KrapiAdmin, createKrapiAdmin } from "./admin";
+import { KrapiDatabase, createKrapiDatabase } from "./database";
+import { KrapiStorage, createKrapiStorage } from "./storage";
+import { KrapiUsers, createKrapiUsers } from "./users";
+import { KrapiProjects, createKrapiProjects } from "./projects";
+
+export interface KrapiPackage {
+  client: KrapiClient;
+  auth: KrapiAuth;
+  admin: KrapiAdmin;
+  database: KrapiDatabase;
+  storage: KrapiStorage;
+  users: KrapiUsers;
+  projects: KrapiProjects;
+}
+
+// Create the complete Krapi package
+export function createKrapi(config: KrapiConfig): KrapiPackage {
+  const client = new KrapiClient(config);
+
+  return {
+    client,
+    auth: createKrapiAuth(client),
+    admin: createKrapiAdmin(client),
+    database: createKrapiDatabase(client),
+    storage: createKrapiStorage(client),
+    users: createKrapiUsers(client),
+    projects: createKrapiProjects(client),
+  };
+}
+
+// Default configuration
+export const defaultConfig: KrapiConfig = {
+  endpoint: "http://localhost:3470/krapi/k1",
+  timeout: 30000,
+};
+
+// Create Krapi with default configuration
+export function createDefaultKrapi(): KrapiPackage {
+  return createKrapi(defaultConfig);
+}
+
+// Create Krapi with custom endpoint
+export function createKrapiWithEndpoint(
+  endpoint: string,
+  apiKey?: string,
+  secret?: string
+): KrapiPackage {
+  return createKrapi({
+    endpoint,
+    apiKey,
+    secret,
+    timeout: 30000,
+  });
+}

@@ -7,7 +7,7 @@ import routes from "./routes";
 import unifiedApiRoutes from "./routes/unified-api";
 // Removed express-ws in favor of ws
 import { AuthService } from "./services/auth";
-import { setBroadcastFunction } from "./services/email";
+
 import { initializeMcpServer, shutdownMcpServer } from "./controllers/mcp";
 // Initialize project database
 import "./services/project-database";
@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/", routes);
 
 // Unified API (Appwrite-style)
-app.use("/krapi/v1", unifiedApiRoutes);
+app.use("/krapi/k1", unifiedApiRoutes);
 
 // Error handling middleware
 app.use(
@@ -109,7 +109,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     return;
   }
 
-  const connectionId = `${payload.userId}-${Date.now()}`;
+  const connectionId = `${payload.id}-${Date.now()}`;
   activeConnections.set(connectionId, ws);
 
   console.log(
@@ -269,13 +269,13 @@ export { broadcastToAll };
 // Start HTTP and WebSocket server
 server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
+  console.log(`Health check: http://localhost:${PORT}/krapi/k1/health`);
   console.log(`API docs: http://localhost:${PORT}/`);
   console.log(`WebSocket: ws://localhost:${PORT}/ws`);
   console.log(`Default admin user: admin/admin123`);
 
   // Initialize email service with WebSocket broadcast function
-  setBroadcastFunction(broadcastToAll);
+
   console.log(`Email service initialized with WebSocket broadcasting`);
 
   // Initialize MCP server with Ollama integration (non-blocking)

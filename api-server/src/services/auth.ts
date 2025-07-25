@@ -1,11 +1,13 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { AuthPayload, User } from "../types";
-import database from "./database";
+import { AuthPayload, User } from "../types/core";
+import CoreDatabaseService from "./core-database";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-super-secret-key-change-in-production";
 const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || "24h";
+
+const coreDatabase = new CoreDatabaseService();
 
 export class AuthService {
   static generateToken(payload: AuthPayload): string {
@@ -25,113 +27,64 @@ export class AuthService {
   static async login(
     username: string,
     password: string
-  ): Promise<{ user: Omit<User, "password">; token: string } | null> {
-    const user = database.getUserByUsername(username);
+  ): Promise<{ user: Omit<User, "password_hash">; token: string } | null> {
+    const user = coreDatabase.getUserByUsername(username);
 
     if (!user || !user.active) {
       return null;
     }
 
-    const isValidPassword = bcrypt.compareSync(password, user.password);
+    const isValidPassword = bcrypt.compareSync(password, user.password_hash);
 
     if (!isValidPassword) {
       return null;
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password_hash: _, ...userWithoutPassword } = user;
     const token = this.generateToken({
-      id: user.id!,
-      userId: user.id!,
-      uuid: user.uuid!,
+      id: user.id,
       username: user.username,
       role: user.role,
-      permissions: user.permissions,
     });
 
     return { user: userWithoutPassword, token };
   }
 
-  static async changePassword(
-    userId: number,
-    currentPassword: string,
-    newPassword: string
-  ): Promise<boolean> {
-    const user = database.getUserById(userId);
-
-    if (!user) {
-      return false;
-    }
-
-    const isValidPassword = bcrypt.compareSync(currentPassword, user.password);
-
-    if (!isValidPassword) {
-      return false;
-    }
-
-    const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
-    return database.updateUserPassword(userId, hashedNewPassword);
-  }
-
   static async createUser(userData: {
     username: string;
+    email: string;
     password: string;
-    email?: string;
-    role?: "admin" | "editor" | "viewer";
-    permissions?: string[];
-  }): Promise<Omit<User, "password"> | null> {
+    role?: "admin" | "user";
+    active?: boolean;
+  }): Promise<Omit<User, "password_hash"> | null> {
     // Check if user already exists
-    const existingUser = database.getUserByUsername(userData.username);
+    const existingUser = coreDatabase.getUserByUsername(userData.username);
     if (existingUser) {
       return null;
     }
 
     const hashedPassword = bcrypt.hashSync(userData.password, 10);
 
-    // Get default permissions for role
-    const rolePermissions = this.getDefaultPermissionsForRole(
-      userData.role || "viewer"
-    );
-
-    const user = database.createUser({
+    const user = coreDatabase.createUser({
       username: userData.username,
-      password: hashedPassword,
       email: userData.email,
-      role: userData.role || "viewer",
-      permissions: userData.permissions || rolePermissions,
-      active: true,
+      password_hash: hashedPassword,
+      role: userData.role || "user",
+      active: userData.active !== false,
     });
 
     if (!user) {
       return null;
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password_hash: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
 
-  private static getDefaultPermissionsForRole(role: string): string[] {
-    switch (role) {
-      case "admin":
-        return [
-          "read",
-          "write",
-          "delete",
-          "manage_users",
-          "manage_files",
-          "manage_routes",
-        ];
-      case "editor":
-        return ["read", "write", "manage_files"];
-      case "viewer":
-      default:
-        return ["read"];
-    }
-  }
-
-  static async getAllUsers(): Promise<Omit<User, "password">[]> {
-    const users = database.getAllUsers();
+  static async getAllUsers(): Promise<Omit<User, "password_hash">[]> {
+    const users = coreDatabase.getAllUsers();
     return users.map((user) => {
-      const { password: _, ...userWithoutPassword } = user;
+      const { password_hash: _, ...userWithoutPassword } = user;
       return userWithoutPassword;
     });
   }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { unifiedAPI } from "@/lib/unified-api";
+import { createDefaultKrapi } from "@/lib/krapi";
 import {
   Database,
   Users,
@@ -26,7 +26,7 @@ interface Project {
 export default function ProjectDashboardPage() {
   const params = useParams();
   const projectId = params?.projectId as string;
-  const { user, isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,8 @@ export default function ProjectDashboardPage() {
       setError(null);
 
       console.log("📡 Loading project:", projectId);
-      const response = await unifiedAPI.admin.getProject(projectId);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.admin.getProject(projectId);
 
       if (response.success && response.data) {
         setProject(response.data);

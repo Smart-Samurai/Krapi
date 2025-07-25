@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { errorHandler } from "@/lib/error-handler";
-import { config } from "@/lib/config";
+import { createDefaultKrapi } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, Clock, Activity } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, Activity, Play } from "lucide-react";
 
 interface ApiTestResult {
-  endpoint: string;
-  method: string;
+  test: string;
   status: "success" | "error" | "loading";
   response?: any;
   error?: any;
@@ -20,18 +17,16 @@ interface ApiTestResult {
 }
 
 export default function ApiDebugger() {
-  const [endpoint, setEndpoint] = useState("/health");
-  const [method, setMethod] = useState("GET");
   const [results, setResults] = useState<ApiTestResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const testEndpoint = async () => {
-    if (!endpoint) return;
-
+  const runTest = async (
+    testName: string,
+    testFunction: () => Promise<any>
+  ) => {
     const startTime = Date.now();
     const result: ApiTestResult = {
-      endpoint,
-      method,
+      test: testName,
       status: "loading",
       timestamp: new Date().toISOString(),
       duration: 0,
@@ -41,46 +36,7 @@ export default function ApiDebugger() {
     setIsLoading(true);
 
     try {
-      const response = await errorHandler.handleApiCall(
-        async () => {
-          const url = endpoint.startsWith("http")
-            ? endpoint
-            : `${config.api.baseUrl}${endpoint}`;
-          const options: RequestInit = {
-            method,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          };
-
-          // Add auth token if available
-          if (typeof window !== "undefined") {
-            const token = localStorage.getItem("auth_token");
-            if (token) {
-              options.headers = {
-                ...options.headers,
-                Authorization: `Bearer ${token}`,
-              };
-            }
-          }
-
-          const res = await fetch(url, options);
-          const data = await res.json();
-
-          if (!res.ok) {
-            throw new Error(
-              `HTTP ${res.status}: ${data.message || res.statusText}`
-            );
-          }
-
-          return data;
-        },
-        "ApiDebugger",
-        "testEndpoint",
-        endpoint,
-        method
-      );
-
+      const response = await testFunction();
       const endTime = Date.now();
       const updatedResult: ApiTestResult = {
         ...result,
@@ -95,7 +51,7 @@ export default function ApiDebugger() {
       const updatedResult: ApiTestResult = {
         ...result,
         status: "error",
-        error,
+        error: error instanceof Error ? error.message : String(error),
         duration: endTime - startTime,
       };
 
@@ -135,65 +91,126 @@ export default function ApiDebugger() {
     }
   };
 
+  // Test functions
+  const krapi = createDefaultKrapi();
+
+  const testHealth = () => runTest("Health Check", () => krapi.admin.health());
+  const testListProjects = () =>
+    runTest("List Projects", () => krapi.admin.listProjects());
+  const testListApiKeys = () =>
+    runTest("List API Keys", () => krapi.admin.listApiKeys());
+  const testDatabaseStats = () =>
+    runTest("Database Stats", () => krapi.admin.getDatabaseStats());
+  const testListFiles = () =>
+    runTest("List Files", () => krapi.storage.listFiles());
+  const testListCollections = () =>
+    runTest("List Collections", () => krapi.database.listCollections());
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            API Endpoint Tester
+            Unified API Tester
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-2">Endpoint</label>
-              <Input
-                value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="/health"
-                className="font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Method</label>
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="DELETE">DELETE</option>
-                <option value="PATCH">PATCH</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <Button
-                onClick={testEndpoint}
-                disabled={isLoading || !endpoint}
-                className="w-full"
-              >
-                {isLoading ? "Testing..." : "Test Endpoint"}
-              </Button>
-            </div>
-          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Test the unified API endpoints with proper error handling and
+            detailed responses.
+          </p>
 
-          <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            <p>
-              Base URL:{" "}
-              <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
-                {config.api.baseUrl}
-              </code>
-            </p>
-            <p>
-              Full URL:{" "}
-              <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
-                {config.api.baseUrl}
-                {endpoint}
-              </code>
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Button
+              onClick={testHealth}
+              disabled={isLoading}
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">Health Check</span>
+              </div>
+              <span className="text-xs text-gray-500 text-left">
+                Test API server health and status
+              </span>
+            </Button>
+
+            <Button
+              onClick={testListProjects}
+              disabled={isLoading}
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">List Projects</span>
+              </div>
+              <span className="text-xs text-gray-500 text-left">
+                Get all projects (Admin only)
+              </span>
+            </Button>
+
+            <Button
+              onClick={testListApiKeys}
+              disabled={isLoading}
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">List API Keys</span>
+              </div>
+              <span className="text-xs text-gray-500 text-left">
+                Get all API keys (Admin only)
+              </span>
+            </Button>
+
+            <Button
+              onClick={testDatabaseStats}
+              disabled={isLoading}
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">Database Stats</span>
+              </div>
+              <span className="text-xs text-gray-500 text-left">
+                Get database statistics (Admin only)
+              </span>
+            </Button>
+
+            <Button
+              onClick={testListFiles}
+              disabled={isLoading}
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">List Files</span>
+              </div>
+              <span className="text-xs text-gray-500 text-left">
+                Get all uploaded files
+              </span>
+            </Button>
+
+            <Button
+              onClick={testListCollections}
+              disabled={isLoading}
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">List Collections</span>
+              </div>
+              <span className="text-xs text-gray-500 text-left">
+                Get all database collections
+              </span>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -215,9 +232,7 @@ export default function ApiDebugger() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(result.status)}
-                      <span className="font-mono text-sm">
-                        {result.method} {result.endpoint}
-                      </span>
+                      <span className="font-medium text-sm">{result.test}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge className={getStatusColor(result.status)}>
@@ -263,55 +278,40 @@ export default function ApiDebugger() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Common Endpoints</CardTitle>
+          <CardTitle>API Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Health & Status</h4>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setEndpoint("/health")}
-                  className="block text-left text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                >
-                  /health - Health check
-                </button>
-                <button
-                  onClick={() => setEndpoint("/admin/database/stats")}
-                  className="block text-left text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                >
-                  /admin/database/stats - Database stats
-                </button>
-              </div>
+              <h4 className="font-medium mb-2">Unified API Endpoint</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                All API operations go through the unified endpoint:{" "}
+                <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
+                  /krapi/v1/api
+                </code>
+              </p>
             </div>
+
             <div>
-              <h4 className="font-medium mb-2">Content & Data</h4>
-              <div className="space-y-1">
-                <button
-                  onClick={() => setEndpoint("/admin/content/get")}
-                  className="block text-left text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                >
-                  /admin/content/get - All content
-                </button>
-                <button
-                  onClick={() => setEndpoint("/admin/routes")}
-                  className="block text-left text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                >
-                  /admin/routes - All routes
-                </button>
-                <button
-                  onClick={() => setEndpoint("/v2/admin/projects")}
-                  className="block text-left text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
-                >
-                  /v2/admin/projects - Projects (Admin Only)
-                </button>
-                <button
-                  onClick={() => setEndpoint("/auth/verify")}
-                  className="block text-left text-sm text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
-                >
-                  /auth/verify - Verify Token
-                </button>
-              </div>
+              <h4 className="font-medium mb-2">Authentication</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Admin operations require Bearer token authentication. Project
+                operations use API keys.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Request Format</h4>
+              <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded overflow-x-auto">
+                {`{
+  "operation": "admin|database|storage|auth",
+  "resource": "projects|collections|files|users",
+  "action": "list|create|get|update|delete",
+  "params": {
+    // Operation-specific parameters
+  }
+}`}
+              </pre>
             </div>
           </div>
         </CardContent>

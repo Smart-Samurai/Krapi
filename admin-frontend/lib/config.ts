@@ -2,7 +2,8 @@
 const baseConfig = {
   // API Configuration
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/api",
+    baseUrl:
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1",
     timeout: 30000,
   },
 

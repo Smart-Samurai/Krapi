@@ -37,7 +37,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useNotification } from "@/hooks/useNotification";
-import { unifiedAPI } from "@/lib/unified-api";
+import { createDefaultKrapi } from "@/lib/krapi";
 
 interface Project {
   id: string;
@@ -91,7 +91,8 @@ export default function ProjectsPage() {
       console.log("📡 Fetching projects...");
       setLoading(true);
 
-      const response = await unifiedAPI.admin.listProjects();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.admin.listProjects();
       console.log("✅ Projects response:", response);
 
       if (response.success && response.data) {
@@ -121,7 +122,8 @@ export default function ProjectsPage() {
       console.log("📡 Creating project:", newProject);
       setIsCreating(true);
 
-      const response = await unifiedAPI.admin.createProject({
+      const krapi = createDefaultKrapi();
+      const response = await krapi.admin.createProject({
         name: newProject.name.trim(),
         description: newProject.description.trim() || undefined,
         domain: newProject.domain.trim() || undefined,
@@ -153,7 +155,8 @@ export default function ProjectsPage() {
       console.log("📡 Deleting project:", project.id);
       setIsDeleting(true);
 
-      const response = await unifiedAPI.admin.deleteProject(project.id);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.admin.deleteProject(project.id);
       console.log("✅ Delete project response:", response);
 
       if (response.success) {

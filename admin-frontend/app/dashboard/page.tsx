@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import WebSocketStatus from "@/components/WebSocketStatus";
-import { unifiedAPI } from "@/lib/unified-api";
+import { createDefaultKrapi } from "@/lib/krapi";
 import {
   Database,
   Activity,
@@ -64,10 +64,11 @@ export default function DashboardPage() {
       return;
     }
 
-    console.log("🔄 Starting dashboard data load with unified API...");
+    console.log("🔄 Starting dashboard data load with Krapi API...");
     setIsLoading(true);
     setErrors([]);
 
+    const krapi = createDefaultKrapi();
     const newErrors: string[] = [];
     const newStats = { ...stats };
     const allRecentItems: RecentItem[] = [];
@@ -76,9 +77,11 @@ export default function DashboardPage() {
       // 1. Health Check
       try {
         console.log("📡 Checking API health...");
-        const healthResponse = await unifiedAPI.health();
+        const healthResponse = await krapi.admin.health();
         console.log("✅ Health check successful:", healthResponse);
-        setHealthStatus(healthResponse);
+        if (healthResponse.success && healthResponse.data) {
+          setHealthStatus(healthResponse.data);
+        }
       } catch (error) {
         console.error("❌ Health check failed:", error);
         newErrors.push("Failed to check API health status");
@@ -88,7 +91,7 @@ export default function DashboardPage() {
       if (user?.role === "admin") {
         try {
           console.log("📡 Loading database stats...");
-          const dbStatsResponse = await unifiedAPI.admin.getDatabaseStats();
+          const dbStatsResponse = await krapi.admin.getDatabaseStats();
           console.log("✅ Database stats loaded:", dbStatsResponse);
 
           if (dbStatsResponse.success && dbStatsResponse.data) {
@@ -105,7 +108,7 @@ export default function DashboardPage() {
       // 3. Projects
       try {
         console.log("📡 Loading projects...");
-        const projectsResponse = await unifiedAPI.admin.listProjects();
+        const projectsResponse = await krapi.admin.listProjects();
         console.log("✅ Projects loaded:", projectsResponse);
 
         if (projectsResponse.success && projectsResponse.data) {
@@ -132,7 +135,7 @@ export default function DashboardPage() {
       if (user?.role === "admin") {
         try {
           console.log("📡 Loading API keys...");
-          const keysResponse = await unifiedAPI.admin.listApiKeys();
+          const keysResponse = await krapi.admin.listApiKeys();
           console.log("✅ API keys loaded:", keysResponse);
 
           if (keysResponse.success && keysResponse.data) {
@@ -147,7 +150,7 @@ export default function DashboardPage() {
       // 5. Files/Storage
       try {
         console.log("📡 Loading files...");
-        const filesResponse = await unifiedAPI.storage.listFiles();
+        const filesResponse = await krapi.storage.listFiles();
         console.log("✅ Files loaded:", filesResponse);
 
         if (filesResponse.success && filesResponse.data) {
@@ -173,7 +176,7 @@ export default function DashboardPage() {
       // 6. Content (Documents from collections)
       try {
         console.log("📡 Loading content from collections...");
-        const collectionsResponse = await unifiedAPI.database.listCollections();
+        const collectionsResponse = await krapi.database.listCollections();
         console.log("✅ Collections loaded:", collectionsResponse);
 
         if (collectionsResponse.success && collectionsResponse.data) {
@@ -183,7 +186,7 @@ export default function DashboardPage() {
           // Get documents from each collection
           for (const collection of collectionsResponse.data.slice(0, 3)) {
             try {
-              const documentsResponse = await unifiedAPI.database.listDocuments(
+              const documentsResponse = await krapi.database.listDocuments(
                 collection.id
               );
               if (documentsResponse.success && documentsResponse.data) {

@@ -8,7 +8,7 @@ import {
   ProjectUser,
   ProjectApiKey,
   ProjectStats,
-} from "../types";
+} from "../types/projects";
 
 class ProjectDatabaseService {
   private db!: Database.Database;

@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth";
-import { ApiResponse } from "../types";
-import database from "../services/database";
+import { ApiResponse } from "../types/core";
+import CoreDatabaseService from "../services/core-database";
+
+const coreDatabase = new CoreDatabaseService();
 
 export interface AuthenticatedRequest extends Request {
   user?: {
-    userId: number;
+    id: number;
     username: string;
     role: string;
-    permissions: string[];
   };
 }
 
@@ -43,8 +44,8 @@ export const authenticateToken = (
     return;
   }
 
-  // Get full user details including permissions
-  const user = database.getUserById(payload.userId);
+  // Get full user details
+  const user = coreDatabase.getUserById(payload.id);
   if (!user || !user.active) {
     const response: ApiResponse = {
       success: false,
@@ -55,10 +56,9 @@ export const authenticateToken = (
   }
 
   req.user = {
-    userId: user.id!,
+    id: user.id,
     username: user.username,
     role: user.role,
-    permissions: user.permissions,
   };
   next();
 };
@@ -79,10 +79,7 @@ export const requirePermission = (requiredPermission: string) => {
       return;
     }
 
-    if (
-      !req.user.permissions.includes(requiredPermission) &&
-      req.user.role !== "admin"
-    ) {
+    if (req.user.role !== "admin") {
       const response: ApiResponse = {
         success: false,
         error: `Insufficient permissions. Required: ${requiredPermission}`,

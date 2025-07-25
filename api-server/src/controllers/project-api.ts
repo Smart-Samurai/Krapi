@@ -9,7 +9,7 @@ import {
   ProjectUser,
   ProjectApiKey,
   CollectionSchema,
-} from "../types";
+} from "../types/projects";
 
 class ProjectApiController {
   // Authentication methods
@@ -151,7 +151,7 @@ class ProjectApiController {
 
   getProject = async (req: Request, res: Response) => {
     try {
-      const { projectId } = req.params;
+      const { projectId } = (req as any).unifiedOperation?.params || req.params;
       const project = projectDatabase.getProjectById(projectId);
 
       if (!project) {
@@ -159,6 +159,7 @@ class ProjectApiController {
           success: false,
           error: "Project not found",
         });
+        return;
       }
 
       res.status(200).json({

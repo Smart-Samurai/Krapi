@@ -7,12 +7,12 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { unifiedAPI } from "@/lib/unified-api";
-import { User } from "@/types";
+import { createDefaultKrapi } from "@/lib/krapi";
+import { AuthUser } from "@/lib/krapi/types";
 import { config } from "@/lib/config";
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   socket: WebSocket | null;
   isLoading: boolean;
@@ -28,7 +28,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -183,18 +183,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyToken = async () => {
     try {
       console.log("🔍 Verifying token...");
-      // For now, we'll use the old API for token verification since unified API doesn't have this yet
-      const response = await fetch(`${config.api.baseUrl}/auth/verify`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      console.log("🔍 Token verification response:", data);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.verify();
+      console.log("🔍 Token verification response:", response);
 
-      if (data.success && data.data && data.data.user) {
-        console.log("✅ Token verified, setting user:", data.data.user);
-        setUser(data.data.user);
+      if (response.success && response.data) {
+        console.log("✅ Token verified, setting user:", response.data);
+        setUser(response.data);
       } else {
         console.log("❌ Token verification failed, clearing token");
         localStorage.removeItem("auth_token");
@@ -217,7 +212,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<boolean> => {
     try {
       console.log("🔐 AuthContext: Attempting login...");
-      const response = await unifiedAPI.auth.login(username, password);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.login(username, password);
       console.log("🔐 AuthContext: Login response:", response);
 
       if (response.success && response.token && response.user) {
@@ -251,16 +247,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      // For now, we'll use the old API for token verification since unified API doesn't have this yet
-      const response = await fetch(`${config.api.baseUrl}/auth/verify`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.verify();
 
-      if (data.success && data.data && data.data.user) {
-        setUser(data.data.user);
+      if (response.success && response.data) {
+        setUser(response.data);
       } else {
         localStorage.removeItem("auth_token");
         setToken(null);

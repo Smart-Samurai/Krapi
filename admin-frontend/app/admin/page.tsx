@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { unifiedAPI } from "@/lib/unified-api";
+import { createDefaultKrapi } from "@/lib/krapi";
 import {
   Activity,
   Clock,
@@ -67,6 +67,7 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
     setErrors([]);
 
+    const krapi = createDefaultKrapi();
     const newErrors: string[] = [];
     const newStats = { ...stats };
 
@@ -74,9 +75,11 @@ export default function AdminDashboardPage() {
       // 1. Health Check
       try {
         console.log("📡 Checking API health...");
-        const healthResponse = await unifiedAPI.health();
+        const healthResponse = await krapi.admin.health();
         console.log("✅ Health check successful:", healthResponse);
-        setHealthStatus(healthResponse);
+        if (healthResponse.success && healthResponse.data) {
+          setHealthStatus(healthResponse.data);
+        }
       } catch (error) {
         console.error("❌ Health check failed:", error);
         newErrors.push("Failed to check API health status");
@@ -85,7 +88,7 @@ export default function AdminDashboardPage() {
       // 2. Projects
       try {
         console.log("📡 Loading projects...");
-        const projectsResponse = await unifiedAPI.admin.listProjects();
+        const projectsResponse = await krapi.admin.listProjects();
         console.log("✅ Projects loaded:", projectsResponse);
 
         if (projectsResponse.success && projectsResponse.data) {
@@ -114,7 +117,7 @@ export default function AdminDashboardPage() {
       // 3. Database Stats
       try {
         console.log("📡 Loading database stats...");
-        const dbStatsResponse = await unifiedAPI.admin.getDatabaseStats();
+        const dbStatsResponse = await krapi.admin.getDatabaseStats();
         console.log("✅ Database stats loaded:", dbStatsResponse);
 
         if (dbStatsResponse.success && dbStatsResponse.data) {
@@ -130,7 +133,7 @@ export default function AdminDashboardPage() {
       // 4. API Keys
       try {
         console.log("📡 Loading API keys...");
-        const keysResponse = await unifiedAPI.admin.listApiKeys();
+        const keysResponse = await krapi.admin.listApiKeys();
         console.log("✅ API keys loaded:", keysResponse);
 
         if (keysResponse.success && keysResponse.data) {

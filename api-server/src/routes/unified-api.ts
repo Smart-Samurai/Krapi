@@ -1,8 +1,6 @@
 import express from "express";
 import ProjectApiController from "../controllers/project-api";
-import { DatabaseController } from "../controllers/database";
-import { EmailController } from "../controllers/email";
-import { FilesController } from "../controllers/files";
+
 import { McpController } from "../controllers/mcp";
 import { AuthController } from "../controllers/auth";
 import { authenticateToken } from "../middleware/auth";
@@ -45,7 +43,7 @@ router.get("/health", (req, res) => {
     message: "Krapi Unified API is healthy",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
-    endpoint: "/krapi/v1",
+    endpoint: "/krapi/k1",
   });
 });
 
@@ -250,38 +248,11 @@ async function handleStorageOperation(
   req: express.Request,
   res: express.Response
 ): Promise<void> {
-  switch (resource) {
-    case "files":
-      switch (action) {
-        case "list":
-          FilesController.getAllFiles(req, res);
-          break;
-        case "create":
-          FilesController.uploadFile(req, res);
-          break;
-        case "get":
-          FilesController.getFileById(req, res);
-          break;
-        case "update":
-          FilesController.updateFile(req, res);
-          break;
-        case "delete":
-          FilesController.deleteFile(req, res);
-          break;
-        case "download":
-          FilesController.downloadFile(req, res);
-          break;
-        default:
-          res
-            .status(400)
-            .json({ success: false, error: `Unknown action: ${action}` });
-      }
-      break;
-    default:
-      res
-        .status(400)
-        .json({ success: false, error: `Unknown resource: ${resource}` });
-  }
+  // TODO: Implement storage operations for project-driven architecture
+  res.status(501).json({
+    success: false,
+    error: "Storage operations not implemented yet - will be project-specific",
+  });
 }
 
 // Users operations
@@ -478,35 +449,20 @@ async function handleAdminOperation(
       }
       break;
     case "database":
-      switch (action) {
-        case "stats":
-          DatabaseController.getStats(req, res);
-          break;
-        case "info":
-          DatabaseController.getDatabaseInfo(req, res);
-          break;
-        case "reset":
-          DatabaseController.resetDatabase(req, res);
-          break;
-        default:
-          res
-            .status(400)
-            .json({ success: false, error: `Unknown action: ${action}` });
-      }
+      // TODO: Implement database operations for project-driven architecture
+      res.status(501).json({
+        success: false,
+        error:
+          "Database operations not implemented yet - will be project-specific",
+      });
       break;
     case "email":
-      switch (action) {
-        case "config":
-          EmailController.getEmailConfiguration(req, res);
-          break;
-        case "send":
-          EmailController.sendEmail(req, res);
-          break;
-        default:
-          res
-            .status(400)
-            .json({ success: false, error: `Unknown action: ${action}` });
-      }
+      // TODO: Implement email operations for project-driven architecture
+      res.status(501).json({
+        success: false,
+        error:
+          "Email operations not implemented yet - will be project-specific",
+      });
       break;
     default:
       res

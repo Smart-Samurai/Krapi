@@ -8,14 +8,7 @@ const nextConfig: NextConfig = {
   publicRuntimeConfig: {
     port: 3469,
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:3470/api/:path*",
-      },
-    ];
-  },
+
   // Enable proper error checking during builds (but allow for development)
   eslint: {
     ignoreDuringBuilds: process.env.NODE_ENV === "development",

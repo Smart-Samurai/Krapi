@@ -9,14 +9,6 @@ import {
 } from "../types/mcp";
 import { OllamaService } from "./ollama";
 import { mcpTools, getAppStateContext } from "./mcp-tools";
-import {
-  isValidToolResult,
-  isValidOllamaMessage,
-  isValidToolCall,
-  assertDefined,
-  createErrorResponse,
-  TypedError,
-} from "../utils/type-guards";
 
 /**
  * MCP Server implementation
