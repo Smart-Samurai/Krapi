@@ -17,11 +17,8 @@ export interface McpResponse {
 export interface McpTool {
   name: string;
   description: string;
-  inputSchema: {
-    type: "object";
-    properties: Record<string, unknown>;
-    required?: string[];
-  };
+  inputSchema: Record<string, unknown>;
+  execute: (_args: any, _context: any) => Promise<McpToolResult>;
 }
 
 export interface McpToolCall {
@@ -140,8 +137,8 @@ export interface McpToolDefinition {
   name: string;
   description: string;
   handler: (
-    args: Record<string, unknown>,
-    context: AppStateContext
+    _args: Record<string, unknown>,
+    _context: AppStateContext
   ) => Promise<{
     success: boolean;
     message?: string;

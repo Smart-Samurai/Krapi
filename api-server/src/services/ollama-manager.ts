@@ -58,12 +58,8 @@ export class OllamaManager {
    * Start health check monitoring
    */
   private startHealthCheck(): void {
-    this.healthCheckInterval = setInterval(async () => {
-      try {
-        await this.checkHealth();
-      } catch (error) {
-        console.warn("Ollama health check failed:", error);
-      }
+    this.healthCheckInterval = global.setInterval(() => {
+      this.checkHealth();
     }, 30000); // Check every 30 seconds
   }
 
@@ -72,7 +68,7 @@ export class OllamaManager {
    */
   public stopHealthCheck(): void {
     if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
+      global.clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
     }
   }
@@ -80,14 +76,14 @@ export class OllamaManager {
   /**
    * Check if Ollama is healthy
    */
-  async checkHealth(): Promise<boolean> {
+  private async checkHealth(): Promise<void> {
     try {
-      const response = await this.client.get("/api/tags");
-      this.isHealthy = response.status === 200;
-      return this.isHealthy;
-    } catch (error) {
+      const response = await globalThis.fetch(
+        `${this.config.baseUrl}/api/tags`
+      );
+      this.isHealthy = response.ok;
+    } catch {
       this.isHealthy = false;
-      return false;
     }
   }
 

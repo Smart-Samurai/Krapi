@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createDefaultKrapi } from "@/lib/krapi";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,7 +28,6 @@ import {
 } from "lucide-react";
 import { useNotification } from "../../../hooks/useNotification";
 import { NotificationContainer } from "../../../components/Notification";
-import { authManagementAPI } from "../../../lib/api";
 
 // Types
 interface User {
@@ -173,8 +173,7 @@ export default function AuthPage() {
   const [authStats, setAuthStats] = useState<AuthStats | null>(null);
 
   // Security settings state
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [securitySettings, setSecuritySettings] =
+  const [_securitySettings, _setSecuritySettings] =
     useState<SecuritySettings | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showSecuritySettingsModal, setShowSecuritySettingsModal] =
@@ -227,7 +226,8 @@ export default function AuthPage() {
   // Load functions
   const loadUsers = useCallback(async () => {
     try {
-      const response = await authManagementAPI.getUsers(usersPage, 10);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.getUsers(usersPage, 10);
 
       if (response.success) {
         setUsers(response.data || []);
@@ -235,26 +235,23 @@ export default function AuthPage() {
       } else {
         handleError(response.error || "Failed to load users");
       }
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      handleError(error, "Failed to load users");
+    } catch {
+      handleError("Failed to load users");
     }
   }, [usersPage, handleError]);
 
   const loadAuthStats = useCallback(async () => {
     try {
-      console.log("Loading auth stats...");
-      const response = await authManagementAPI.getUserStats();
-      console.log("Auth stats response:", response);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.getUserStats();
 
       if (response.success) {
         setAuthStats(response.data);
       } else {
         handleError(response.error || "Failed to load auth stats");
       }
-    } catch (error) {
-      console.error("Auth stats error:", error);
-      handleError(error, "Failed to load auth stats");
+    } catch {
+      handleError("Failed to load auth stats");
     }
   }, [handleError]);
 
@@ -274,24 +271,24 @@ export default function AuthPage() {
 
   const loadSecuritySettings = useCallback(async () => {
     try {
-      const response = await authManagementAPI.getSecuritySettings();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.getSecuritySettings();
 
       if (response.success) {
-        setSecuritySettings(response.data);
+        _setSecuritySettings(response.data);
         securityForm.reset(response.data);
       } else {
         handleError(response.error || "Failed to load security settings");
       }
-    } catch (error) {
-      console.error("Failed to load security settings:", error);
-      handleError(error, "Failed to load security settings");
+    } catch {
+      handleError("Failed to load security settings");
     }
-  }, [handleError, securityForm]);
+  }, [handleError, securityForm, _setSecuritySettings]);
 
   const loadSessions = useCallback(async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).getSessions({
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.getSessions({
         page: sessionsPage,
         limit: 10,
       });
@@ -302,8 +299,8 @@ export default function AuthPage() {
       } else {
         handleError(response.error || "Failed to load sessions");
       }
-    } catch (error) {
-      handleError(error, "Failed to load sessions");
+    } catch {
+      handleError("Failed to load sessions");
     }
     // Remove unnecessary dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,7 +342,8 @@ export default function AuthPage() {
   // Handlers
   const handleCreateUser = async (data: UserFormData) => {
     try {
-      const response = await authManagementAPI.createUser(data);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.createUser(data);
 
       if (response.success) {
         showSuccess("User created successfully");
@@ -355,9 +353,8 @@ export default function AuthPage() {
       } else {
         handleError(response.error || "Failed to create user");
       }
-    } catch (error) {
-      console.error("Failed to create user:", error);
-      handleError(error, "Failed to create user");
+    } catch {
+      handleError("Failed to create user");
     }
   };
 
@@ -365,7 +362,8 @@ export default function AuthPage() {
     if (!editingUser) return;
 
     try {
-      const response = await authManagementAPI.updateUser(editingUser.id, data);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.updateUser(editingUser.id, data);
 
       if (response.success) {
         showSuccess("User updated successfully");
@@ -376,9 +374,8 @@ export default function AuthPage() {
       } else {
         handleError(response.error || "Failed to update user");
       }
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      handleError(error, "Failed to update user");
+    } catch {
+      handleError("Failed to update user");
     }
   };
 
@@ -386,7 +383,8 @@ export default function AuthPage() {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      const response = await authManagementAPI.deleteUser(id);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.deleteUser(id);
 
       if (response.success) {
         showSuccess("User deleted successfully");
@@ -394,16 +392,16 @@ export default function AuthPage() {
       } else {
         handleError(response.error || "Failed to delete user");
       }
-    } catch (error) {
-      console.error("Failed to delete user:", error);
-      handleError(error, "Failed to delete user");
+    } catch {
+      handleError("Failed to delete user");
     }
   };
 
   const handleToggleUserStatus = async (id: number, active: boolean) => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).updateUser(id, {
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.updateUser(id, {
         active,
       });
 
@@ -415,8 +413,8 @@ export default function AuthPage() {
       } else {
         handleError(response.error || "Failed to update user status");
       }
-    } catch (error) {
-      handleError(error, "Failed to update user status");
+    } catch {
+      handleError("Failed to update user status");
     }
   };
 
@@ -425,8 +423,8 @@ export default function AuthPage() {
       // await authAPI.unlockUser(_id);
       showSuccess("User unlocked successfully");
       await loadUsers();
-    } catch (error) {
-      handleError(error, "Failed to unlock user");
+    } catch {
+      handleError("Failed to unlock user");
     }
   };
 
@@ -437,8 +435,8 @@ export default function AuthPage() {
       // await authAPI.updateSecuritySettings(_data);
       showSuccess("Security settings updated successfully");
       // setSecuritySettings(_data);
-    } catch (error) {
-      handleError(error, "Failed to update security settings");
+    } catch {
+      handleError("Failed to update security settings");
     }
   };
 
@@ -449,8 +447,8 @@ export default function AuthPage() {
         `${_id} provider ${_enabled ? "enabled" : "disabled"} successfully`
       );
       // await loadProviders();
-    } catch (error) {
-      handleError(error, "Failed to update provider");
+    } catch {
+      handleError("Failed to toggle provider");
     }
   };
 
@@ -461,8 +459,8 @@ export default function AuthPage() {
       // await authAPI.revokeSession(_sessionId);
       showSuccess("Session revoked successfully");
       await loadSessions();
-    } catch (error) {
-      handleError(error, "Failed to revoke session");
+    } catch {
+      handleError("Failed to revoke session");
     }
   };
 
@@ -535,49 +533,65 @@ export default function AuthPage() {
               <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                 {authStats.total_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Total Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Total Users
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-green-600">
                 {authStats.active_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Active Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Active Users
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-red-600">
                 {authStats.locked_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Locked Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Locked Users
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-yellow-600">
                 {authStats.unverified_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Unverified</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Unverified
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
-                              <div className="text-2xl font-bold text-secondary-600">
+              <div className="text-2xl font-bold text-secondary-600">
                 {authStats.users_today}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">New Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                New Today
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-indigo-600">
                 {authStats.logins_today}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Logins Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Logins Today
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
-                              <div className="text-2xl font-bold text-primary-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {authStats.failed_logins_today}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Failed Logins</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Failed Logins
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-teal-600">
                 {authStats.sessions_active}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Active Sessions</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Active Sessions
+              </div>
             </div>
           </div>
         )}

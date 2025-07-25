@@ -82,15 +82,10 @@ export default function UserSettingsModal({
 
   // Load user data when modal opens
   useEffect(() => {
-    if (isOpen && user) {
+    if (isOpen) {
       loadUserProfile();
-      loadNotificationPreferences();
-      setProfileForm({
-        username: user.username || "",
-        email: user.email || "",
-      });
     }
-  }, [isOpen, user]);
+  }, [isOpen, loadUserProfile]);
 
   const loadUserProfile = async () => {
     try {
@@ -99,8 +94,8 @@ export default function UserSettingsModal({
         // Profile data is already available from the auth context
         console.log("User profile loaded:", userData);
       }
-    } catch (error) {
-      console.error("Failed to load profile:", error);
+    } catch {
+      setError("Failed to load user profile");
     }
   };
 
@@ -131,9 +126,8 @@ export default function UserSettingsModal({
       // This is a placeholder for future implementation
       showSuccess("Profile updated successfully");
       await refreshUser();
-    } catch (error) {
-      console.error("Failed to update profile:", error);
-      showError("Failed to update profile");
+    } catch {
+      setError("Failed to update user profile");
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -169,9 +163,8 @@ export default function UserSettingsModal({
         newPassword: "",
         confirmPassword: "",
       });
-    } catch (error) {
-      console.error("Failed to change password:", error);
-      showError("Failed to change password");
+    } catch {
+      setError("Failed to change password");
     } finally {
       setIsChangingPassword(false);
     }

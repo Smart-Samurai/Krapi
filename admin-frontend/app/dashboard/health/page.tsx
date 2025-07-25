@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { healthAPI } from "@/lib/api";
-import { HealthStatus } from "@/types";
+import { createDefaultKrapi } from "@/lib/krapi";
+import { HealthStatus } from "@/lib/krapi/types";
 import {
   Activity,
   CheckCircle,
@@ -37,8 +37,9 @@ export default function HealthCheckPage() {
   const checkHealth = async () => {
     try {
       setError(null);
-      const response = await healthAPI.check();
-      setHealthStatus(response);
+      // Placeholder implementation - replace with actual API call when available
+      const response = await createDefaultKrapi().admin.health();
+      setHealthStatus(response.data as HealthStatus);
       setLastChecked(new Date());
     } catch (error: unknown) {
       const errorMessage =
@@ -151,16 +152,16 @@ export default function HealthCheckPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                                  <Server className="h-6 w-6 text-primary-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
-                    Server Status
-                  </dt>
-                  <dd className="text-lg font-medium text-text-900">
-                    {healthStatus.status}
-                  </dd>
+                  <Server className="h-6 w-6 text-primary-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-text-500 truncate">
+                      Server Status
+                    </dt>
+                    <dd className="text-lg font-medium text-text-900">
+                      {healthStatus.status}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -171,16 +172,16 @@ export default function HealthCheckPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                                  <Clock className="h-6 w-6 text-accent-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
-                    Uptime
-                  </dt>
-                  <dd className="text-lg font-medium text-text-900">
-                    {formatUptime(healthStatus.uptime)}
-                  </dd>
+                  <Clock className="h-6 w-6 text-accent-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-text-500 truncate">
+                      Uptime
+                    </dt>
+                    <dd className="text-lg font-medium text-text-900">
+                      {formatUptime(healthStatus.uptime)}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -191,16 +192,16 @@ export default function HealthCheckPage() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                                  <Wifi className="h-6 w-6 text-secondary-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
-                    Connection
-                  </dt>
-                  <dd className="text-lg font-medium text-text-900">
-                    Active
-                  </dd>
+                  <Wifi className="h-6 w-6 text-secondary-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-text-500 truncate">
+                      Connection
+                    </dt>
+                    <dd className="text-lg font-medium text-text-900">
+                      Active
+                    </dd>
                   </dl>
                 </div>
               </div>

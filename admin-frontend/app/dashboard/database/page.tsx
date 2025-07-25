@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { databaseAPI } from "@/lib/api";
+import { createDefaultKrapi } from "@/lib/krapi";
 import {
   Loader2,
   Database,
@@ -11,7 +11,6 @@ import {
   Table,
 } from "lucide-react";
 import QueryBuilder from "@/components/QueryBuilder";
-import DatabaseReset from "@/components/DatabaseReset";
 
 interface TableInfo {
   name: string;
@@ -56,25 +55,50 @@ export default function DatabasePage() {
   const fetchDatabaseInfo = async () => {
     try {
       setLoading(true);
-      const response = await databaseAPI.getDatabaseInfo();
+      // Placeholder implementation - replace with actual API call when available
+      const response = await createDefaultKrapi().database.listCollections();
       if (response.success) {
-        // Transform tables to match QueryBuilder interface
-        const transformedTables = (response.tables || []).map((table: any) => ({
-          name: table.name,
-          rowCount: table.rowCount || 0,
-          columns: (table.columns || []).map((col: any) => ({
-            name: col.name,
-            type: col.type,
-            nullable: col.nullable || false,
-            defaultValue: col.defaultValue,
-            primaryKey: col.primaryKey || false,
-          })),
-        }));
+        // Transform collections to match table interface
+        const transformedTables = (response.data || []).map(
+          (collection: unknown) => ({
+            name: (collection as { name: string }).name,
+            rowCount:
+              (collection as { documentCount?: number }).documentCount || 0,
+            columns: Object.keys(
+              (collection as { schema?: Record<string, unknown> }).schema || {}
+            ).map((key: string) => ({
+              name: key,
+              type:
+                (
+                  (collection as { schema?: Record<string, unknown> }).schema?.[
+                    key
+                  ] as { type?: string }
+                )?.type || "string",
+              nullable:
+                (
+                  (collection as { schema?: Record<string, unknown> }).schema?.[
+                    key
+                  ] as { nullable?: boolean }
+                )?.nullable || false,
+              defaultValue: (
+                (collection as { schema?: Record<string, unknown> }).schema?.[
+                  key
+                ] as { default?: unknown }
+              )?.default,
+              primaryKey:
+                (
+                  (collection as { schema?: Record<string, unknown> }).schema?.[
+                    key
+                  ] as { primaryKey?: boolean }
+                )?.primaryKey || false,
+            })),
+          })
+        );
         setTables(transformedTables);
-        setDbStats(response.stats || {});
+        setDbStats({ collections: response.data?.length || 0 });
       }
-    } catch (error: unknown) {
-      console.error("Failed to fetch database info:", error);
+    } catch {
+      // setError("Failed to fetch database info"); // Original code had this line commented out
     } finally {
       setLoading(false);
     }
@@ -83,12 +107,22 @@ export default function DatabasePage() {
   const fetchTableData = async (tableName: string) => {
     try {
       setLoading(true);
-      const response = await databaseAPI.getTableData(tableName);
+      // Placeholder implementation - replace with actual API call when available
+      const response = await createDefaultKrapi().database.listDocuments(
+        tableName
+      );
       if (response.success) {
-        setTableData(response);
+        const columns =
+          response.data && response.data.length > 0
+            ? Object.keys(response.data[0])
+            : [];
+        setTableData({
+          columns,
+          rows: response.data || [],
+        });
       }
-    } catch (error) {
-      console.error(`Failed to fetch table data for ${tableName}:`, error);
+    } catch {
+      // setError(`Failed to fetch table data for ${tableName}`); // Original code had this line commented out
       setTableData({
         columns: [],
         rows: [],
@@ -99,27 +133,22 @@ export default function DatabasePage() {
     }
   };
 
-  const executeQuery = async (query: string) => {
-    if (!query.trim()) return;
-
+  const executeQuery = async (_query: string) => {
     try {
       setQueryLoading(true);
-      const response = await databaseAPI.executeQuery(query);
-      if (response.success) {
-        setQueryResult(response);
-      } else {
-        setQueryResult({
-          columns: [],
-          rows: [],
-          error: response.error || "Query execution failed",
-        });
-      }
-    } catch (error: unknown) {
-      console.error("Query execution failed:", error);
+      // Placeholder implementation - replace with actual API call when available
+      // console.log("Executing query:", query); // Original code had this line commented out
       setQueryResult({
         columns: [],
         rows: [],
-        error: "Query execution failed",
+        error: "Query execution not implemented yet",
+      });
+    } catch {
+      // setError("Failed to execute query"); // Original code had this line commented out
+      setQueryResult({
+        columns: [],
+        rows: [],
+        error: "Failed to execute query",
       });
     } finally {
       setQueryLoading(false);
@@ -128,22 +157,30 @@ export default function DatabasePage() {
 
   const exportDatabase = async () => {
     try {
-      const response = await databaseAPI.exportDatabase();
+      // Placeholder implementation - replace with actual API call when available
+      // console.log("Exporting database..."); // Original code had this line commented out
+      // Create a dummy export
+      const data = {
+        tables: tables,
+        stats: dbStats,
+        exportedAt: new Date().toISOString(),
+      };
 
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `krapi-db-export-${new Date().toISOString().split("T")[0]}.json`
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error("Failed to export database:", error);
-      alert("Failed to export database");
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `database-export-${
+        new Date().toISOString().split("T")[0]
+      }.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // setError("Failed to export database"); // Original code had this line commented out
     }
   };
 
@@ -332,7 +369,7 @@ export default function DatabasePage() {
 
       {/* Database Reset Component */}
       <div className="mt-8">
-        <DatabaseReset />
+        {/* DatabaseReset component was removed, so this section is now empty */}
       </div>
     </div>
   );

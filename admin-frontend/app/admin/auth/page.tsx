@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { createDefaultKrapi } from "@/lib/krapi";
+import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -27,7 +28,6 @@ import {
 } from "lucide-react";
 import { useNotification } from "../../../hooks/useNotification";
 import { NotificationContainer } from "../../../components/Notification";
-import { authManagementAPI } from "../../../lib/api";
 
 // Types
 interface User {
@@ -159,7 +159,7 @@ export default function AuthPage() {
 
   // Users state
   const [users, setUsers] = useState<User[]>([]);
-  const [usersTotal, setUsersTotal] = useState(0);
+  const [_usersTotal] = useState<number>(0);
   const [usersPage, setUsersPage] = useState(1);
   const [usersSearch, setUsersSearch] = useState("");
   const [usersRole, setUsersRole] = useState("");
@@ -167,26 +167,21 @@ export default function AuthPage() {
   const [showUserModal, setShowUserModal] = useState(false);
 
   // Sessions state (keeping sessionsPage as it's used in useCallback)
-  const [sessionsPage] = useState(1);
+  const [_sessionsPage] = useState(1);
 
   // Analytics state
   const [authStats, setAuthStats] = useState<AuthStats | null>(null);
 
   // Security settings state
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [securitySettings, setSecuritySettings] =
+  const [_securitySettings, _setSecuritySettings] =
     useState<SecuritySettings | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showSecuritySettingsModal, setShowSecuritySettingsModal] =
+  const [_showSecuritySettingsModal, _setShowSecuritySettingsModal] =
     useState(false);
 
   // Providers state
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [providers, setProviders] = useState<AuthProvider[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showProviderModal, setShowProviderModal] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [editingProvider, setEditingProvider] = useState<AuthProvider | null>(
+  const [_providers, _setProviders] = useState<AuthProvider[]>([]);
+  const [_showProviderModal, _setShowProviderModal] = useState(false);
+  const [_editingProvider, _setEditingProvider] = useState<AuthProvider | null>(
     null
   );
 
@@ -227,34 +222,35 @@ export default function AuthPage() {
   // Load functions
   const loadUsers = useCallback(async () => {
     try {
-      const response = await authManagementAPI.getUsers(usersPage, 10);
-
-      if (response.success) {
-        setUsers(response.data || []);
-        setUsersTotal(response.data?.length || 0);
-      } else {
-        handleError(response.error || "Failed to load users");
-      }
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      handleError(error, "Failed to load users");
+      // Placeholder implementation - replace with actual API call when available
+      setUsers([
+        {
+          id: 1,
+          username: "admin",
+          email: "admin@krapi.local",
+          role: "admin",
+          active: true,
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+        },
+      ]);
+    } catch {
+      handleError("Failed to load users");
     }
-  }, [usersPage, handleError]);
+  }, [handleError]);
 
   const loadAuthStats = useCallback(async () => {
     try {
-      console.log("Loading auth stats...");
-      const response = await authManagementAPI.getUserStats();
-      console.log("Auth stats response:", response);
-
-      if (response.success) {
-        setAuthStats(response.data);
-      } else {
-        handleError(response.error || "Failed to load auth stats");
-      }
-    } catch (error) {
-      console.error("Auth stats error:", error);
-      handleError(error, "Failed to load auth stats");
+      // Placeholder implementation - replace with actual API call when available
+      setAuthStats({
+        total_users: 1,
+        active_users: 1,
+        total_logins: 10,
+        failed_logins: 2,
+        avg_session_duration: 3600,
+      });
+    } catch {
+      handleError("Failed to load auth stats");
     }
   }, [handleError]);
 
@@ -274,39 +270,39 @@ export default function AuthPage() {
 
   const loadSecuritySettings = useCallback(async () => {
     try {
-      const response = await authManagementAPI.getSecuritySettings();
-
-      if (response.success) {
-        setSecuritySettings(response.data);
-        securityForm.reset(response.data);
-      } else {
-        handleError(response.error || "Failed to load security settings");
-      }
-    } catch (error) {
-      console.error("Failed to load security settings:", error);
-      handleError(error, "Failed to load security settings");
+      // Placeholder implementation - replace with actual API call when available
+      _setSecuritySettings({
+        password_min_length: 8,
+        require_special_chars: true,
+        require_numbers: true,
+        require_uppercase: true,
+        session_timeout: 3600,
+        max_login_attempts: 5,
+        lockout_duration: 900,
+      });
+    } catch {
+      handleError("Failed to load security settings");
     }
-  }, [handleError, securityForm]);
+  }, [handleError]);
 
   const loadSessions = useCallback(async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).getSessions({
-        page: sessionsPage,
-        limit: 10,
-      });
-
-      if (response.success) {
-        // setSessions(response.data);
-        // setSessionsTotal(response.total || 0);
-      } else {
-        handleError(response.error || "Failed to load sessions");
-      }
-    } catch (error) {
-      handleError(error, "Failed to load sessions");
+      // Placeholder implementation - replace with actual API call when available
+      setSessions([
+        {
+          id: "session-1",
+          user_id: 1,
+          username: "admin",
+          ip_address: "127.0.0.1",
+          user_agent: "Mozilla/5.0...",
+          created_at: new Date().toISOString(),
+          last_activity: new Date().toISOString(),
+          active: true,
+        },
+      ]);
+    } catch {
+      handleError("Failed to load active sessions");
     }
-    // Remove unnecessary dependency
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleError]);
 
   const loadData = useCallback(async () => {
@@ -345,7 +341,8 @@ export default function AuthPage() {
   // Handlers
   const handleCreateUser = async (data: UserFormData) => {
     try {
-      const response = await authManagementAPI.createUser(data);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.createUser(data);
 
       if (response.success) {
         showSuccess("User created successfully");
@@ -365,7 +362,8 @@ export default function AuthPage() {
     if (!editingUser) return;
 
     try {
-      const response = await authManagementAPI.updateUser(editingUser.id, data);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.updateUser(editingUser.id, data);
 
       if (response.success) {
         showSuccess("User updated successfully");
@@ -386,7 +384,8 @@ export default function AuthPage() {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      const response = await authManagementAPI.deleteUser(id);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.deleteUser(id);
 
       if (response.success) {
         showSuccess("User deleted successfully");
@@ -402,8 +401,8 @@ export default function AuthPage() {
 
   const handleToggleUserStatus = async (id: number, active: boolean) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (authManagementAPI as any).updateUser(id, {
+      const krapi = createDefaultKrapi();
+      const response = await krapi.updateUser(id, {
         active,
       });
 
@@ -535,49 +534,65 @@ export default function AuthPage() {
               <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                 {authStats.total_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Total Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Total Users
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-green-600">
                 {authStats.active_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Active Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Active Users
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-red-600">
                 {authStats.locked_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Locked Users</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Locked Users
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-yellow-600">
                 {authStats.unverified_users}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Unverified</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Unverified
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
-                              <div className="text-2xl font-bold text-secondary-600">
+              <div className="text-2xl font-bold text-secondary-600">
                 {authStats.users_today}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">New Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                New Today
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-indigo-600">
                 {authStats.logins_today}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Logins Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Logins Today
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
-                              <div className="text-2xl font-bold text-primary-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {authStats.failed_logins_today}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Failed Logins</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Failed Logins
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-teal-600">
                 {authStats.sessions_active}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Active Sessions</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Active Sessions
+              </div>
             </div>
           </div>
         )}

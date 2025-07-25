@@ -32,29 +32,23 @@ export default function ProjectDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (projectId) {
-      loadProject();
-    }
-  }, [projectId]);
+    loadProject();
+  }, [loadProject]);
 
   const loadProject = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log("📡 Loading project:", projectId);
       const krapi = createDefaultKrapi();
       const response = await krapi.admin.getProject(projectId);
 
       if (response.success && response.data) {
         setProject(response.data);
-        console.log("✅ Project loaded:", response.data);
       } else {
-        setError("Failed to load project");
-        console.error("❌ Failed to load project:", response);
+        setError("Failed to load project data");
       }
-    } catch (error) {
-      console.error("❌ Error loading project:", error);
+    } catch {
       setError("Failed to load project");
     } finally {
       setLoading(false);

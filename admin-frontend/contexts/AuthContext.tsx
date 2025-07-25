@@ -17,6 +17,7 @@ interface AuthContextType {
   socket: WebSocket | null;
   isLoading: boolean;
   isHydrated: boolean;
+  loginInProgress: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginInProgress, setLoginInProgress] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -57,10 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verify token when it changes
   useEffect(() => {
-    if (token) {
-      verifyToken();
+    // Don't verify token during login attempts or if no token
+    if (!token || loginInProgress) {
+      console.log(
+        "🔐 Skipping token verification - no token or login in progress"
+      );
+      setIsLoading(false);
+      setIsHydrated(true);
+      return;
     }
-  }, [token]);
+
+    console.log("🔐 Verifying token...");
+    verifyToken();
+  }, [token, loginInProgress]);
 
   // Open WebSocket when authenticated
   useEffect(() => {
@@ -68,13 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Build WS URL using centralized config
       const wsUrl = config.getWebSocketUrl(token);
 
-      console.log("Attempting WebSocket connection to:", wsUrl);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log("✅ WebSocket connected successfully");
-        setReconnectAttempts(0); // Reset reconnection counter
-
         // Send initial heartbeat
         const heartbeat = () => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -98,24 +105,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log("📨 WebSocket message received:", data);
+          const _data = JSON.parse(event.data);
           // Handle WebSocket messages here
         } catch {
           console.warn("Non-JSON WebSocket message:", event.data);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error("❌ WebSocket error:", error);
+      ws.onerror = (_error) => {
         // Don't attempt to use the connection after an error
       };
 
       ws.onclose = (event) => {
-        console.log(
-          `🔌 WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`
-        );
-
         // Clean up heartbeat interval
         if ((ws as any).heartbeatInterval) {
           clearInterval((ws as any).heartbeatInterval);
@@ -137,11 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ),
             config.websocket.reconnectDelay.max
           );
-          console.log(
-            `🔄 Attempting WebSocket reconnection #${
-              reconnectAttempts + 1
-            } in ${delay / 1000} seconds...`
-          );
 
           setTimeout(() => {
             if (token && user) {
@@ -161,8 +157,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSocket(ws);
 
       return () => {
-        console.log("🔌 Closing WebSocket connection");
-
         // Clean up heartbeat interval
         if ((ws as any).heartbeatInterval) {
           clearInterval((ws as any).heartbeatInterval);
@@ -173,7 +167,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       // Clear socket when not authenticated
       if (socket) {
-        console.log("🔌 Closing WebSocket due to logout");
         socket.close(1000, "User logged out");
         setSocket(null);
       }
@@ -182,25 +175,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = async () => {
     try {
-      console.log("🔍 Verifying token...");
       const krapi = createDefaultKrapi();
       const response = await krapi.auth.verify();
-      console.log("🔍 Token verification response:", response);
 
       if (response.success && response.data) {
-        console.log("✅ Token verified, setting user:", response.data);
         setUser(response.data);
       } else {
-        console.log("❌ Token verification failed, clearing token");
         localStorage.removeItem("auth_token");
         setToken(null);
       }
-    } catch (error) {
-      console.error("❌ Token verification failed:", error);
+    } catch (_error) {
+      console.error("❌ Token verification failed:", _error);
       localStorage.removeItem("auth_token");
       setToken(null);
     } finally {
-      console.log("🔍 Setting loading=false, hydrated=true");
       setIsLoading(false);
       setIsHydrated(true);
     }
@@ -210,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     username: string,
     password: string
   ): Promise<boolean> => {
+    setLoginInProgress(true);
     try {
       console.log("🔐 AuthContext: Attempting login...");
       const krapi = createDefaultKrapi();
@@ -217,18 +206,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("🔐 AuthContext: Login response:", response);
 
       if (response.success && response.token && response.user) {
-        // Set both token and user immediately to avoid timing issues
+        console.log(
+          "🔐 AuthContext: Login successful - setting token and user"
+        );
+        // Store in localStorage first
+        localStorage.setItem("auth_token", response.token);
+        localStorage.setItem("auth_user", JSON.stringify(response.user));
+
+        // Then set state (this will trigger verifyToken)
         setToken(response.token);
         setUser(response.user);
-        localStorage.setItem("auth_token", response.token);
-        console.log("✅ AuthContext: Login successful - token and user set");
+
+        setLoginInProgress(false);
         return true;
       }
-      console.log("❌ AuthContext: Login failed - invalid response");
-      return false;
+      console.log("🔐 AuthContext: Login failed - invalid response");
+      // If login failed but no exception, throw the error message
+      throw new Error(response.error || "Login failed");
     } catch (error) {
-      console.error("❌ AuthContext: Login failed:", error);
-      return false;
+      console.log("🔐 AuthContext: Login error caught:", error);
+      setLoginInProgress(false);
+      // Re-throw the error so the login page can handle it
+      throw error;
     }
   };
 
@@ -276,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         socket,
         isLoading,
         isHydrated,
+        loginInProgress,
         login,
         logout,
         refreshUser,

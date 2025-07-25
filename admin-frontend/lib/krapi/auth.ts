@@ -11,17 +11,24 @@ export class KrapiAuth {
   // Login with username and password
   async login(username: string, password: string): Promise<LoginResponse> {
     try {
+      console.log(
+        "🔐 KrapiAuth: Making login request to:",
+        this.client.getAxiosInstance().defaults.baseURL + "/auth"
+      );
       const response = await this.client.getAxiosInstance().post("/auth", {
         method: "login",
         username,
         password,
       });
+      console.log("🔐 KrapiAuth: Raw response:", response.data);
       return response.data;
     } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.error || error.message || "Login failed",
-      };
+      console.log("🔐 KrapiAuth: Login error:", error);
+      console.log("🔐 KrapiAuth: Error response:", error.response?.data);
+      // Throw the error instead of returning a failed response
+      throw new Error(
+        error.response?.data?.error || error.message || "Login failed"
+      );
     }
   }
 
@@ -33,13 +40,12 @@ export class KrapiAuth {
       });
       return response.data;
     } catch (error: any) {
-      return {
-        success: false,
-        error:
-          error.response?.data?.error ||
+      // Throw the error instead of returning a failed response
+      throw new Error(
+        error.response?.data?.error ||
           error.message ||
-          "Token verification failed",
-      };
+          "Token verification failed"
+      );
     }
   }
 

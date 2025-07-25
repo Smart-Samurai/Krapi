@@ -92,19 +92,35 @@ export default function ApiDebugger() {
   };
 
   // Test functions
-  const krapi = createDefaultKrapi();
+  const testHealth = () => {
+    const krapi = createDefaultKrapi();
+    return runTest("Health Check", () => krapi.admin.health());
+  };
 
-  const testHealth = () => runTest("Health Check", () => krapi.admin.health());
-  const testListProjects = () =>
-    runTest("List Projects", () => krapi.admin.listProjects());
-  const testListApiKeys = () =>
-    runTest("List API Keys", () => krapi.admin.listApiKeys());
-  const testDatabaseStats = () =>
-    runTest("Database Stats", () => krapi.admin.getDatabaseStats());
-  const testListFiles = () =>
-    runTest("List Files", () => krapi.storage.listFiles());
-  const testListCollections = () =>
-    runTest("List Collections", () => krapi.database.listCollections());
+  const testListProjects = () => {
+    const krapi = createDefaultKrapi();
+    return runTest("List Projects", () => krapi.admin.listProjects());
+  };
+
+  const testListApiKeys = () => {
+    const krapi = createDefaultKrapi();
+    return runTest("List API Keys", () => krapi.admin.listApiKeys());
+  };
+
+  const testDatabaseStats = () => {
+    const krapi = createDefaultKrapi();
+    return runTest("Database Stats", () => krapi.admin.getDatabaseStats());
+  };
+
+  const testListFiles = () => {
+    const krapi = createDefaultKrapi();
+    return runTest("List Files", () => krapi.storage.listFiles());
+  };
+
+  const testListCollections = () => {
+    const krapi = createDefaultKrapi();
+    return runTest("List Collections", () => krapi.database.listCollections());
+  };
 
   return (
     <div className="space-y-6">

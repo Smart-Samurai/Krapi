@@ -17,7 +17,7 @@ import { useNotification } from "@/hooks/useNotification";
 import { NotificationContainer } from "@/components/Notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -52,7 +52,7 @@ interface FileMetadata {
   description?: string;
 }
 
-interface FileUploadInput {
+interface _FileUploadInput {
   file: File;
   description: string;
   access_level: "public" | "private" | "restricted";
@@ -167,7 +167,6 @@ export default function FilesPage() {
       });
       showSuccess(`File '${uploadForm.file.name}' uploaded successfully`);
     } catch (err) {
-      console.error("Upload error:", err);
       handleError(err, "Failed to upload file");
     }
   };
@@ -211,7 +210,6 @@ export default function FilesPage() {
   const handleDownloadFile = async (id: number, filename: string) => {
     try {
       // Note: File download is not fully implemented in the new API yet
-      console.log(`Downloading file: ${filename} (ID: ${id})`);
       showSuccess(`Download started for '${filename}'`);
     } catch (err) {
       handleError(err, "Failed to download file");

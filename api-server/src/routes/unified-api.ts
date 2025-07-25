@@ -63,10 +63,11 @@ router.post("/auth", (req, res) => {
       AuthController.login(req, res);
       break;
     case "verify":
-      console.log(
-        "🔐 Unified API Auth: Calling ProjectApiController.authenticateApiKey"
-      );
-      ProjectApiController.authenticateApiKey(req, res);
+      console.log("🔐 Unified API Auth: Calling AuthController.verify");
+      // For verify, we need to use the auth middleware first
+      authenticateToken(req, res, () => {
+        AuthController.verify(req, res);
+      });
       break;
     default:
       console.log("🔐 Unified API Auth: Invalid method:", method);

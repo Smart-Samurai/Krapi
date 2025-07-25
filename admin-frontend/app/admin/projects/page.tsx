@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import {
   Card,
@@ -68,113 +68,87 @@ interface Project {
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [newProject, setNewProject] = useState({
-    name: "",
-    description: "",
-    domain: "",
-  });
-  const [isCreating, setIsCreating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { showSuccess, showError } = useNotification();
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
-      console.log("📡 Fetching projects...");
       setLoading(true);
-
-      const krapi = createDefaultKrapi();
-      const response = await krapi.admin.listProjects();
-      console.log("✅ Projects response:", response);
-
-      if (response.success && response.data) {
-        setProjects(response.data);
-        console.log(`✅ Loaded ${response.data.length} projects`);
-      } else {
-        console.error("❌ Failed to fetch projects:", response);
-        showError(
-          "Failed to fetch projects: " + (response.error || "Unknown error")
-        );
+      const response = await createDefaultKrapi().admin.listProjects();
+      if (response.success) {
+        setProjects(response.data || []);
       }
-    } catch (error) {
-      console.error("❌ Error fetching projects:", error);
-      showError("Failed to fetch projects. Please try again.");
+    } catch {
+      setError("Failed to load projects");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const createProject = async () => {
-    if (!newProject.name.trim()) {
-      showError("Project name is required");
-      return;
-    }
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
+  const handleCreateProject = async (data: CreateProjectFormData) => {
     try {
-      console.log("📡 Creating project:", newProject);
-      setIsCreating(true);
-
-      const krapi = createDefaultKrapi();
-      const response = await krapi.admin.createProject({
-        name: newProject.name.trim(),
-        description: newProject.description.trim() || undefined,
-        domain: newProject.domain.trim() || undefined,
+      setCreating(true);
+      const response = await createDefaultKrapi().admin.createProject({
+        name: data.name,
+        description: data.description,
+        domain: data.domain,
       });
-
-      console.log("✅ Create project response:", response);
-
-      if (response.success && response.data) {
-        setProjects([...projects, response.data]);
-        setCreateDialogOpen(false);
-        setNewProject({ name: "", description: "", domain: "" });
-        showSuccess("Project created successfully!");
-      } else {
-        console.error("❌ Failed to create project:", response);
-        showError(
-          "Failed to create project: " + (response.error || "Unknown error")
-        );
+      if (response.success) {
+        setShowCreateModal(false);
+        fetchProjects();
       }
-    } catch (error) {
-      console.error("❌ Error creating project:", error);
-      showError("Failed to create project. Please try again.");
+    } catch {
+      setError("Failed to create project");
     } finally {
-      setIsCreating(false);
+      setCreating(false);
     }
   };
 
-  const deleteProject = async (project: Project) => {
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+
     try {
-      console.log("📡 Deleting project:", project.id);
-      setIsDeleting(true);
-
-      const krapi = createDefaultKrapi();
-      const response = await krapi.admin.deleteProject(project.id);
-      console.log("✅ Delete project response:", response);
-
+      const response = await createDefaultKrapi().admin.deleteProject(
+        projectId
+      );
       if (response.success) {
-        setProjects(projects.filter((p) => p.id !== project.id));
-        setDeleteDialogOpen(false);
-        setSelectedProject(null);
-        showSuccess("Project deleted successfully!");
-      } else {
-        console.error("❌ Failed to delete project:", response);
-        showError(
-          "Failed to delete project: " + (response.error || "Unknown error")
-        );
+        fetchProjects();
       }
-    } catch (error) {
-      console.error("❌ Error deleting project:", error);
-      showError("Failed to delete project. Please try again.");
-    } finally {
-      setIsDeleting(false);
+    } catch {
+      setError("Failed to delete project");
+    }
+  };
+
+  const handleUpdateProject = async (
+    projectId: string,
+    data: UpdateProjectFormData
+  ) => {
+    try {
+      const response = await createDefaultKrapi().admin.updateProject(
+        projectId,
+        {
+          name: data.name,
+          description: data.description,
+          domain: data.domain,
+        }
+      );
+      if (response.success) {
+        setShowEditModal(false);
+        setEditingProject(null);
+        fetchProjects();
+      }
+    } catch {
+      setError("Failed to update project");
     }
   };
 
@@ -563,8 +537,8 @@ export default function ProjectsPage() {
           <DialogHeader>
             <DialogTitle>Delete Project</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedProject?.name}"? This
-              action cannot be undone.
+              Are you sure you want to delete &quot;{selectedProject?.name}
+              &quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

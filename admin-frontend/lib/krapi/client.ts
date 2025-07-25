@@ -53,8 +53,14 @@ class KrapiClient {
       // Add auth token from localStorage if available (for admin operations)
       if (typeof window !== "undefined") {
         const token = localStorage.getItem("auth_token");
-        if (token && !config.url?.includes("/auth")) {
-          config.headers.Authorization = `Bearer ${token}`;
+        if (token) {
+          // Add token for all requests except login
+          if (
+            !config.url?.includes("/auth") ||
+            config.data?.method === "verify"
+          ) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
         }
       }
 

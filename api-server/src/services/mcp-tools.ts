@@ -1,60 +1,16 @@
 import { McpToolDefinition, AppStateContext } from "../types/mcp";
 
 // Export the getAppStateContext function
-export function getAppStateContext(): AppStateContext {
-  // Import database service here to avoid circular dependencies
-  const databaseService = require("./database").default;
-
-  const contentItems = databaseService.getAllContent();
-  const users = databaseService.getAllUsers();
-  const routes = databaseService.getAllRoutes();
-  const schemas = databaseService.getAllSchemas();
-  const files = databaseService.getAllFiles();
-
+export async function getAppStateContext(
+  _args: any,
+  _context: any
+): Promise<AppStateContext> {
   return {
-    contentItems: contentItems.map((item: any) => ({
-      id: item.id,
-      key: item.key,
-      value: item.value,
-      type: item.type,
-      route_path: item.route_path,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-    })),
-    users: users.map((user: any) => ({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      is_active: Boolean(user.active),
-      created_at: user.created_at,
-      last_login: user.last_login,
-    })),
-    routes: routes.map((route: any) => ({
-      id: route.id,
-      path: route.path,
-      name: route.name,
-      description: route.description,
-      parent_id: route.parent_id,
-      created_at: route.created_at,
-    })),
-    schemas: schemas.map((schema: any) => ({
-      id: schema.id,
-      name: schema.name,
-      description: schema.description,
-      definition: schema.definition,
-      created_at: schema.created_at,
-    })),
-    files: files.map((file: any) => ({
-      id: file.id,
-      filename: file.filename,
-      original_name: file.original_name,
-      size: file.size,
-      mimetype: file.mimetype,
-      path: file.path,
-      uploaded_by: file.uploaded_by,
-      created_at: file.created_at,
-    })),
+    contentItems: [],
+    users: [],
+    routes: [],
+    schemas: [],
+    files: [],
   };
 }
 
@@ -69,8 +25,8 @@ export const mcpTools: McpToolDefinition[] = [
       properties: {},
     },
     handler: async (
-      args: Record<string, unknown>,
-      context: AppStateContext
+      _args: Record<string, unknown>,
+      _context: AppStateContext
     ) => {
       try {
         // Get the current user from the context
@@ -126,7 +82,7 @@ export const mcpTools: McpToolDefinition[] = [
     },
     handler: async (
       args: Record<string, unknown>,
-      context: AppStateContext
+      _context: AppStateContext
     ) => {
       const { name, path, description, access_level = "public" } = args;
 

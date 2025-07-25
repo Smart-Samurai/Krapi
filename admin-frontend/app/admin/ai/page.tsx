@@ -4,22 +4,12 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Bot,
-  Settings,
-  Database,
-  Users,
-  FileText,
-  Route,
-  BarChart3,
   Play,
   RefreshCw,
   Download,
   Trash2,
-  Plus,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  Wifi,
-  WifiOff,
   Zap,
   Brain,
   MessageSquare,
@@ -70,7 +60,7 @@ interface McpTool {
   description: string;
   inputSchema: {
     type: string;
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     required?: string[];
   };
 }
@@ -87,14 +77,14 @@ export default function AIPage() {
   // Ollama state
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [currentModel, setCurrentModel] = useState("llama3.1:8b");
-  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
+  const [_ollamaUrl, _setOllamaUrl] = useState("http://localhost:11434");
   const [isOllamaHealthy, setIsOllamaHealthy] = useState(false);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [_isLoadingModels, _setIsLoadingModels] = useState(false);
 
   // MCP state
-  const [mcpInfo, setMcpInfo] = useState<McpInfo | null>(null);
+  const [_mcpInfo, setMcpInfo] = useState<McpInfo | null>(null);
   const [mcpTools, setMcpTools] = useState<McpTool[]>([]);
-  const [isMcpEnabled, setIsMcpEnabled] = useState(true);
+  const [_isMcpEnabled, _setIsMcpEnabled] = useState(true);
 
   // Model management
   const [newModelName, setNewModelName] = useState("");
@@ -153,8 +143,7 @@ export default function AIPage() {
           },
         },
       ]);
-    } catch (error) {
-      console.error("Failed to load AI data:", error);
+    } catch {
       setError("Failed to load AI configuration");
     }
   };
@@ -186,8 +175,7 @@ export default function AIPage() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Failed to send message:", error);
+    } catch {
       setError("Failed to send message");
     } finally {
       setIsLoading(false);
@@ -216,8 +204,7 @@ export default function AIPage() {
       setNewModelName("");
       // Refresh models list
       loadData();
-    } catch (error) {
-      console.error("Failed to pull model:", error);
+    } catch {
       setError("Failed to pull model");
     } finally {
       setIsPullingModel(false);
@@ -230,8 +217,7 @@ export default function AIPage() {
       // Note: Model loading is not implemented in the new API yet
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setCurrentModel(modelName);
-    } catch (error) {
-      console.error("Failed to load model:", error);
+    } catch {
       setError("Failed to load model");
     } finally {
       setIsLoadingModel(false);
@@ -245,19 +231,17 @@ export default function AIPage() {
     try {
       // Note: Model deletion is not implemented in the new API yet
       setModels((prev) => prev.filter((model) => model.name !== modelName));
-    } catch (error) {
-      console.error("Failed to delete model:", error);
+    } catch {
       setError("Failed to delete model");
     }
   };
 
-  const updateOllamaUrl = async () => {
+  const _updateOllamaUrl = async () => {
     try {
-      // Note: Ollama URL update is not implemented in the new API yet
-      setIsOllamaHealthy(true);
-    } catch (error) {
-      console.error("Failed to update Ollama URL:", error);
-      setIsOllamaHealthy(false);
+      // Note: URL update is not implemented in the new API yet
+      // Placeholder implementation
+    } catch {
+      setError("Failed to update Ollama URL");
     }
   };
 
@@ -310,7 +294,7 @@ export default function AIPage() {
               <div>
                 <p className="text-sm font-medium">MCP Server</p>
                 <p className="text-2xl font-bold">
-                  {isMcpEnabled ? "Enabled" : "Disabled"}
+                  {_isMcpEnabled ? "Enabled" : "Disabled"}
                 </p>
               </div>
               <Brain className="h-8 w-8 text-blue-500" />

@@ -51,16 +51,10 @@ export default function HealthCheckPage() {
   const checkHealth = async () => {
     try {
       setError(null);
-      console.log("📡 Checking API health...");
-      const krapi = createDefaultKrapi();
-      const response = await krapi.admin.health();
-      console.log("✅ Health check response:", response);
-      if (response.success && response.data) {
-        setHealthStatus(response.data);
-      }
+      const response = await createDefaultKrapi().admin.health();
+      setHealthStatus(response.data as HealthStatus);
       setLastChecked(new Date());
     } catch (error: unknown) {
-      console.error("❌ Health check failed:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to connect to API";
       setError(errorMessage);

@@ -1,10 +1,9 @@
-import { Request, Response } from "express";
+import { Request as _Request, Response as _Response } from "express";
 import {
   McpRequest,
   McpResponse,
   McpServerConfig,
   McpTool,
-  McpToolResult,
   OllamaMessage,
 } from "../types/mcp";
 import { OllamaService } from "./ollama";
@@ -115,6 +114,32 @@ export class McpServer {
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      execute: async (args: any, context: any) => {
+        try {
+          const result = await tool.handler(args, context);
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: result.success
+                  ? result.message || "Success"
+                  : result.error || "Error",
+              },
+            ],
+            isError: !result.success,
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error executing tool ${tool.name}: ${error}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
     }));
   }
 
@@ -208,7 +233,7 @@ export class McpServer {
     if (!tool) {
       return {
         error: {
-          code: -32602,
+          code: -32601,
           message: `Tool not found: ${name}`,
         },
         id: request.id,
@@ -216,20 +241,28 @@ export class McpServer {
     }
 
     try {
-      const context = await getAppStateContext();
+      const context = await getAppStateContext({}, {});
       const result = await tool.handler(args, context);
 
       return {
-        result,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: result.success
+                ? result.message || "Success"
+                : result.error || "Error",
+            },
+          ],
+          isError: !result.success,
+        },
         id: request.id,
       };
     } catch (error) {
       return {
         error: {
           code: -32603,
-          message: `Tool execution failed: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
+          message: `Error executing tool ${name}: ${error}`,
         },
         id: request.id,
       };
@@ -258,8 +291,7 @@ export class McpServer {
         "Tools enabled:",
         tools
       );
-      // Create a working copy of messages
-      let workingMessages = [...messages];
+      const workingMessages = [...messages];
 
       // Convert MCP tools to Ollama tool format
       const ollamaTools = tools ? this.convertToolsToOllamaFormat() : [];
@@ -286,7 +318,7 @@ export class McpServer {
         response.message.tool_calls.length > 0
       ) {
         console.log("🔧 Tool calls detected:", response.message.tool_calls);
-        const context = await getAppStateContext();
+        const context = await getAppStateContext({}, {});
 
         // Add the assistant's response with tool calls to the conversation
         workingMessages.push(response.message);
@@ -303,7 +335,7 @@ export class McpServer {
               if (typeof args === "string") {
                 try {
                   args = JSON.parse(args);
-                } catch (parseError) {
+                } catch {
                   console.error(
                     `Failed to parse tool arguments for ${toolCall.function.name}:`,
                     args
@@ -350,6 +382,46 @@ export class McpServer {
               tool_call_id: toolCall.id,
             });
           }
+        }
+
+        // Handle tool calls in the response
+        if (
+          response.message.tool_calls &&
+          response.message.tool_calls.length > 0
+        ) {
+          const toolResults = [];
+
+          for (const toolCall of response.message.tool_calls) {
+            const tool = mcpTools.find(
+              (t) => t.name === toolCall.function.name
+            );
+            if (tool) {
+              try {
+                const args = JSON.parse(
+                  toolCall.function.arguments as unknown as string
+                );
+                const context = await getAppStateContext(args, {});
+                const result = await tool.handler(args, context);
+
+                toolResults.push({
+                  tool_call_id: toolCall.id,
+                  content: result.success
+                    ? result.message || "Success"
+                    : result.error || "Error",
+                });
+              } catch (error) {
+                toolResults.push({
+                  tool_call_id: toolCall.id,
+                  content: `Error executing tool ${toolCall.function.name}: ${error}`,
+                });
+              }
+            }
+          }
+
+          // Add tool results to the response
+          response.message.content +=
+            "\n\nTool Results:\n" +
+            toolResults.map((r) => r.content).join("\n");
         }
 
         // Make a follow-up request with the tool results

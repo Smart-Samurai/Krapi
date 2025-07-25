@@ -12,7 +12,7 @@ import {
   User as UserIcon,
   UserCheck,
 } from "lucide-react";
-import { usersAPI } from "@/lib/api";
+import { createDefaultKrapi } from "@/lib/krapi";
 import { User, ApiResponse, UserFilters } from "@/types";
 import {
   userCreateSchema,
@@ -54,7 +54,8 @@ export default function UsersPage() {
   const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response: ApiResponse<User[]> = await usersAPI.getAllUsers(filters);
+      const response: ApiResponse<User[]> =
+        await createDefaultKrapi().users.getAllUsers(filters);
       if (response.success && response.data) {
         setUsers(Array.isArray(response.data) ? response.data : []);
       } else {
@@ -75,7 +76,7 @@ export default function UsersPage() {
 
   const handleCreateUser = async (data: UserCreateInput) => {
     try {
-      const response = await usersAPI.createUser({
+      const response = await createDefaultKrapi().users.createUser({
         username: data.username,
         email: data.email,
         password: data.password,
@@ -100,9 +101,12 @@ export default function UsersPage() {
     if (!editingUser) return;
 
     try {
-      const response = await usersAPI.updateUser(editingUser.id, {
-        role: data.role,
-      });
+      const response = await createDefaultKrapi().users.updateUser(
+        editingUser.id,
+        {
+          role: data.role,
+        }
+      );
       if (response.success) {
         setEditingUser(null);
         updateForm.reset();
@@ -120,7 +124,7 @@ export default function UsersPage() {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      const response = await usersAPI.deleteUser(id);
+      const response = await createDefaultKrapi().users.deleteUser(id);
       if (response.success) {
         loadUsers();
         showSuccess("User deleted successfully");
@@ -141,11 +145,17 @@ export default function UsersPage() {
       case "admin":
         return <Shield className="h-4 w-4 text-red-500" />;
       case "editor":
-        return <UserCheck className="h-4 w-4 text-secondary dark:text-secondary" />;
+        return (
+          <UserCheck className="h-4 w-4 text-secondary dark:text-secondary" />
+        );
       case "viewer":
-        return <UserIcon className="h-4 w-4 text-text-500 dark:text-text-500" />;
+        return (
+          <UserIcon className="h-4 w-4 text-text-500 dark:text-text-500" />
+        );
       default:
-        return <UserIcon className="h-4 w-4 text-text-500 dark:text-text-500" />;
+        return (
+          <UserIcon className="h-4 w-4 text-text-500 dark:text-text-500" />
+        );
     }
   };
 
@@ -196,7 +206,10 @@ export default function UsersPage() {
             </li>
           ) : (
             filteredUsers.map((user) => (
-              <li key={user.id} className="px-6 py-4 hover:bg-background-50 dark:bg-background-50">
+              <li
+                key={user.id}
+                className="px-6 py-4 hover:bg-background-50 dark:bg-background-50"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
@@ -221,7 +234,9 @@ export default function UsersPage() {
                         {user.role}
                       </p>
                       {user.email && (
-                        <p className="text-sm text-text-500 dark:text-text-500">{user.email}</p>
+                        <p className="text-sm text-text-500 dark:text-text-500">
+                          {user.email}
+                        </p>
                       )}
                     </div>
                   </div>

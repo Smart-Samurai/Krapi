@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createDefaultKrapi } from "@/lib/krapi";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,7 +23,6 @@ import {
 } from "lucide-react";
 import { useNotification } from "../../../hooks/useNotification";
 import { NotificationContainer } from "../../../components/Notification";
-import { apiManagementAPI } from "../../../lib/api";
 
 // Types
 interface ApiKey {
@@ -149,7 +149,8 @@ export default function ApiManagementPage() {
   // Load functions
   const loadApiKeys = useCallback(async () => {
     try {
-      const response = await apiManagementAPI.getApiKeys();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.getApiKeys();
       if (response.success) {
         setApiKeys(response.data || []);
         setKeysTotal(response.data?.length || 0);
@@ -157,8 +158,7 @@ export default function ApiManagementPage() {
         setApiKeys([]);
         setKeysTotal(0);
       }
-    } catch (error) {
-      console.error("Failed to load API keys:", error);
+    } catch {
       setApiKeys([]);
       setKeysTotal(0);
     }
@@ -166,7 +166,8 @@ export default function ApiManagementPage() {
 
   const loadEndpoints = useCallback(async () => {
     try {
-      const response = await apiManagementAPI.getEndpoints();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.getEndpoints();
       if (response.success) {
         setEndpoints(response.data || []);
         setEndpointsTotal(response.data?.length || 0);
@@ -174,8 +175,7 @@ export default function ApiManagementPage() {
         setEndpoints([]);
         setEndpointsTotal(0);
       }
-    } catch (error) {
-      console.error("Failed to load endpoints:", error);
+    } catch {
       setEndpoints([]);
       setEndpointsTotal(0);
     }
@@ -183,28 +183,28 @@ export default function ApiManagementPage() {
 
   const loadRateLimits = useCallback(async () => {
     try {
-      const response = await apiManagementAPI.getRateLimits();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.getRateLimits();
       if (response.success) {
         setRateLimits(response.data || []);
       } else {
         setRateLimits([]);
       }
-    } catch (error) {
-      console.error("Failed to load rate limits:", error);
+    } catch {
       setRateLimits([]);
     }
   }, []);
 
   const loadAnalytics = useCallback(async () => {
     try {
-      const response = await apiManagementAPI.getApiStats();
+      const krapi = createDefaultKrapi();
+      const response = await krapi.getApiStats();
       if (response.success) {
         setAnalytics(response.data);
       } else {
         setAnalytics(null);
       }
-    } catch (error) {
-      console.error("Failed to load analytics:", error);
+    } catch {
       setAnalytics(null);
     }
   }, []);
@@ -229,7 +229,8 @@ export default function ApiManagementPage() {
   // Handlers
   const handleCreateApiKey = async (data: ApiKeyFormData) => {
     try {
-      const response = await apiManagementAPI.createApiKey({
+      const krapi = createDefaultKrapi();
+      const response = await krapi.createApiKey({
         name: data.name,
         permissions: data.permissions,
         rate_limit: data.rate_limit,
@@ -244,8 +245,8 @@ export default function ApiManagementPage() {
       } else {
         handleError(response.error || "Failed to create API key");
       }
-    } catch (error) {
-      handleError(error, "Failed to create API key");
+    } catch {
+      handleError("Failed to create API key");
     }
   };
 
@@ -253,15 +254,13 @@ export default function ApiManagementPage() {
     if (!editingKey) return;
 
     try {
-      const response = await apiManagementAPI.updateApiKey(
-        Number(editingKey.id),
-        {
-          name: data.name,
-          permissions: data.permissions,
-          rate_limit: data.rate_limit,
-          expires_at: data.expires_at || undefined,
-        }
-      );
+      const krapi = createDefaultKrapi();
+      const response = await krapi.updateApiKey(Number(editingKey.id), {
+        name: data.name,
+        permissions: data.permissions,
+        rate_limit: data.rate_limit,
+        expires_at: data.expires_at || undefined,
+      });
 
       if (response.success) {
         showSuccess("API key updated successfully");
@@ -272,8 +271,8 @@ export default function ApiManagementPage() {
       } else {
         handleError(response.error || "Failed to update API key");
       }
-    } catch (error) {
-      handleError(error, "Failed to update API key");
+    } catch {
+      handleError("Failed to update API key");
     }
   };
 
@@ -286,15 +285,16 @@ export default function ApiManagementPage() {
       return;
 
     try {
-      const response = await apiManagementAPI.deleteApiKey(Number(id));
+      const krapi = createDefaultKrapi();
+      const response = await krapi.deleteApiKey(Number(id));
       if (response.success) {
         showSuccess("API key deleted successfully");
         await loadApiKeys();
       } else {
         handleError(response.error || "Failed to delete API key");
       }
-    } catch (error) {
-      handleError(error, "Failed to delete API key");
+    } catch {
+      handleError("Failed to delete API key");
     }
   };
 
@@ -305,8 +305,8 @@ export default function ApiManagementPage() {
         `API key ${_active ? "activated" : "deactivated"} successfully`
       );
       await loadApiKeys();
-    } catch (error) {
-      handleError(error, "Failed to toggle API key");
+    } catch {
+      handleError("Failed to toggle API key");
     }
   };
 
@@ -364,49 +364,65 @@ export default function ApiManagementPage() {
               <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                 {analytics.total_requests.toLocaleString()}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Total Requests</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Total Requests
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-green-600">
                 {analytics.requests_today.toLocaleString()}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Today</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Today
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
-                              <div className="text-2xl font-bold text-secondary-600">
+              <div className="text-2xl font-bold text-secondary-600">
                 {analytics.avg_response_time}ms
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Avg Response</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Avg Response
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-red-600">
                 {analytics.error_rate}%
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Error Rate</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Error Rate
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-indigo-600">
                 {analytics.active_keys}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Active Keys</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Active Keys
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-yellow-600">
                 {analytics.blocked_requests}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Blocked</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Blocked
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
               <div className="text-2xl font-bold text-teal-600">
                 {analytics.bandwidth_used}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Bandwidth</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Bandwidth
+              </div>
             </div>
             <div className="bg-background-100 dark:bg-background-100 p-4 rounded-lg shadow">
-                              <div className="text-2xl font-bold text-primary-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {endpoints.length}
               </div>
-              <div className="text-sm text-text-500 dark:text-text-500">Endpoints</div>
+              <div className="text-sm text-text-500 dark:text-text-500">
+                Endpoints
+              </div>
             </div>
           </div>
         )}
@@ -447,7 +463,9 @@ export default function ApiManagementPage() {
                   <Zap className="h-8 w-8 text-primary-600 dark:text-primary-400 mr-3" />
                   <div>
                     <h3 className="text-lg font-semibold">API Performance</h3>
-                    <p className="text-sm text-text-600 dark:text-text-400">Real-time metrics</p>
+                    <p className="text-sm text-text-600 dark:text-text-400">
+                      Real-time metrics
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
@@ -460,7 +478,9 @@ export default function ApiManagementPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-text-500 dark:text-text-500">Error Rate</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">
+                      Error Rate
+                    </span>
                     <span className="text-sm font-medium">
                       {analytics.error_rate}%
                     </span>
@@ -488,19 +508,25 @@ export default function ApiManagementPage() {
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-text-500 dark:text-text-500">Total Keys</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">
+                      Total Keys
+                    </span>
                     <span className="text-sm font-medium">
                       {apiKeys.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-text-500 dark:text-text-500">Active Keys</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">
+                      Active Keys
+                    </span>
                     <span className="text-sm font-medium">
                       {analytics.active_keys}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-text-500 dark:text-text-500">Total Usage</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">
+                      Total Usage
+                    </span>
                     <span className="text-sm font-medium">
                       {apiKeys
                         .reduce((sum, key) => sum + key.usage_count, 0)
@@ -522,13 +548,17 @@ export default function ApiManagementPage() {
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-text-500 dark:text-text-500">Rate Limits</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">
+                      Rate Limits
+                    </span>
                     <span className="text-sm font-medium">
                       {rateLimits.length}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-text-500 dark:text-text-500">Blocked Today</span>
+                    <span className="text-sm text-text-500 dark:text-text-500">
+                      Blocked Today
+                    </span>
                     <span className="text-sm font-medium">
                       {analytics.blocked_requests}
                     </span>

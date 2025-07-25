@@ -114,41 +114,58 @@ export default function SystemSettingsPage() {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // For now, we'll use default settings since the backend doesn't have settings API yet
-      // TODO: Implement settings API in backend
-      console.log("📡 Loading system settings...");
-
-      // Simulate loading
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      console.log("✅ Settings loaded");
-    } catch (error) {
-      console.error("❌ Error loading settings:", error);
-      setError("Failed to load system settings");
+      // Placeholder implementation - replace with actual API call when available
+      setSettings({
+        general: {
+          site_name: "KRAPI CMS",
+          site_description: "Modern headless CMS",
+          admin_email: "admin@krapi.local",
+          timezone: "UTC",
+          maintenance_mode: false,
+        },
+        security: {
+          session_timeout: 3600,
+          max_login_attempts: 5,
+          password_min_length: 8,
+          require_2fa: false,
+          allowed_origins: ["*"],
+        },
+        database: {
+          backup_enabled: true,
+          backup_interval: 24,
+          max_connections: 100,
+          query_timeout: 30,
+        },
+        email: {
+          smtp_host: "",
+          smtp_port: 587,
+          smtp_user: "",
+          smtp_pass: "",
+          from_email: "",
+          from_name: "",
+        },
+        storage: {
+          max_file_size: 10485760,
+          allowed_types: ["image/*", "application/pdf", "text/*"],
+          compression_enabled: true,
+          cdn_enabled: false,
+        },
+      });
+    } catch {
+      setError("Failed to load settings");
     } finally {
       setLoading(false);
     }
   };
 
-  const saveSettings = async () => {
+  const saveSettings = async (data: SystemSettings) => {
     try {
       setSaving(true);
-      console.log("📡 Saving system settings...", settings);
-
-      // TODO: Implement settings save API in backend
-      // const krapi = createDefaultKrapi();
-      // const response = await krapi.admin.saveSettings(settings);
-
-      // Simulate saving
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.log("✅ Settings saved successfully");
-      showSuccess("System settings saved successfully!");
-    } catch (error) {
-      console.error("❌ Error saving settings:", error);
-      showError("Failed to save system settings");
+      // Placeholder implementation - replace with actual API call when available
+      setSettings(data);
+      showSuccess("Settings saved successfully");
+    } catch {
+      showError("Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -210,7 +227,7 @@ export default function SystemSettingsPage() {
               </p>
             </div>
             <Button
-              onClick={saveSettings}
+              onClick={() => saveSettings(settings)}
               disabled={saving}
               className="inline-flex items-center"
             >

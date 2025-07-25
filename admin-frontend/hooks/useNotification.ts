@@ -53,32 +53,52 @@ export const useNotification = (): UseNotificationReturn => {
     []
   );
 
-  const showSuccess = useCallback(
-    (message: string, duration = 5000) => {
-      addNotification({ message, type: "success", duration });
+  const showNotification = useCallback(
+    (message: string, type: NotificationType = "info") => {
+      const id = Date.now();
+      const notification: Notification = {
+        id,
+        message,
+        type,
+        timestamp: new Date(),
+      };
+
+      setNotifications((prev) => [...prev, notification]);
+
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        removeNotification(id);
+      }, 5000);
     },
-    [addNotification]
+    [removeNotification]
+  );
+
+  const showSuccess = useCallback(
+    (message: string) => {
+      showNotification(message, "success");
+    },
+    [showNotification]
   );
 
   const showError = useCallback(
-    (message: string, duration = 8000) => {
-      addNotification({ message, type: "error", duration });
+    (message: string) => {
+      showNotification(message, "error");
     },
-    [addNotification]
+    [showNotification]
   );
 
   const showWarning = useCallback(
-    (message: string, duration = 6000) => {
-      addNotification({ message, type: "warning", duration });
+    (message: string) => {
+      showNotification(message, "warning");
     },
-    [addNotification]
+    [showNotification]
   );
 
   const showInfo = useCallback(
-    (message: string, duration = 4000) => {
-      addNotification({ message, type: "info", duration });
+    (message: string) => {
+      showNotification(message, "info");
     },
-    [addNotification]
+    [showNotification]
   );
 
   const removeNotification = useCallback((id: string) => {
@@ -90,48 +110,9 @@ export const useNotification = (): UseNotificationReturn => {
   }, []);
 
   const handleError = useCallback(
-    (error: unknown, fallbackMessage = "An error occurred") => {
-      console.error("Error:", error);
-
-      let errorMessage = fallbackMessage;
-
-      if (error instanceof AxiosError) {
-        // Handle API errors
-        const apiError = error.response?.data?.error;
-        if (apiError) {
-          errorMessage = apiError;
-        } else {
-          // Handle different HTTP status codes
-          switch (error.response?.status) {
-            case 401:
-              errorMessage = "Unauthorized. Please log in again.";
-              break;
-            case 403:
-              errorMessage = "Access denied. You don't have permission.";
-              break;
-            case 404:
-              errorMessage = "Resource not found.";
-              break;
-            case 422:
-              errorMessage = "Invalid data provided.";
-              break;
-            case 429:
-              errorMessage = "Too many requests. Please try again later.";
-              break;
-            case 500:
-              errorMessage = "Server error. Please try again later.";
-              break;
-            default:
-              errorMessage = error.message || fallbackMessage;
-          }
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      }
-
-      showError(errorMessage);
+    (error: unknown, defaultMessage = "An error occurred") => {
+      const message = error instanceof Error ? error.message : String(error);
+      showError(message || defaultMessage);
     },
     [showError]
   );

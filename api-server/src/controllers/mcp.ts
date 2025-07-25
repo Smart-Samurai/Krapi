@@ -369,7 +369,7 @@ export class McpController {
     res: express.Response
   ): Promise<void> {
     try {
-      const context = await getAppStateContext();
+      const context = await getAppStateContext({}, {});
 
       res.json({
         success: true,

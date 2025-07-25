@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import {
   Card,
@@ -82,35 +82,23 @@ export default function ProjectsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const { showSuccess, showError } = useNotification();
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
-      console.log("📡 Fetching projects...");
       setLoading(true);
-
-      const krapi = createDefaultKrapi();
-      const response = await krapi.admin.listProjects();
-      console.log("✅ Projects response:", response);
-
-      if (response.success && response.data) {
-        setProjects(response.data);
-        console.log(`✅ Loaded ${response.data.length} projects`);
-      } else {
-        console.error("❌ Failed to fetch projects:", response);
-        showError(
-          "Failed to fetch projects: " + (response.error || "Unknown error")
-        );
+      const response = await createDefaultKrapi().admin.listProjects();
+      if (response.success) {
+        setProjects(response.data || []);
       }
-    } catch (error) {
-      console.error("❌ Error fetching projects:", error);
-      showError("Failed to fetch projects. Please try again.");
+    } catch {
+      showError("Failed to load projects");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const createProject = async () => {
     if (!newProject.name.trim()) {
@@ -119,7 +107,6 @@ export default function ProjectsPage() {
     }
 
     try {
-      console.log("📡 Creating project:", newProject);
       setIsCreating(true);
 
       const krapi = createDefaultKrapi();
@@ -129,21 +116,17 @@ export default function ProjectsPage() {
         domain: newProject.domain.trim() || undefined,
       });
 
-      console.log("✅ Create project response:", response);
-
       if (response.success && response.data) {
         setProjects([...projects, response.data]);
         setCreateDialogOpen(false);
         setNewProject({ name: "", description: "", domain: "" });
         showSuccess("Project created successfully!");
       } else {
-        console.error("❌ Failed to create project:", response);
         showError(
           "Failed to create project: " + (response.error || "Unknown error")
         );
       }
-    } catch (error) {
-      console.error("❌ Error creating project:", error);
+    } catch {
       showError("Failed to create project. Please try again.");
     } finally {
       setIsCreating(false);
@@ -152,12 +135,10 @@ export default function ProjectsPage() {
 
   const deleteProject = async (project: Project) => {
     try {
-      console.log("📡 Deleting project:", project.id);
       setIsDeleting(true);
 
       const krapi = createDefaultKrapi();
       const response = await krapi.admin.deleteProject(project.id);
-      console.log("✅ Delete project response:", response);
 
       if (response.success) {
         setProjects(projects.filter((p) => p.id !== project.id));
@@ -165,13 +146,11 @@ export default function ProjectsPage() {
         setSelectedProject(null);
         showSuccess("Project deleted successfully!");
       } else {
-        console.error("❌ Failed to delete project:", response);
         showError(
           "Failed to delete project: " + (response.error || "Unknown error")
         );
       }
-    } catch (error) {
-      console.error("❌ Error deleting project:", error);
+    } catch {
       showError("Failed to delete project. Please try again.");
     } finally {
       setIsDeleting(false);
@@ -563,8 +542,8 @@ export default function ProjectsPage() {
           <DialogHeader>
             <DialogTitle>Delete Project</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedProject?.name}"? This
-              action cannot be undone.
+              Are you sure you want to delete &quot;{selectedProject?.name}
+              &quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

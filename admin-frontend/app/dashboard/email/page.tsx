@@ -21,7 +21,7 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
-import { emailAPI } from "@/lib/api";
+import { createDefaultKrapi } from "@/lib/krapi";
 import {
   EmailTemplate,
   EmailLog,
@@ -128,7 +128,7 @@ export default function EmailManagementPage() {
   // Load data
   const loadConfiguration = useCallback(async () => {
     try {
-      const response = await emailAPI.getConfiguration();
+      const response = await createDefaultKrapi().getConfiguration();
       if (response.success) {
         setIsConfigured(response.data.isConfigured);
 
@@ -151,7 +151,7 @@ export default function EmailManagementPage() {
 
   const loadTemplates = useCallback(async () => {
     try {
-      const response = await emailAPI.getAllTemplates();
+      const response = await createDefaultKrapi().getAllTemplates();
       if (response.success) {
         setTemplates(response.data);
       }
@@ -162,10 +162,7 @@ export default function EmailManagementPage() {
 
   const loadLogs = useCallback(async () => {
     try {
-      const response = await emailAPI.getLogs(
-        logsPage,
-        20
-      );
+      const response = await createDefaultKrapi().getLogs(logsPage, 20);
       if (response.success) {
         setLogs(response.data.logs);
         setLogsTotal(response.data.total);
@@ -173,11 +170,11 @@ export default function EmailManagementPage() {
     } catch (error) {
       handleError(error, "Failed to load email logs");
     }
-  }, [logsPage, logsStatus, handleError]);
+  }, [logsPage, handleError]);
 
   const loadStats = useCallback(async () => {
     try {
-      const response = await emailAPI.getStats();
+      const response = await createDefaultKrapi().getStats();
       if (response.success) {
         setStats(response.data);
       }
@@ -188,7 +185,7 @@ export default function EmailManagementPage() {
 
   const loadPreferences = useCallback(async () => {
     try {
-      const response = await emailAPI.getPreferences();
+      const response = await createDefaultKrapi().getPreferences();
       if (response.success) {
         setPreferences(response.data);
       }
@@ -244,8 +241,10 @@ export default function EmailManagementPage() {
           email: data.smtp_from,
         },
       };
-      
-      const response = await emailAPI.updateConfiguration(emailConfig);
+
+      const response = await createDefaultKrapi().updateConfiguration(
+        emailConfig
+      );
       if (response.success) {
         showSuccess("Email configuration updated successfully");
         await loadConfiguration();
@@ -259,7 +258,7 @@ export default function EmailManagementPage() {
 
   const handleTestConnection = async () => {
     try {
-      const response = await emailAPI.testConnection();
+      const response = await createDefaultKrapi().testConnection();
       if (response.success) {
         showSuccess("Email connection test successful");
       } else {
@@ -272,7 +271,7 @@ export default function EmailManagementPage() {
 
   const handleCreateTemplate = async (data: EmailTemplateFormData) => {
     try {
-      const response = await emailAPI.createTemplate(data);
+      const response = await createDefaultKrapi().createTemplate(data);
       if (response.success) {
         showSuccess("Email template created successfully");
         setShowTemplateModal(false);
@@ -290,7 +289,10 @@ export default function EmailManagementPage() {
     if (!editingTemplate) return;
 
     try {
-      const response = await emailAPI.updateTemplate(editingTemplate.id, data);
+      const response = await createDefaultKrapi().updateTemplate(
+        editingTemplate.id,
+        data
+      );
       if (response.success) {
         showSuccess("Email template updated successfully");
         setShowTemplateModal(false);
@@ -309,7 +311,7 @@ export default function EmailManagementPage() {
     if (!confirm("Are you sure you want to delete this template?")) return;
 
     try {
-      const response = await emailAPI.deleteTemplate(id);
+      const response = await createDefaultKrapi().deleteTemplate(id);
       if (response.success) {
         showSuccess("Email template deleted successfully");
         await loadTemplates();
@@ -342,7 +344,7 @@ export default function EmailManagementPage() {
         variables,
       };
 
-      const response = await emailAPI.sendEmail(emailData);
+      const response = await createDefaultKrapi().sendEmail(emailData);
       if (response.success) {
         showSuccess("Email sent successfully");
         sendEmailForm.reset();
@@ -361,7 +363,7 @@ export default function EmailManagementPage() {
     updates: Partial<NotificationPreferences>
   ) => {
     try {
-      const response = await emailAPI.updatePreferences(updates);
+      const response = await createDefaultKrapi().updatePreferences(updates);
       if (response.success) {
         showSuccess("Notification preferences updated successfully");
         setPreferences(response.data);
@@ -382,11 +384,17 @@ export default function EmailManagementPage() {
       case "bounced":
         return <XCircle className="h-4 w-4 text-red-500" />;
       case "pending":
-        return <Clock className="h-4 w-4 text-secondary-500 dark:text-secondary-400" />;
+        return (
+          <Clock className="h-4 w-4 text-secondary-500 dark:text-secondary-400" />
+        );
       case "opened":
-        return <Eye className="h-4 w-4 text-primary-500 dark:text-primary-400" />;
+        return (
+          <Eye className="h-4 w-4 text-primary-500 dark:text-primary-400" />
+        );
       default:
-        return <AlertCircle className="h-4 w-4 text-text-500 dark:text-text-500" />;
+        return (
+          <AlertCircle className="h-4 w-4 text-text-500 dark:text-text-500" />
+        );
     }
   };
 
@@ -842,37 +850,49 @@ export default function EmailManagementPage() {
                     <div className="text-2xl font-bold text-text-900 dark:text-text-50">
                       {stats.total}
                     </div>
-                    <div className="text-sm text-text-500 dark:text-text-500">Total</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">
+                      Total
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
                       {stats.sent}
                     </div>
-                    <div className="text-sm text-text-500 dark:text-text-500">Sent</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">
+                      Sent
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
                       {stats.failed}
                     </div>
-                    <div className="text-sm text-text-500 dark:text-text-500">Failed</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">
+                      Failed
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                       {stats.opened}
                     </div>
-                    <div className="text-sm text-text-500 dark:text-text-500">Opened</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">
+                      Opened
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-secondary-600">
                       {stats.clicked}
                     </div>
-                    <div className="text-sm text-text-500 dark:text-text-500">Clicked</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">
+                      Clicked
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary-600">
                       {stats.bounced}
                     </div>
-                    <div className="text-sm text-text-500 dark:text-text-500">Bounced</div>
+                    <div className="text-sm text-text-500 dark:text-text-500">
+                      Bounced
+                    </div>
                   </div>
                 </div>
               </div>
