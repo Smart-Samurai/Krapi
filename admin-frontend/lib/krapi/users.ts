@@ -13,6 +13,13 @@ export class KrapiUsers {
     return this.client.request("users", "list", "list", { projectId });
   }
 
+  // Get all users (admin function)
+  async getAllUsers(
+    filters?: Record<string, unknown>
+  ): Promise<KrapiResponse<ProjectUser[]>> {
+    return this.client.request("admin", "users", "list", filters);
+  }
+
   // Get user by ID
   async getUser(userId: string): Promise<KrapiResponse<ProjectUser>> {
     return this.client.request("users", "get", "get", { userId });

@@ -83,36 +83,19 @@ export default function UserSettingsModal({
   // Load user data when modal opens
   useEffect(() => {
     if (isOpen) {
+      const loadUserProfile = async () => {
+        try {
+          const userData = await krapi.auth.getCurrentUser();
+          if (userData) {
+            // Profile data is already available from the auth context
+          }
+        } catch {
+          showError("Failed to load user profile");
+        }
+      };
       loadUserProfile();
     }
-  }, [isOpen, loadUserProfile]);
-
-  const loadUserProfile = async () => {
-    try {
-      const userData = await krapi.auth.getCurrentUser();
-      if (userData) {
-        // Profile data is already available from the auth context
-        console.log("User profile loaded:", userData);
-      }
-    } catch {
-      setError("Failed to load user profile");
-    }
-  };
-
-  const loadNotificationPreferences = async () => {
-    try {
-      // For now, use default preferences since notification API is not implemented yet
-      setNotificationPrefs({
-        email_notifications: true,
-        push_notifications: true,
-        content_updates: true,
-        user_activities: false,
-        system_alerts: true,
-      });
-    } catch (error) {
-      console.error("Failed to load notification preferences:", error);
-    }
-  };
+  }, [isOpen, showError]);
 
   const handleProfileUpdate = async () => {
     if (!profileForm.username.trim() || !profileForm.email.trim()) {
@@ -127,7 +110,7 @@ export default function UserSettingsModal({
       showSuccess("Profile updated successfully");
       await refreshUser();
     } catch {
-      setError("Failed to update user profile");
+      showError("Failed to update user profile");
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -164,7 +147,7 @@ export default function UserSettingsModal({
         confirmPassword: "",
       });
     } catch {
-      setError("Failed to change password");
+      showError("Failed to change password");
     } finally {
       setIsChangingPassword(false);
     }
@@ -176,8 +159,7 @@ export default function UserSettingsModal({
       // Note: Notification preferences are not implemented in the new API yet
       // This is a placeholder for future implementation
       showSuccess("Notification preferences updated successfully");
-    } catch (error) {
-      console.error("Failed to update notification preferences:", error);
+    } catch (_error) {
       showError("Failed to update notification preferences");
     } finally {
       setIsUpdatingPrefs(false);

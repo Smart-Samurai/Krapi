@@ -177,7 +177,7 @@ class ProjectApiController {
 
   createProject = async (req: Request, res: Response) => {
     try {
-      const { name, description, domain, settings } =
+      const { name, description, domain, settings, id } =
         (req as any).unifiedOperation?.params || req.body;
 
       if (!name) {
@@ -188,10 +188,13 @@ class ProjectApiController {
         return;
       }
 
-      const project: Omit<Project, "id" | "created_at" | "updated_at"> = {
+      const project: Omit<Project, "id" | "created_at" | "updated_at"> & {
+        id?: string;
+      } = {
         name,
         description,
         domain,
+        ...(id && { id }), // Only include id if provided
         settings: settings || {
           auth: {
             enabled: true,
@@ -218,12 +221,26 @@ class ProjectApiController {
         status: "active",
       };
 
-      const createdProject = projectDatabase.createProject(project);
+      try {
+        const createdProject = projectDatabase.createProject(project);
 
-      res.status(201).json({
-        success: true,
-        data: createdProject,
-      });
+        res.status(201).json({
+          success: true,
+          data: createdProject,
+        });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("already exists")
+        ) {
+          res.status(409).json({
+            success: false,
+            error: error.message,
+          });
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.error("Create project error:", error);
       res.status(500).json({

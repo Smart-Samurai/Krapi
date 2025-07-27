@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+
+When Cursor is running in a windows envirenment - commands need to be written using powershell syntax, not unix syntax.
+Example of wrong usage - "cd admin-frontend && pnpm lint" - will fail. Corrected command - "cd admin-frontend; pnpm lint".

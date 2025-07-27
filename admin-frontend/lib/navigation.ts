@@ -5,7 +5,9 @@ import {
   Home,
   FolderOpen,
   Settings,
+  Shield,
 } from "lucide-react";
+import { LucideProps } from "lucide-react";
 
 export const categories = {
   main: "Main",
@@ -15,22 +17,40 @@ export const categories = {
   tools: "Tools",
 };
 
-export const navigation = [
+export interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ForwardRefExoticComponent<
+    Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>
+  >;
+  category: string;
+  badge?: string;
+}
+
+export const navigation: NavigationItem[] = [
   // Main
   {
-    name: "Admin Dashboard",
-    href: "/admin",
+    name: "Dashboard",
+    href: "/dashboard",
     icon: Home,
     category: "main",
   },
+
+  // Project Management
   {
     name: "Projects",
-    href: "/admin/projects",
+    href: "/dashboard",
     icon: FolderOpen,
-    category: "main",
+    category: "project",
   },
 
   // Administration
+  {
+    name: "Admin Dashboard",
+    href: "/admin",
+    icon: Shield,
+    category: "admin",
+  },
   {
     name: "Admin Users",
     href: "/admin/users",

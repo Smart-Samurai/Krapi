@@ -358,10 +358,16 @@ class ProjectDatabaseService {
   }
 
   createProject(
-    project: Omit<Project, "id" | "created_at" | "updated_at">
+    project: Omit<Project, "id" | "created_at" | "updated_at"> & { id?: string }
   ): Project {
-    const id = randomUUID();
+    const id = project.id || randomUUID();
     const now = new Date().toISOString();
+
+    // Check if project with this ID already exists
+    const existingProject = this.getProjectById(id);
+    if (existingProject) {
+      throw new Error(`Project with ID '${id}' already exists`);
+    }
 
     this.db
       .prepare(

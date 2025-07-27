@@ -1,0 +1,101 @@
+---
+description: When working with react components and the Frontend Part of the app and using react components.
+alwaysApply: false
+---
+
+# React Syntax Best Practices
+
+## Core React Syntax Rules
+
+### Component Structure
+
+- Use functional components with hooks (no class components)
+- Use TypeScript for all component props and state
+- Prefer `const` for component declarations
+- Use proper prop destructuring with default values
+
+### JSX Best Practices
+
+- Use semantic HTML elements (`<main>`, `<section>`, `<article>`, `<nav>`)
+- Always include `key` prop for mapped elements
+- Use proper boolean attributes (`disabled={true}` not `disabled="true"`)
+- Escape special characters in JSX (`&apos;`, `&quot;`, `&amp;`)
+- Use proper event handler naming (`onClick`, `onSubmit`, `onChange`)
+
+### State Management
+
+- Use `useState` for local component state
+- Use `useCallback` for functions passed as props or in dependency arrays
+- Use `useMemo` for expensive calculations
+- Use `useRef` for DOM references and stable values
+- Use `useEffect` with proper dependency arrays
+
+### Event Handling
+
+- Use arrow functions for inline handlers: `onClick={() => handleClick()}`
+- Use `useCallback` for reusable handlers
+- Prevent default behavior when needed: `onSubmit={(e) => { e.preventDefault(); }}`
+- Use proper event types: `onChange={(e: ChangeEvent<HTMLInputElement>) => {}}`
+
+### Conditional Rendering
+
+- Use ternary operators for simple conditions: `{isLoading ? <Spinner /> : <Content />}`
+- Use logical AND for conditional elements: `{isVisible && <Modal />}`
+- Use early returns for complex conditions
+- Avoid nested ternaries - use separate variables or components
+
+### List Rendering
+
+- Always include unique `key` prop: `{items.map(item => <Item key={item.id} />)}`
+- Use stable keys (IDs, not array indices)
+- Extract list items to separate components for complex items
+- Use proper array methods: `map`, `filter`, `reduce`
+
+### Props and Children
+
+- Use proper prop types with TypeScript interfaces
+- Use default props with destructuring: `const Component = ({ title = 'Default' }) => {}`
+- Use children prop for composition: `{children}`
+- Use spread operator sparingly and intentionally
+
+### Performance Optimizations
+
+- Use `React.memo` for expensive components
+- Use `useCallback` for event handlers passed to child components
+- Use `useMemo` for expensive calculations
+- Avoid creating objects/arrays in render
+
+### Error Handling
+
+- Use error boundaries for component error catching
+- Use proper error states in components
+- Handle loading states appropriately
+- Use try-catch in async operations
+
+### Accessibility
+
+- Use proper ARIA attributes
+- Use semantic HTML elements
+- Include proper alt text for images
+- Use proper form labels and associations
+- Ensure keyboard navigation works
+
+### Code Style
+
+- Use consistent indentation (2 spaces)
+- Use proper component naming (PascalCase)
+- Use proper file naming (kebab-case for files, PascalCase for components)
+- Use proper import/export syntax
+- Use proper TypeScript types
+
+## Anti-Patterns to Avoid
+
+- Don't use `any` type - use proper TypeScript types
+- Don't use array indices as keys
+- Don't create functions in render
+- Don't use inline styles for complex styling
+- Don't use `dangerouslySetInnerHTML` unless absolutely necessary
+- Don't use `console.log` in production code
+- Don't use `var` - use `const` and `let`
+- Don't use class components
+- Don't use `componentWillMount` or other deprecated lifecycle methods

@@ -1,548 +1,139 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+// ⚠️ WARNING: This module is not implemented yet and contains placeholder functions
+// All functions in this file are marked as "not implemented" to prevent errors
+// This file should be removed or properly implemented in the future
+
+import axios, { AxiosResponse, AxiosRequestConfig } from "axios";
 import { errorHandler } from "./error-handler";
-import { config } from "./config";
 
-// Enhanced API client with verbose error handling
-export class EnhancedApiClient {
-  private axiosInstance: AxiosInstance;
-  private requestId = 0;
-
-  constructor() {
-    this.axiosInstance = axios.create({
-      baseURL: config.api.baseUrl,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: config.api.timeout,
-      withCredentials: false,
-    });
-
-    this.setupInterceptors();
-  }
-
-  private setupInterceptors(): void {
-    // Request interceptor
-    this.axiosInstance.interceptors.request.use(
-      (config) => {
-        const requestId = ++this.requestId;
-
-        // Add auth token
-        if (typeof window !== "undefined") {
-          const token = localStorage.getItem("auth_token");
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-        }
-
-        // Log request details
-        console.log(`📤 API Request [${requestId}]:`, {
-          method: config.method?.toUpperCase(),
-          url: config.url,
-          baseURL: config.baseURL,
-          fullURL: `${config.baseURL}${config.url}`,
-          headers: config.headers,
-          data: config.data,
-          params: config.params,
-          timestamp: new Date().toISOString(),
-        });
-
-        // Store request ID for response tracking
-        (config as any).requestId = requestId;
-
-        return config;
-      },
-      (error) => {
-        console.error("❌ Request Interceptor Error:", error);
-        return Promise.reject(error);
-      }
-    );
-
-    // Response interceptor
-    this.axiosInstance.interceptors.response.use(
-      (response: AxiosResponse) => {
-        const requestId = (response.config as any).requestId;
-
-        console.log(`📥 API Response [${requestId}]:`, {
-          status: response.status,
-          statusText: response.statusText,
-          url: response.config.url,
-          data: response.data,
-          headers: response.headers,
-          timestamp: new Date().toISOString(),
-        });
-
-        return response;
-      },
-      (error) => {
-        const requestId = (error.config as any)?.requestId;
-
-        console.error(`❌ API Response Error [${requestId}]:`, {
-          message: error.message,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.response?.data,
-          timestamp: new Date().toISOString(),
-        });
-
-        return Promise.reject(error);
-      }
-    );
-  }
-
-  // Generic request method with enhanced error handling
-  async request<T = any>(
-    config: AxiosRequestConfig,
-    context: {
-      component: string;
-      function: string;
-      endpoint?: string;
-      method?: string;
-      params?: Record<string, unknown>;
-    }
-  ): Promise<T> {
-    return errorHandler.handleApiCall(
-      () => this.axiosInstance.request(config),
-      context.component,
-      context.function,
-      context.endpoint,
-      context.method,
-      context.params,
-      config.data
-    );
-  }
-
-  // GET request
-  async get<T = any>(
-    url: string,
-    context: {
-      component: string;
-      function: string;
-      endpoint?: string;
-      method?: string;
-      params?: Record<string, unknown>;
-    },
-    config?: AxiosRequestConfig
-  ): Promise<T> {
-    return this.request(
-      { ...config, method: "GET", url },
-      {
-        ...context,
-        endpoint: url,
-        method: "GET",
-      }
-    );
-  }
-
-  // POST request
-  async post<T = any>(
-    url: string,
-    context: {
-      component: string;
-      function: string;
-      params?: Record<string, unknown>;
-    },
-    data?: any,
-    config?: AxiosRequestConfig
-  ): Promise<T> {
-    return this.request(
-      { ...config, method: "POST", url, data },
-      {
-        ...context,
-        endpoint: url,
-        method: "POST",
-      }
-    );
-  }
-
-  // PUT request
-  async put<T = any>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig,
-    context: {
-      component: string;
-      function: string;
-      params?: Record<string, unknown>;
-    }
-  ): Promise<T> {
-    return this.request(
-      { ...config, method: "PUT", url, data },
-      {
-        ...context,
-        endpoint: url,
-        method: "PUT",
-      }
-    );
-  }
-
-  // DELETE request
-  async delete<T = any>(
-    url: string,
-    config?: AxiosRequestConfig,
-    context: {
-      component: string;
-      function: string;
-      params?: Record<string, unknown>;
-    }
-  ): Promise<T> {
-    return this.request(
-      { ...config, method: "DELETE", url },
-      {
-        ...context,
-        endpoint: url,
-        method: "DELETE",
-      }
-    );
-  }
-
-  // PATCH request
-  async patch<T = any>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig,
-    context: {
-      component: string;
-      function: string;
-      params?: Record<string, unknown>;
-    }
-  ): Promise<T> {
-    return this.request(
-      { ...config, method: "PATCH", url, data },
-      {
-        ...context,
-        endpoint: url,
-        method: "PATCH",
-      }
-    );
-  }
+// Placeholder interfaces - not implemented
+interface ApiError {
+  message: string;
+  code?: string;
 }
 
-// Create singleton instance
-export const enhancedApi = new EnhancedApiClient();
+interface ApiContext {
+  component: string;
+  function: string;
+  endpoint?: string;
+  method?: string;
+  params?: Record<string, unknown>;
+}
 
-// Enhanced API functions with verbose error handling
-export const enhancedHealthAPI = {
-  check: async () => {
-    return enhancedApi.get("/health", {
-      component: "HealthAPI",
-      function: "check",
-      endpoint: "/health",
-    });
+// All functions are blocked and marked as not implemented
+export const ContentAPI = {
+  getAll: async (): Promise<never> => {
+    console.warn("ContentAPI.getAll not implemented yet");
+    throw new Error("ContentAPI.getAll not implemented yet");
+  },
+
+  getById: async (id: string): Promise<never> => {
+    console.warn("ContentAPI.getById not implemented yet");
+    throw new Error("ContentAPI.getById not implemented yet");
+  },
+
+  create: async (data: unknown): Promise<never> => {
+    console.warn("ContentAPI.create not implemented yet");
+    throw new Error("ContentAPI.create not implemented yet");
+  },
+
+  update: async (id: string, data: unknown): Promise<never> => {
+    console.warn("ContentAPI.update not implemented yet");
+    throw new Error("ContentAPI.update not implemented yet");
+  },
+
+  delete: async (id: string): Promise<never> => {
+    console.warn("ContentAPI.delete not implemented yet");
+    throw new Error("ContentAPI.delete not implemented yet");
+  },
+
+  upload: async (file: File): Promise<never> => {
+    console.warn("ContentAPI.upload not implemented yet");
+    throw new Error("ContentAPI.upload not implemented yet");
+  },
+
+  download: async (id: string): Promise<never> => {
+    console.warn("ContentAPI.download not implemented yet");
+    throw new Error("ContentAPI.download not implemented yet");
   },
 };
 
-export const enhancedContentAPI = {
-  getAllContent: async (filters?: any) => {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-
-    return enhancedApi.get(`/admin/content/get?${params.toString()}`, {
-      component: "ContentAPI",
-      function: "getAllContent",
-      endpoint: "/admin/content/get",
-      params: filters,
-    });
+export const RoutesAPI = {
+  getAll: async (): Promise<never> => {
+    console.warn("RoutesAPI.getAll not implemented yet");
+    throw new Error("RoutesAPI.getAll not implemented yet");
   },
 
-  getContentById: async (id: number) => {
-    return enhancedApi.get(
-      `/admin/content/get/${id}`,
-      {},
-      {
-        component: "ContentAPI",
-        function: "getContentById",
-        endpoint: `/admin/content/get/${id}`,
-        params: { id },
-      }
-    );
+  getById: async (id: string): Promise<never> => {
+    console.warn("RoutesAPI.getById not implemented yet");
+    throw new Error("RoutesAPI.getById not implemented yet");
   },
 
-  createContent: async (data: any) => {
-    return enhancedApi.post(
-      "/admin/content/create",
-      data,
-      {},
-      {
-        component: "ContentAPI",
-        function: "createContent",
-        endpoint: "/admin/content/create",
-        params: { data },
-      }
-    );
+  create: async (data: unknown): Promise<never> => {
+    console.warn("RoutesAPI.create not implemented yet");
+    throw new Error("RoutesAPI.create not implemented yet");
   },
 
-  updateContent: async (id: number, data: any) => {
-    return enhancedApi.put(
-      `/admin/content/modify/id/${id}`,
-      data,
-      {},
-      {
-        component: "ContentAPI",
-        function: "updateContent",
-        endpoint: `/admin/content/modify/id/${id}`,
-        params: { id, data },
-      }
-    );
+  update: async (id: string, data: unknown): Promise<never> => {
+    console.warn("RoutesAPI.update not implemented yet");
+    throw new Error("RoutesAPI.update not implemented yet");
   },
 
-  deleteContent: async (id: number) => {
-    return enhancedApi.delete(
-      `/admin/content/delete/id/${id}`,
-      {},
-      {
-        component: "ContentAPI",
-        function: "deleteContent",
-        endpoint: `/admin/content/delete/id/${id}`,
-        params: { id },
-      }
-    );
+  delete: async (id: string): Promise<never> => {
+    console.warn("RoutesAPI.delete not implemented yet");
+    throw new Error("RoutesAPI.delete not implemented yet");
   },
 };
 
-export const enhancedRoutesAPI = {
-  getAllRoutes: async (filters?: any) => {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-
-    return enhancedApi.get(
-      `/admin/routes?${params.toString()}`,
-      {},
-      {
-        component: "RoutesAPI",
-        function: "getAllRoutes",
-        endpoint: "/admin/routes",
-        params: filters,
-      }
-    );
+export const FilesAPI = {
+  getAll: async (filters?: Record<string, unknown>): Promise<never> => {
+    console.warn("FilesAPI.getAll not implemented yet");
+    throw new Error("FilesAPI.getAll not implemented yet");
   },
 
-  getRouteById: async (id: number) => {
-    return enhancedApi.get(
-      `/admin/routes/${id}`,
-      {},
-      {
-        component: "RoutesAPI",
-        function: "getRouteById",
-        endpoint: `/admin/routes/${id}`,
-        params: { id },
-      }
-    );
+  getById: async (id: string): Promise<never> => {
+    console.warn("FilesAPI.getById not implemented yet");
+    throw new Error("FilesAPI.getById not implemented yet");
   },
 
-  createRoute: async (route: any) => {
-    return enhancedApi.post(
-      "/admin/routes",
-      route,
-      {},
-      {
-        component: "RoutesAPI",
-        function: "createRoute",
-        endpoint: "/admin/routes",
-        params: { route },
-      }
-    );
+  upload: async (file: File): Promise<never> => {
+    console.warn("FilesAPI.upload not implemented yet");
+    throw new Error("FilesAPI.upload not implemented yet");
   },
 
-  updateRoute: async (id: number, route: any) => {
-    return enhancedApi.put(
-      `/admin/routes/${id}`,
-      route,
-      {},
-      {
-        component: "RoutesAPI",
-        function: "updateRoute",
-        endpoint: `/admin/routes/${id}`,
-        params: { id, route },
-      }
-    );
+  delete: async (id: string): Promise<never> => {
+    console.warn("FilesAPI.delete not implemented yet");
+    throw new Error("FilesAPI.delete not implemented yet");
   },
 
-  deleteRoute: async (id: number) => {
-    return enhancedApi.delete(
-      `/admin/routes/${id}`,
-      {},
-      {
-        component: "RoutesAPI",
-        function: "deleteRoute",
-        endpoint: `/admin/routes/${id}`,
-        params: { id },
-      }
-    );
+  download: async (id: string): Promise<never> => {
+    console.warn("FilesAPI.download not implemented yet");
+    throw new Error("FilesAPI.download not implemented yet");
   },
 };
 
-export const enhancedFilesAPI = {
-  getAllFiles: async (filters?: any) => {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-
-    return enhancedApi.get(
-      `/admin/files?${params.toString()}`,
-      {},
-      {
-        component: "FilesAPI",
-        function: "getAllFiles",
-        endpoint: "/admin/files",
-        params: filters,
-      }
-    );
+export const UsersAPI = {
+  getAll: async (filters?: Record<string, unknown>): Promise<never> => {
+    console.warn("UsersAPI.getAll not implemented yet");
+    throw new Error("UsersAPI.getAll not implemented yet");
   },
 
-  getFileById: async (id: number) => {
-    return enhancedApi.get(
-      `/admin/files/${id}`,
-      {},
-      {
-        component: "FilesAPI",
-        function: "getFileById",
-        endpoint: `/admin/files/${id}`,
-        params: { id },
-      }
-    );
+  getById: async (id: string): Promise<never> => {
+    console.warn("UsersAPI.getById not implemented yet");
+    throw new Error("UsersAPI.getById not implemented yet");
   },
 
-  uploadFile: async (
-    file: File,
-    description?: string,
-    access_level?: string
-  ) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    if (description) {
-      formData.append("description", description);
-    }
-    if (access_level) {
-      formData.append("access_level", access_level);
-    }
-
-    return enhancedApi.post(
-      "/admin/files/upload",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      },
-      {
-        component: "FilesAPI",
-        function: "uploadFile",
-        endpoint: "/admin/files/upload",
-        params: { description, access_level },
-      }
-    );
+  create: async (data: unknown): Promise<never> => {
+    console.warn("UsersAPI.create not implemented yet");
+    throw new Error("UsersAPI.create not implemented yet");
   },
 
-  deleteFile: async (id: number) => {
-    return enhancedApi.delete(
-      `/admin/files/${id}`,
-      {},
-      {
-        component: "FilesAPI",
-        function: "deleteFile",
-        endpoint: `/admin/files/${id}`,
-        params: { id },
-      }
-    );
+  update: async (id: string, data: unknown): Promise<never> => {
+    console.warn("UsersAPI.update not implemented yet");
+    throw new Error("UsersAPI.update not implemented yet");
+  },
+
+  delete: async (id: string): Promise<never> => {
+    console.warn("UsersAPI.delete not implemented yet");
+    throw new Error("UsersAPI.delete not implemented yet");
   },
 };
-
-export const enhancedUsersAPI = {
-  getAllUsers: async (filters?: any) => {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined) {
-          params.append(key, value.toString());
-        }
-      });
-    }
-
-    return enhancedApi.get(
-      `/admin/users?${params.toString()}`,
-      {},
-      {
-        component: "UsersAPI",
-        function: "getAllUsers",
-        endpoint: "/admin/users",
-        params: filters,
-      }
-    );
-  },
-
-  getUserById: async (id: number) => {
-    return enhancedApi.get(
-      `/admin/users/${id}`,
-      {},
-      {
-        component: "UsersAPI",
-        function: "getUserById",
-        endpoint: `/admin/users/${id}`,
-        params: { id },
-      }
-    );
-  },
-
-  createUser: async (user: any) => {
-    return enhancedApi.post(
-      "/admin/users",
-      user,
-      {},
-      {
-        component: "UsersAPI",
-        function: "createUser",
-        endpoint: "/admin/users",
-        params: { user },
-      }
-    );
-  },
-
-  updateUser: async (id: number, user: any) => {
-    return enhancedApi.put(
-      `/admin/users/${id}`,
-      user,
-      {},
-      {
-        component: "UsersAPI",
-        function: "updateUser",
-        endpoint: `/admin/users/${id}`,
-        params: { id, user },
-      }
-    );
-  },
-
-  deleteUser: async (id: number) => {
-    return enhancedApi.delete(
-      `/admin/users/${id}`,
-      {},
-      {
-        component: "UsersAPI",
-        function: "deleteUser",
-        endpoint: `/admin/users/${id}`,
-        params: { id },
-      }
-    );
-  },
-};
-
-// Export the enhanced API instance
-export default enhancedApi;

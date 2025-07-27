@@ -9,12 +9,14 @@ interface Notification {
   timestamp: number;
 }
 
+type NotificationType = "success" | "error" | "warning" | "info";
+
 interface UseNotificationReturn {
   notifications: Notification[];
-  showSuccess: (message: string, duration?: number) => void;
-  showError: (message: string, duration?: number) => void;
-  showWarning: (message: string, duration?: number) => void;
-  showInfo: (message: string, duration?: number) => void;
+  showSuccess: (message: string) => void;
+  showError: (message: string) => void;
+  showWarning: (message: string) => void;
+  showInfo: (message: string) => void;
   removeNotification: (id: string) => void;
   clearAll: () => void;
   handleError: (error: unknown, fallbackMessage?: string) => void;
@@ -25,42 +27,19 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 export const useNotification = (): UseNotificationReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addNotification = useCallback(
-    (notification: Omit<Notification, "id" | "timestamp">) => {
-      const newNotification: Notification = {
-        ...notification,
-        id: generateId(),
-        timestamp: Date.now(),
-      };
-
-      setNotifications((prev) => {
-        const updated = [newNotification, ...prev];
-        // Keep only latest 5 notifications
-        return updated.slice(0, 5);
-      });
-
-      // Auto-remove notification if duration > 0
-      if (notification.duration > 0) {
-        setTimeout(() => {
-          setNotifications((prev) =>
-            prev.filter((n) => n.id !== newNotification.id)
-          );
-        }, notification.duration);
-      }
-
-      return newNotification.id;
-    },
-    []
-  );
+  const removeNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
 
   const showNotification = useCallback(
     (message: string, type: NotificationType = "info") => {
-      const id = Date.now();
+      const id = generateId();
       const notification: Notification = {
         id,
         message,
         type,
-        timestamp: new Date(),
+        duration: 5000,
+        timestamp: Date.now(),
       };
 
       setNotifications((prev) => [...prev, notification]);
@@ -100,10 +79,6 @@ export const useNotification = (): UseNotificationReturn => {
     },
     [showNotification]
   );
-
-  const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
 
   const clearAll = useCallback(() => {
     setNotifications([]);

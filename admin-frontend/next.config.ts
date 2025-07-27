@@ -16,17 +16,34 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: process.env.NODE_ENV === "development",
   },
-  // Enable experimental features for better type safety
+
+  // Next.js 15 optimizations
   experimental: {
-    typedRoutes: false,
+    // Enable React 19 features
+    reactCompiler: true,
+    // Enable typed routes for better type safety
+    typedRoutes: true,
   },
+
   // Increase timeout for development
   staticPageGenerationTimeout: 120,
+
   // Environment variables
   env: {
     NEXT_PUBLIC_API_URL: "http://localhost:3470/api",
     PORT: "3469",
   },
+
+  // Optimize images and static assets
+  images: {
+    formats: ["image/webp", "image/avif"],
+    minimumCacheTTL: 60,
+  },
+
+  // Enable compression
+  compress: true,
+
+  // Optimize bundle size (swcMinify is enabled by default in Next.js 15)
 };
 
 export default nextConfig;

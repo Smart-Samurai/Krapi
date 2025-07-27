@@ -8,7 +8,7 @@ export interface KrapiConfig {
   headers?: Record<string, string>;
 }
 
-export interface KrapiResponse<T = any> {
+export interface KrapiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -27,7 +27,7 @@ class KrapiClient {
 
     this.axiosInstance = axios.create({
       baseURL: this.config.endpoint,
-      timeout: this.config.timeout,
+      timeout: this.config.timeout || 30000,
       headers: {
         "Content-Type": "application/json",
         ...this.config.headers,
@@ -83,11 +83,11 @@ class KrapiClient {
   }
 
   // Make a unified API request
-  async request<T = any>(
+  async request<T = unknown>(
     operation: string,
     resource: string,
     action: string,
-    params?: Record<string, any>
+    params?: Record<string, unknown>
   ): Promise<KrapiResponse<T>> {
     try {
       const response = await this.axiosInstance.post("/api", {
@@ -97,10 +97,15 @@ class KrapiClient {
         params,
       });
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const responseError = (
+        error as { response?: { data?: { error?: string } } }
+      )?.response?.data?.error;
       return {
         success: false,
-        error: error.response?.data?.error || error.message || "Unknown error",
+        error: responseError || errorMessage || "Unknown error",
       };
     }
   }
@@ -110,13 +115,22 @@ class KrapiClient {
     try {
       const response = await this.axiosInstance.get("/health");
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Health check failed";
+      const responseError = (
+        error as { response?: { data?: { error?: string } } }
+      )?.response?.data?.error;
       return {
         success: false,
-        error:
-          error.response?.data?.error || error.message || "Health check failed",
+        error: responseError || errorMessage || "Health check failed",
       };
     }
+  }
+
+  // Connection check (alias for health)
+  async check(): Promise<KrapiResponse> {
+    return this.health();
   }
 
   // Get the axios instance for advanced usage
@@ -130,7 +144,7 @@ class KrapiClient {
 
     // Update axios instance
     this.axiosInstance.defaults.baseURL = this.config.endpoint;
-    this.axiosInstance.defaults.timeout = this.config.timeout;
+    this.axiosInstance.defaults.timeout = this.config.timeout || 30000;
 
     // Re-setup interceptors with new config
     this.setupInterceptors();

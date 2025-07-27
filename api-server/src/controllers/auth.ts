@@ -222,4 +222,232 @@ export class AuthController {
       res.status(500).json(response);
     }
   }
+
+  static async createUser(
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> {
+    try {
+      // Check if user is admin
+      if (req.user?.role !== "admin") {
+        const response: ApiResponse = {
+          success: false,
+          error: "Admin access required",
+        };
+        res.status(403).json(response);
+        return;
+      }
+
+      const { username, email, password, role = "admin" } = req.body;
+
+      if (!username || !email || !password) {
+        const response: ApiResponse = {
+          success: false,
+          error: "Username, email, and password are required",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const user = await AuthService.createUser({
+        username,
+        email,
+        password,
+        role: role as "admin" | "user",
+        active: true,
+      });
+
+      if (!user) {
+        const response: ApiResponse = {
+          success: false,
+          error: "User already exists or creation failed",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const response: ApiResponse = {
+        success: true,
+        data: user,
+      };
+
+      res.status(201).json(response);
+    } catch (error) {
+      console.error("Create user error:", error);
+      const response: ApiResponse = {
+        success: false,
+        error: "Internal server error",
+      };
+      res.status(500).json(response);
+    }
+  }
+
+  static async getUserById(
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> {
+    try {
+      // Check if user is admin
+      if (req.user?.role !== "admin") {
+        const response: ApiResponse = {
+          success: false,
+          error: "Admin access required",
+        };
+        res.status(403).json(response);
+        return;
+      }
+
+      const userId = parseInt(
+        req.params.id || (req.body.userId as string) || (req.body.id as string)
+      );
+      const user = coreDatabase.getUserById(userId);
+
+      if (!user) {
+        const response: ApiResponse = {
+          success: false,
+          error: "User not found",
+        };
+        res.status(404).json(response);
+        return;
+      }
+
+      // Remove password hash from response
+      const { password_hash: _, ...safeUser } = user;
+
+      const response: ApiResponse = {
+        success: true,
+        data: safeUser,
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Get user by ID error:", error);
+      const response: ApiResponse = {
+        success: false,
+        error: "Internal server error",
+      };
+      res.status(500).json(response);
+    }
+  }
+
+  static async updateUser(
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> {
+    try {
+      // Check if user is admin
+      if (req.user?.role !== "admin") {
+        const response: ApiResponse = {
+          success: false,
+          error: "Admin access required",
+        };
+        res.status(403).json(response);
+        return;
+      }
+
+      const userId = parseInt(
+        req.params.id || (req.body.userId as string) || (req.body.id as string)
+      );
+      const { username, email, role, active } = req.body;
+
+      const user = coreDatabase.getUserById(userId);
+      if (!user) {
+        const response: ApiResponse = {
+          success: false,
+          error: "User not found",
+        };
+        res.status(404).json(response);
+        return;
+      }
+
+      const updatedUser = coreDatabase.updateUser(userId, {
+        username: username || user.username,
+        email: email || user.email,
+        role: role || user.role,
+        active: active !== undefined ? active : user.active,
+      });
+
+      if (!updatedUser) {
+        const response: ApiResponse = {
+          success: false,
+          error: "Failed to update user",
+        };
+        res.status(500).json(response);
+        return;
+      }
+
+      // Remove password hash from response
+      const { password_hash: _, ...safeUser } = updatedUser;
+
+      const response: ApiResponse = {
+        success: true,
+        data: safeUser,
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Update user error:", error);
+      const response: ApiResponse = {
+        success: false,
+        error: "Internal server error",
+      };
+      res.status(500).json(response);
+    }
+  }
+
+  static async deleteUser(
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> {
+    try {
+      // Check if user is admin
+      if (req.user?.role !== "admin") {
+        const response: ApiResponse = {
+          success: false,
+          error: "Admin access required",
+        };
+        res.status(403).json(response);
+        return;
+      }
+
+      const userId = parseInt(
+        req.params.id || (req.body.userId as string) || (req.body.id as string)
+      );
+
+      // Prevent admin from deleting themselves
+      if (userId === req.user?.id) {
+        const response: ApiResponse = {
+          success: false,
+          error: "Cannot delete your own account",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const success = coreDatabase.deleteUser(userId);
+
+      if (!success) {
+        const response: ApiResponse = {
+          success: false,
+          error: "User not found or deletion failed",
+        };
+        res.status(404).json(response);
+        return;
+      }
+
+      const response: ApiResponse = {
+        success: true,
+        message: "User deleted successfully",
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Delete user error:", error);
+      const response: ApiResponse = {
+        success: false,
+        error: "Internal server error",
+      };
+      res.status(500).json(response);
+    }
+  }
 }

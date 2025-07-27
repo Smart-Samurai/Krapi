@@ -1,16 +1,45 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { Providers } from "@/components/Providers";
+import { SidebarLayout } from "@/components/layouts/SidebarLayout";
 
-// Client wrapper component for AuthProvider
-function ClientAuthProvider({ children }: { children: React.ReactNode }) {
-  return <AuthProvider>{children}</AuthProvider>;
-}
+const inter = Inter({ subsets: ["latin"] });
 
-// Client wrapper component for ThemeProvider
-function ClientThemeProvider({ children }: { children: React.ReactNode }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
-}
+export const metadata: Metadata = {
+  title: "KRAPI - Backend as a Service",
+  description:
+    "A powerful backend-as-a-service platform for modern applications",
+  keywords: ["backend", "api", "database", "authentication", "storage"],
+  authors: [{ name: "KRAPI Team" }],
+  creator: "KRAPI",
+  publisher: "KRAPI",
+  robots: "index, follow",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://krapi.com",
+    title: "KRAPI - Backend as a Service",
+    description:
+      "A powerful backend-as-a-service platform for modern applications",
+    siteName: "KRAPI",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KRAPI - Backend as a Service",
+    description:
+      "A powerful backend-as-a-service platform for modern applications",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+};
 
 export default function RootLayout({
   children,
@@ -19,29 +48,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('theme');
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  if (theme === 'dark' || (!theme && prefersDark)) {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
-      <body className="antialiased bg-background text-text min-h-screen" suppressHydrationWarning>
-        <ClientThemeProvider>
-          <ClientAuthProvider>{children}</ClientAuthProvider>
-        </ClientThemeProvider>
+      <body className={inter.className}>
+        <Providers>
+          <SidebarLayout>{children}</SidebarLayout>
+        </Providers>
       </body>
     </html>
   );

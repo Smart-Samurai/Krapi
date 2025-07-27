@@ -40,9 +40,9 @@ export interface Collection {
   project_id: string;
   name: string;
   description?: string;
-  schema: Record<string, any>;
+  schema: Record<string, unknown>;
   indexes: string[];
-  permissions: Record<string, any>;
+  permissions: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   document_count: number;
@@ -52,7 +52,7 @@ export interface Document {
   id: string;
   collection_id: string;
   project_id: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -138,7 +138,7 @@ export interface LoginResponse {
   error?: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -159,10 +159,10 @@ export interface UnifiedApiRequest {
     | "ai";
   resource: string;
   action: string;
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 }
 
-export interface UnifiedApiResponse<T = any> {
+export interface UnifiedApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

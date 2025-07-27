@@ -21,7 +21,8 @@ export class KrapiAdmin {
     name: string;
     description?: string;
     domain?: string;
-    settings?: Record<string, any>;
+    id?: string;
+    settings?: Record<string, unknown>;
   }): Promise<KrapiResponse<Project>> {
     return this.client.request("admin", "projects", "create", projectData);
   }
@@ -62,9 +63,41 @@ export class KrapiAdmin {
     return this.client.request("admin", "database", "stats");
   }
 
+  // Project Stats
+  async getProjectStats(projectId: string): Promise<KrapiResponse<unknown>> {
+    return this.client.request("admin", "projects", "stats", { projectId });
+  }
+
   // Health Check
   async health(): Promise<KrapiResponse> {
     return this.client.health();
+  }
+
+  // API Keys management
+  async getApiKeys(): Promise<KrapiResponse<ProjectApiKey[]>> {
+    return this.client.request("admin", "keys", "list");
+  }
+
+  async getEndpoints(): Promise<KrapiResponse<Record<string, unknown>[]>> {
+    return this.client.request("admin", "endpoints", "list");
+  }
+
+  async getRateLimits(): Promise<KrapiResponse<Record<string, unknown>>> {
+    return this.client.request("admin", "rate-limits", "get");
+  }
+
+  async getApiStats(): Promise<KrapiResponse<Record<string, unknown>>> {
+    return this.client.request("admin", "api", "stats");
+  }
+
+  async updateApiKey(
+    keyId: string,
+    updates: Partial<ProjectApiKey>
+  ): Promise<KrapiResponse<ProjectApiKey>> {
+    return this.client.request("admin", "keys", "update", {
+      keyId,
+      ...updates,
+    });
   }
 }
 

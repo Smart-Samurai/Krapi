@@ -94,13 +94,14 @@ export default function JsonSchemaEditor({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Invalid JSON";
-      const match = errorMessage.match(/at position (\d+)/);
-      const position = match ? parseInt(match[1]) : 0;
+      const match = errorMessage.match(/position (\d+)/);
+      const position = match ? parseInt(match[1] || "0") : 0;
 
-      // Convert position to line/column (approximation)
-      const lines = jsonString.substring(0, position).split("\n");
-      const line = lines.length;
-      const column = lines[lines.length - 1].length + 1;
+      // Calculate line and column
+      const lines = value.split("\n");
+      const line = lines.length > 0 ? lines.length - 1 : 0;
+      const lastLine = lines[lines.length - 1];
+      const column = lastLine ? lastLine.length + 1 : 1;
 
       return {
         valid: false,

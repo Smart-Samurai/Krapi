@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import { createDefaultKrapi } from "@/lib/krapi";
@@ -39,6 +40,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!token; // Simplified: if we have a token, we're authenticated
 
+  const verifyToken = useCallback(async () => {
+    try {
+      const krapi = createDefaultKrapi();
+      const response = await krapi.auth.verify();
+
+      if (response.success && response.data) {
+        setUser(response.data);
+      } else {
+        localStorage.removeItem("auth_token");
+        setToken(null);
+      }
+    } catch (_error) {
+      console.error("❌ Token verification failed:", _error);
+      localStorage.removeItem("auth_token");
+      setToken(null);
+    } finally {
+      setIsLoading(false);
+      setIsHydrated(true);
+    }
+  }, []);
+
   useEffect(() => {
     // Check for existing token on mount
     if (typeof window !== "undefined") {
@@ -71,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     console.log("🔐 Verifying token...");
     verifyToken();
-  }, [token, loginInProgress]);
+  }, [token, loginInProgress, verifyToken]);
 
   // Open WebSocket when authenticated
   useEffect(() => {
@@ -172,27 +194,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [token, reconnectAttempts]);
-
-  const verifyToken = async () => {
-    try {
-      const krapi = createDefaultKrapi();
-      const response = await krapi.auth.verify();
-
-      if (response.success && response.data) {
-        setUser(response.data);
-      } else {
-        localStorage.removeItem("auth_token");
-        setToken(null);
-      }
-    } catch (_error) {
-      console.error("❌ Token verification failed:", _error);
-      localStorage.removeItem("auth_token");
-      setToken(null);
-    } finally {
-      setIsLoading(false);
-      setIsHydrated(true);
-    }
-  };
 
   const login = async (
     username: string,

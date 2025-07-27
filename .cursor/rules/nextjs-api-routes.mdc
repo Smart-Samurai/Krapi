@@ -1,0 +1,114 @@
+---
+description: When creating API calls and connections between frontend Next.js app and the backend server.
+alwaysApply: false
+---
+
+# Next.js API Routes Architecture
+
+## Core Principle
+
+Use Next.js built-in API routes (`app/api/`) for all backend communication.
+
+## Benefits
+
+- **Separation of Concerns**: Frontend only calls local API routes
+- **Security**: Server-side API calls protect credentials and sensitive data
+- **Type Safety**: Shared types between frontend and API routes
+- **Development**: Single codebase, unified deployment, no CORS issues
+
+## Architecture
+
+```
+Frontend Components → Next.js API Routes → Krapi Client → Backend API
+```
+
+## Directory Structure
+
+```
+app/api/
+├── auth/
+│   ├── login/route.ts
+│   ├── logout/route.ts
+│   └── users/route.ts
+├── admin/
+│   ├── projects/route.ts
+│   └── users/route.ts
+├── projects/
+│   ├── [projectId]/
+│   │   ├── users/route.ts
+│   │   └── database/route.ts
+│   └── route.ts
+└── health/route.ts
+```
+
+## Implementation
+
+1. Create API routes in `app/api/` using Next.js route handlers
+2. Use Krapi client within API routes for backend communication
+3. Frontend components call local API routes only
+4. Server-side environment variables protect sensitive data
+
+## Security
+
+- API keys, secrets, and backend endpoints never exposed to client
+- All sensitive operations happen server-side
+- Request validation and authentication handled in API routes
+
+5. **Validation**: Use Zod or similar for request/response validation
+
+This architecture provides a clean separation between frontend UI logic and backend communication while leveraging Next.js's fullstack capabilities.
+
+# Next.js API Routes Architecture
+
+## Core Principle
+
+Use Next.js built-in API routes (`app/api/`) for all backend communication.
+
+## Benefits
+
+- **Separation of Concerns**: Frontend only calls local API routes
+- **Security**: Server-side API calls protect credentials and sensitive data
+- **Type Safety**: Shared types between frontend and API routes
+- **Development**: Single codebase, unified deployment, no CORS issues
+
+## Architecture
+
+```
+Frontend Components → Next.js API Routes → Krapi Client → Backend API
+```
+
+## Directory Structure
+
+```
+app/api/
+├── auth/
+│   ├── login/route.ts
+│   ├── logout/route.ts
+│   └── users/route.ts
+├── admin/
+│   ├── projects/route.ts
+│   └── users/route.ts
+├── projects/
+│   ├── [projectId]/
+│   │   ├── users/route.ts
+│   │   └── database/route.ts
+│   └── route.ts
+└── health/route.ts
+```
+
+## Implementation
+
+1. Create API routes in `app/api/` using Next.js route handlers
+2. Use Krapi client within API routes for backend communication
+3. Frontend components call local API routes only
+4. Server-side environment variables protect sensitive data
+
+## Security
+
+- API keys, secrets, and backend endpoints never exposed to client
+- All sensitive operations happen server-side
+- Request validation and authentication handled in API routes
+
+5. **Validation**: Use Zod or similar for request/response validation
+
+This architecture provides a clean separation between frontend UI logic and backend communication while leveraging Next.js's fullstack capabilities.

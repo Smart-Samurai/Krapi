@@ -5,6 +5,7 @@ import { KrapiDatabase, createKrapiDatabase } from "./database";
 import { KrapiStorage, createKrapiStorage } from "./storage";
 import { KrapiUsers, createKrapiUsers } from "./users";
 import { KrapiProjects, createKrapiProjects } from "./projects";
+import { KrapiEmail, createKrapiEmail } from "./email";
 
 export interface KrapiPackage {
   client: KrapiClient;
@@ -14,6 +15,7 @@ export interface KrapiPackage {
   storage: KrapiStorage;
   users: KrapiUsers;
   projects: KrapiProjects;
+  email: KrapiEmail;
 }
 
 // Create the complete Krapi package
@@ -28,6 +30,7 @@ export function createKrapi(config: KrapiConfig): KrapiPackage {
     storage: createKrapiStorage(client),
     users: createKrapiUsers(client),
     projects: createKrapiProjects(client),
+    email: createKrapiEmail(client),
   };
 }
 
@@ -50,8 +53,8 @@ export function createKrapiWithEndpoint(
 ): KrapiPackage {
   return createKrapi({
     endpoint,
-    apiKey,
-    secret,
+    ...(apiKey && { apiKey }),
+    ...(secret && { secret }),
     timeout: 30000,
   });
 }

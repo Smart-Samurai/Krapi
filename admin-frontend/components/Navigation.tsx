@@ -47,14 +47,14 @@ const SidebarContent = ({
     if (!acc[item.category]) {
       acc[item.category] = [];
     }
-    acc[item.category].push(item);
+    acc[item.category]!.push(item);
     return acc;
   }, {} as Record<string, typeof navigation>);
 
   return (
     <div className="flex h-full w-64 flex-col overflow-y-auto border-r border-stone-200 bg-background-100 dark:bg-background-100 py-5">
       <div className="flex items-center flex-shrink-0 px-4">
-                      <Database className="h-8 w-8 text-primary-600" />
+        <Database className="h-8 w-8 text-primary-600" />
         <span className="ml-2 text-xl font-bold text-stone-900">Krapi CMS</span>
       </div>
 
@@ -71,12 +71,12 @@ const SidebarContent = ({
                   <Link
                     key={item.name}
                     href={item.href}
-                    onClick={onLinkClick}
+                    {...(onLinkClick && { onClick: onLinkClick })}
                     className={cn(
                       "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
                       isActive
-                                        ? "bg-primary-50 text-primary-700 border-r-2 border-primary-700"
-                : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                        ? "bg-primary-50 text-primary-700 border-r-2 border-primary-700"
+                        : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
                     )}
                   >
                     <item.icon
@@ -93,7 +93,8 @@ const SidebarContent = ({
                         variant="secondary"
                         className={cn(
                           "ml-2 text-xs",
-                          item.badge === "New" && "bg-secondary-100 text-secondary-700",
+                          item.badge === "New" &&
+                            "bg-secondary-100 text-secondary-700",
                           item.badge === "Pro" &&
                             "bg-secondary-100 text-secondary-700",
                           item.badge === "Enterprise" &&

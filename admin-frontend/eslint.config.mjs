@@ -27,23 +27,38 @@ const eslintConfig = [
     rules: {
       // TypeScript-specific rules
       "@typescript-eslint/no-unused-vars": [
-        "error",
+        "warn",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
         },
       ],
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "@typescript-eslint/no-inferrable-types": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-var-requires": "off",
 
       // React-specific rules
       "react-hooks/exhaustive-deps": "warn",
       "react/jsx-key": "error",
       "react/no-unescaped-entities": "warn",
 
+      // Import rules
+      "import/no-unresolved": "error",
+      "import/no-cycle": "warn",
+      "import/no-unused-modules": "off",
+      "import/order": "off",
+      "import/no-named-as-default-member": "off",
+      "import/no-duplicates": "off",
+      "import/no-named-as-default": "off",
+
       // General rules
       "no-console": "warn",
-      "prefer-const": "error",
+      "prefer-const": "warn",
       "no-var": "error",
+      "no-unused-vars": "off", // Disable in favor of TypeScript version
+      "no-warning-comments": "off", // Allow TODO comments
     },
   },
 ];

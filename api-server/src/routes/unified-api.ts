@@ -33,6 +33,11 @@ const parseUnifiedRequest = (
     params: req.body.params || req.query.params || {},
   } as UnifiedOperation;
 
+  // Merge params into req.body for controllers to access
+  if (req.body.params) {
+    Object.assign(req.body, req.body.params);
+  }
+
   next();
 };
 
@@ -426,6 +431,9 @@ async function handleAdminOperation(
         case "delete":
           ProjectApiController.deleteProject(req, res);
           break;
+        case "stats":
+          ProjectApiController.getProjectStats(req, res);
+          break;
         default:
           res
             .status(400)
@@ -442,6 +450,29 @@ async function handleAdminOperation(
           break;
         case "delete":
           ProjectApiController.deleteApiKey(req, res);
+          break;
+        default:
+          res
+            .status(400)
+            .json({ success: false, error: `Unknown action: ${action}` });
+      }
+      break;
+    case "users":
+      switch (action) {
+        case "list":
+          AuthController.getAllUsers(req, res);
+          break;
+        case "create":
+          AuthController.createUser(req, res);
+          break;
+        case "get":
+          AuthController.getUserById(req, res);
+          break;
+        case "update":
+          AuthController.updateUser(req, res);
+          break;
+        case "delete":
+          AuthController.deleteUser(req, res);
           break;
         default:
           res

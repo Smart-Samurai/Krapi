@@ -7,6 +7,7 @@ export * from "./database";
 export * from "./storage";
 export * from "./users";
 export * from "./projects";
+export * from "./email";
 export * from "./factory";
 
 // Default exports
@@ -24,3 +25,4 @@ export { KrapiDatabase } from "./database";
 export { KrapiStorage } from "./storage";
 export { KrapiUsers } from "./users";
 export { KrapiProjects } from "./projects";
+export { KrapiEmail } from "./email";

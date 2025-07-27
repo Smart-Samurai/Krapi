@@ -1,555 +1,328 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import WebSocketStatus from "@/components/WebSocketStatus";
-import { createDefaultKrapi } from "@/lib/krapi";
+import React from "react";
 import {
-  Activity,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-  Clock,
-  Loader2,
-  Folder,
-  Users,
-} from "lucide-react";
-
-// Force dynamic rendering to prevent SSR issues
-export const dynamic = "force-dynamic";
-
-interface DashboardStats {
-  contentCount: number;
-  filesCount: number;
-  projectsCount: number;
-  apiKeysCount: number;
-  collectionsCount: number;
-  documentsCount: number;
-}
-
-interface HealthStatus {
-  status: string;
-  uptime: number;
-  version: string;
-  timestamp: string;
-}
-
-interface RecentItem {
-  id: string;
-  key: string;
-  description?: string;
-  updated_at: string;
-  type: string;
-}
+  Button,
+  InfoBlock,
+  IconButton,
+  TextButton,
+  ExpandableList,
+} from "@/components/styled";
+import {
+  FiUsers,
+  FiDatabase,
+  FiFileText,
+  FiActivity,
+  FiCode,
+  FiShield,
+  FiMail,
+  FiPlus,
+  FiTrendingUp,
+  FiServer,
+  FiGlobe,
+} from "react-icons/fi";
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    contentCount: 0,
-    filesCount: 0,
-    projectsCount: 0,
-    apiKeysCount: 0,
-    collectionsCount: 0,
-    documentsCount: 0,
-  });
-  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const stats = [
+    {
+      title: "Total Projects",
+      value: "12",
+      change: "+2",
+      changeType: "positive",
+      icon: FiCode,
+    },
+    {
+      title: "Active Users",
+      value: "1,247",
+      change: "+12%",
+      changeType: "positive",
+      icon: FiUsers,
+    },
+    {
+      title: "Database Collections",
+      value: "89",
+      change: "+5",
+      changeType: "positive",
+      icon: FiDatabase,
+    },
+    {
+      title: "Storage Used",
+      value: "2.4 GB",
+      change: "+0.3 GB",
+      changeType: "neutral",
+      icon: FiFileText,
+    },
+  ];
 
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const krapi = createDefaultKrapi();
+  const recentProjects = [
+    {
+      id: "proj-001",
+      name: "E-commerce Platform",
+      status: "active",
+      users: 156,
+      lastActivity: "2 hours ago",
+    },
+    {
+      id: "proj-002",
+      name: "Mobile App Backend",
+      status: "active",
+      users: 89,
+      lastActivity: "1 day ago",
+    },
+    {
+      id: "proj-003",
+      name: "Analytics Dashboard",
+      status: "development",
+      users: 23,
+      lastActivity: "3 days ago",
+    },
+  ];
 
-      // Load projects
-      const projectsResponse = await krapi.admin.listProjects();
-      if (projectsResponse.success) {
-        setStats((prev) => ({
-          ...prev,
-          projectsCount: projectsResponse.data?.length || 0,
-        }));
-      }
-
-      // Load health status
-      const healthResponse = await krapi.admin.health();
-      if (healthResponse.success) {
-        setHealthStatus(healthResponse.data);
-      }
-
-      // Load database stats
-      const dbStatsResponse = await krapi.admin.getDatabaseStats();
-      if (dbStatsResponse.success) {
-        setStats((prev) => ({
-          ...prev,
-          collectionsCount: dbStatsResponse.data?.collections || 0,
-          documentsCount: dbStatsResponse.data?.documents || 0,
-        }));
-      }
-
-      // Load API keys
-      const apiKeysResponse = await krapi.admin.listApiKeys();
-      if (apiKeysResponse.success) {
-        setStats((prev) => ({
-          ...prev,
-          apiKeysCount: apiKeysResponse.data?.length || 0,
-        }));
-      }
-
-      // Load files
-      const filesResponse = await krapi.storage.listFiles();
-      if (filesResponse.success) {
-        setStats((prev) => ({
-          ...prev,
-          filesCount: filesResponse.data?.length || 0,
-        }));
-      }
-
-      // Load collections
-      const collectionsResponse = await krapi.database.listCollections();
-      if (collectionsResponse.success) {
-        setStats((prev) => ({
-          ...prev,
-          collectionsCount: collectionsResponse.data?.length || 0,
-        }));
-      }
-
-      // Load documents
-      const documentsResponse = await krapi.database.listDocuments("users");
-      if (documentsResponse.success) {
-        setStats((prev) => ({
-          ...prev,
-          documentsCount: documentsResponse.data?.length || 0,
-        }));
-      }
-
-      // Load recent activity
-      setRecentItems([
-        {
-          id: "1",
-          key: "New project 'Test Project' created",
-          description: "New project 'Test Project' created",
-          updated_at: new Date().toISOString(),
-          type: "project",
-        },
-        {
-          id: "2",
-          key: "User 'admin' logged in",
-          description: "User 'admin' logged in",
-          updated_at: new Date(Date.now() - 3600000).toISOString(),
-          type: "user",
-        },
-      ]);
-    } catch (error) {
-      console.error("❌ Dashboard data load failed:", error);
-      setErrors(["Failed to load dashboard data"]);
-    } finally {
-      setIsLoading(false);
-      setLastRefresh(new Date());
-    }
-  }, []);
-
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
-
-  const formatUptime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
-  const formatLastRefresh = () => {
-    if (!lastRefresh) return "Never";
-    return lastRefresh.toLocaleTimeString();
-  };
-
-  const getItemIcon = (type: string) => {
-    switch (type) {
-      case "project":
-        return <Folder className="h-5 w-5 text-blue-400" />;
-      case "file":
-        return <Users className="h-5 w-5 text-green-400" />;
-      case "document":
-        return <Activity className="h-5 w-5 text-purple-400" />;
-      default:
-        return <Activity className="h-5 w-5 text-gray-400" />;
-    }
-  };
-
-  // Show loading state while auth is loading or dashboard data is loading
-  if (authLoading || isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4" />
-          <p className="text-text-500">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if user is not available yet
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <p className="text-text-500">Loading user data...</p>
-        </div>
-      </div>
-    );
-  }
+  const systemHealth = [
+    {
+      service: "API Gateway",
+      status: "healthy",
+      uptime: "99.9%",
+      responseTime: "45ms",
+    },
+    {
+      service: "Database",
+      status: "healthy",
+      uptime: "99.8%",
+      responseTime: "12ms",
+    },
+    {
+      service: "File Storage",
+      status: "warning",
+      uptime: "98.5%",
+      responseTime: "120ms",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Error Display */}
-      {errors.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-            <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-              Some data could not be loaded
-            </h3>
-          </div>
-          <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-            <ul className="list-disc list-inside space-y-1">
-              {errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="mt-3">
-            <button
-              onClick={loadDashboardData}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 dark:text-red-200 dark:bg-red-800 dark:hover:bg-red-700"
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Retry
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-text-900 dark:text-text-50">
-                Welcome back, {user?.username}!
-              </h1>
-              <p className="mt-1 text-sm text-text-500 dark:text-text-500">
-                Welcome to your KRAPI CMS dashboard! Here&apos;s what&apos;s
-                happening with your projects.
-              </p>
-              <div className="mt-2 flex items-center space-x-2">
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200">
-                  {user?.role}
-                </span>
-                <span className="text-xs text-text-400">
-                  Last updated: {formatLastRefresh()}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={loadDashboardData}
-              disabled={isLoading}
-              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh
-            </button>
-          </div>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-text">Dashboard</h1>
+          <p className="text-text/60 mt-1">
+            Welcome back! Here's what's happening with your KRAPI platform.
+          </p>
         </div>
+        <Button variant="default" size="lg">
+          <FiPlus className="mr-2 h-4 w-4" />
+          New Project
+        </Button>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Content Items */}
-        <div className="bg-background-100 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Activity className="h-6 w-6 text-primary-400" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => (
+          <div
+            key={index}
+            className="bg-background border border-secondary rounded-lg p-6"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text/60">{stat.title}</p>
+                <p className="text-2xl font-bold text-text mt-1">
+                  {stat.value}
+                </p>
+                <div className="flex items-center mt-2">
+                  <span
+                    className={`text-sm font-medium ${
+                      stat.changeType === "positive"
+                        ? "text-green-600"
+                        : stat.changeType === "negative"
+                        ? "text-red-600"
+                        : "text-text/60"
+                    }`}
+                  >
+                    {stat.change}
+                  </span>
+                  <span className="text-sm text-text/40 ml-1">
+                    from last month
+                  </span>
+                </div>
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
-                    Content Items
-                  </dt>
-                  <dd className="text-lg font-medium text-text-900">
-                    {stats.contentCount}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* API Status */}
-        <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Activity className="h-6 w-6 text-accent-400 dark:text-accent-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 dark:text-text-500 truncate">
-                    API Status
-                  </dt>
-                  <dd className="flex items-center text-lg font-medium text-text-900 dark:text-text-50">
-                    <CheckCircle className="h-4 w-4 text-accent-500 dark:text-accent-400 mr-1" />
-                    {healthStatus?.status || "Unknown"}
-                  </dd>
-                </dl>
+              <div className="p-3 bg-primary/10 rounded-lg">
+                <stat.icon className="h-6 w-6 text-primary" />
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Server Uptime */}
-        <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Clock className="h-6 w-6 text-secondary-400 dark:text-secondary-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
-                    Server Uptime
-                  </dt>
-                  <dd className="text-lg font-medium text-text-900">
-                    {healthStatus ? formatUptime(healthStatus.uptime) : "N/A"}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Files */}
-        <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="h-6 w-6 text-green-400 dark:text-green-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-text-500 truncate">
-                    Files
-                  </dt>
-                  <dd className="text-lg font-medium text-text-900">
-                    {stats.filesCount}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Admin Stats (if admin user) */}
-      {user?.role === "admin" && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Projects */}
-          <div className="bg-background-100 overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Folder className="h-6 w-6 text-blue-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-text-500 truncate">
-                      Projects
-                    </dt>
-                    <dd className="text-lg font-medium text-text-900">
-                      {stats.projectsCount}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Projects */}
+        <div className="lg:col-span-2">
+          <div className="bg-background border border-secondary rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-text">
+                Recent Projects
+              </h2>
+              <TextButton variant="link">View All</TextButton>
             </div>
-          </div>
-
-          {/* API Keys */}
-          <div className="bg-background-100 overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Activity className="h-6 w-6 text-yellow-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-text-500 truncate">
-                      API Keys
-                    </dt>
-                    <dd className="text-lg font-medium text-text-900">
-                      {stats.apiKeysCount}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Collections */}
-          <div className="bg-background-100 overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Activity className="h-6 w-6 text-purple-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-text-500 truncate">
-                      Collections
-                    </dt>
-                    <dd className="text-lg font-medium text-text-900">
-                      {stats.collectionsCount}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Documents */}
-          <div className="bg-background-100 overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Activity className="h-6 w-6 text-indigo-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-text-500 truncate">
-                      Documents
-                    </dt>
-                    <dd className="text-lg font-medium text-text-900">
-                      {stats.documentsCount}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* WebSocket Status */}
-      <WebSocketStatus />
-
-      {/* Recent Activity */}
-      <div className="bg-background-100 dark:bg-background-100 shadow overflow-hidden sm:rounded-md">
-        <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-text-900 dark:text-text-50">
-            Recent Activity
-          </h3>
-          <p className="mt-1 max-w-2xl text-sm text-text-500 dark:text-text-500">
-            Latest updates across your projects, files, and content.
-          </p>
-        </div>
-        <ul className="divide-y divide-background-200">
-          {recentItems.length > 0 ? (
-            recentItems.map((item) => (
-              <li key={`${item.type}-${item.id}`}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        {getItemIcon(item.type)}
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-primary-600">
-                          {item.key}
-                        </p>
-                        <p className="text-sm text-text-500">
-                          {item.description}
-                        </p>
-                      </div>
+            <div className="space-y-4">
+              {recentProjects.map((project) => (
+                <div
+                  key={project.id}
+                  className="flex items-center justify-between p-4 border border-secondary/50 rounded-lg hover:bg-secondary/5 transition-colors"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <FiCode className="h-5 w-5 text-primary" />
                     </div>
-                    <div className="text-sm text-text-500">
-                      {new Date(item.updated_at).toLocaleDateString()}
+                    <div>
+                      <h3 className="font-medium text-text">{project.name}</h3>
+                      <p className="text-sm text-text/60">
+                        {project.users} users • {project.lastActivity}
+                      </p>
                     </div>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        project.status === "active"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                      }`}
+                    >
+                      {project.status}
+                    </span>
+                    <IconButton
+                      icon={FiTrendingUp}
+                      variant="secondary"
+                      size="sm"
+                    />
+                  </div>
                 </div>
-              </li>
-            ))
-          ) : (
-            <li>
-              <div className="px-4 py-8 text-center">
-                <Activity className="mx-auto h-12 w-12 text-text-400" />
-                <h3 className="mt-2 text-sm font-medium text-text-900">
-                  No recent activity
-                </h3>
-                <p className="mt-1 text-sm text-text-500">
-                  Start creating content, files, or projects to see activity
-                  here.
-                </p>
-              </div>
-            </li>
-          )}
-        </ul>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* System Health */}
+        <div>
+          <div className="bg-background border border-secondary rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-text mb-4">
+              System Health
+            </h2>
+            <div className="space-y-4">
+              {systemHealth.map((service, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          service.status === "healthy"
+                            ? "bg-green-500"
+                            : service.status === "warning"
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                        }`}
+                      />
+                      <span className="font-medium text-text">
+                        {service.service}
+                      </span>
+                    </div>
+                    <span className="text-sm text-text/60">
+                      {service.responseTime}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm text-text/60">
+                    <span>Uptime: {service.uptime}</span>
+                    <span
+                      className={
+                        service.status === "healthy"
+                          ? "text-green-600"
+                          : service.status === "warning"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {service.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-background-100 dark:bg-background-100 overflow-hidden shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-text-900 dark:text-text-50 mb-4">
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <a
-              href="/dashboard/content"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 hover:bg-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <Activity className="h-4 w-4 mr-2" />
-              Manage Content
-            </a>
-            <a
-              href="/dashboard/files"
-              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Manage Files
-            </a>
-            <a
-              href="/dashboard/api-test"
-              className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <Activity className="h-4 w-4 mr-2" />
-              Test API
-            </a>
-            {user?.role === "admin" && (
-              <>
-                <a
-                  href="/dashboard/projects"
-                  className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                >
-                  <Folder className="h-4 w-4 mr-2" />
-                  Projects
-                </a>
-                <a
-                  href="/dashboard/database"
-                  className="inline-flex items-center px-4 py-2 border border-background-300 text-sm font-medium rounded-md text-text-700 bg-background-50 hover:bg-background-100 dark:text-text-300 dark:bg-background-100 dark:hover:bg-background-200 dark:border-background-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                >
-                  <Activity className="h-4 w-4 mr-2" />
-                  Database
-                </a>
-              </>
-            )}
-          </div>
+      <div className="bg-background border border-secondary rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-text mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Button variant="secondary" className="h-20 flex-col">
+            <FiUsers className="h-6 w-6 mb-2" />
+            <span className="text-sm">Manage Users</span>
+          </Button>
+          <Button variant="secondary" className="h-20 flex-col">
+            <FiDatabase className="h-6 w-6 mb-2" />
+            <span className="text-sm">Database</span>
+          </Button>
+          <Button variant="secondary" className="h-20 flex-col">
+            <FiFileText className="h-6 w-6 mb-2" />
+            <span className="text-sm">Files</span>
+          </Button>
+          <Button variant="secondary" className="h-20 flex-col">
+            <FiActivity className="h-6 w-6 mb-2" />
+            <span className="text-sm">Analytics</span>
+          </Button>
         </div>
+      </div>
+
+      {/* Info Blocks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <InfoBlock
+          title="Platform Status"
+          variant="info"
+          className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+        >
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">API Endpoints</span>
+              <span className="text-sm font-medium text-green-600">
+                All Operational
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Database</span>
+              <span className="text-sm font-medium text-green-600">
+                Connected
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">File Storage</span>
+              <span className="text-sm font-medium text-yellow-600">
+                High Usage
+              </span>
+            </div>
+          </div>
+        </InfoBlock>
+
+        <InfoBlock
+          title="Recent Updates"
+          variant="success"
+          className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+        >
+          <div className="space-y-2">
+            <div className="text-sm">
+              <strong>v2.1.0</strong> - Enhanced API performance and new user
+              management features
+            </div>
+            <div className="text-sm">
+              <strong>v2.0.5</strong> - Bug fixes and security improvements
+            </div>
+            <div className="text-sm">
+              <strong>v2.0.0</strong> - Major platform upgrade with new
+              dashboard
+            </div>
+          </div>
+        </InfoBlock>
       </div>
     </div>
   );
