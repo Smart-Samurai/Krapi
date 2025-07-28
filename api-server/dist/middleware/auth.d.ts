@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 export interface AuthenticatedRequest extends Request {
     user?: {
-        userId: number;
+        id: number;
         username: string;
         role: string;
-        permissions: string[];
     };
 }
 export declare const authenticateToken: (req: AuthenticatedRequest, res: Response, next: NextFunction) => void;

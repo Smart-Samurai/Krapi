@@ -48,7 +48,7 @@ router.get("/health", (req, res) => {
     message: "Krapi Unified API is healthy",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
-    endpoint: "/krapi/k1",
+    endpoint: "/krapi/v1",
   });
 });
 

@@ -16,15 +16,31 @@ export class KrapiAuth {
         username,
         password,
       });
-      return response.data;
+      
+      const data = response.data;
+      
+      // Store auth data if login successful
+      if (data.success && data.token) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("auth_token", data.token);
+          if (data.user) {
+            localStorage.setItem("auth_user", JSON.stringify(data.user));
+          }
+        }
+      }
+      
+      return data;
     } catch (error: unknown) {
-      // Throw the error instead of returning a failed response
       const errorMessage =
         error instanceof Error ? error.message : "Login failed";
       const responseError = (
-        error as { response?: { data?: { error?: string } } }
-      )?.response?.data?.error;
-      throw new Error(responseError || errorMessage || "Login failed");
+        error as { response?: { data?: { error?: string; message?: string } } }
+      )?.response?.data;
+      
+      return {
+        success: false,
+        error: responseError?.error || responseError?.message || errorMessage || "Login failed"
+      };
     }
   }
 

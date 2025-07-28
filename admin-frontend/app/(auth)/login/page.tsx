@@ -7,9 +7,10 @@ import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiShield } from "react-icons/fi";
 import { Checkbox } from "@/components/ui/checkbox";
+import { createDefaultKrapi } from "@/lib/krapi";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
   rememberMe: z.boolean().optional(),
 });
@@ -20,15 +21,38 @@ export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log("Login attempt:", data);
-    setIsLoading(false);
-    // Redirect to dashboard after successful login
-    router.push("/dashboard");
+    setError(null);
+    
+    try {
+      const krapi = createDefaultKrapi();
+      const result = await krapi.auth.login(data.username, data.password);
+      
+      if (result.success && result.data) {
+        // Store user data if needed
+        if (result.data.user) {
+          localStorage.setItem('user', JSON.stringify(result.data.user));
+        }
+        
+        // Store remember me preference
+        if (data.rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
+        }
+        
+        // Redirect to dashboard after successful login
+        router.push("/dashboard");
+      } else {
+        setError(result.error || "Invalid username or password");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("An error occurred during login. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,18 +71,28 @@ export default function LoginPage() {
 
         {/* Login Form */}
         <div className="bg-background border border-secondary rounded-lg p-8 shadow-lg">
+          {error && (
+            <InfoBlock
+              title="Login Failed"
+              variant="error"
+              className="mb-6"
+            >
+              {error}
+            </InfoBlock>
+          )}
+          
           <Form
             schema={loginSchema}
             onSubmit={handleLogin}
             className="space-y-6"
           >
             <FormField
-              name="email"
-              label="Email Address"
-              type="email"
-              placeholder="Enter your email"
+              name="username"
+              label="Username"
+              type="text"
+              placeholder="Enter your username"
               required
-              autoComplete="email"
+              autoComplete="username"
             />
 
             <FormField
@@ -115,13 +149,14 @@ export default function LoginPage() {
           >
             <div className="text-sm space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-text">Email:</span>
-                <span className="text-text/80">admin@krapi.local</span>
+                <span className="font-medium text-text">Username:</span>
+                <span className="text-text/80">admin</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-medium text-text">Password:</span>
-                <span className="text-text/80">admin</span>
+                <span className="text-text/80">admin123</span>
               </div>
+
             </div>
           </InfoBlock>
         </div>

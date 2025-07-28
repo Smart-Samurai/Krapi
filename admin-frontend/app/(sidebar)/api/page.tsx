@@ -56,10 +56,6 @@ export default function ApiPage() {
       createdAt: "N/I",
       lastUsed: "N/I",
     },
-      status: "inactive",
-      createdAt: "2024-01-12",
-      lastUsed: "5 days ago",
-    },
   ];
 
   const endpoints = [

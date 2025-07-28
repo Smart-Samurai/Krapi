@@ -57,7 +57,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/", routes);
 
 // Unified API (Appwrite-style)
-app.use("/krapi/k1", unifiedApiRoutes);
+app.use("/krapi/v1", unifiedApiRoutes);
 
 // Error handling middleware
 app.use(
@@ -269,7 +269,7 @@ export { broadcastToAll };
 // Start HTTP and WebSocket server
 server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/krapi/k1/health`);
+  console.log(`Health check: http://localhost:${PORT}/krapi/v1/health`);
   console.log(`API docs: http://localhost:${PORT}/`);
   console.log(`WebSocket: ws://localhost:${PORT}/ws`);
   console.log(`Default admin user: admin/admin123`);

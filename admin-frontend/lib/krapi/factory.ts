@@ -36,7 +36,7 @@ export function createKrapi(config: KrapiConfig): KrapiPackage {
 
 // Default configuration
 export const defaultConfig: KrapiConfig = {
-  endpoint: "http://localhost:3470/krapi/k1",
+  endpoint: "http://localhost:3470/krapi/v1",
   timeout: 30000,
 };
 

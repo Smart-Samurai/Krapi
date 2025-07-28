@@ -1,185 +1,217 @@
-# Krapi Package
+# Krapi Client Library
 
-A unified package for connecting to the Krapi backend API. This package provides a clean, modular interface for all API operations.
+A comprehensive TypeScript/JavaScript client library for interacting with the Krapi backend API.
 
 ## Installation
 
-```bash
-# For now, this is a local package
-# In the future, it will be available as an npm package
-npm install krapi
-```
+The library is already included in the Next.js frontend application. No additional installation is needed.
 
 ## Quick Start
 
-```typescript
-import { createKrapi, createDefaultKrapi } from "@/lib/krapi";
+### Basic Usage
 
-// Create with default configuration (localhost:3470/krapi/k1)
+```typescript
+import { createDefaultKrapi } from '@/lib/krapi';
+
+// Create a Krapi instance with default configuration
 const krapi = createDefaultKrapi();
 
-// Or create with custom configuration
+// Check API health
+const health = await krapi.client.health();
+console.log('API Health:', health);
+```
+
+### Custom Configuration
+
+```typescript
+import { createKrapi } from '@/lib/krapi';
+
+// Create a Krapi instance with custom configuration
 const krapi = createKrapi({
-  endpoint: "https://your-domain.com/krapi/k1",
-  apiKey: "your-api-key",
-  secret: "your-secret",
-  timeout: 30000,
+  endpoint: 'https://api.yourserver.com/krapi/v1',
+  apiKey: 'your-api-key',
+  secret: 'your-secret',
+  timeout: 60000, // 60 seconds
 });
 ```
 
-## Usage Examples
+## Architecture
 
-### Authentication
+The Krapi library follows a modular architecture with separate modules for different API operations:
+
+- **Client**: Core HTTP client with authentication handling
+- **Auth**: Authentication operations (login, verify, logout)
+- **Admin**: Admin-specific operations (projects, system management)
+- **Database**: Database operations (collections, documents)
+- **Storage**: File storage operations
+- **Users**: User management
+- **Projects**: Project-specific operations (API keys, stats)
+- **Email**: Email operations
+
+**Important Note**: Project CRUD operations (create, read, update, delete) are handled by the **Admin** module, not the Projects module. The Projects module is for project-specific operations like managing API keys.
+
+## Authentication
+
+The library supports two types of authentication:
+
+### 1. Admin Authentication (JWT)
 
 ```typescript
-import { createDefaultKrapi } from "@/lib/krapi";
-
-const krapi = createDefaultKrapi();
-
-// Login
-const loginResult = await krapi.auth.login("admin", "password");
+// Login as admin (uses username, not email)
+const loginResult = await krapi.auth.login('admin', 'admin123');
 if (loginResult.success) {
-  console.log("Logged in as:", loginResult.user);
+  // Token is automatically stored and used for subsequent requests
+  console.log('Logged in:', loginResult.data);
 }
+```
 
-// Check if authenticated
-if (krapi.auth.isAuthenticated()) {
-  console.log("User is authenticated");
-}
+### 2. Project API Authentication
 
-// Get current user
-const user = krapi.auth.getCurrentUser();
+```typescript
+// Create client with API key for project-specific operations
+const projectKrapi = createKrapi({
+  endpoint: 'http://localhost:3470/krapi/v1',
+  apiKey: 'your-project-api-key',
+});
+```
+
+**Important**: When using API key authentication, the backend automatically adds the `projectId` to requests. When using admin JWT authentication, you must explicitly pass `projectId` in the params for project-scoped operations (collections, documents, files).
+
+## Module Usage
+
+### Auth Module
+
+```typescript
+// Login (uses username, not email)
+const loginResult = await krapi.auth.login('username', 'password');
+
+// Verify token
+const verifyResult = await krapi.auth.verify();
 
 // Logout
-krapi.auth.logout();
+const logoutResult = await krapi.auth.logout();
 ```
 
-### Admin Operations
+### Database Module
 
 ```typescript
-// List all projects
-const projects = await krapi.admin.listProjects();
+// List collections (requires projectId when using admin auth)
+const collections = await krapi.database.listCollections({ projectId: 'project-id' });
 
-// Create a new project
-const newProject = await krapi.admin.createProject({
-  name: "My Project",
-  description: "A new project",
-  domain: "myproject.com",
-});
-
-// Get project details
-const project = await krapi.admin.getProject("project-id");
-
-// Get database stats
-const stats = await krapi.admin.getDatabaseStats();
-
-// Health check
-const health = await krapi.admin.health();
-```
-
-### Database Operations
-
-```typescript
-// List collections
-const collections = await krapi.database.listCollections();
-
-// Create a collection
-const collection = await krapi.database.createCollection({
-  name: "users",
-  description: "User collection",
+// Create collection (requires projectId when using admin auth)
+const newCollection = await krapi.database.createCollection({
+  name: 'posts',
+  projectId: 'project-id', // Required when using admin auth
   schema: {
-    name: { type: "string", required: true },
-    email: { type: "string", required: true },
-    age: { type: "number" },
-  },
+    title: { type: 'string', required: true },
+    content: { type: 'string' },
+    published: { type: 'boolean', default: false }
+  }
 });
 
 // List documents
-const documents = await krapi.database.listDocuments("collection-id");
+const documents = await krapi.database.listDocuments('posts', {
+  limit: 10,
+  offset: 0
+});
 
-// Create a document
-const document = await krapi.database.createDocument({
-  collectionId: "collection-id",
-  data: {
-    name: "John Doe",
-    email: "john@example.com",
-    age: 30,
-  },
+// Create document
+const newDoc = await krapi.database.createDocument('posts', {
+  title: 'Hello World',
+  content: 'This is my first post',
+  published: true
+});
+
+// Get document
+const doc = await krapi.database.getDocument('posts', 'document-id');
+
+// Update document
+const updated = await krapi.database.updateDocument('posts', 'document-id', {
+  published: false
+});
+
+// Delete document
+const deleted = await krapi.database.deleteDocument('posts', 'document-id');
+```
+
+### Storage Module
+
+```typescript
+// Upload file
+const file = new File(['content'], 'test.txt', { type: 'text/plain' });
+const uploaded = await krapi.storage.uploadFile(file);
+
+// List files (requires projectId when using admin auth)
+const files = await krapi.storage.listFiles({ projectId: 'project-id' });
+
+// Get file
+const fileData = await krapi.storage.getFile('file-id');
+
+// Delete file
+const deleted = await krapi.storage.deleteFile('file-id');
+```
+
+### Admin Module (Projects)
+
+```typescript
+// List projects (admin operations)
+const projects = await krapi.admin.listProjects();
+
+// Create project
+const newProject = await krapi.admin.createProject({
+  name: 'My CMS',
+  description: 'A content management system'
+});
+
+// Get project
+const project = await krapi.admin.getProject('project-id');
+
+// Update project
+const updated = await krapi.admin.updateProject('project-id', {
+  description: 'Updated description'
+});
+
+// Delete project
+const deleted = await krapi.admin.deleteProject('project-id');
+
+// Create API key for project
+const apiKey = await krapi.projects.createApiKey('project-id', {
+  name: 'Production Key',
+  permissions: ['read', 'write']
 });
 ```
 
-### Storage Operations
+### Users Module
 
 ```typescript
-// List files
-const files = await krapi.storage.listFiles();
+// List users
+const users = await krapi.users.list();
 
-// Upload a file
-const fileInput = document.getElementById("file") as HTMLInputElement;
-const file = fileInput.files[0];
-const uploadResult = await krapi.storage.uploadFile(file, {
-  category: "images",
+// Create user
+const newUser = await krapi.users.create({
+  email: 'user@example.com',
+  password: 'secure-password',
+  name: 'John Doe'
 });
 
-// Download a file
-const blob = await krapi.storage.downloadFile("file-id");
+// Get user
+const user = await krapi.users.get('user-id');
 
-// Get file URL
-const fileUrl = krapi.storage.getFileUrl("file-id");
-```
-
-### Project Operations
-
-```typescript
-// Get project stats
-const stats = await krapi.projects.getStats("project-id");
-
-// Get project API keys
-const apiKeys = await krapi.projects.getApiKeys("project-id");
-
-// Create API key
-const apiKey = await krapi.projects.createApiKey("project-id", {
-  name: "My API Key",
-  permissions: ["read", "write"],
+// Update user
+const updated = await krapi.users.update('user-id', {
+  name: 'Jane Doe'
 });
-```
 
-### User Management
-
-```typescript
-// List project users
-const users = await krapi.users.listUsers("project-id");
-
-// Create a user
-const user = await krapi.users.createUser({
-  projectId: "project-id",
-  email: "user@example.com",
-  username: "newuser",
-  role: "editor",
-  permissions: ["read", "write"],
-});
-```
-
-## Configuration
-
-The package supports various configuration options:
-
-```typescript
-interface KrapiConfig {
-  endpoint: string; // API endpoint URL
-  apiKey?: string; // API key for authentication
-  secret?: string; // Secret for enhanced security
-  timeout?: number; // Request timeout in milliseconds
-  headers?: Record<string, string>; // Custom headers
-}
+// Delete user
+const deleted = await krapi.users.delete('user-id');
 ```
 
 ## Error Handling
 
-All methods return a consistent response format:
+All methods return a `KrapiResponse` object with the following structure:
 
 ```typescript
-interface KrapiResponse<T = any> {
+interface KrapiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -190,37 +222,158 @@ interface KrapiResponse<T = any> {
 Example error handling:
 
 ```typescript
-const result = await krapi.admin.listProjects();
-if (result.success) {
-  console.log("Projects:", result.data);
+const result = await krapi.database.createDocument('posts', data);
+
+if (!result.success) {
+  console.error('Error creating document:', result.error);
+  // Handle error appropriately
 } else {
-  console.error("Error:", result.error);
+  console.log('Document created:', result.data);
 }
 ```
 
-## Future NPM Package
+## Advanced Usage
 
-This package is designed to be easily converted to an npm package. The structure follows npm package conventions:
+### Direct API Requests
 
-- Clean separation of concerns
-- Modular architecture
-- TypeScript support
-- Comprehensive documentation
-- Consistent API design
+For operations not covered by the modules, you can use the client directly:
 
-To publish as an npm package, you would:
+```typescript
+const result = await krapi.client.request(
+  'custom',        // operation
+  'resource',      // resource
+  'action',        // action
+  { param: 'value' } // params
+);
+```
 
-1. Add `package.json` with proper metadata
-2. Configure build process (TypeScript compilation)
-3. Add tests
-4. Set up CI/CD pipeline
-5. Publish to npm registry
+### Updating Configuration
 
-## API Endpoint
+```typescript
+// Update API endpoint or credentials at runtime
+krapi.client.updateConfig({
+  endpoint: 'https://new-endpoint.com/krapi/v1',
+  apiKey: 'new-api-key'
+});
+```
 
-The package connects to the unified API endpoint:
+### Access Axios Instance
 
-- **Development**: `http://localhost:3470/krapi/k1`
-- **Production**: `https://your-domain.com/krapi/k1`
+For advanced HTTP operations:
 
-All operations go through the unified `/api` endpoint with operation, resource, and action parameters.
+```typescript
+const axios = krapi.client.getAxiosInstance();
+// Use axios directly for custom requests
+```
+
+## Environment Variables
+
+The library uses the following environment variables when available:
+
+- `NEXT_PUBLIC_API_URL`: Base API URL (default: http://localhost:3470)
+- `NEXT_PUBLIC_API_VERSION`: API version (default: v1)
+
+## Type Safety
+
+The library is fully typed with TypeScript. Import types as needed:
+
+```typescript
+import type { 
+  KrapiConfig, 
+  KrapiResponse,
+  Collection,
+  Document,
+  Project,
+  User 
+} from '@/lib/krapi';
+```
+
+## Best Practices
+
+1. **Singleton Pattern**: Create a single Krapi instance and reuse it throughout your application
+2. **Error Handling**: Always check the `success` property before accessing `data`
+3. **Authentication**: Let the library handle token storage and refresh automatically
+4. **Project Context**: Use separate Krapi instances for admin operations vs project-specific operations
+
+## Example: Complete Flow
+
+```typescript
+import { createDefaultKrapi } from '@/lib/krapi';
+
+async function example() {
+  const krapi = createDefaultKrapi();
+  
+  // 1. Login as admin (uses username, not email)
+  const loginResult = await krapi.auth.login('admin', 'admin123');
+  if (!loginResult.success) {
+    console.error('Login failed:', loginResult.error);
+    return;
+  }
+  
+  // 2. Create a project (using admin module)
+  const projectResult = await krapi.admin.createProject({
+    name: 'My Blog',
+    description: 'A simple blog CMS'
+  });
+  
+  if (!projectResult.success) {
+    console.error('Project creation failed:', projectResult.error);
+    return;
+  }
+  
+  const project = projectResult.data;
+  
+  // 3. Create an API key for the project
+  const apiKeyResult = await krapi.projects.createApiKey(project.id, {
+    name: 'Frontend Key',
+    permissions: ['read', 'write']
+  });
+  
+  if (!apiKeyResult.success) {
+    console.error('API key creation failed:', apiKeyResult.error);
+    return;
+  }
+  
+  // 4. Create a new client with the project API key
+  const projectKrapi = createKrapi({
+    endpoint: 'http://localhost:3470/krapi/v1',
+    apiKey: apiKeyResult.data.key
+  });
+  
+  // 5. Create a collection in the project
+  const collectionResult = await projectKrapi.database.createCollection({
+    name: 'posts',
+    schema: {
+      title: { type: 'string', required: true },
+      content: { type: 'string' },
+      author: { type: 'string' },
+      publishedAt: { type: 'datetime' }
+    }
+  });
+  
+  if (!collectionResult.success) {
+    console.error('Collection creation failed:', collectionResult.error);
+    return;
+  }
+  
+  // 6. Create a document
+  const docResult = await projectKrapi.database.createDocument('posts', {
+    title: 'Welcome to My Blog',
+    content: 'This is the first post on my new blog!',
+    author: 'Admin',
+    publishedAt: new Date().toISOString()
+  });
+  
+  if (!docResult.success) {
+    console.error('Document creation failed:', docResult.error);
+    return;
+  }
+  
+  console.log('Setup complete! Created:', {
+    project: project.name,
+    apiKey: apiKeyResult.data.name,
+    collection: collectionResult.data.name,
+    document: docResult.data.id
+  });
+}
+```
