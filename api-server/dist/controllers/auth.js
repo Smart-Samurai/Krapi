@@ -15,22 +15,22 @@ class AuthController {
                 username: req.body.username ? "present" : "missing",
                 password: req.body.password ? "present" : "missing",
             });
-            const { username, password } = req.body;
-            if (!username || !password) {
-                console.log("🔐 AuthController: Missing username or password");
+            const { email, password } = req.body;
+            if (!email || !password) {
+                console.log("🔐 AuthController: Missing email or password");
                 const response = {
                     success: false,
-                    error: "Username and password are required",
+                    error: "Email and password are required",
                 };
                 res.status(400).json(response);
                 return;
             }
             console.log("🔐 AuthController: Calling AuthService.login");
-            const result = await auth_1.AuthService.login(username, password);
+            const result = await auth_1.AuthService.login(email, password);
             console.log("🔐 AuthController: AuthService result:", result ? "success" : "failed");
             // Log the login attempt
             coreDatabase.createLoginLog({
-                username,
+                username: email, // Use email as username for logging
                 ip_address: req.ip || req.connection.remoteAddress || "unknown",
                 user_agent: req.headers["user-agent"],
                 success: !!result,
@@ -199,21 +199,23 @@ class AuthController {
                 res.status(403).json(response);
                 return;
             }
-            const { username, email, password, role = "admin" } = req.body;
-            if (!username || !email || !password) {
+            const { email, firstName, lastName, password, role = "admin", permissions, } = req.body;
+            if (!email || !firstName || !lastName || !password) {
                 const response = {
                     success: false,
-                    error: "Username, email, and password are required",
+                    error: "Email, first name, last name, and password are required",
                 };
                 res.status(400).json(response);
                 return;
             }
             const user = await auth_1.AuthService.createUser({
-                username,
                 email,
+                firstName,
+                lastName,
                 password,
                 role: role,
                 active: true,
+                permissions,
             });
             if (!user) {
                 const response = {

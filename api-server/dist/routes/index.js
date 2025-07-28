@@ -11,10 +11,10 @@ router.get("/", (req, res) => {
         endpoints: {
             // Krapi API (current)
             krapi: {
-                base: "/krapi/k1",
-                health: "GET /krapi/k1/health",
-                auth: "POST /krapi/k1/auth",
-                api: "POST /krapi/k1/api (all operations)",
+                base: "/krapi/v1",
+                health: "GET /krapi/v1/health",
+                auth: "POST /krapi/v1/auth",
+                api: "POST /krapi/v1/api (all operations)",
             },
         },
     });

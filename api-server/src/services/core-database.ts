@@ -155,7 +155,7 @@ class CoreDatabaseService {
             "INSERT INTO users (username, email, firstName, lastName, password_hash, role, active) VALUES (?, ?, ?, ?, ?, ?, ?)"
           )
           .run(
-            "admin@krapi.local",
+            "admin",
             "admin@krapi.local",
             "Master",
             "Administrator",
