@@ -222,12 +222,15 @@ export default function ProjectsPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <IconButton
-                    icon={FiEye}
+                  <Button
                     variant="secondary"
                     size="sm"
-                    title="View Project"
-                  />
+                    onClick={() => {
+                      window.location.href = `/projects/${project.id}/database`;
+                    }}
+                  >
+                    Open Project
+                  </Button>
                   <IconButton
                     icon={FiEdit}
                     variant="secondary"

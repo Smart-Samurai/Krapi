@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   SidebarProvider,
@@ -14,17 +14,55 @@ import {
   SidebarMain,
   navigationItems,
 } from "@/components/styled";
+import { createDefaultKrapi } from "@/lib/krapi";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const pathname = usePathname();
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
 
   // Check if we're inside a project context
   const isInProjectContext = pathname.includes("/projects/") && pathname.split("/").length > 3;
   const projectId = isInProjectContext ? pathname.split("/")[2] : null;
+
+  // Fetch project details when in project context
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!projectId || !isInProjectContext) {
+        setCurrentProject(null);
+        return;
+      }
+
+      setIsLoadingProject(true);
+      try {
+        const krapi = createDefaultKrapi();
+        const result = await krapi.projects.get(projectId);
+        
+        if (result.success && result.data) {
+          setCurrentProject(result.data);
+        } else {
+          setCurrentProject(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch project:", error);
+        setCurrentProject(null);
+      } finally {
+        setIsLoadingProject(false);
+      }
+    };
+
+    fetchProject();
+  }, [projectId, isInProjectContext]);
 
   // Determine which navigation item is active based on current path
   const isActive = (href: string) => {
@@ -106,7 +144,25 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       <SidebarRoot className="h-screen">
         <Sidebar className="fixed left-0 top-0 h-full z-50">
           <SidebarHeader>
-            <span>KRAPI Admin</span>
+            <div className="space-y-1">
+              <span className="block">KRAPI Admin</span>
+              {isInProjectContext && (
+                <div className="text-sm text-text/60">
+                  {isLoadingProject ? (
+                    <span className="animate-pulse">Loading project...</span>
+                  ) : currentProject ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-text/40">Project:</span>
+                      <span className="font-medium text-primary">
+                        {currentProject.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-red-500">Project not found</span>
+                  )}
+                </div>
+              )}
+            </div>
           </SidebarHeader>
           <SidebarContent>
             {globalNavItems.main && (
