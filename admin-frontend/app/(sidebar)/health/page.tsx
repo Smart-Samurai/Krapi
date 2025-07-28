@@ -14,109 +14,167 @@ import {
   FiRefreshCw,
   FiSettings,
 } from "react-icons/fi";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+
+interface HealthCheck {
+  id: string;
+  name: string;
+  status: 'healthy' | 'warning' | 'error' | 'unknown';
+  responseTime: string;
+  uptime: string;
+  lastCheck: string;
+  icon: any;
+  details?: any;
+}
 
 export default function HealthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState(new Date());
+  const [healthChecks, setHealthChecks] = useState<HealthCheck[]>([]);
+  const [systemMetrics, setSystemMetrics] = useState<any>({});
+  const krapi = useKrapi();
 
-  const healthChecks = [
-    {
-      id: "api-server",
-      name: "API Server",
-      status: "healthy",
-      responseTime: "45ms",
-      uptime: "99.9%",
-      lastCheck: "2 minutes ago",
-      icon: FiServer,
-    },
-    {
-      id: "database",
-      name: "Database",
-      status: "healthy",
-      responseTime: "12ms",
-      uptime: "99.8%",
-      lastCheck: "1 minute ago",
-      icon: FiDatabase,
-    },
-    {
-      id: "file-storage",
-      name: "File Storage",
-      status: "healthy",
-      responseTime: "78ms",
-      uptime: "99.7%",
-      lastCheck: "3 minutes ago",
-      icon: FiGlobe,
-    },
-    {
-      id: "websocket",
-      name: "WebSocket Server",
-      status: "warning",
-      responseTime: "120ms",
-      uptime: "98.5%",
-      lastCheck: "30 seconds ago",
-      icon: FiWifi,
-    },
-  ];
+  useEffect(() => {
+    performHealthCheck();
+    // Set up interval for periodic health checks
+    const interval = setInterval(performHealthCheck, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
-  const systemMetrics = [
-    {
-      name: "CPU Usage",
-      value: "23%",
-      status: "normal",
-      trend: "stable",
-    },
-    {
-      name: "Memory Usage",
-      value: "67%",
-      status: "normal",
-      trend: "stable",
-    },
-    {
-      name: "Disk Usage",
-      value: "45%",
-      status: "normal",
-      trend: "stable",
-    },
-    {
-      name: "Network I/O",
-      value: "2.3 MB/s",
-      status: "normal",
-      trend: "stable",
-    },
-  ];
-
-  const handleRefreshHealth = async () => {
+  const performHealthCheck = async () => {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setLastChecked(new Date());
-    setIsLoading(false);
+    try {
+      const response = await krapi.client.health();
+      if (response.success && response.data) {
+        const data = response.data as any;
+        
+        // Transform health data into our format
+        const checks: HealthCheck[] = [
+          {
+            id: "api-server",
+            name: "API Server",
+            status: data.api?.status === 'ok' ? 'healthy' : data.api?.status || 'unknown',
+            responseTime: data.api?.responseTime || 'N/A',
+            uptime: data.api?.uptime || '0%',
+            lastCheck: 'Just now',
+            icon: FiServer,
+            details: data.api,
+          },
+          {
+            id: "database",
+            name: "Database",
+            status: data.database?.status === 'ok' ? 'healthy' : data.database?.status || 'unknown',
+            responseTime: data.database?.responseTime || 'N/A',
+            uptime: data.database?.uptime || '0%',
+            lastCheck: 'Just now',
+            icon: FiDatabase,
+            details: data.database,
+          },
+          {
+            id: "file-storage",
+            name: "File Storage",
+            status: data.storage?.status === 'ok' ? 'healthy' : data.storage?.status || 'unknown',
+            responseTime: data.storage?.responseTime || 'N/A',
+            uptime: data.storage?.uptime || '0%',
+            lastCheck: 'Just now',
+            icon: FiGlobe,
+            details: data.storage,
+          },
+          {
+            id: "websocket",
+            name: "WebSocket Server",
+            status: data.websocket?.status === 'ok' ? 'healthy' : data.websocket?.status || 'unknown',
+            responseTime: data.websocket?.responseTime || 'N/A',
+            uptime: data.websocket?.uptime || '0%',
+            lastCheck: 'Just now',
+            icon: FiWifi,
+            details: data.websocket,
+          },
+        ];
+        
+        setHealthChecks(checks);
+        setSystemMetrics(data.metrics || {});
+        setLastChecked(new Date());
+      }
+    } catch (error) {
+      console.error("Error performing health check:", error);
+      // Set all services to error state
+      setHealthChecks([
+        {
+          id: "api-server",
+          name: "API Server",
+          status: 'error',
+          responseTime: 'N/A',
+          uptime: 'N/A',
+          lastCheck: 'Failed',
+          icon: FiServer,
+        },
+        {
+          id: "database",
+          name: "Database",
+          status: 'unknown',
+          responseTime: 'N/A',
+          uptime: 'N/A',
+          lastCheck: 'Failed',
+          icon: FiDatabase,
+        },
+        {
+          id: "file-storage",
+          name: "File Storage",
+          status: 'unknown',
+          responseTime: 'N/A',
+          uptime: 'N/A',
+          lastCheck: 'Failed',
+          icon: FiGlobe,
+        },
+        {
+          id: "websocket",
+          name: "WebSocket Server",
+          status: 'unknown',
+          responseTime: 'N/A',
+          uptime: 'N/A',
+          lastCheck: 'Failed',
+          icon: FiWifi,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "healthy":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+        return "text-green-600";
       case "warning":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
+        return "text-yellow-600";
       case "error":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+        return "text-red-600";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+        return "text-gray-600";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "healthy":
-        return <FiCheckCircle className="h-4 w-4" />;
+        return <FiCheckCircle className="h-5 w-5 text-green-600" />;
       case "warning":
-        return <FiAlertCircle className="h-4 w-4" />;
+        return <FiAlertCircle className="h-5 w-5 text-yellow-600" />;
       case "error":
-        return <FiAlertCircle className="h-4 w-4" />;
+        return <FiAlertCircle className="h-5 w-5 text-red-600" />;
       default:
-        return <FiClock className="h-4 w-4" />;
+        return <FiAlertCircle className="h-5 w-5 text-gray-600" />;
     }
   };
+
+  const overallHealth = healthChecks.every((check) => check.status === "healthy")
+    ? "healthy"
+    : healthChecks.some((check) => check.status === "error")
+    ? "error"
+    : healthChecks.some((check) => check.status === "warning")
+    ? "warning"
+    : "unknown";
 
   return (
     <div className="p-6 space-y-6">
@@ -125,184 +183,211 @@ export default function HealthPage() {
         <div>
           <h1 className="text-3xl font-bold text-text">System Health</h1>
           <p className="text-text/60 mt-1">
-            Monitor your KRAPI platform health and performance
+            Monitor the health and performance of your KRAPI infrastructure
           </p>
         </div>
-        <div className="flex items-center space-x-3">
-          <Button variant="secondary">
-            <FiSettings className="mr-2 h-4 w-4" />
-            Health Settings
-          </Button>
-          <IconButton
-            icon={FiRefreshCw}
-            onClick={handleRefreshHealth}
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-text/60">
+            Last checked: {lastChecked.toLocaleTimeString()}
+          </div>
+          <Button
             variant="secondary"
-            size="lg"
+            onClick={performHealthCheck}
             disabled={isLoading}
-            title="Refresh Health Status"
-          />
+          >
+            {isLoading ? (
+              <FiRefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FiRefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Refresh
+          </Button>
         </div>
       </div>
 
       {/* Overall Status */}
       <div className="bg-background border border-secondary rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-text">Overall Status</h2>
-          <div className="flex items-center space-x-2 text-sm text-text/60">
-            <span>Last checked:</span>
-            <span>{lastChecked.toLocaleTimeString()}</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <FiCheckCircle className="h-6 w-6 text-green-600" />
-              <div>
-                <p className="font-medium text-green-800 dark:text-green-200">
-                  All Systems Operational
-                </p>
-                <p className="text-sm text-green-600 dark:text-green-400">
-                  4/4 services healthy
-                </p>
-              </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div
+              className={`p-3 rounded-lg ${
+                overallHealth === "healthy"
+                  ? "bg-green-100 dark:bg-green-900/20"
+                  : overallHealth === "warning"
+                  ? "bg-yellow-100 dark:bg-yellow-900/20"
+                  : overallHealth === "error"
+                  ? "bg-red-100 dark:bg-red-900/20"
+                  : "bg-gray-100 dark:bg-gray-900/20"
+              }`}
+            >
+              <FiActivity
+                className={`h-8 w-8 ${getStatusColor(overallHealth)}`}
+              />
             </div>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <FiActivity className="h-6 w-6 text-blue-600" />
-              <div>
-                <p className="font-medium text-blue-800 dark:text-blue-200">
-                  Average Response Time
-                </p>
-                <p className="text-sm text-blue-600 dark:text-blue-400">64ms</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <FiServer className="h-6 w-6 text-purple-600" />
-              <div>
-                <p className="font-medium text-purple-800 dark:text-purple-200">
-                  System Uptime
-                </p>
-                <p className="text-sm text-purple-600 dark:text-purple-400">
-                  99.5%
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <FiAlertCircle className="h-6 w-6 text-orange-600" />
-              <div>
-                <p className="font-medium text-orange-800 dark:text-orange-200">
-                  Active Alerts
-                </p>
-                <p className="text-sm text-orange-600 dark:text-orange-400">
-                  1 warning
-                </p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-text">
+                System Status:{" "}
+                <span className={getStatusColor(overallHealth)}>
+                  {overallHealth.charAt(0).toUpperCase() + overallHealth.slice(1)}
+                </span>
+              </h2>
+              <p className="text-text/60 mt-1">
+                {overallHealth === "healthy"
+                  ? "All systems are operational"
+                  : overallHealth === "warning"
+                  ? "Some systems require attention"
+                  : overallHealth === "error"
+                  ? "Critical issues detected"
+                  : "Unable to determine system status"}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Health Checks */}
-      <div className="bg-background border border-secondary rounded-lg">
-        <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">Service Health</h2>
-        </div>
-        <div className="divide-y divide-secondary/50">
-          {healthChecks.map((check) => (
-            <div
-              key={check.id}
-              className="p-6 hover:bg-secondary/5 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <check.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-medium text-text">{check.name}</h3>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full flex items-center space-x-1 ${getStatusColor(
-                          check.status
-                        )}`}
-                      >
-                        {getStatusIcon(check.status)}
-                        <span>{check.status}</span>
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                      <span>Response: {check.responseTime}</span>
-                      <span>Uptime: {check.uptime}</span>
-                      <span>Last check: {check.lastCheck}</span>
-                    </div>
-                  </div>
+      {/* Health Checks Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {healthChecks.map((check) => (
+          <div
+            key={check.id}
+            className="bg-background border border-secondary rounded-lg p-6"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <check.icon className="h-5 w-5 text-primary" />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="secondary" size="sm">
-                    View Details
-                  </Button>
+                <div>
+                  <h3 className="font-medium text-text">{check.name}</h3>
+                  <p className="text-sm text-text/60">
+                    Last check: {check.lastCheck}
+                  </p>
                 </div>
               </div>
+              {getStatusIcon(check.status)}
             </div>
-          ))}
-        </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-text/60">Status</span>
+                <span className={`font-medium ${getStatusColor(check.status)}`}>
+                  {check.status.charAt(0).toUpperCase() + check.status.slice(1)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-text/60">Response Time</span>
+                <span className="font-medium text-text">
+                  {check.responseTime}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-text/60">Uptime</span>
+                <span className="font-medium text-text">{check.uptime}</span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* System Metrics */}
-      <div className="bg-background border border-secondary rounded-lg">
-        <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">System Metrics</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-background border border-secondary rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-text">CPU Usage</h3>
+            <FiActivity className="h-4 w-4 text-text/40" />
+          </div>
+          <div className="space-y-2">
+            <div className="text-3xl font-bold text-text">
+              {systemMetrics.cpu?.usage || '0'}%
+            </div>
+            <div className="w-full bg-secondary/20 rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{ width: `${systemMetrics.cpu?.usage || 0}%` }}
+              />
+            </div>
+            <p className="text-sm text-text/60">
+              {systemMetrics.cpu?.cores || 0} cores available
+            </p>
+          </div>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {systemMetrics.map((metric) => (
-              <div key={metric.name} className="bg-secondary/10 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-text">{metric.name}</h3>
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                      metric.status
-                    )}`}
-                  >
-                    {metric.status}
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-text mb-1">
-                  {metric.value}
-                </p>
-                <p className="text-sm text-text/60">Trend: {metric.trend}</p>
-              </div>
-            ))}
+
+        <div className="bg-background border border-secondary rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-text">Memory Usage</h3>
+            <FiServer className="h-4 w-4 text-text/40" />
+          </div>
+          <div className="space-y-2">
+            <div className="text-3xl font-bold text-text">
+              {systemMetrics.memory?.usage || '0'}%
+            </div>
+            <div className="w-full bg-secondary/20 rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{ width: `${systemMetrics.memory?.usage || 0}%` }}
+              />
+            </div>
+            <p className="text-sm text-text/60">
+              {formatBytes(systemMetrics.memory?.used || 0)} / {formatBytes(systemMetrics.memory?.total || 0)}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-background border border-secondary rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-text">Disk Usage</h3>
+            <FiDatabase className="h-4 w-4 text-text/40" />
+          </div>
+          <div className="space-y-2">
+            <div className="text-3xl font-bold text-text">
+              {systemMetrics.disk?.usage || '0'}%
+            </div>
+            <div className="w-full bg-secondary/20 rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{ width: `${systemMetrics.disk?.usage || 0}%` }}
+              />
+            </div>
+            <p className="text-sm text-text/60">
+              {formatBytes(systemMetrics.disk?.used || 0)} / {formatBytes(systemMetrics.disk?.total || 0)}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Info Block */}
-      <InfoBlock
-        title="Health Monitoring"
-        variant="info"
-        className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-      >
-        <div className="text-sm space-y-2">
+      {/* Info Blocks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <InfoBlock
+          title="Health Monitoring"
+          variant="info"
+          className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+        >
           <p>
-            KRAPI continuously monitors system health and performance to ensure
-            optimal operation.
+            System health is monitored continuously. Automated alerts are sent
+            when critical thresholds are reached. All metrics are updated in
+            real-time.
           </p>
+        </InfoBlock>
+
+        <InfoBlock
+          title="Maintenance Schedule"
+          variant="warning"
+          className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+        >
           <p>
-            <strong>Health Checks:</strong> Automated monitoring of all critical
-            services with configurable thresholds and alerting.
+            Regular maintenance windows are scheduled for the first Sunday of
+            each month from 2:00 AM to 4:00 AM UTC. Services may be temporarily
+            unavailable during this time.
           </p>
-          <p>
-            <strong>Metrics:</strong> Real-time system metrics including CPU,
-            memory, disk usage, and network performance.
-          </p>
-        </div>
-      </InfoBlock>
+        </InfoBlock>
+      </div>
     </div>
   );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }

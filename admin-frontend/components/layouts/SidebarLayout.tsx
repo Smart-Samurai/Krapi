@@ -31,14 +31,19 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
 
-  // Check if we're inside a project context
-  const isInProjectContext = pathname.includes("/projects/") && pathname.split("/").length > 3;
-  const projectId = isInProjectContext ? pathname.split("/")[2] : null;
+  // Check if we're on the login page
+  const isLoginPage = pathname === "/login";
+  const isStyletestPage = pathname === "/styletest";
+
+  // Check if we're inside a specific project
+  const projectMatch = pathname.match(/^\/projects\/([^\/]+)/);
+  const isProjectDetailPage = !!projectMatch;
+  const projectId = projectMatch?.[1];
 
   // Fetch project details when in project context
   useEffect(() => {
     const fetchProject = async () => {
-      if (!projectId || !isInProjectContext) {
+      if (!projectId || !isProjectDetailPage) {
         setCurrentProject(null);
         return;
       }
@@ -62,7 +67,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     };
 
     fetchProject();
-  }, [projectId, isInProjectContext]);
+  }, [projectId, isProjectDetailPage]);
 
   // Determine which navigation item is active based on current path
   const isActive = (href: string) => {
@@ -71,73 +76,163 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     return false;
   };
 
-  // Get navigation items - separate global and project-specific items
-  const globalNavItems = {
-    main: [
-      {
-        icon: navigationItems.dashboard.icon,
-        label: navigationItems.dashboard.label,
-        href: navigationItems.dashboard.href,
-        isActive: isActive(navigationItems.dashboard.href),
-      },
-      {
-        icon: navigationItems.projects.icon,
-        label: navigationItems.projects.label,
-        href: navigationItems.projects.href,
-        isActive: isActive(navigationItems.projects.href),
-      },
-    ],
-    system: [
-      {
-        icon: navigationItems.users.icon,
-        label: navigationItems.users.label,
-        href: navigationItems.users.href,
-        isActive: isActive(navigationItems.users.href),
-      },
-      {
-        icon: navigationItems.health.icon,
-        label: navigationItems.health.label,
-        href: navigationItems.health.href,
-        isActive: isActive(navigationItems.health.href),
-      },
-      {
-        icon: navigationItems.api.icon,
-        label: navigationItems.api.label,
-        href: navigationItems.api.href,
-        isActive: isActive(navigationItems.api.href),
-      },
-      {
-        icon: navigationItems.auth.icon,
-        label: navigationItems.auth.label,
-        href: navigationItems.auth.href,
-        isActive: isActive(navigationItems.auth.href),
-      },
-      {
-        icon: navigationItems.settings.icon,
-        label: navigationItems.settings.label,
-        href: navigationItems.settings.href,
-        isActive: isActive(navigationItems.settings.href),
-      },
-    ],
+  // Get navigation items based on current route
+  const getNavigationItems = () => {
+    if (isLoginPage) {
+      return {
+        main: [
+          {
+            icon: navigationItems.dashboard.icon,
+            label: "Back to Dashboard",
+            href: "/dashboard",
+            isActive: false,
+          },
+        ],
+      };
+    }
+
+    if (isStyletestPage) {
+      return {
+        main: [
+          {
+            icon: navigationItems.dashboard.icon,
+            label: "Dashboard",
+            href: "/dashboard",
+            isActive: false,
+          },
+          {
+            icon: navigationItems.projects.icon,
+            label: "Projects",
+            href: "/projects",
+            isActive: false,
+          },
+        ],
+      };
+    }
+
+    // If we're inside a project, show project-specific navigation
+    if (isProjectDetailPage && projectId) {
+      return {
+        main: [
+          {
+            icon: navigationItems.dashboard.icon,
+            label: "Admin Dashboard",
+            href: "/dashboard",
+            isActive: false,
+          },
+          {
+            icon: navigationItems.projects.icon,
+            label: "All Projects",
+            href: "/projects",
+            isActive: false,
+          },
+        ],
+        project: [
+          {
+            icon: navigationItems.dashboard.icon,
+            label: "Project Overview",
+            href: `/projects/${projectId}`,
+            isActive: pathname === `/projects/${projectId}`,
+          },
+          {
+            icon: navigationItems.users.icon,
+            label: "Project Users",
+            href: `/projects/${projectId}/users`,
+            isActive: pathname === `/projects/${projectId}/users`,
+          },
+          {
+            icon: navigationItems.database.icon,
+            label: "Project Database",
+            href: `/projects/${projectId}/database`,
+            isActive: pathname === `/projects/${projectId}/database`,
+          },
+          {
+            icon: navigationItems.files.icon,
+            label: "Project Files",
+            href: `/projects/${projectId}/files`,
+            isActive: pathname === `/projects/${projectId}/files`,
+          },
+          {
+            icon: navigationItems.api.icon,
+            label: "Project API",
+            href: `/projects/${projectId}/api`,
+            isActive: pathname === `/projects/${projectId}/api`,
+          },
+          {
+            icon: navigationItems.settings.icon,
+            label: "Project Settings",
+            href: `/projects/${projectId}/settings`,
+            isActive: pathname === `/projects/${projectId}/settings`,
+          },
+        ],
+      };
+    }
+
+    // Default admin navigation (when not in a project)
+    return {
+      main: [
+        {
+          icon: navigationItems.dashboard.icon,
+          label: navigationItems.dashboard.label,
+          href: navigationItems.dashboard.href,
+          isActive: isActive(navigationItems.dashboard.href),
+        },
+        {
+          icon: navigationItems.projects.icon,
+          label: navigationItems.projects.label,
+          href: navigationItems.projects.href,
+          isActive: isActive(navigationItems.projects.href),
+        },
+      ],
+      management: [
+        {
+          icon: navigationItems.users.icon,
+          label: "All Users",
+          href: navigationItems.users.href,
+          isActive: isActive(navigationItems.users.href),
+        },
+        {
+          icon: navigationItems.email.icon,
+          label: navigationItems.email.label,
+          href: navigationItems.email.href,
+          isActive: isActive(navigationItems.email.href),
+        },
+      ],
+      system: [
+        {
+          icon: navigationItems.health.icon,
+          label: navigationItems.health.label,
+          href: navigationItems.health.href,
+          isActive: isActive(navigationItems.health.href),
+        },
+        {
+          icon: navigationItems.api.icon,
+          label: navigationItems.api.label,
+          href: navigationItems.api.href,
+          isActive: isActive(navigationItems.api.href),
+        },
+        {
+          icon: navigationItems.auth.icon,
+          label: navigationItems.auth.label,
+          href: navigationItems.auth.href,
+          isActive: isActive(navigationItems.auth.href),
+        },
+        {
+          icon: navigationItems.settings.icon,
+          label: "System Settings",
+          href: navigationItems.settings.href,
+          isActive: isActive(navigationItems.settings.href),
+        },
+      ],
+    };
   };
 
-  // Project-specific navigation items (only shown when inside a project)
-  const projectNavItems = isInProjectContext ? {
-    project: [
-      {
-        icon: navigationItems.database.icon,
-        label: navigationItems.database.label,
-        href: `/projects/${projectId}/database`,
-        isActive: pathname.includes("/database"),
-      },
-      {
-        icon: navigationItems.files.icon,
-        label: navigationItems.files.label,
-        href: `/projects/${projectId}/files`,
-        isActive: pathname.includes("/files"),
-      },
-    ],
-  } : null;
+  const navItems = getNavigationItems();
+
+  // For login page, don't render the sidebar at all
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -146,7 +241,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           <SidebarHeader>
             <div className="space-y-1">
               <span className="block">KRAPI Admin</span>
-              {isInProjectContext && (
+              {isProjectDetailPage && (
                 <div className="text-sm text-text/60">
                   {isLoadingProject ? (
                     <span className="animate-pulse">Loading project...</span>
@@ -165,9 +260,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             </div>
           </SidebarHeader>
           <SidebarContent>
-            {globalNavItems.main && (
+            {navItems.main && (
               <SidebarNavGroup title="Main">
-                {globalNavItems.main.map((item) => (
+                {navItems.main.map((item) => (
                   <SidebarNavItem
                     key={item.href}
                     icon={item.icon}
@@ -178,9 +273,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 ))}
               </SidebarNavGroup>
             )}
-            {projectNavItems?.project && (
-              <SidebarNavGroup title="Project">
-                {projectNavItems.project.map((item) => (
+            {navItems.project && (
+              <SidebarNavGroup title="Current Project">
+                {navItems.project.map((item) => (
                   <SidebarNavItem
                     key={item.href}
                     icon={item.icon}
@@ -191,9 +286,22 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 ))}
               </SidebarNavGroup>
             )}
-            {globalNavItems.system && (
+            {navItems.management && (
+              <SidebarNavGroup title="Management">
+                {navItems.management.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    href={item.href}
+                    isActive={item.isActive}
+                  />
+                ))}
+              </SidebarNavGroup>
+            )}
+            {navItems.system && (
               <SidebarNavGroup title="System">
-                {globalNavItems.system.map((item) => (
+                {navItems.system.map((item) => (
                   <SidebarNavItem
                     key={item.href}
                     icon={item.icon}
