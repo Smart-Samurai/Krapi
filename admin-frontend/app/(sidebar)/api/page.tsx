@@ -13,13 +13,14 @@ import {
   DialogTrigger,
   IconButton,
   InfoBlock,
+  Input,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import {
   FiPlus,
-  FiShield,
-  FiUser,
-  FiLock,
+  FiCode,
+  FiKey,
+  FiGlobe,
   FiSettings,
   FiTrash2,
   FiEdit,
@@ -27,101 +28,51 @@ import {
   FiMoreVertical,
   FiSearch,
   FiFilter,
-  FiKey,
-  FiUsers,
+  FiCopy,
+  FiDownload,
 } from "react-icons/fi";
 
-const authProviderSchema = z.object({
-  name: z.string().min(1, "Provider name is required"),
-  type: z.string().min(1, "Provider type is required"),
-  clientId: z.string().min(1, "Client ID is required"),
-  clientSecret: z.string().min(1, "Client Secret is required"),
-  redirectUrl: z.string().url("Valid redirect URL is required"),
+const apiKeySchema = z.object({
+  name: z.string().min(1, "API key name is required"),
+  permissions: z
+    .array(z.string())
+    .min(1, "At least one permission is required"),
+  expiresAt: z.string().optional(),
 });
 
-type AuthProviderFormData = z.infer<typeof authProviderSchema>;
+type ApiKeyFormData = z.infer<typeof apiKeySchema>;
 
-export default function AuthPage() {
+export default function ApiPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const authProviders = [
+  const apiKeys = [
     {
-      id: "1",
-      name: "Google OAuth",
-      type: "oauth",
-      status: "active",
-      users: 45,
-      lastUsed: "2 hours ago",
-      icon: "🔐",
+      id: "N/I",
+      name: "Not Implemented",
+      key: "N/I",
+      permissions: ["N/I"],
+      status: "N/I",
+      createdAt: "N/I",
+      lastUsed: "N/I",
     },
-    {
-      id: "2",
-      name: "GitHub OAuth",
-      type: "oauth",
-      status: "active",
-      users: 23,
-      lastUsed: "1 day ago",
-      icon: "🐙",
-    },
-    {
-      id: "3",
-      name: "Email/Password",
-      type: "local",
-      status: "active",
-      users: 156,
-      lastUsed: "30 minutes ago",
-      icon: "📧",
-    },
-    {
-      id: "4",
-      name: "SAML SSO",
-      type: "saml",
       status: "inactive",
-      users: 12,
+      createdAt: "2024-01-12",
       lastUsed: "5 days ago",
-      icon: "🔑",
     },
   ];
 
-  const authSessions = [
+  const endpoints = [
     {
-      id: "1",
-      userId: "user-123",
-      email: "john@example.com",
-      provider: "Google OAuth",
-      ipAddress: "192.168.1.100",
-      userAgent: "Chrome/120.0.0.0",
-      createdAt: "2024-01-15 10:30",
-      lastActivity: "2 minutes ago",
-      status: "active",
-    },
-    {
-      id: "2",
-      userId: "user-456",
-      email: "jane@example.com",
-      provider: "Email/Password",
-      ipAddress: "192.168.1.101",
-      userAgent: "Firefox/121.0",
-      createdAt: "2024-01-15 09:15",
-      lastActivity: "1 hour ago",
-      status: "active",
-    },
-    {
-      id: "3",
-      userId: "user-789",
-      email: "admin@krapi.com",
-      provider: "Email/Password",
-      ipAddress: "192.168.1.102",
-      userAgent: "Safari/17.0",
-      createdAt: "2024-01-14 16:45",
-      lastActivity: "1 day ago",
-      status: "expired",
+      method: "N/I",
+      path: "N/I",
+      description: "Not Implemented",
+      status: "N/I",
     },
   ];
 
-  const handleCreateAuthProvider = async (data: AuthProviderFormData) => {
-    console.log("Create auth provider:", data);
+  const handleCreateApiKey = async (data: ApiKeyFormData) => {
+    console.log("Create API key:", data);
     setIsCreateDialogOpen(false);
   };
 
@@ -138,8 +89,23 @@ export default function AuthPage() {
     }
   };
 
-  const filteredProviders = authProviders.filter((provider) =>
-    provider.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const getMethodColor = (method: string) => {
+    switch (method) {
+      case "GET":
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+      case "POST":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+      case "PUT":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
+      case "DELETE":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+    }
+  };
+
+  const filteredApiKeys = apiKeys.filter((key) =>
+    key.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -147,15 +113,15 @@ export default function AuthPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text">Authentication</h1>
+          <h1 className="text-3xl font-bold text-text">API Management</h1>
           <p className="text-text/60 mt-1">
-            Manage authentication providers and user sessions
+            Manage API keys and explore available endpoints
           </p>
         </div>
         <div className="flex items-center space-x-3">
           <Button variant="secondary">
-            <FiSettings className="mr-2 h-4 w-4" />
-            Auth Settings
+            <FiDownload className="mr-2 h-4 w-4" />
+            Export Documentation
           </Button>
           <Dialog
             open={isCreateDialogOpen}
@@ -164,59 +130,41 @@ export default function AuthPage() {
             <DialogTrigger asChild>
               <Button variant="default" size="lg">
                 <FiPlus className="mr-2 h-4 w-4" />
-                Add Provider
+                Create API Key
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Authentication Provider</DialogTitle>
+                <DialogTitle>Create New API Key</DialogTitle>
                 <DialogDescription>
-                  Configure a new authentication provider for your platform
+                  Generate a new API key with specific permissions
                 </DialogDescription>
               </DialogHeader>
-              <Form
-                schema={authProviderSchema}
-                onSubmit={handleCreateAuthProvider}
-              >
+              <Form schema={apiKeySchema} onSubmit={handleCreateApiKey}>
                 <div className="space-y-4">
                   <FormField
                     name="name"
-                    label="Provider Name"
+                    label="Key Name"
                     type="text"
-                    placeholder="Enter provider name"
+                    placeholder="Enter API key name"
                     required
                   />
                   <FormField
-                    name="type"
-                    label="Provider Type"
+                    name="permissions"
+                    label="Permissions"
                     type="select"
                     options={[
-                      { value: "oauth", label: "OAuth 2.0" },
-                      { value: "saml", label: "SAML SSO" },
-                      { value: "local", label: "Local Authentication" },
+                      { value: "read", label: "Read Only" },
+                      { value: "write", label: "Read & Write" },
+                      { value: "admin", label: "Admin Access" },
                     ]}
                     required
                   />
                   <FormField
-                    name="clientId"
-                    label="Client ID"
+                    name="expiresAt"
+                    label="Expiration Date"
                     type="text"
-                    placeholder="Enter client ID"
-                    required
-                  />
-                  <FormField
-                    name="clientSecret"
-                    label="Client Secret"
-                    type="password"
-                    placeholder="Enter client secret"
-                    required
-                  />
-                  <FormField
-                    name="redirectUrl"
-                    label="Redirect URL"
-                    type="text"
-                    placeholder="Enter redirect URL"
-                    required
+                    placeholder="Optional expiration date"
                   />
                 </div>
                 <DialogFooter className="mt-6">
@@ -228,7 +176,7 @@ export default function AuthPage() {
                     Cancel
                   </Button>
                   <Button type="submit" variant="default">
-                    Add Provider
+                    Create Key
                   </Button>
                 </DialogFooter>
               </Form>
@@ -242,72 +190,64 @@ export default function AuthPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">
-                Active Providers
-              </p>
+              <p className="text-sm font-medium text-text/60">Active Keys</p>
               <p className="text-2xl font-bold text-text mt-1">
-                {authProviders.filter((p) => p.status === "active").length}
+                {apiKeys.filter((k) => k.status === "active").length}
               </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiShield className="h-6 w-6 text-primary" />
+              <FiKey className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Total Users</p>
+              <p className="text-sm font-medium text-text/60">API Endpoints</p>
               <p className="text-2xl font-bold text-text mt-1">
-                {authProviders.reduce((sum, p) => sum + p.users, 0)}
+                {endpoints.length}
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <FiUsers className="h-6 w-6 text-blue-600" />
+              <FiGlobe className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </div>
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">
-                Active Sessions
-              </p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {authSessions.filter((s) => s.status === "active").length}
-              </p>
+              <p className="text-sm font-medium text-text/60">Requests Today</p>
+              <p className="text-2xl font-bold text-text mt-1">1,234</p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <FiKey className="h-6 w-6 text-green-600" />
+              <FiCode className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Failed Logins</p>
-              <p className="text-2xl font-bold text-text mt-1">3</p>
+              <p className="text-sm font-medium text-text/60">Error Rate</p>
+              <p className="text-2xl font-bold text-text mt-1">0.2%</p>
             </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
-              <FiLock className="h-6 w-6 text-red-600" />
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+              <FiSettings className="h-6 w-6 text-purple-600" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Auth Providers */}
+      {/* API Keys */}
       <div className="bg-background border border-secondary rounded-lg">
         <div className="p-6 border-b border-secondary">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-text">
-              Authentication Providers
-            </h2>
+            <h2 className="text-xl font-semibold text-text">API Keys</h2>
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
-                <input
+                <Input
                   type="text"
-                  placeholder="Search providers..."
+                  placeholder="Search API keys..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-secondary rounded-lg bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -317,35 +257,44 @@ export default function AuthPage() {
           </div>
         </div>
         <div className="divide-y divide-secondary/50">
-          {filteredProviders.map((provider) => (
+          {filteredApiKeys.map((apiKey) => (
             <div
-              key={provider.id}
+              key={apiKey.id}
               className="p-6 hover:bg-secondary/5 transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-primary/10 rounded-lg text-2xl">
-                    {provider.icon}
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <FiKey className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
-                      <h3 className="font-medium text-text">{provider.name}</h3>
+                      <h3 className="font-medium text-text">{apiKey.name}</h3>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                          provider.status
+                          apiKey.status
                         )}`}
                       >
-                        {provider.status}
+                        {apiKey.status}
                       </span>
                     </div>
+                    <p className="text-sm text-text/60 mt-1 font-mono">
+                      {apiKey.key}
+                    </p>
                     <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                      <span>Type: {provider.type}</span>
-                      <span>Users: {provider.users}</span>
-                      <span>Last used: {provider.lastUsed}</span>
+                      <span>Permissions: {apiKey.permissions.join(", ")}</span>
+                      <span>Created: {apiKey.createdAt}</span>
+                      <span>Last used: {apiKey.lastUsed}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <IconButton
+                    icon={FiCopy}
+                    variant="secondary"
+                    size="sm"
+                    title="Copy API Key"
+                  />
                   <IconButton
                     icon={FiEye}
                     variant="secondary"
@@ -356,13 +305,7 @@ export default function AuthPage() {
                     icon={FiEdit}
                     variant="secondary"
                     size="sm"
-                    title="Edit Provider"
-                  />
-                  <IconButton
-                    icon={FiSettings}
-                    variant="secondary"
-                    size="sm"
-                    title="Provider Settings"
+                    title="Edit Key"
                   />
                   <IconButton
                     icon={FiMoreVertical}
@@ -377,51 +320,46 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Active Sessions */}
+      {/* API Endpoints */}
       <div className="bg-background border border-secondary rounded-lg">
         <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">Active Sessions</h2>
+          <h2 className="text-xl font-semibold text-text">
+            Available Endpoints
+          </h2>
         </div>
         <div className="divide-y divide-secondary/50">
-          {authSessions.map((session) => (
+          {endpoints.map((endpoint, index) => (
             <div
-              key={session.id}
+              key={index}
               className="p-6 hover:bg-secondary/5 transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <FiUser className="h-5 w-5 text-primary" />
-                  </div>
+                  <span
+                    className={`px-3 py-1 text-sm font-medium rounded-full ${getMethodColor(
+                      endpoint.method
+                    )}`}
+                  >
+                    {endpoint.method}
+                  </span>
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-medium text-text">{session.email}</h3>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                          session.status
-                        )}`}
-                      >
-                        {session.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                      <span>Provider: {session.provider}</span>
-                      <span>IP: {session.ipAddress}</span>
-                      <span>Created: {session.createdAt}</span>
-                      <span>Last activity: {session.lastActivity}</span>
-                    </div>
+                    <p className="font-mono text-text">{endpoint.path}</p>
+                    <p className="text-sm text-text/60 mt-1">
+                      {endpoint.description}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                      endpoint.status
+                    )}`}
+                  >
+                    {endpoint.status}
+                  </span>
                   <Button variant="secondary" size="sm">
-                    Revoke
+                    Try it
                   </Button>
-                  <IconButton
-                    icon={FiMoreVertical}
-                    variant="secondary"
-                    size="sm"
-                    title="More Options"
-                  />
                 </div>
               </div>
             </div>
@@ -431,26 +369,25 @@ export default function AuthPage() {
 
       {/* Info Block */}
       <InfoBlock
-        title="Authentication Security"
+        title="API Documentation"
         variant="info"
         className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
       >
         <div className="text-sm space-y-2">
           <p>
-            KRAPI supports multiple authentication providers for secure user
-            access to your platform.
+            KRAPI provides a comprehensive REST API for integrating with your
+            applications.
           </p>
           <p>
-            <strong>OAuth 2.0:</strong> Support for Google, GitHub, and other
-            OAuth providers for seamless social login.
+            <strong>Authentication:</strong> Use API keys for authentication.
+            Include the key in the Authorization header:{" "}
+            <code className="bg-secondary/20 px-1 rounded">
+              Authorization: Bearer YOUR_API_KEY
+            </code>
           </p>
           <p>
-            <strong>SAML SSO:</strong> Enterprise-grade single sign-on for
-            corporate environments.
-          </p>
-          <p>
-            <strong>Session Management:</strong> Monitor and manage active user
-            sessions with the ability to revoke access when needed.
+            <strong>Rate Limiting:</strong> API requests are limited to 1000
+            requests per minute per API key.
           </p>
         </div>
       </InfoBlock>

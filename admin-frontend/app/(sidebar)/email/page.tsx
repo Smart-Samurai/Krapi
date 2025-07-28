@@ -13,6 +13,7 @@ import {
   DialogTrigger,
   IconButton,
   InfoBlock,
+  Input,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import {
@@ -45,36 +46,12 @@ export default function EmailPage() {
 
   const emails = [
     {
-      id: "1",
-      subject: "Welcome to KRAPI Platform",
-      recipient: "user@example.com",
-      status: "sent",
-      sentAt: "2024-01-15 10:30",
-      template: "welcome",
-    },
-    {
-      id: "2",
-      subject: "Password Reset Request",
-      recipient: "admin@company.com",
-      status: "sent",
-      sentAt: "2024-01-14 15:45",
-      template: "password-reset",
-    },
-    {
-      id: "3",
-      subject: "Project Update Notification",
-      recipient: "team@project.com",
-      status: "draft",
-      sentAt: "2024-01-13 09:15",
-      template: "project-update",
-    },
-    {
-      id: "4",
-      subject: "System Maintenance Alert",
-      recipient: "all@krapi.com",
-      status: "sent",
-      sentAt: "2024-01-12 14:20",
-      template: "maintenance",
+      id: "N/I",
+      subject: "Not Implemented",
+      recipient: "N/I",
+      status: "N/I",
+      sentAt: "N/I",
+      template: "N/I",
     },
   ];
 
@@ -246,7 +223,7 @@ export default function EmailPage() {
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
-            <input
+            <Input
               type="text"
               placeholder="Search emails..."
               value={searchTerm}

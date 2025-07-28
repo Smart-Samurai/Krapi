@@ -26,29 +26,29 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Total Projects",
-      value: "12",
-      change: "+2",
-      changeType: "positive",
+      value: "N/I",
+      change: "N/I",
+      changeType: "neutral",
       icon: FiCode,
     },
     {
       title: "Active Users",
-      value: "1,247",
-      change: "+12%",
-      changeType: "positive",
+      value: "N/I",
+      change: "N/I",
+      changeType: "neutral",
       icon: FiUsers,
     },
     {
       title: "Database Collections",
-      value: "89",
-      change: "+5",
-      changeType: "positive",
+      value: "N/I",
+      change: "N/I",
+      changeType: "neutral",
       icon: FiDatabase,
     },
     {
       title: "Storage Used",
-      value: "2.4 GB",
-      change: "+0.3 GB",
+      value: "N/I",
+      change: "N/I",
       changeType: "neutral",
       icon: FiFileText,
     },
@@ -56,46 +56,32 @@ export default function DashboardPage() {
 
   const recentProjects = [
     {
-      id: "proj-001",
-      name: "E-commerce Platform",
-      status: "active",
-      users: 156,
-      lastActivity: "2 hours ago",
-    },
-    {
-      id: "proj-002",
-      name: "Mobile App Backend",
-      status: "active",
-      users: 89,
-      lastActivity: "1 day ago",
-    },
-    {
-      id: "proj-003",
-      name: "Analytics Dashboard",
-      status: "development",
-      users: 23,
-      lastActivity: "3 days ago",
+      id: "N/I",
+      name: "Not Implemented",
+      status: "N/I",
+      users: "N/I",
+      lastActivity: "N/I",
     },
   ];
 
   const systemHealth = [
     {
       service: "API Gateway",
-      status: "healthy",
-      uptime: "99.9%",
-      responseTime: "45ms",
+      status: "N/I",
+      uptime: "N/I",
+      responseTime: "N/I",
     },
     {
       service: "Database",
-      status: "healthy",
-      uptime: "99.8%",
-      responseTime: "12ms",
+      status: "N/I",
+      uptime: "N/I",
+      responseTime: "N/I",
     },
     {
       service: "File Storage",
-      status: "warning",
-      uptime: "98.5%",
-      responseTime: "120ms",
+      status: "N/I",
+      uptime: "N/I",
+      responseTime: "N/I",
     },
   ];
 
@@ -129,15 +115,7 @@ export default function DashboardPage() {
                   {stat.value}
                 </p>
                 <div className="flex items-center mt-2">
-                  <span
-                    className={`text-sm font-medium ${
-                      stat.changeType === "positive"
-                        ? "text-green-600"
-                        : stat.changeType === "negative"
-                        ? "text-red-600"
-                        : "text-text/60"
-                    }`}
-                  >
+                  <span className="text-sm font-medium text-text/60">
                     {stat.change}
                   </span>
                   <span className="text-sm text-text/40 ml-1">
@@ -165,9 +143,9 @@ export default function DashboardPage() {
               <TextButton variant="link">View All</TextButton>
             </div>
             <div className="space-y-4">
-              {recentProjects.map((project) => (
+              {recentProjects.map((project, index) => (
                 <div
-                  key={project.id}
+                  key={index}
                   className="flex items-center justify-between p-4 border border-secondary/50 rounded-lg hover:bg-secondary/5 transition-colors"
                 >
                   <div className="flex items-center space-x-4">
@@ -182,13 +160,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        project.status === "active"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                      }`}
-                    >
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
                       {project.status}
                     </span>
                     <IconButton
@@ -214,15 +186,7 @@ export default function DashboardPage() {
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          service.status === "healthy"
-                            ? "bg-green-500"
-                            : service.status === "warning"
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        }`}
-                      />
+                      <div className="w-2 h-2 rounded-full bg-gray-500" />
                       <span className="font-medium text-text">
                         {service.service}
                       </span>
@@ -233,15 +197,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex justify-between text-sm text-text/60">
                     <span>Uptime: {service.uptime}</span>
-                    <span
-                      className={
-                        service.status === "healthy"
-                          ? "text-green-600"
-                          : service.status === "warning"
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }
-                    >
+                    <span className="text-gray-600">
                       {service.status}
                     </span>
                   </div>
@@ -285,20 +241,20 @@ export default function DashboardPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm">API Endpoints</span>
-              <span className="text-sm font-medium text-green-600">
-                All Operational
+              <span className="text-sm font-medium text-gray-600">
+                N/I
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm">Database</span>
-              <span className="text-sm font-medium text-green-600">
-                Connected
+              <span className="text-sm font-medium text-gray-600">
+                N/I
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm">File Storage</span>
-              <span className="text-sm font-medium text-yellow-600">
-                High Usage
+              <span className="text-sm font-medium text-gray-600">
+                N/I
               </span>
             </div>
           </div>
@@ -311,15 +267,7 @@ export default function DashboardPage() {
         >
           <div className="space-y-2">
             <div className="text-sm">
-              <strong>v2.1.0</strong> - Enhanced API performance and new user
-              management features
-            </div>
-            <div className="text-sm">
-              <strong>v2.0.5</strong> - Bug fixes and security improvements
-            </div>
-            <div className="text-sm">
-              <strong>v2.0.0</strong> - Major platform upgrade with new
-              dashboard
+              <strong>N/I</strong> - Not Implemented
             </div>
           </div>
         </InfoBlock>

@@ -31,6 +31,7 @@ import {
   FiSearch,
   FiFilter,
 } from "react-icons/fi";
+import { Input } from "@/components/ui/input";
 
 const fileSchema = z.object({
   name: z.string().min(1, "File name is required"),
@@ -46,40 +47,13 @@ export default function FilesPage() {
 
   const files = [
     {
-      id: "1",
-      name: "product-image-1.jpg",
-      type: "image",
-      size: "2.4 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-15",
-      tags: ["product", "image"],
-    },
-    {
-      id: "2",
-      name: "user-manual.pdf",
-      type: "document",
-      size: "1.8 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-14",
-      tags: ["documentation", "pdf"],
-    },
-    {
-      id: "3",
-      name: "demo-video.mp4",
-      type: "video",
-      size: "45.2 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-13",
-      tags: ["demo", "video"],
-    },
-    {
-      id: "4",
-      name: "backup-data.zip",
-      type: "archive",
-      size: "128.7 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-12",
-      tags: ["backup", "archive"],
+      id: "N/I",
+      name: "Not Implemented",
+      type: "N/I",
+      size: "N/I",
+      uploadedBy: "N/I",
+      uploadedAt: "N/I",
+      tags: ["N/I"],
     },
   ];
 
@@ -238,7 +212,7 @@ export default function FilesPage() {
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
-            <input
+            <Input
               type="text"
               placeholder="Search files..."
               value={searchTerm}

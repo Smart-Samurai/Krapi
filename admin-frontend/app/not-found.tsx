@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function NotFound() {
   return (
     <div
@@ -18,7 +20,7 @@ export default function NotFound() {
         <p className="text-lg text-gray-600 mb-8">
           We couldn&apos;t find the page you&apos;re looking for.
         </p>
-        <a
+        <Link
           href="/dashboard"
           style={{
             display: "inline-block",
@@ -31,8 +33,8 @@ export default function NotFound() {
           }}
         >
           Go to Dashboard
-        </a>
-        <a
+        </Link>
+        <Link
           href="/login"
           style={{
             display: "inline-block",
@@ -44,7 +46,7 @@ export default function NotFound() {
           }}
         >
           Go to Login
-        </a>
+        </Link>
       </div>
     </div>
   );

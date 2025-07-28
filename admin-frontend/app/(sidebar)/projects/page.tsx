@@ -43,48 +43,15 @@ export default function ProjectsPage() {
 
   const projects = [
     {
-      id: "proj-001",
-      name: "E-commerce Platform",
-      description: "Full-stack e-commerce solution with payment processing",
-      status: "active",
-      users: 156,
-      collections: 12,
-      storage: "1.2 GB",
-      lastActivity: "2 hours ago",
-      createdAt: "2024-01-15",
-    },
-    {
-      id: "proj-002",
-      name: "Mobile App Backend",
-      description: "RESTful API for mobile application",
-      status: "active",
-      users: 89,
-      collections: 8,
-      storage: "0.8 GB",
-      lastActivity: "1 day ago",
-      createdAt: "2024-02-01",
-    },
-    {
-      id: "proj-003",
-      name: "Analytics Dashboard",
-      description: "Real-time analytics and reporting platform",
-      status: "development",
-      users: 23,
-      collections: 5,
-      storage: "0.3 GB",
-      lastActivity: "3 days ago",
-      createdAt: "2024-02-15",
-    },
-    {
-      id: "proj-004",
-      name: "Content Management System",
-      description: "Headless CMS for content management",
-      status: "archived",
-      users: 45,
-      collections: 6,
-      storage: "0.5 GB",
-      lastActivity: "1 week ago",
-      createdAt: "2023-12-01",
+      id: "N/I",
+      name: "Not Implemented",
+      description: "N/I",
+      status: "N/I",
+      users: 0,
+      collections: 0,
+      storage: "0 GB",
+      lastActivity: "N/I",
+      createdAt: "N/I",
     },
   ];
 
@@ -95,16 +62,7 @@ export default function ProjectsPage() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "development":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case "archived":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-    }
+    return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
   };
 
   return (
@@ -114,7 +72,7 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-3xl font-bold text-text">Projects</h1>
           <p className="text-text/60 mt-1">
-            Manage your KRAPI projects and applications
+            Manage your projects and their configurations
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -124,37 +82,39 @@ export default function ProjectsPage() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Project</DialogTitle>
               <DialogDescription>
-                Set up a new project in your KRAPI workspace
+                Create a new project to organize your backend resources
               </DialogDescription>
             </DialogHeader>
-            <Form schema={projectSchema} onSubmit={handleCreateProject}>
-              <div className="space-y-4">
-                <FormField
-                  name="name"
-                  label="Project Name"
-                  type="text"
-                  placeholder="Enter project name"
-                  required
-                />
-                <FormField
-                  name="projectId"
-                  label="Project ID"
-                  type="text"
-                  placeholder="Enter unique project ID"
-                  required
-                />
-                <FormField
-                  name="description"
-                  label="Description"
-                  type="textarea"
-                  placeholder="Optional project description"
-                />
-              </div>
-              <DialogFooter className="mt-6">
+            <Form
+              schema={projectSchema}
+              onSubmit={handleCreateProject}
+              className="space-y-4"
+            >
+              <FormField
+                name="name"
+                label="Project Name"
+                type="text"
+                placeholder="Enter project name"
+                required
+              />
+              <FormField
+                name="projectId"
+                label="Project ID"
+                type="text"
+                placeholder="Enter unique project ID"
+                required
+              />
+              <FormField
+                name="description"
+                label="Description"
+                type="textarea"
+                placeholder="Optional project description"
+              />
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="secondary"
@@ -172,14 +132,14 @@ export default function ProjectsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Total Projects</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {projects.length}
+              <p className="text-sm font-medium text-text/60">
+                Total Projects
               </p>
+              <p className="text-2xl font-bold text-text mt-1">N/I</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <FiCode className="h-6 w-6 text-primary" />
@@ -189,12 +149,8 @@ export default function ProjectsPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">
-                Active Projects
-              </p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {projects.filter((p) => p.status === "active").length}
-              </p>
+              <p className="text-sm font-medium text-text/60">Total Users</p>
+              <p className="text-2xl font-bold text-text mt-1">N/I</p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
               <FiUsers className="h-6 w-6 text-green-600" />
@@ -207,9 +163,7 @@ export default function ProjectsPage() {
               <p className="text-sm font-medium text-text/60">
                 Total Collections
               </p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {projects.reduce((sum, p) => sum + p.collections, 0)}
-              </p>
+              <p className="text-2xl font-bold text-text mt-1">N/I</p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
               <FiDatabase className="h-6 w-6 text-blue-600" />
@@ -220,15 +174,7 @@ export default function ProjectsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text/60">Storage Used</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {projects
-                  .reduce((sum, p) => {
-                    const size = parseFloat(p.storage);
-                    return sum + size;
-                  }, 0)
-                  .toFixed(1)}{" "}
-                GB
-              </p>
+              <p className="text-2xl font-bold text-text mt-1">N/I</p>
             </div>
             <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
               <FiFileText className="h-6 w-6 text-purple-600" />
@@ -307,25 +253,22 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Info Block */}
-      <InfoBlock
-        title="Project Management"
-        variant="info"
-        className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-      >
-        <div className="text-sm space-y-2">
-          <p>
-            Each project in KRAPI is a completely isolated workspace with its
-            own users, database collections, file storage, and API endpoints.
+      {/* Empty State */}
+      {projects.length === 0 && (
+        <div className="bg-background border border-secondary rounded-lg p-12 text-center">
+          <FiCode className="h-12 w-12 text-text/40 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-text mb-2">
+            No projects yet
+          </h3>
+          <p className="text-text/60 mb-4">
+            Create your first project to get started
           </p>
-          <p>
-            Projects can be in different states: <strong>active</strong> (fully
-            operational),
-            <strong> development</strong> (work in progress), or{" "}
-            <strong>archived</strong> (inactive).
-          </p>
+          <Button variant="default" onClick={() => setIsCreateDialogOpen(true)}>
+            <FiPlus className="mr-2 h-4 w-4" />
+            Create Project
+          </Button>
         </div>
-      </InfoBlock>
+      )}
     </div>
   );
 }

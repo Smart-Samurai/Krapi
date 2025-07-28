@@ -20,6 +20,7 @@ import {
   FiMoon,
 } from "react-icons/fi";
 import { useTheme } from "@/contexts/ThemeContext";
+import Link from "next/link";
 
 // Sidebar Context
 interface SidebarContextType {
@@ -225,9 +226,9 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
 
   if (href) {
     return (
-      <a href={href} className="block">
+      <Link href={href} className="block">
         {content}
-      </a>
+      </Link>
     );
   }
 

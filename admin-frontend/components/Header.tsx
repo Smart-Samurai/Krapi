@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,10 +28,11 @@ interface HeaderProps {
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const { user, logout } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
+  const router = useRouter();
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/login";
+    router.push("/login");
   };
 
   const userInitials = user?.username
@@ -96,7 +98,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                     {user?.username || "User"}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email || "user@example.com"}
+                    {user?.email || "N/I"}
                   </p>
                 </div>
               </DropdownMenuLabel>

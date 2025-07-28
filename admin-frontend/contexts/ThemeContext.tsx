@@ -12,30 +12,33 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// Get initial theme from localStorage or system preference
+function getInitialTheme(): Theme {
+  // This runs on the client only
+  if (typeof window !== "undefined") {
+    const savedTheme = localStorage.getItem("theme") as Theme;
+    if (savedTheme) {
+      return savedTheme;
+    }
+    
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return prefersDark ? "dark" : "light";
+  }
+  
+  return "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // Check for saved theme preference or default to light mode
-    if (typeof window !== "undefined") {
-      const savedTheme = localStorage.getItem("theme") as Theme;
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-
-      if (savedTheme) {
-        setThemeState(savedTheme);
-      } else if (prefersDark) {
-        setThemeState("dark");
-      }
-    }
   }, []);
 
   useEffect(() => {
-    // Apply theme to document only after mounting
-    if (mounted && typeof document !== "undefined") {
+    // Apply theme to document
+    if (typeof document !== "undefined") {
       const root = document.documentElement;
       if (theme === "dark") {
         root.classList.add("dark");
@@ -48,7 +51,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("theme", theme);
       }
     }
-  }, [theme, mounted]);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
@@ -58,8 +61,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState((prev) => (prev === "light" ? "dark" : "light"));
   };
 
+  // Always render the provider to avoid breaking the context chain
+  // Use the initial theme value until mounted to prevent hydration issues
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: mounted ? theme : getInitialTheme(), toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
