@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   InfoBlock,
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  Input,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
@@ -27,43 +28,121 @@ import {
   FiEdit,
   FiEye,
   FiMoreVertical,
+  FiSearch,
 } from "react-icons/fi";
+import { createDefaultKrapi } from "@/lib/krapi";
+import type { Project } from "@/lib/krapi/types";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
-  projectId: z.string().min(1, "Project ID is required"),
 });
 
 type ProjectFormData = z.infer<typeof projectSchema>;
 
 export default function ProjectsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const projects = [
-    {
-      id: "N/I",
-      name: "Not Implemented",
-      description: "N/I",
-      status: "N/I",
-      users: 0,
-      collections: 0,
-      storage: "0 GB",
-      lastActivity: "N/I",
-      createdAt: "N/I",
-    },
-  ];
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const krapi = createDefaultKrapi();
+      const result = await krapi.projects.list();
+      
+      if (result.success && result.data) {
+        setProjects(result.data);
+      } else {
+        setError(result.error || "Failed to fetch projects");
+      }
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+      setError("An error occurred while fetching projects");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCreateProject = async (data: ProjectFormData) => {
-    console.log("Creating project:", data);
-    setIsCreateDialogOpen(false);
-    // Here you would typically make an API call
+    setError(null);
+    
+    try {
+      const krapi = createDefaultKrapi();
+      const result = await krapi.projects.create({
+        name: data.name,
+        description: data.description || "",
+      });
+      
+      if (result.success) {
+        setIsCreateDialogOpen(false);
+        // Refresh projects list
+        await fetchProjects();
+      } else {
+        setError(result.error || "Failed to create project");
+      }
+    } catch (err) {
+      console.error("Error creating project:", err);
+      setError("An error occurred while creating the project");
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) {
+      return;
+    }
+    
+    try {
+      const krapi = createDefaultKrapi();
+      const result = await krapi.projects.delete(projectId);
+      
+      if (result.success) {
+        // Refresh projects list
+        await fetchProjects();
+      } else {
+        setError(result.error || "Failed to delete project");
+      }
+    } catch (err) {
+      console.error("Error deleting project:", err);
+      setError("An error occurred while deleting the project");
+    }
   };
 
   const getStatusColor = (status: string) => {
-    return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+      case "inactive":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+      case "suspended":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+    }
   };
+
+  const filteredProjects = projects.filter((project) =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-text/60">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -101,13 +180,7 @@ export default function ProjectsPage() {
                 placeholder="Enter project name"
                 required
               />
-              <FormField
-                name="projectId"
-                label="Project ID"
-                type="text"
-                placeholder="Enter unique project ID"
-                required
-              />
+
               <FormField
                 name="description"
                 label="Description"
@@ -131,6 +204,13 @@ export default function ProjectsPage() {
         </Dialog>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <InfoBlock title="Error" variant="error">
+          {error}
+        </InfoBlock>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-background border border-secondary rounded-lg p-6">
@@ -139,7 +219,9 @@ export default function ProjectsPage() {
               <p className="text-sm font-medium text-text/60">
                 Total Projects
               </p>
-              <p className="text-2xl font-bold text-text mt-1">N/I</p>
+              <p className="text-2xl font-bold text-text mt-1">
+                {projects.length}
+              </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <FiCode className="h-6 w-6 text-primary" />
@@ -186,10 +268,32 @@ export default function ProjectsPage() {
       {/* Projects List */}
       <div className="bg-background border border-secondary rounded-lg">
         <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">All Projects</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-text">All Projects</h2>
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-secondary rounded-lg bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
         </div>
+        {filteredProjects.length === 0 ? (
+          <div className="p-12 text-center">
+            <FiCode className="h-12 w-12 text-text/20 mx-auto mb-4" />
+            <p className="text-text/60">
+              {searchTerm
+                ? "No projects found matching your search"
+                : "No projects yet. Create your first project to get started."}
+            </p>
+          </div>
+        ) : (
         <div className="divide-y divide-secondary/50">
-          {projects.map((project) => (
+          {filteredProjects.map((project) => (
             <div
               key={project.id}
               className="p-6 hover:bg-secondary/5 transition-colors"
@@ -210,14 +314,15 @@ export default function ProjectsPage() {
                         {project.status}
                       </span>
                     </div>
-                    <p className="text-sm text-text/60 mt-1">
-                      {project.description}
-                    </p>
+                    {project.description && (
+                      <p className="text-sm text-text/60 mt-1">
+                        {project.description}
+                      </p>
+                    )}
                     <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                      <span>{project.users} users</span>
-                      <span>{project.collections} collections</span>
-                      <span>{project.storage} storage</span>
-                      <span>Created {project.createdAt}</span>
+                      <span>ID: {project.id}</span>
+                      <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
+                      {project.domain && <span>Domain: {project.domain}</span>}
                     </div>
                   </div>
                 </div>
@@ -244,16 +349,18 @@ export default function ProjectsPage() {
                     title="Project Settings"
                   />
                   <IconButton
-                    icon={FiMoreVertical}
+                    icon={FiTrash2}
                     variant="secondary"
                     size="sm"
-                    title="More Options"
+                    title="Delete Project"
+                    onClick={() => handleDeleteProject(project.id)}
                   />
                 </div>
               </div>
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* Empty State */}
