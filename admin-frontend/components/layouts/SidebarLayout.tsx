@@ -134,6 +134,11 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
   const navItems = getNavigationItems();
 
+  // For login page, don't render the sidebar at all
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   return (
     <SidebarProvider defaultOpen={true}>
       <SidebarRoot className="h-screen">

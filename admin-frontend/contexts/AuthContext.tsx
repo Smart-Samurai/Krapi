@@ -62,18 +62,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    console.log("🔐 AuthContext: Initial useEffect running");
     // Check for existing token on mount
     if (typeof window !== "undefined") {
+      console.log("🔐 AuthContext: Window is defined, checking localStorage");
       const storedToken = localStorage.getItem("auth_token");
 
       if (storedToken) {
+        console.log("🔐 AuthContext: Found stored token");
         setToken(storedToken);
         // Don't call verifyToken here - let the next useEffect handle it
       } else {
+        console.log("🔐 AuthContext: No stored token found");
         setIsLoading(false);
         setIsHydrated(true);
       }
     } else {
+      console.log("🔐 AuthContext: Window is not defined (SSR)");
       setIsLoading(false);
       setIsHydrated(true);
     }
@@ -81,17 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verify token when it changes
   useEffect(() => {
+    console.log("🔐 AuthContext: Token verification useEffect running", {
+      token: !!token,
+      loginInProgress,
+    });
     // Don't verify token during login attempts or if no token
     if (!token || loginInProgress) {
       console.log(
-        "🔐 Skipping token verification - no token or login in progress"
+        "🔐 AuthContext: Skipping token verification - no token or login in progress"
       );
       setIsLoading(false);
       setIsHydrated(true);
       return;
     }
 
-    console.log("🔐 Verifying token...");
+    console.log("🔐 AuthContext: Verifying token...");
     verifyToken();
   }, [token, loginInProgress, verifyToken]);
 
@@ -264,9 +273,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Don't render children until hydration is complete to prevent hydration mismatch
-  if (!isHydrated) {
-    return null;
-  }
+  // Temporarily disabled to fix hydration issues
+  // if (!isHydrated) {
+  //   console.log("🔐 AuthContext: Not hydrated yet, returning null");
+  //   return null;
+  // }
 
   return (
     <AuthContext.Provider

@@ -19,8 +19,8 @@ const nextConfig: NextConfig = {
 
   // Next.js 15 optimizations
   experimental: {
-    // Enable React 19 features
-    reactCompiler: true,
+    // Enable React 19 features - temporarily disabled to fix hydration issues
+    // reactCompiler: true,
     // Enable typed routes for better type safety
     typedRoutes: true,
   },
