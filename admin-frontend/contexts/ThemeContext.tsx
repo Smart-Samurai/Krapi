@@ -61,13 +61,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return null;
-  }
-
+  // Always render the provider to avoid breaking the context chain
+  // Use the initial theme value until mounted to prevent hydration issues
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme: mounted ? theme : getInitialTheme(), toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

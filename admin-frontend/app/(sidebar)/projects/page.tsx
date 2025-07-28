@@ -189,9 +189,9 @@ export default function ProjectsPage() {
           <h2 className="text-xl font-semibold text-text">All Projects</h2>
         </div>
         <div className="divide-y divide-secondary/50">
-          {projects.map((project, index) => (
+          {projects.map((project) => (
             <div
-              key={index}
+              key={project.id}
               className="p-6 hover:bg-secondary/5 transition-colors"
             >
               <div className="flex items-center justify-between">

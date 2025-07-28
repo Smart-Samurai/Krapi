@@ -14,11 +14,6 @@ import {
   DialogDescription,
   DialogFooter,
   Input,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
@@ -106,23 +101,13 @@ export default function DatabasePage() {
                 placeholder="Enter collection name"
                 required
               />
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text">
-                  Project
-                </label>
-                <Select name="project" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.value} value={project.value}>
-                        {project.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <FormField
+                name="project"
+                label="Project"
+                type="select"
+                required
+                options={projects}
+              />
               <FormField
                 name="description"
                 label="Description"
@@ -222,9 +207,9 @@ export default function DatabasePage() {
           <h2 className="text-xl font-semibold text-text">All Collections</h2>
         </div>
         <div className="divide-y divide-secondary/50">
-          {filteredCollections.map((collection, index) => (
+          {filteredCollections.map((collection) => (
             <div
-              key={index}
+              key={collection.id}
               className="p-6 hover:bg-secondary/5 transition-colors"
             >
               <div className="flex items-center justify-between">

@@ -14,11 +14,6 @@ import {
   DialogDescription,
   DialogFooter,
   Input,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
@@ -122,21 +117,17 @@ export default function UsersPage() {
                 placeholder="Enter email address"
                 required
               />
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text">
-                  Role
-                </label>
-                <Select name="role" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="developer">Developer</SelectItem>
-                    <SelectItem value="viewer">Viewer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <FormField
+                name="role"
+                label="Role"
+                type="select"
+                required
+                options={[
+                  { value: "admin", label: "Admin" },
+                  { value: "developer", label: "Developer" },
+                  { value: "viewer", label: "Viewer" },
+                ]}
+              />
               <DialogFooter>
                 <Button
                   type="button"
@@ -226,9 +217,9 @@ export default function UsersPage() {
           <h2 className="text-xl font-semibold text-text">All Users</h2>
         </div>
         <div className="divide-y divide-secondary/50">
-          {filteredUsers.map((user, index) => (
+          {filteredUsers.map((user) => (
             <div
-              key={index}
+              key={user.id}
               className="p-6 hover:bg-secondary/5 transition-colors"
             >
               <div className="flex items-center justify-between">
