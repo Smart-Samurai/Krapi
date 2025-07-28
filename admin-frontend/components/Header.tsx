@@ -96,7 +96,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                     {user?.username || "User"}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email || "user@example.com"}
+                    {user?.email || "N/I"}
                   </p>
                 </div>
               </DropdownMenuLabel>

@@ -45,36 +45,12 @@ export default function EmailPage() {
 
   const emails = [
     {
-      id: "1",
-      subject: "Welcome to KRAPI Platform",
-      recipient: "user@example.com",
-      status: "sent",
-      sentAt: "2024-01-15 10:30",
-      template: "welcome",
-    },
-    {
-      id: "2",
-      subject: "Password Reset Request",
-      recipient: "admin@company.com",
-      status: "sent",
-      sentAt: "2024-01-14 15:45",
-      template: "password-reset",
-    },
-    {
-      id: "3",
-      subject: "Project Update Notification",
-      recipient: "team@project.com",
-      status: "draft",
-      sentAt: "2024-01-13 09:15",
-      template: "project-update",
-    },
-    {
-      id: "4",
-      subject: "System Maintenance Alert",
-      recipient: "all@krapi.com",
-      status: "sent",
-      sentAt: "2024-01-12 14:20",
-      template: "maintenance",
+      id: "N/I",
+      subject: "Not Implemented",
+      recipient: "N/I",
+      status: "N/I",
+      sentAt: "N/I",
+      template: "N/I",
     },
   ];
 

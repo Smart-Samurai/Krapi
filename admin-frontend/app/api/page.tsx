@@ -47,37 +47,14 @@ export default function ApiPage() {
 
   const apiKeys = [
     {
-      id: "1",
-      name: "Frontend App Key",
-      key: "krapi_sk_1234567890abcdef",
-      permissions: ["read", "write"],
-      status: "active",
-      createdAt: "2024-01-15",
-      lastUsed: "2 hours ago",
+      id: "N/I",
+      name: "Not Implemented",
+      key: "N/I",
+      permissions: ["N/I"],
+      status: "N/I",
+      createdAt: "N/I",
+      lastUsed: "N/I",
     },
-    {
-      id: "2",
-      name: "Mobile App Key",
-      key: "krapi_sk_abcdef1234567890",
-      permissions: ["read"],
-      status: "active",
-      createdAt: "2024-01-14",
-      lastUsed: "1 day ago",
-    },
-    {
-      id: "3",
-      name: "Admin Key",
-      key: "krapi_sk_admin123456789",
-      permissions: ["read", "write", "admin"],
-      status: "active",
-      createdAt: "2024-01-10",
-      lastUsed: "30 minutes ago",
-    },
-    {
-      id: "4",
-      name: "Test Key",
-      key: "krapi_sk_test123456789",
-      permissions: ["read"],
       status: "inactive",
       createdAt: "2024-01-12",
       lastUsed: "5 days ago",
@@ -86,34 +63,10 @@ export default function ApiPage() {
 
   const endpoints = [
     {
-      method: "GET",
-      path: "/api/v1/users",
-      description: "List all users",
-      status: "active",
-    },
-    {
-      method: "POST",
-      path: "/api/v1/users",
-      description: "Create a new user",
-      status: "active",
-    },
-    {
-      method: "GET",
-      path: "/api/v1/users/{id}",
-      description: "Get user by ID",
-      status: "active",
-    },
-    {
-      method: "PUT",
-      path: "/api/v1/users/{id}",
-      description: "Update user",
-      status: "active",
-    },
-    {
-      method: "DELETE",
-      path: "/api/v1/users/{id}",
-      description: "Delete user",
-      status: "active",
+      method: "N/I",
+      path: "N/I",
+      description: "Not Implemented",
+      status: "N/I",
     },
   ];
 
