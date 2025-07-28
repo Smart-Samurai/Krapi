@@ -217,7 +217,7 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
     <div
       className={cn(
         "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors cursor-pointer",
-        isActive ? "bg-primary text-white" : "text-text hover:bg-secondary/20",
+        isActive ? "bg-primary text-text" : "text-text hover:bg-secondary/20",
         className
       )}
       onClick={onClick}
@@ -345,11 +345,7 @@ export const navigationItems = {
     label: "Files",
     href: "/files",
   },
-  email: {
-    icon: <FiMail className="h-4 w-4" />,
-    label: "Email",
-    href: "/email",
-  },
+
   health: {
     icon: <FiActivity className="h-4 w-4" />,
     label: "Health",

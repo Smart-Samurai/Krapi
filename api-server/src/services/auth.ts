@@ -25,10 +25,10 @@ export class AuthService {
   }
 
   static async login(
-    username: string,
+    email: string,
     password: string
   ): Promise<{ user: Omit<User, "password_hash">; token: string } | null> {
-    const user = coreDatabase.getUserByUsername(username);
+    const user = coreDatabase.getUserByEmail(email);
 
     if (!user || !user.active) {
       return null;
@@ -51,14 +51,16 @@ export class AuthService {
   }
 
   static async createUser(userData: {
-    username: string;
     email: string;
+    firstName: string;
+    lastName: string;
     password: string;
-    role?: "admin" | "user";
+    role?: "master_admin" | "admin" | "project_admin" | "limited_admin";
     active?: boolean;
+    permissions?: Record<string, boolean>;
   }): Promise<Omit<User, "password_hash"> | null> {
     // Check if user already exists
-    const existingUser = coreDatabase.getUserByUsername(userData.username);
+    const existingUser = coreDatabase.getUserByEmail(userData.email);
     if (existingUser) {
       return null;
     }
@@ -66,11 +68,14 @@ export class AuthService {
     const hashedPassword = bcrypt.hashSync(userData.password, 10);
 
     const user = coreDatabase.createUser({
-      username: userData.username,
+      username: userData.email, // Use email as username for now
       email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       password_hash: hashedPassword,
-      role: userData.role || "user",
+      role: userData.role || "admin",
       active: userData.active !== false,
+      permissions: userData.permissions || {},
     });
 
     if (!user) {

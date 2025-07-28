@@ -16,9 +16,9 @@ export class KrapiAuth {
         username,
         password,
       });
-      
+
       const data = response.data;
-      
+
       // Store auth data if login successful
       if (data.success && data.token) {
         if (typeof window !== "undefined") {
@@ -28,7 +28,7 @@ export class KrapiAuth {
           }
         }
       }
-      
+
       return data;
     } catch (error: unknown) {
       const errorMessage =
@@ -36,10 +36,14 @@ export class KrapiAuth {
       const responseError = (
         error as { response?: { data?: { error?: string; message?: string } } }
       )?.response?.data;
-      
+
       return {
         success: false,
-        error: responseError?.error || responseError?.message || errorMessage || "Login failed"
+        error:
+          responseError?.error ||
+          responseError?.message ||
+          errorMessage ||
+          "Login failed",
       };
     }
   }

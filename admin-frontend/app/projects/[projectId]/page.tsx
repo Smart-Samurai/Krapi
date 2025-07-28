@@ -2,16 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  Button,
-  InfoBlock,
-  IconButton,
-  TextButton,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/styled";
+import { Button, InfoBlock, IconButton, TextButton } from "@/components/styled";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   FiCode,
   FiUsers,
@@ -24,29 +16,14 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  apiKey: string;
-  apiSecret: string;
-  status: string;
-  createdAt: string;
-  stats?: {
-    users: number;
-    collections: number;
-    storage: number;
-    apiCalls: number;
-  };
-}
+import { Project } from "@/lib/krapi/types";
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const krapi = useKrapi();
   const projectId = params.projectId as string;
-  
+
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -65,11 +42,11 @@ export default function ProjectDetailPage() {
         setProject(response.data as Project);
       } else {
         // Project not found
-        router.push('/projects');
+        router.push("/projects");
       }
     } catch (error) {
       console.error("Error fetching project details:", error);
-      router.push('/projects');
+      router.push("/projects");
     } finally {
       setLoading(false);
     }
@@ -99,7 +76,7 @@ export default function ProjectDetailPage() {
           <IconButton
             icon={FiArrowLeft}
             variant="secondary"
-            onClick={() => router.push('/projects')}
+            onClick={() => router.push("/projects")}
           />
           <div>
             <h1 className="text-3xl font-bold text-text">{project.name}</h1>
@@ -126,9 +103,7 @@ export default function ProjectDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text/60">Users</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {project.stats?.users || 0}
-              </p>
+              <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <FiUsers className="h-6 w-6 text-primary" />
@@ -139,9 +114,7 @@ export default function ProjectDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text/60">Collections</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {project.stats?.collections || 0}
-              </p>
+              <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <FiDatabase className="h-6 w-6 text-primary" />
@@ -152,9 +125,7 @@ export default function ProjectDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text/60">Storage</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {formatBytes(project.stats?.storage || 0)}
-              </p>
+              <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <FiFileText className="h-6 w-6 text-primary" />
@@ -165,9 +136,7 @@ export default function ProjectDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text/60">API Calls</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {project.stats?.apiCalls || 0}
-              </p>
+              <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
               <FiActivity className="h-6 w-6 text-primary" />
@@ -198,35 +167,36 @@ export default function ProjectDetailPage() {
                 <div>
                   <p className="text-sm font-medium">API Key</p>
                   <code className="text-xs bg-secondary px-2 py-1 rounded">
-                    {project.apiKey}
+                    N/A
                   </code>
                 </div>
                 <div>
                   <p className="text-sm font-medium">API Secret</p>
                   <code className="text-xs bg-secondary px-2 py-1 rounded">
-                    {project.apiSecret?.substring(0, 10)}...
+                    N/A
                   </code>
                 </div>
               </div>
             </InfoBlock>
 
-            <InfoBlock
-              title="Project Information"
-              variant="default"
-            >
+            <InfoBlock title="Project Information" variant="default">
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm">Status</span>
-                  <span className={`text-sm font-medium ${
-                    project.status === 'active' ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
+                  <span
+                    className={`text-sm font-medium ${
+                      project.status === "active"
+                        ? "text-green-600"
+                        : "text-yellow-600"
+                    }`}
+                  >
                     {project.status}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Created</span>
                   <span className="text-sm font-medium">
-                    {new Date(project.createdAt).toLocaleDateString()}
+                    {new Date(project.created_at).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -288,9 +258,9 @@ export default function ProjectDetailPage() {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }

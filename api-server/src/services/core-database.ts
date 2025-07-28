@@ -6,12 +6,15 @@ interface User {
   id: number;
   username: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   password_hash: string;
-  role: "admin" | "user";
+  role: "master_admin" | "admin" | "project_admin" | "limited_admin" | "user";
   active: boolean;
   created_at: string;
   updated_at: string;
   last_login?: string;
+  permissions?: Record<string, boolean>;
 }
 
 interface LoginLog {
@@ -78,12 +81,15 @@ class CoreDatabaseService {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           username TEXT UNIQUE NOT NULL,
           email TEXT UNIQUE NOT NULL,
+          firstName TEXT,
+          lastName TEXT,
           password_hash TEXT NOT NULL,
           role TEXT NOT NULL DEFAULT 'user',
           active BOOLEAN NOT NULL DEFAULT 1,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          last_login DATETIME
+          last_login DATETIME,
+          permissions TEXT
         );
       `);
 
@@ -146,12 +152,20 @@ class CoreDatabaseService {
 
         this.db
           .prepare(
-            "INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO users (username, email, firstName, lastName, password_hash, role, active) VALUES (?, ?, ?, ?, ?, ?, ?)"
           )
-          .run("admin", "admin@krapi.local", hashedPassword, "admin", 1);
+          .run(
+            "admin@krapi.local",
+            "admin@krapi.local",
+            "Master",
+            "Administrator",
+            hashedPassword,
+            "master_admin",
+            1
+          );
 
         console.log(
-          "✅ Default admin user created (username: admin, password: admin)"
+          "✅ Default admin user created (email: admin@krapi.local, password: admin)"
         );
       }
 
@@ -209,6 +223,12 @@ class CoreDatabaseService {
       .get(username) as User | null;
   }
 
+  getUserByEmail(email: string): User | null {
+    return this.db
+      .prepare("SELECT * FROM users WHERE email = ?")
+      .get(email) as User | null;
+  }
+
   getUserById(id: number): User | null {
     return this.db
       .prepare("SELECT * FROM users WHERE id = ?")
@@ -226,14 +246,17 @@ class CoreDatabaseService {
   ): User | null {
     try {
       const stmt = this.db.prepare(
-        "INSERT INTO users (username, email, password_hash, role, active) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO users (username, email, firstName, lastName, password_hash, role, active, permissions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       );
       const result = stmt.run(
         userData.username,
         userData.email,
+        userData.firstName || null,
+        userData.lastName || null,
         userData.password_hash,
         userData.role,
-        userData.active ? 1 : 0
+        userData.active ? 1 : 0,
+        userData.permissions ? JSON.stringify(userData.permissions) : null
       );
 
       return this.getUserById(result.lastInsertRowid as number);

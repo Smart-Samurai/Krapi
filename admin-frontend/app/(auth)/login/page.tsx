@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { createDefaultKrapi } from "@/lib/krapi";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(1, "Password is required"),
   rememberMe: z.boolean().optional(),
 });
@@ -26,22 +26,22 @@ export default function LoginPage() {
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const krapi = createDefaultKrapi();
-      const result = await krapi.auth.login(data.username, data.password);
-      
-      if (result.success && result.data) {
+      const result = await krapi.auth.login(data.email, data.password);
+
+      if (result.success && result.token) {
         // Store user data if needed
-        if (result.data.user) {
-          localStorage.setItem('user', JSON.stringify(result.data.user));
+        if (result.user) {
+          localStorage.setItem("user", JSON.stringify(result.user));
         }
-        
+
         // Store remember me preference
         if (data.rememberMe) {
-          localStorage.setItem('rememberMe', 'true');
+          localStorage.setItem("rememberMe", "true");
         }
-        
+
         // Redirect to dashboard after successful login
         router.push("/dashboard");
       } else {
@@ -72,27 +72,23 @@ export default function LoginPage() {
         {/* Login Form */}
         <div className="bg-background border border-secondary rounded-lg p-8 shadow-lg">
           {error && (
-            <InfoBlock
-              title="Login Failed"
-              variant="error"
-              className="mb-6"
-            >
+            <InfoBlock title="Login Failed" variant="error" className="mb-6">
               {error}
             </InfoBlock>
           )}
-          
+
           <Form
             schema={loginSchema}
             onSubmit={handleLogin}
             className="space-y-6"
           >
             <FormField
-              name="username"
-              label="Username"
-              type="text"
-              placeholder="Enter your username"
+              name="email"
+              label="Email Address"
+              type="email"
+              placeholder="Enter your email address"
               required
-              autoComplete="username"
+              autoComplete="email"
             />
 
             <FormField
@@ -110,7 +106,10 @@ export default function LoginPage() {
                   id="remember-me"
                   className="rounded border-secondary text-primary focus:ring-primary"
                 />
-                <label htmlFor="remember-me" className="text-sm text-text/80 cursor-pointer">
+                <label
+                  htmlFor="remember-me"
+                  className="text-sm text-text/80 cursor-pointer"
+                >
                   Remember me
                 </label>
               </label>
@@ -156,7 +155,6 @@ export default function LoginPage() {
                 <span className="font-medium text-text">Password:</span>
                 <span className="text-text/80">admin123</span>
               </div>
-
             </div>
           </InfoBlock>
         </div>

@@ -4,16 +4,19 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   password_hash: string;
-  role: "admin" | "user";
+  role: "master_admin" | "admin" | "project_admin" | "limited_admin" | "user";
   active: boolean;
   created_at: string;
   updated_at: string;
   last_login?: string;
+  permissions?: Record<string, boolean>;
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -27,23 +30,27 @@ export interface LoginResponse {
 export interface AuthPayload {
   id: number;
   username: string;
-  role: "admin" | "user";
+  role: "master_admin" | "admin" | "project_admin" | "limited_admin" | "user";
 }
 
 export interface CreateUserRequest {
-  username: string;
   email: string;
+  firstName: string;
+  lastName: string;
   password: string;
-  role?: "admin" | "user";
+  role?: "master_admin" | "admin" | "project_admin" | "limited_admin" | "user";
   active?: boolean;
+  permissions?: Record<string, boolean>;
 }
 
 export interface UpdateUserRequest {
-  username?: string;
   email?: string;
-  role?: "admin" | "user";
+  firstName?: string;
+  lastName?: string;
+  role?: "master_admin" | "admin" | "project_admin" | "limited_admin" | "user";
   active?: boolean;
   password?: string;
+  permissions?: Record<string, boolean>;
 }
 
 export interface LoginLog {

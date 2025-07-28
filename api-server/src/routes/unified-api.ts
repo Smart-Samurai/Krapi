@@ -3,6 +3,7 @@ import ProjectApiController from "../controllers/project-api";
 
 import { McpController } from "../controllers/mcp";
 import { AuthController } from "../controllers/auth";
+import { UsersController } from "../controllers/users";
 import { authenticateToken } from "../middleware/auth";
 
 const router: express.Router = express.Router();
@@ -270,6 +271,18 @@ async function handleUsersOperation(
   res: express.Response
 ): Promise<void> {
   switch (resource) {
+    case "list":
+      // Get all admin users
+      UsersController.getAllUsers(req, res);
+      break;
+    case "get":
+      // Get user by ID
+      UsersController.getUserById(req, res);
+      break;
+    case "stats":
+      // Get admin user stats
+      UsersController.getAdminStats(req, res);
+      break;
     case "prefs":
       // TODO: Implement user preferences
       res.status(501).json({

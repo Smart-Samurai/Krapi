@@ -102,7 +102,6 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                           | "/dashboard/api"
                           | "/dashboard/auth"
                           | "/dashboard/files"
-                          | "/dashboard/email"
                           | "/dashboard/health"
                           | "/dashboard/api-test"
                           | "/dashboard/docs"
@@ -112,7 +111,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                       className={cn(
                         "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-primary text-white"
+                          ? "bg-primary text-text"
                           : "text-text-600 hover:bg-background-200 hover:text-text",
                         collapsed && "justify-center"
                       )}
@@ -127,7 +126,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                         className={cn(
                           "h-5 w-5 flex-shrink-0",
                           isActive
-                            ? "text-white"
+                            ? "text-text"
                             : "text-text-400 group-hover:text-text-600",
                           !collapsed && "mr-3"
                         )}

@@ -19,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   isHydrated: boolean;
   loginInProgress: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
@@ -204,15 +204,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token, reconnectAttempts]);
 
-  const login = async (
-    username: string,
-    password: string
-  ): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     setLoginInProgress(true);
     try {
       console.log("🔐 AuthContext: Attempting login...");
       const krapi = createDefaultKrapi();
-      const response = await krapi.auth.login(username, password);
+      const response = await krapi.auth.login(email, password);
       console.log("🔐 AuthContext: Login response:", response);
 
       if (response.success && response.token && response.user) {

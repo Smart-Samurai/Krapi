@@ -73,6 +73,70 @@ export class KrapiAdmin {
     return this.client.health();
   }
 
+  // Dashboard Stats - aggregates data from various sources
+  async getStats(): Promise<
+    KrapiResponse<{
+      projects: { total: number };
+      users: { active: number };
+      database: { collections: number };
+      storage: { used: number };
+    }>
+  > {
+    try {
+      // Fetch projects
+      const projectsResponse = await this.listProjects();
+      const totalProjects = projectsResponse.success
+        ? projectsResponse.data?.length || 0
+        : 0;
+
+      // Fetch database stats
+      const dbStatsResponse = await this.getDatabaseStats();
+      const collections = dbStatsResponse.success
+        ? dbStatsResponse.data?.collections || 0
+        : 0;
+
+      // Fetch API stats for user activity
+      const apiStatsResponse = await this.getApiStats();
+      const activeUsers = apiStatsResponse.success
+        ? typeof apiStatsResponse.data?.activeUsers === "number"
+          ? apiStatsResponse.data.activeUsers
+          : 0
+        : 0;
+
+      // For storage, we'll need to implement this or use a placeholder
+      // This might need to be implemented in the backend
+      const storageUsed = 0; // Placeholder - needs backend implementation
+
+      return Promise.resolve({
+        success: true,
+        data: {
+          projects: { total: totalProjects },
+          users: { active: activeUsers },
+          database: { collections },
+          storage: { used: storageUsed },
+        },
+      });
+    } catch (error) {
+      return Promise.resolve({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch stats",
+        data: {
+          projects: { total: 0 },
+          users: { active: 0 },
+          database: { collections: 0 },
+          storage: { used: 0 },
+        },
+      });
+    }
+  }
+
+  // Activity Log
+  async getActivity(params?: {
+    limit?: number;
+  }): Promise<KrapiResponse<unknown[]>> {
+    return this.client.request("admin", "activity", "list", params);
+  }
+
   // API Keys management
   async getApiKeys(): Promise<KrapiResponse<ProjectApiKey[]>> {
     return this.client.request("admin", "keys", "list");

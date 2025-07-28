@@ -52,7 +52,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       try {
         const krapi = createDefaultKrapi();
         const result = await krapi.admin.getProject(projectId);
-        
+
         if (result.success && result.data) {
           setCurrentProject(result.data);
         } else {
@@ -190,12 +190,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           label: "All Users",
           href: navigationItems.users.href,
           isActive: isActive(navigationItems.users.href),
-        },
-        {
-          icon: navigationItems.email.icon,
-          label: navigationItems.email.label,
-          href: navigationItems.email.href,
-          isActive: isActive(navigationItems.email.href),
         },
       ],
       system: [

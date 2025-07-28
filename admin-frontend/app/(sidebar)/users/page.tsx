@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   InfoBlock,
@@ -14,6 +14,8 @@ import {
   DialogDescription,
   DialogFooter,
   Input,
+  Checkbox,
+  Select,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
@@ -29,87 +31,294 @@ import {
   FiUserCheck,
   FiUserX,
   FiMoreVertical,
+  FiSettings,
+  FiLock,
+  FiUnlock,
+  FiDatabase,
+  FiCode,
+  FiFileText,
+  FiGlobe,
 } from "react-icons/fi";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 
-const userSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  role: z.enum(["admin", "developer", "viewer"]),
-});
+// Permission types
+interface AdminPermissions {
+  // System-wide permissions
+  canManageUsers: boolean;
+  canCreateProjects: boolean;
+  canDeleteProjects: boolean;
+  canManageSystemSettings: boolean;
+  canViewSystemLogs: boolean;
+  canManageBackups: boolean;
 
-type UserFormData = z.infer<typeof userSchema>;
+  // Project-specific permissions
+  canAccessAllProjects: boolean;
+  restrictedProjectIds: string[];
 
-export default function UsersPage() {
+  // Feature-specific permissions
+  canManageDatabase: boolean;
+  canManageAPI: boolean;
+  canManageFiles: boolean;
+
+  canManageAuth: boolean;
+
+  // Administrative permissions
+  canCreateAdminAccounts: boolean;
+  canModifyOtherAdmins: boolean;
+  isMasterAdmin: boolean;
+}
+
+interface AdminUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "master_admin" | "admin" | "project_admin" | "limited_admin";
+  status: "active" | "inactive" | "suspended";
+  permissions: AdminPermissions;
+  lastActive: string;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+const adminUserSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+    role: z.enum(["master_admin", "admin", "project_admin", "limited_admin"]),
+    permissions: z.object({
+      canManageUsers: z.boolean(),
+      canCreateProjects: z.boolean(),
+      canDeleteProjects: z.boolean(),
+      canManageSystemSettings: z.boolean(),
+      canViewSystemLogs: z.boolean(),
+      canManageBackups: z.boolean(),
+      canAccessAllProjects: z.boolean(),
+      canManageDatabase: z.boolean(),
+      canManageAPI: z.boolean(),
+      canManageFiles: z.boolean(),
+
+      canManageAuth: z.boolean(),
+      canCreateAdminAccounts: z.boolean(),
+      canModifyOtherAdmins: z.boolean(),
+      isMasterAdmin: z.boolean(),
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+type AdminUserFormData = z.infer<typeof adminUserSchema>;
+
+export default function ServerAdministrationPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const krapi = useKrapi();
 
-  const users = [
-    {
-      id: "N/I",
-      name: "Not Implemented",
-      email: "N/I",
-      role: "N/I",
-      status: "N/I",
-      lastActive: "N/I",
-      projects: ["N/I"],
-    },
-  ];
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleCreateUser = async (data: UserFormData) => {
-    console.log("Creating user:", data);
+  // Fetch admin users from the database
+  useEffect(() => {
+    const fetchAdminUsers = async () => {
+      try {
+        setIsLoading(true);
+        const response = await krapi.client.request("users", "list", "all", {});
+
+        if (response.success && response.data) {
+          // Transform the database users to match our AdminUser interface
+          const transformedUsers: AdminUser[] = (response.data as any[]).map(
+            (user) => ({
+              id: user.id.toString(),
+              email: user.email,
+              firstName: user.firstName || "",
+              lastName: user.lastName || "",
+              role: user.role,
+              status: user.active ? "active" : "inactive",
+              permissions: {
+                canManageUsers: user.permissions?.canManageUsers || false,
+                canCreateProjects: user.permissions?.canCreateProjects || false,
+                canDeleteProjects: user.permissions?.canDeleteProjects || false,
+                canManageSystemSettings:
+                  user.permissions?.canManageSystemSettings || false,
+                canViewSystemLogs: user.permissions?.canViewSystemLogs || false,
+                canManageBackups: user.permissions?.canManageBackups || false,
+                canAccessAllProjects:
+                  user.permissions?.canAccessAllProjects || false,
+                restrictedProjectIds:
+                  user.permissions?.restrictedProjectIds || [],
+                canManageDatabase: user.permissions?.canManageDatabase || false,
+                canManageAPI: user.permissions?.canManageAPI || false,
+                canManageFiles: user.permissions?.canManageFiles || false,
+                canManageAuth: user.permissions?.canManageAuth || false,
+                canCreateAdminAccounts:
+                  user.permissions?.canCreateAdminAccounts || false,
+                canModifyOtherAdmins:
+                  user.permissions?.canModifyOtherAdmins || false,
+                isMasterAdmin: user.role === "master_admin",
+              },
+              lastActive: user.last_login || user.updated_at,
+              createdAt: user.created_at,
+              lastLogin: user.last_login,
+            })
+          );
+          setAdminUsers(transformedUsers);
+        } else {
+          console.error("Failed to fetch admin users:", response.error);
+          setAdminUsers([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch admin users:", error);
+        setAdminUsers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAdminUsers();
+  }, [krapi]);
+
+  const handleCreateAdmin = async (data: AdminUserFormData) => {
+    console.log("Creating admin user:", data);
+    // TODO: Implement API call to create admin user
     setIsCreateDialogOpen(false);
   };
 
-  const filteredUsers = users.filter(
+  const handleEditAdmin = async (data: AdminUserFormData) => {
+    console.log("Updating admin user:", data);
+    // TODO: Implement API call to update admin user
+    setIsEditDialogOpen(false);
+    setSelectedUser(null);
+  };
+
+  const handleDeleteAdmin = async (userId: string) => {
+    if (confirm("Are you sure you want to delete this admin user?")) {
+      console.log("Deleting admin user:", userId);
+      // TODO: Implement API call to delete admin user
+    }
+  };
+
+  const handleToggleStatus = async (
+    userId: string,
+    newStatus: "active" | "inactive" | "suspended"
+  ) => {
+    console.log("Updating admin user status:", userId, newStatus);
+    // TODO: Implement API call to update admin user status
+  };
+
+  const filteredUsers = adminUsers.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case "master_admin":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+      case "admin":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
+      case "project_admin":
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+      case "limited_admin":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+      case "inactive":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+      case "suspended":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+    }
+  };
+
+  const getPermissionIcon = (permission: keyof AdminPermissions) => {
+    switch (permission) {
+      case "canManageUsers":
+        return <FiUsers className="h-4 w-4" />;
+      case "canCreateProjects":
+        return <FiPlus className="h-4 w-4" />;
+      case "canManageDatabase":
+        return <FiDatabase className="h-4 w-4" />;
+      case "canManageAPI":
+        return <FiCode className="h-4 w-4" />;
+      case "canManageFiles":
+        return <FiFileText className="h-4 w-4" />;
+
+      case "canManageAuth":
+        return <FiLock className="h-4 w-4" />;
+      case "canManageSystemSettings":
+        return <FiSettings className="h-4 w-4" />;
+      case "canAccessAllProjects":
+        return <FiGlobe className="h-4 w-4" />;
+      default:
+        return <FiShield className="h-4 w-4" />;
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text">Users</h1>
+          <h1 className="text-3xl font-bold text-text">
+            Server Administration
+          </h1>
           <p className="text-text/60 mt-1">
-            Manage user accounts and permissions
+            Manage administrative users and their access rights
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="default" size="lg">
               <FiPlus className="mr-2 h-4 w-4" />
-              Add User
+              Add Admin User
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
+              <DialogTitle>Create New Admin User</DialogTitle>
               <DialogDescription>
-                Create a new user account for your platform
+                Create a new administrative user with specific permissions
               </DialogDescription>
             </DialogHeader>
             <Form
-              schema={userSchema}
-              onSubmit={handleCreateUser}
+              schema={adminUserSchema}
+              onSubmit={handleCreateAdmin}
               className="space-y-4"
             >
-              <FormField
-                name="firstName"
-                label="First Name"
-                type="text"
-                placeholder="Enter first name"
-                required
-              />
-              <FormField
-                name="lastName"
-                label="Last Name"
-                type="text"
-                placeholder="Enter last name"
-                required
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  name="firstName"
+                  label="First Name"
+                  type="text"
+                  placeholder="Enter first name"
+                  required
+                />
+                <FormField
+                  name="lastName"
+                  label="Last Name"
+                  type="text"
+                  placeholder="Enter last name"
+                  required
+                />
+              </div>
               <FormField
                 name="email"
                 label="Email Address"
@@ -117,17 +326,142 @@ export default function UsersPage() {
                 placeholder="Enter email address"
                 required
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  name="password"
+                  label="Password"
+                  type="password"
+                  placeholder="Enter password"
+                  required
+                />
+                <FormField
+                  name="confirmPassword"
+                  label="Confirm Password"
+                  type="password"
+                  placeholder="Confirm password"
+                  required
+                />
+              </div>
               <FormField
                 name="role"
                 label="Role"
                 type="select"
                 required
                 options={[
-                  { value: "admin", label: "Admin" },
-                  { value: "developer", label: "Developer" },
-                  { value: "viewer", label: "Viewer" },
+                  { value: "master_admin", label: "Master Administrator" },
+                  { value: "admin", label: "System Administrator" },
+                  { value: "project_admin", label: "Project Administrator" },
+                  { value: "limited_admin", label: "Limited Administrator" },
                 ]}
               />
+
+              {/* Permissions Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Permissions</h3>
+
+                {/* System Permissions */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text/80">
+                    System Permissions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      name="permissions.canManageUsers"
+                      label="Manage Users"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canCreateProjects"
+                      label="Create Projects"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canDeleteProjects"
+                      label="Delete Projects"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageSystemSettings"
+                      label="System Settings"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canViewSystemLogs"
+                      label="View System Logs"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageBackups"
+                      label="Manage Backups"
+                      type="checkbox"
+                    />
+                  </div>
+                </div>
+
+                {/* Feature Permissions */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text/80">
+                    Feature Permissions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      name="permissions.canAccessAllProjects"
+                      label="Access All Projects"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageDatabase"
+                      label="Manage Database"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageAPI"
+                      label="Manage API"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageFiles"
+                      label="Manage Files"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageEmail"
+                      label="Manage Email"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageAuth"
+                      label="Manage Authentication"
+                      type="checkbox"
+                    />
+                  </div>
+                </div>
+
+                {/* Administrative Permissions */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text/80">
+                    Administrative Permissions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      name="permissions.canCreateAdminAccounts"
+                      label="Create Admin Accounts"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canModifyOtherAdmins"
+                      label="Modify Other Admins"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.isMasterAdmin"
+                      label="Master Administrator"
+                      type="checkbox"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -137,7 +471,7 @@ export default function UsersPage() {
                   Cancel
                 </Button>
                 <Button type="submit" variant="default">
-                  Add User
+                  Create Admin User
                 </Button>
               </DialogFooter>
             </Form>
@@ -150,19 +484,25 @@ export default function UsersPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Total Users</p>
-              <p className="text-2xl font-bold text-text mt-1">N/I</p>
+              <p className="text-sm font-medium text-text/60">Total Admins</p>
+              <p className="text-2xl font-bold text-text mt-1">
+                {isLoading ? "..." : adminUsers.length}
+              </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiUsers className="h-6 w-6 text-primary" />
+              <FiShield className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Active Users</p>
-              <p className="text-2xl font-bold text-text mt-1">N/I</p>
+              <p className="text-sm font-medium text-text/60">Active Admins</p>
+              <p className="text-2xl font-bold text-text mt-1">
+                {isLoading
+                  ? "..."
+                  : adminUsers.filter((u) => u.status === "active").length}
+              </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
               <FiUserCheck className="h-6 w-6 text-green-600" />
@@ -172,13 +512,15 @@ export default function UsersPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">
-                Admin Users
+              <p className="text-sm font-medium text-text/60">Master Admins</p>
+              <p className="text-2xl font-bold text-text mt-1">
+                {isLoading
+                  ? "..."
+                  : adminUsers.filter((u) => u.role === "master_admin").length}
               </p>
-              <p className="text-2xl font-bold text-text mt-1">N/I</p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <FiShield className="h-6 w-6 text-blue-600" />
+            <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
+              <FiShield className="h-6 w-6 text-red-600" />
             </div>
           </div>
         </div>
@@ -186,24 +528,28 @@ export default function UsersPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-text/60">
-                Inactive Users
+                Inactive/Suspended
               </p>
-              <p className="text-2xl font-bold text-text mt-1">N/I</p>
+              <p className="text-2xl font-bold text-text mt-1">
+                {isLoading
+                  ? "..."
+                  : adminUsers.filter((u) => u.status !== "active").length}
+              </p>
             </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
-              <FiUserX className="h-6 w-6 text-red-600" />
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+              <FiUserX className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filter */}
+      {/* Search */}
       <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-md">
           <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
           <Input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search admin users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-secondary rounded-lg bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -211,110 +557,397 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Users List */}
+      {/* Admin Users List */}
       <div className="bg-background border border-secondary rounded-lg">
         <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">All Users</h2>
+          <h2 className="text-xl font-semibold text-text">
+            Administrative Users
+          </h2>
         </div>
         <div className="divide-y divide-secondary/50">
-          {filteredUsers.map((user) => (
-            <div
-              key={user.id}
-              className="p-6 hover:bg-secondary/5 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <FiUsers className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-medium text-text">{user.name}</h3>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
-                        {user.role}
-                      </span>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
-                        {user.status}
-                      </span>
+          {isLoading ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-text/60">Loading admin users...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-12 text-center">
+              <FiShield className="h-12 w-12 text-text/20 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-text mb-2">
+                No Admin Users Found
+              </h3>
+              <p className="text-text/60 mb-4">
+                No admin users were found in the database.
+              </p>
+              <p className="text-sm text-text/40">
+                Default login: admin@krapi.local / admin
+              </p>
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <div
+                key={user.id}
+                className="p-6 hover:bg-secondary/5 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                      <FiShield className="h-6 w-6 text-primary" />
                     </div>
-                    <p className="text-sm text-text/60 mt-1">{user.email}</p>
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                      <span>Last active: {user.lastActive}</span>
-                      <span>Projects: {user.projects.join(", ")}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <h3 className="font-medium text-text">
+                          {user.firstName} {user.lastName}
+                        </h3>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(
+                            user.role
+                          )}`}
+                        >
+                          {user.role.replace("_", " ")}
+                        </span>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                            user.status
+                          )}`}
+                        >
+                          {user.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-text/60 mt-1">{user.email}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
+                        <span>
+                          Last active:{" "}
+                          {new Date(user.lastActive).toLocaleDateString()}
+                        </span>
+                        <span>
+                          Created:{" "}
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {/* Permissions Summary */}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {Object.entries(user.permissions)
+                          .filter(
+                            ([key, value]) =>
+                              value === true && key !== "isMasterAdmin"
+                          )
+                          .slice(0, 6)
+                          .map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="flex items-center space-x-1 text-xs text-text/60"
+                            >
+                              {getPermissionIcon(key as keyof AdminPermissions)}
+                              <span>
+                                {key
+                                  .replace(/([A-Z])/g, " $1")
+                                  .replace(/^./, (str) => str.toUpperCase())}
+                              </span>
+                            </div>
+                          ))}
+                        {Object.values(user.permissions).filter(Boolean)
+                          .length > 6 && (
+                          <span className="text-xs text-text/40">
+                            +
+                            {Object.values(user.permissions).filter(Boolean)
+                              .length - 6}{" "}
+                            more
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <IconButton
-                    icon={FiEye}
-                    variant="secondary"
-                    size="sm"
-                    title="View User"
-                  />
-                  <IconButton
-                    icon={FiEdit}
-                    variant="secondary"
-                    size="sm"
-                    title="Edit User"
-                  />
-                  <IconButton
-                    icon={FiMail}
-                    variant="secondary"
-                    size="sm"
-                    title="Send Email"
-                  />
-                  <IconButton
-                    icon={FiMoreVertical}
-                    variant="secondary"
-                    size="sm"
-                    title="More Options"
-                  />
+                  <div className="flex items-center space-x-2">
+                    <IconButton
+                      icon={FiEye}
+                      variant="secondary"
+                      size="sm"
+                      title="View Details"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsEditDialogOpen(true);
+                      }}
+                    />
+                    <IconButton
+                      icon={FiEdit}
+                      variant="secondary"
+                      size="sm"
+                      title="Edit User"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setIsEditDialogOpen(true);
+                      }}
+                    />
+                    <IconButton
+                      icon={user.status === "active" ? FiUserX : FiUserCheck}
+                      variant="secondary"
+                      size="sm"
+                      title={
+                        user.status === "active" ? "Deactivate" : "Activate"
+                      }
+                      onClick={() =>
+                        handleToggleStatus(
+                          user.id,
+                          user.status === "active" ? "inactive" : "active"
+                        )
+                      }
+                    />
+                    {user.role !== "master_admin" && (
+                      <IconButton
+                        icon={FiTrash2}
+                        variant="secondary"
+                        size="sm"
+                        title="Delete User"
+                        onClick={() => handleDeleteAdmin(user.id)}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
-      {/* Empty State */}
-      {filteredUsers.length === 0 && (
-        <div className="bg-background border border-secondary rounded-lg p-12 text-center">
-          <FiUsers className="h-12 w-12 text-text/40 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text mb-2">
-            No users found
-          </h3>
-          <p className="text-text/60 mb-4">
-            {searchQuery
-              ? "Try adjusting your search query"
-              : "Add your first user to get started"}
-          </p>
-          {!searchQuery && (
-            <Button
-              variant="default"
-              onClick={() => setIsCreateDialogOpen(true)}
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Admin User</DialogTitle>
+            <DialogDescription>
+              Modify administrative user permissions and settings
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <Form
+              schema={adminUserSchema}
+              onSubmit={handleEditAdmin}
+              defaultValues={{
+                email: selectedUser.email,
+                firstName: selectedUser.firstName,
+                lastName: selectedUser.lastName,
+                role: selectedUser.role,
+                permissions: selectedUser.permissions,
+                password: "",
+                confirmPassword: "",
+              }}
+              className="space-y-4"
             >
-              <FiPlus className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  name="firstName"
+                  label="First Name"
+                  type="text"
+                  placeholder="Enter first name"
+                  required
+                />
+                <FormField
+                  name="lastName"
+                  label="Last Name"
+                  type="text"
+                  placeholder="Enter last name"
+                  required
+                />
+              </div>
+              <FormField
+                name="email"
+                label="Email Address"
+                type="email"
+                placeholder="Enter email address"
+                required
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  name="password"
+                  label="New Password (leave blank to keep current)"
+                  type="password"
+                  placeholder="Enter new password"
+                />
+                <FormField
+                  name="confirmPassword"
+                  label="Confirm New Password"
+                  type="password"
+                  placeholder="Confirm new password"
+                />
+              </div>
+              <FormField
+                name="role"
+                label="Role"
+                type="select"
+                required
+                options={[
+                  { value: "master_admin", label: "Master Administrator" },
+                  { value: "admin", label: "System Administrator" },
+                  { value: "project_admin", label: "Project Administrator" },
+                  { value: "limited_admin", label: "Limited Administrator" },
+                ]}
+              />
+
+              {/* Permissions Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Permissions</h3>
+
+                {/* System Permissions */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text/80">
+                    System Permissions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      name="permissions.canManageUsers"
+                      label="Manage Users"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canCreateProjects"
+                      label="Create Projects"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canDeleteProjects"
+                      label="Delete Projects"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageSystemSettings"
+                      label="System Settings"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canViewSystemLogs"
+                      label="View System Logs"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageBackups"
+                      label="Manage Backups"
+                      type="checkbox"
+                    />
+                  </div>
+                </div>
+
+                {/* Feature Permissions */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text/80">
+                    Feature Permissions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      name="permissions.canAccessAllProjects"
+                      label="Access All Projects"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageDatabase"
+                      label="Manage Database"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageAPI"
+                      label="Manage API"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageFiles"
+                      label="Manage Files"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageEmail"
+                      label="Manage Email"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canManageAuth"
+                      label="Manage Authentication"
+                      type="checkbox"
+                    />
+                  </div>
+                </div>
+
+                {/* Administrative Permissions */}
+                <div className="space-y-3">
+                  <h4 className="font-medium text-text/80">
+                    Administrative Permissions
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      name="permissions.canCreateAdminAccounts"
+                      label="Create Admin Accounts"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.canModifyOtherAdmins"
+                      label="Modify Other Admins"
+                      type="checkbox"
+                    />
+                    <FormField
+                      name="permissions.isMasterAdmin"
+                      label="Master Administrator"
+                      type="checkbox"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setSelectedUser(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="default">
+                  Update Admin User
+                </Button>
+              </DialogFooter>
+            </Form>
           )}
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Info Block */}
       <InfoBlock
-        title="User Management"
+        title="Server Administration"
         variant="info"
         className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
       >
         <div className="text-sm space-y-2">
           <p>
-            Users can have different roles with varying levels of access:
+            Server Administration allows you to manage administrative users with
+            granular permissions.
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li><strong>Admin:</strong> Full access to all features and settings</li>
-            <li><strong>Developer:</strong> Access to projects, database, and API management</li>
-            <li><strong>Viewer:</strong> Read-only access to data and analytics</li>
+            <li>
+              <strong>Master Administrator:</strong> Full system access, can
+              manage all other admins
+            </li>
+            <li>
+              <strong>System Administrator:</strong> Full system access, limited
+              admin management
+            </li>
+            <li>
+              <strong>Project Administrator:</strong> Project-focused
+              permissions with some system access
+            </li>
+            <li>
+              <strong>Limited Administrator:</strong> Restricted permissions for
+              specific tasks
+            </li>
           </ul>
+          <p className="mt-3">
+            <strong>Default Login:</strong> admin@krapi.local / admin
+          </p>
+          <p className="mt-1">
+            <strong>Note:</strong> Only Master Administrators can create new
+            admin accounts and modify other admin permissions.
+          </p>
         </div>
       </InfoBlock>
     </div>

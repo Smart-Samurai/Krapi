@@ -33,7 +33,7 @@ interface DashboardStats {
 
 interface SystemHealthItem {
   service: string;
-  status: 'healthy' | 'warning' | 'error';
+  status: "healthy" | "warning" | "error";
   uptime: string;
   responseTime: string;
 }
@@ -74,24 +74,26 @@ export default function DashboardPage() {
       // Fetch system health
       const healthResponse = await krapi.client.health();
       if (healthResponse.success) {
+        const healthData = healthResponse.data as any; // Type assertion for now
         setSystemHealth([
           {
             service: "API Gateway",
-            status: healthResponse.data?.api?.status === 'ok' ? 'healthy' : 'error',
-            uptime: healthResponse.data?.api?.uptime || '0%',
-            responseTime: healthResponse.data?.api?.responseTime || 'N/A',
+            status: healthData?.api?.status === "ok" ? "healthy" : "error",
+            uptime: healthData?.api?.uptime || "0%",
+            responseTime: healthData?.api?.responseTime || "N/A",
           },
           {
             service: "Database",
-            status: healthResponse.data?.database?.status === 'ok' ? 'healthy' : 'error',
-            uptime: healthResponse.data?.database?.uptime || '0%',
-            responseTime: healthResponse.data?.database?.responseTime || 'N/A',
+            status: healthData?.database?.status === "ok" ? "healthy" : "error",
+            uptime: healthData?.database?.uptime || "0%",
+            responseTime: healthData?.database?.responseTime || "N/A",
           },
           {
             service: "File Storage",
-            status: healthResponse.data?.storage?.status === 'ok' ? 'healthy' : 'warning',
-            uptime: healthResponse.data?.storage?.uptime || '0%',
-            responseTime: healthResponse.data?.storage?.responseTime || 'N/A',
+            status:
+              healthData?.storage?.status === "ok" ? "healthy" : "warning",
+            uptime: healthData?.storage?.uptime || "0%",
+            responseTime: healthData?.storage?.responseTime || "N/A",
           },
         ]);
       }
@@ -109,11 +111,11 @@ export default function DashboardPage() {
   };
 
   const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 GB';
+    if (bytes === 0) return "0 GB";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const statsDisplay = [
@@ -121,28 +123,28 @@ export default function DashboardPage() {
       title: "Total Projects",
       value: stats.totalProjects.toString(),
       change: "+0",
-      changeType: "neutral" as const,
+      changeType: "positive" as const,
       icon: FiCode,
     },
     {
       title: "Active Users",
       value: stats.activeUsers.toString(),
       change: "+0%",
-      changeType: "neutral" as const,
+      changeType: "positive" as const,
       icon: FiUsers,
     },
     {
       title: "Database Collections",
       value: stats.databaseCollections.toString(),
       change: "+0",
-      changeType: "neutral" as const,
+      changeType: "positive" as const,
       icon: FiDatabase,
     },
     {
       title: "Storage Used",
       value: stats.storageUsed,
       change: "+0 GB",
-      changeType: "neutral" as const,
+      changeType: "positive" as const,
       icon: FiFileText,
     },
   ];
@@ -157,10 +159,10 @@ export default function DashboardPage() {
             System-wide overview and management
           </p>
         </div>
-        <Button 
-          variant="default" 
+        <Button
+          variant="default"
           size="lg"
-          onClick={() => router.push('/projects')}
+          onClick={() => router.push("/projects")}
         >
           <FiPlus className="mr-2 h-4 w-4" />
           View Projects
@@ -214,7 +216,10 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-text">
                 Recent Activity
               </h2>
-              <TextButton variant="link" onClick={() => router.push('/projects')}>
+              <TextButton
+                variant="link"
+                onClick={() => router.push("/projects")}
+              >
                 View All Projects
               </TextButton>
             </div>
@@ -232,7 +237,9 @@ export default function DashboardPage() {
                         <FiActivity className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-medium text-text">{activity.action}</h3>
+                        <h3 className="font-medium text-text">
+                          {activity.action}
+                        </h3>
                         <p className="text-sm text-text/60">
                           {activity.resource} • {activity.timestamp}
                         </p>
@@ -302,34 +309,34 @@ export default function DashboardPage() {
       <div className="bg-background border border-secondary rounded-lg p-6">
         <h2 className="text-xl font-semibold text-text mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             className="h-20 flex-col"
-            onClick={() => router.push('/users')}
+            onClick={() => router.push("/users")}
           >
             <FiUsers className="h-6 w-6 mb-2" />
             <span className="text-sm">Manage Users</span>
           </Button>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             className="h-20 flex-col"
-            onClick={() => router.push('/database')}
+            onClick={() => router.push("/database" as any)}
           >
             <FiDatabase className="h-6 w-6 mb-2" />
             <span className="text-sm">Database</span>
           </Button>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             className="h-20 flex-col"
-            onClick={() => router.push('/files')}
+            onClick={() => router.push("/files" as any)}
           >
             <FiFileText className="h-6 w-6 mb-2" />
             <span className="text-sm">Files</span>
           </Button>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             className="h-20 flex-col"
-            onClick={() => router.push('/health')}
+            onClick={() => router.push("/health")}
           >
             <FiActivity className="h-6 w-6 mb-2" />
             <span className="text-sm">System Health</span>
@@ -376,10 +383,11 @@ export default function DashboardPage() {
               <strong>KRAPI Version</strong> - v1.0.0
             </div>
             <div className="text-sm">
-              <strong>Node.js</strong> - {process.version || 'N/A'}
+              <strong>Node.js</strong> - {process.version || "N/A"}
             </div>
             <div className="text-sm">
-              <strong>Environment</strong> - {process.env.NODE_ENV || 'development'}
+              <strong>Environment</strong> -{" "}
+              {process.env.NODE_ENV || "development"}
             </div>
           </div>
         </InfoBlock>

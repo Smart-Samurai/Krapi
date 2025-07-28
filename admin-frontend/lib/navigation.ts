@@ -52,7 +52,7 @@ export const navigation: NavigationItem[] = [
     category: "admin",
   },
   {
-    name: "Admin Users",
+    name: "Server Administration",
     href: "/admin/users",
     icon: Users,
     category: "admin",

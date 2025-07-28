@@ -1,11 +1,16 @@
 import KrapiClient, { KrapiResponse } from "./client";
-import { ProjectStats, ProjectApiKey } from "./types";
+import { Project, ProjectStats, ProjectApiKey } from "./types";
 
 export class KrapiProjects {
   private client: KrapiClient;
 
   constructor(client: KrapiClient) {
     this.client = client;
+  }
+
+  // Get project by ID
+  async getById(projectId: string): Promise<KrapiResponse<Project>> {
+    return this.client.request("projects", "get", "byId", { projectId });
   }
 
   // Get project stats

@@ -15,20 +15,20 @@ export class AuthController {
         password: req.body.password ? "present" : "missing",
       });
 
-      const { username, password }: LoginRequest = req.body;
+      const { email, password }: LoginRequest = req.body;
 
-      if (!username || !password) {
-        console.log("🔐 AuthController: Missing username or password");
+      if (!email || !password) {
+        console.log("🔐 AuthController: Missing email or password");
         const response: ApiResponse = {
           success: false,
-          error: "Username and password are required",
+          error: "Email and password are required",
         };
         res.status(400).json(response);
         return;
       }
 
       console.log("🔐 AuthController: Calling AuthService.login");
-      const result = await AuthService.login(username, password);
+      const result = await AuthService.login(email, password);
       console.log(
         "🔐 AuthController: AuthService result:",
         result ? "success" : "failed"
@@ -36,7 +36,7 @@ export class AuthController {
 
       // Log the login attempt
       coreDatabase.createLoginLog({
-        username,
+        username: email, // Use email as username for logging
         ip_address: req.ip || req.connection.remoteAddress || "unknown",
         user_agent: req.headers["user-agent"] as string,
         success: !!result,
@@ -238,23 +238,36 @@ export class AuthController {
         return;
       }
 
-      const { username, email, password, role = "admin" } = req.body;
+      const {
+        email,
+        firstName,
+        lastName,
+        password,
+        role = "admin",
+        permissions,
+      } = req.body;
 
-      if (!username || !email || !password) {
+      if (!email || !firstName || !lastName || !password) {
         const response: ApiResponse = {
           success: false,
-          error: "Username, email, and password are required",
+          error: "Email, first name, last name, and password are required",
         };
         res.status(400).json(response);
         return;
       }
 
       const user = await AuthService.createUser({
-        username,
         email,
+        firstName,
+        lastName,
         password,
-        role: role as "admin" | "user",
+        role: role as
+          | "master_admin"
+          | "admin"
+          | "project_admin"
+          | "limited_admin",
         active: true,
+        permissions,
       });
 
       if (!user) {
