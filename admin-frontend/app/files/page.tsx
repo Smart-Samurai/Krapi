@@ -46,40 +46,13 @@ export default function FilesPage() {
 
   const files = [
     {
-      id: "1",
-      name: "product-image-1.jpg",
-      type: "image",
-      size: "2.4 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-15",
-      tags: ["product", "image"],
-    },
-    {
-      id: "2",
-      name: "user-manual.pdf",
-      type: "document",
-      size: "1.8 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-14",
-      tags: ["documentation", "pdf"],
-    },
-    {
-      id: "3",
-      name: "demo-video.mp4",
-      type: "video",
-      size: "45.2 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-13",
-      tags: ["demo", "video"],
-    },
-    {
-      id: "4",
-      name: "backup-data.zip",
-      type: "archive",
-      size: "128.7 MB",
-      uploadedBy: "admin",
-      uploadedAt: "2024-01-12",
-      tags: ["backup", "archive"],
+      id: "N/I",
+      name: "Not Implemented",
+      type: "N/I",
+      size: "N/I",
+      uploadedBy: "N/I",
+      uploadedAt: "N/I",
+      tags: ["N/I"],
     },
   ];
 
