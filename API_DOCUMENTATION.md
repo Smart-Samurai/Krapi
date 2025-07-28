@@ -22,6 +22,8 @@ The old API with multiple endpoints has been replaced with a **Unified API** str
 ### ✅ New System (Unified API)
 
 - **Single endpoint**: `http://localhost:3470/krapi/v1/api`
+- **Auth endpoint**: `http://localhost:3470/krapi/v1/auth`
+- **Base URL**: `http://localhost:3470/krapi/v1` (not `/krapi/k1`)
 - **Consistent format**: All operations use the same request structure
 - **Appwrite-style**: Similar to modern BaaS platforms
 - **Clean architecture**: One endpoint for all operations

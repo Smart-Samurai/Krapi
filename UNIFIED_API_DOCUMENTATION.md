@@ -9,11 +9,13 @@ Krapi now uses a **unified API endpoint** similar to Appwrite, where all operati
 - **Development**: `http://localhost:3470/krapi/v1`
 - **Production**: Configure via environment variables
 
+**Note**: The previous version used `/krapi/k1` but the current version uses `/krapi/v1`
+
 ## Authentication
 
 - **Admin Authentication**: Bearer token via `Authorization: Bearer <token>` header
 - **Project API Authentication**: API key via `X-API-Key: <key>` header
-- **Default Admin Credentials**: `admin/admin123`
+- **Default Admin Credentials**: Username: `admin`, Password: `admin123`
 
 ---
 
@@ -46,13 +48,10 @@ Krapi now uses a **unified API endpoint** similar to Appwrite, where all operati
 ```json
 {
   "method": "login" | "verify",
-  "credentials": {
-    // For login
-    "email": "user@example.com",
-    "password": "password"
-    // OR for verify
-    "apiKey": "your-api-key"
-  }
+  // For login
+  "username": "admin",
+  "password": "admin123"
+  // For verify - token is passed via Authorization header
 }
 ```
 
@@ -702,10 +701,8 @@ curl -X POST http://localhost:3470/krapi/v1/auth \
   -H "Content-Type: application/json" \
   -d '{
     "method": "login",
-    "credentials": {
-      "email": "admin@krapi.com",
-      "password": "admin123"
-    }
+    "username": "admin",
+    "password": "admin123"
   }'
 ```
 
@@ -720,6 +717,7 @@ curl -X POST http://localhost:3470/krapi/v1/api \
     "resource": "collections",
     "action": "create",
     "params": {
+      "projectId": "project-id-here",  // Required when using admin auth
       "name": "users",
       "description": "User collection"
     }

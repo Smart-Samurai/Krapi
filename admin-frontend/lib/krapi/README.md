@@ -41,12 +41,14 @@ The Krapi library follows a modular architecture with separate modules for diffe
 
 - **Client**: Core HTTP client with authentication handling
 - **Auth**: Authentication operations (login, verify, logout)
-- **Admin**: Admin-specific operations (system management)
+- **Admin**: Admin-specific operations (projects, system management)
 - **Database**: Database operations (collections, documents)
 - **Storage**: File storage operations
 - **Users**: User management
-- **Projects**: Project management
+- **Projects**: Project-specific operations (API keys, stats)
 - **Email**: Email operations
+
+**Important Note**: Project CRUD operations (create, read, update, delete) are handled by the **Admin** module, not the Projects module. The Projects module is for project-specific operations like managing API keys.
 
 ## Authentication
 
@@ -55,8 +57,8 @@ The library supports two types of authentication:
 ### 1. Admin Authentication (JWT)
 
 ```typescript
-// Login as admin
-const loginResult = await krapi.auth.login('admin@example.com', 'password');
+// Login as admin (uses username, not email)
+const loginResult = await krapi.auth.login('admin', 'admin123');
 if (loginResult.success) {
   // Token is automatically stored and used for subsequent requests
   console.log('Logged in:', loginResult.data);
@@ -73,13 +75,15 @@ const projectKrapi = createKrapi({
 });
 ```
 
+**Important**: When using API key authentication, the backend automatically adds the `projectId` to requests. When using admin JWT authentication, you must explicitly pass `projectId` in the params for project-scoped operations (collections, documents, files).
+
 ## Module Usage
 
 ### Auth Module
 
 ```typescript
-// Login
-const loginResult = await krapi.auth.login('email@example.com', 'password');
+// Login (uses username, not email)
+const loginResult = await krapi.auth.login('username', 'password');
 
 // Verify token
 const verifyResult = await krapi.auth.verify();
@@ -91,12 +95,13 @@ const logoutResult = await krapi.auth.logout();
 ### Database Module
 
 ```typescript
-// List collections
-const collections = await krapi.database.listCollections();
+// List collections (requires projectId when using admin auth)
+const collections = await krapi.database.listCollections({ projectId: 'project-id' });
 
-// Create collection
+// Create collection (requires projectId when using admin auth)
 const newCollection = await krapi.database.createCollection({
   name: 'posts',
+  projectId: 'project-id', // Required when using admin auth
   schema: {
     title: { type: 'string', required: true },
     content: { type: 'string' },
@@ -136,8 +141,8 @@ const deleted = await krapi.database.deleteDocument('posts', 'document-id');
 const file = new File(['content'], 'test.txt', { type: 'text/plain' });
 const uploaded = await krapi.storage.uploadFile(file);
 
-// List files
-const files = await krapi.storage.listFiles();
+// List files (requires projectId when using admin auth)
+const files = await krapi.storage.listFiles({ projectId: 'project-id' });
 
 // Get file
 const fileData = await krapi.storage.getFile('file-id');
@@ -146,28 +151,28 @@ const fileData = await krapi.storage.getFile('file-id');
 const deleted = await krapi.storage.deleteFile('file-id');
 ```
 
-### Projects Module
+### Admin Module (Projects)
 
 ```typescript
-// List projects
-const projects = await krapi.projects.list();
+// List projects (admin operations)
+const projects = await krapi.admin.listProjects();
 
 // Create project
-const newProject = await krapi.projects.create({
+const newProject = await krapi.admin.createProject({
   name: 'My CMS',
   description: 'A content management system'
 });
 
 // Get project
-const project = await krapi.projects.get('project-id');
+const project = await krapi.admin.getProject('project-id');
 
 // Update project
-const updated = await krapi.projects.update('project-id', {
+const updated = await krapi.admin.updateProject('project-id', {
   description: 'Updated description'
 });
 
 // Delete project
-const deleted = await krapi.projects.delete('project-id');
+const deleted = await krapi.admin.deleteProject('project-id');
 
 // Create API key for project
 const apiKey = await krapi.projects.createApiKey('project-id', {
@@ -298,15 +303,15 @@ import { createDefaultKrapi } from '@/lib/krapi';
 async function example() {
   const krapi = createDefaultKrapi();
   
-  // 1. Login as admin
-  const loginResult = await krapi.auth.login('admin@example.com', 'password');
+  // 1. Login as admin (uses username, not email)
+  const loginResult = await krapi.auth.login('admin', 'admin123');
   if (!loginResult.success) {
     console.error('Login failed:', loginResult.error);
     return;
   }
   
-  // 2. Create a project
-  const projectResult = await krapi.projects.create({
+  // 2. Create a project (using admin module)
+  const projectResult = await krapi.admin.createProject({
     name: 'My Blog',
     description: 'A simple blog CMS'
   });
