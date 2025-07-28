@@ -22,6 +22,10 @@ interface SidebarLayoutProps {
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const pathname = usePathname();
 
+  // Check if we're inside a project context
+  const isInProjectContext = pathname.includes("/projects/") && pathname.split("/").length > 3;
+  const projectId = isInProjectContext ? pathname.split("/")[2] : null;
+
   // Determine which navigation item is active based on current path
   const isActive = (href: string) => {
     if (href === "/dashboard" && pathname === "/dashboard") return true;
@@ -29,8 +33,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     return false;
   };
 
-  // Get navigation items
-  const navItems = {
+  // Get navigation items - separate global and project-specific items
+  const globalNavItems = {
     main: [
       {
         icon: navigationItems.dashboard.icon,
@@ -45,27 +49,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         isActive: isActive(navigationItems.projects.href),
       },
     ],
-    management: [
+    system: [
       {
         icon: navigationItems.users.icon,
         label: navigationItems.users.label,
         href: navigationItems.users.href,
         isActive: isActive(navigationItems.users.href),
       },
-      {
-        icon: navigationItems.database.icon,
-        label: navigationItems.database.label,
-        href: navigationItems.database.href,
-        isActive: isActive(navigationItems.database.href),
-      },
-      {
-        icon: navigationItems.files.icon,
-        label: navigationItems.files.label,
-        href: navigationItems.files.href,
-        isActive: isActive(navigationItems.files.href),
-      },
-    ],
-    system: [
       {
         icon: navigationItems.health.icon,
         label: navigationItems.health.label,
@@ -93,6 +83,24 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     ],
   };
 
+  // Project-specific navigation items (only shown when inside a project)
+  const projectNavItems = isInProjectContext ? {
+    project: [
+      {
+        icon: navigationItems.database.icon,
+        label: navigationItems.database.label,
+        href: `/projects/${projectId}/database`,
+        isActive: pathname.includes("/database"),
+      },
+      {
+        icon: navigationItems.files.icon,
+        label: navigationItems.files.label,
+        href: `/projects/${projectId}/files`,
+        isActive: pathname.includes("/files"),
+      },
+    ],
+  } : null;
+
   return (
     <SidebarProvider defaultOpen={true}>
       <SidebarRoot className="h-screen">
@@ -101,9 +109,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             <span>KRAPI Admin</span>
           </SidebarHeader>
           <SidebarContent>
-            {navItems.main && (
+            {globalNavItems.main && (
               <SidebarNavGroup title="Main">
-                {navItems.main.map((item) => (
+                {globalNavItems.main.map((item) => (
                   <SidebarNavItem
                     key={item.href}
                     icon={item.icon}
@@ -114,9 +122,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 ))}
               </SidebarNavGroup>
             )}
-            {navItems.management && (
-              <SidebarNavGroup title="Management">
-                {navItems.management.map((item) => (
+            {projectNavItems?.project && (
+              <SidebarNavGroup title="Project">
+                {projectNavItems.project.map((item) => (
                   <SidebarNavItem
                     key={item.href}
                     icon={item.icon}
@@ -127,9 +135,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 ))}
               </SidebarNavGroup>
             )}
-            {navItems.system && (
+            {globalNavItems.system && (
               <SidebarNavGroup title="System">
-                {navItems.system.map((item) => (
+                {globalNavItems.system.map((item) => (
                   <SidebarNavItem
                     key={item.href}
                     icon={item.icon}
