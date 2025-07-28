@@ -29,12 +29,13 @@ import {
 interface FileItem {
   id: string;
   name: string;
+  filename: string;
+  mime_type: string;
   size: number;
-  type: string;
-  mimeType: string;
-  url: string;
-  createdAt: string;
-  updatedAt: string;
+  path: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
 }
 
 export default function ProjectFilesPage() {
@@ -71,12 +72,12 @@ export default function ProjectFilesPage() {
     }
   };
 
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith("image/")) return <FiImage className="h-5 w-5" />;
-    if (mimeType.startsWith("video/")) return <FiVideo className="h-5 w-5" />;
-    if (mimeType.startsWith("audio/")) return <FiMusic className="h-5 w-5" />;
-    if (mimeType.includes("zip") || mimeType.includes("archive")) return <FiArchive className="h-5 w-5" />;
-    if (mimeType.includes("text") || mimeType.includes("document")) return <FiFileText className="h-5 w-5" />;
+  const getFileIcon = (mime_type: string) => {
+    if (mime_type.startsWith("image/")) return <FiImage className="h-5 w-5" />;
+    if (mime_type.startsWith("video/")) return <FiVideo className="h-5 w-5" />;
+    if (mime_type.startsWith("audio/")) return <FiMusic className="h-5 w-5" />;
+    if (mime_type.includes("zip") || mime_type.includes("archive")) return <FiArchive className="h-5 w-5" />;
+    if (mime_type.includes("text") || mime_type.includes("document")) return <FiFileText className="h-5 w-5" />;
     return <FiFile className="h-5 w-5" />;
   };
 
@@ -215,14 +216,14 @@ export default function ProjectFilesPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                      {getFileIcon(file.mimeType)}
+                      {getFileIcon(file.mime_type)}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-medium text-text">{file.name}</h3>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
                         <span>{formatFileSize(file.size)}</span>
-                        <span>{file.mimeType}</span>
-                        <span>Uploaded: {new Date(file.createdAt).toLocaleDateString()}</span>
+                        <span>{file.mime_type}</span>
+                        <span>Uploaded: {new Date(file.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -232,7 +233,11 @@ export default function ProjectFilesPage() {
                       variant="secondary"
                       size="sm"
                       title="Preview File"
-                      onClick={() => window.open(file.url, "_blank")}
+                      onClick={() => {
+                        const krapi = createDefaultKrapi();
+                        const url = krapi.storage.getFileUrl(file.id);
+                        window.open(url, "_blank");
+                      }}
                     />
                     <IconButton
                       icon={FiDownload}

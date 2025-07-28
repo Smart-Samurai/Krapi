@@ -9,8 +9,10 @@ export class KrapiStorage {
   }
 
   // List files
-  async listFiles(): Promise<KrapiResponse<FileInfo[]>> {
-    return this.client.request("storage", "files", "list");
+  async listFiles(params?: {
+    projectId?: string;
+  }): Promise<KrapiResponse<FileInfo[]>> {
+    return this.client.request("storage", "files", "list", params);
   }
 
   // Get file info

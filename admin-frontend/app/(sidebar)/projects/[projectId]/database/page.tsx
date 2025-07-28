@@ -22,11 +22,15 @@ import {
 
 interface Collection {
   id: string;
+  project_id: string;
   name: string;
   description?: string;
-  documentCount: number;
-  createdAt: string;
-  updatedAt: string;
+  schema: Record<string, unknown>;
+  indexes: string[];
+  permissions: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  document_count: number;
 }
 
 export default function ProjectDatabasePage() {
@@ -48,6 +52,7 @@ export default function ProjectDatabasePage() {
     
     try {
       const krapi = createDefaultKrapi();
+      // When using admin auth, we need to pass projectId explicitly
       const result = await krapi.database.listCollections({ projectId });
       
       if (result.success && result.data) {
@@ -126,7 +131,7 @@ export default function ProjectDatabasePage() {
             <div>
               <p className="text-sm font-medium text-text/60">Total Documents</p>
               <p className="text-2xl font-bold text-text mt-1">
-                {collections.reduce((sum, col) => sum + col.documentCount, 0)}
+                {collections.reduce((sum, col) => sum + col.document_count, 0)}
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
@@ -141,7 +146,7 @@ export default function ProjectDatabasePage() {
               <p className="text-2xl font-bold text-text mt-1">
                 {collections.length > 0
                   ? Math.round(
-                      collections.reduce((sum, col) => sum + col.documentCount, 0) /
+                      collections.reduce((sum, col) => sum + col.document_count, 0) /
                         collections.length
                     )
                   : 0}
@@ -201,9 +206,9 @@ export default function ProjectDatabasePage() {
                         </p>
                       )}
                       <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                        <span>{collection.documentCount} documents</span>
-                        <span>Created: {new Date(collection.createdAt).toLocaleDateString()}</span>
-                        <span>Updated: {new Date(collection.updatedAt).toLocaleDateString()}</span>
+                        <span>{collection.document_count} documents</span>
+                        <span>Created: {new Date(collection.created_at).toLocaleDateString()}</span>
+                        <span>Updated: {new Date(collection.updated_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>

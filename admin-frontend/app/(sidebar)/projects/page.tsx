@@ -57,7 +57,7 @@ export default function ProjectsPage() {
     
     try {
       const krapi = createDefaultKrapi();
-      const result = await krapi.projects.list();
+      const result = await krapi.admin.listProjects();
       
       if (result.success && result.data) {
         setProjects(result.data);
@@ -77,7 +77,7 @@ export default function ProjectsPage() {
     
     try {
       const krapi = createDefaultKrapi();
-      const result = await krapi.projects.create({
+      const result = await krapi.admin.createProject({
         name: data.name,
         description: data.description || "",
       });
@@ -102,7 +102,7 @@ export default function ProjectsPage() {
     
     try {
       const krapi = createDefaultKrapi();
-      const result = await krapi.projects.delete(projectId);
+      const result = await krapi.admin.deleteProject(projectId);
       
       if (result.success) {
         // Refresh projects list

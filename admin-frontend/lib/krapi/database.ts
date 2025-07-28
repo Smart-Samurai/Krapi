@@ -9,8 +9,10 @@ export class KrapiDatabase {
   }
 
   // Collections
-  async listCollections(): Promise<KrapiResponse<Collection[]>> {
-    return this.client.request("database", "collections", "list");
+  async listCollections(params?: {
+    projectId?: string;
+  }): Promise<KrapiResponse<Collection[]>> {
+    return this.client.request("database", "collections", "list", params);
   }
 
   async getCollection(
@@ -26,6 +28,7 @@ export class KrapiDatabase {
     description?: string;
     schema: Record<string, any>;
     permissions?: Record<string, any>;
+    projectId?: string;
   }): Promise<KrapiResponse<Collection>> {
     return this.client.request(
       "database",

@@ -46,7 +46,6 @@ const routes_1 = __importDefault(require("./routes"));
 const unified_api_1 = __importDefault(require("./routes/unified-api"));
 // Removed express-ws in favor of ws
 const auth_1 = require("./services/auth");
-const email_1 = require("./services/email");
 const mcp_1 = require("./controllers/mcp");
 // Initialize project database
 require("./services/project-database");
@@ -84,7 +83,7 @@ app.use(express_1.default.urlencoded({ extended: true, limit: "10mb" }));
 // Routes
 app.use("/", routes_1.default);
 // Unified API (Appwrite-style)
-app.use("/krapi/v1", unified_api_1.default);
+app.use("/krapi/k1", unified_api_1.default);
 // Error handling middleware
 app.use((err, req, res, _next) => {
     console.error("Error:", err);
@@ -121,7 +120,7 @@ wss.on("connection", (ws, req) => {
         ws.close(1008, "Invalid or expired token");
         return;
     }
-    const connectionId = `${payload.userId}-${Date.now()}`;
+    const connectionId = `${payload.id}-${Date.now()}`;
     activeConnections.set(connectionId, ws);
     console.log(`WebSocket connected for user ${payload.username} (ID: ${connectionId})`);
     // Send welcome message
@@ -248,12 +247,11 @@ function broadcastToAll(message) {
 // Start HTTP and WebSocket server
 server.listen(PORT, async () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/api/health`);
+    console.log(`Health check: http://localhost:${PORT}/krapi/k1/health`);
     console.log(`API docs: http://localhost:${PORT}/`);
     console.log(`WebSocket: ws://localhost:${PORT}/ws`);
     console.log(`Default admin user: admin/admin123`);
     // Initialize email service with WebSocket broadcast function
-    (0, email_1.setBroadcastFunction)(broadcastToAll);
     console.log(`Email service initialized with WebSocket broadcasting`);
     // Initialize MCP server with Ollama integration (non-blocking)
     // Don't await this to prevent blocking server startup

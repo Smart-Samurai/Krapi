@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = exports.requirePermission = exports.authenticateToken = void 0;
 const auth_1 = require("../services/auth");
-const database_1 = __importDefault(require("../services/database"));
+const core_database_1 = __importDefault(require("../services/core-database"));
+const coreDatabase = new core_database_1.default();
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
@@ -28,8 +29,8 @@ const authenticateToken = (req, res, next) => {
         res.status(403).json(response);
         return;
     }
-    // Get full user details including permissions
-    const user = database_1.default.getUserById(payload.userId);
+    // Get full user details
+    const user = coreDatabase.getUserById(payload.id);
     if (!user || !user.active) {
         const response = {
             success: false,
@@ -39,10 +40,9 @@ const authenticateToken = (req, res, next) => {
         return;
     }
     req.user = {
-        userId: user.id,
+        id: user.id,
         username: user.username,
         role: user.role,
-        permissions: user.permissions,
     };
     next();
 };
@@ -58,8 +58,7 @@ const requirePermission = (requiredPermission) => {
             res.status(401).json(response);
             return;
         }
-        if (!req.user.permissions.includes(requiredPermission) &&
-            req.user.role !== "admin") {
+        if (req.user.role !== "admin") {
             const response = {
                 success: false,
                 error: `Insufficient permissions. Required: ${requiredPermission}`,
