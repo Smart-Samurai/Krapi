@@ -13,6 +13,7 @@ import {
   DialogTrigger,
   IconButton,
   InfoBlock,
+  Input,
 } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import {
@@ -222,7 +223,7 @@ export default function EmailPage() {
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
-            <input
+            <Input
               type="text"
               placeholder="Search emails..."
               value={searchTerm}

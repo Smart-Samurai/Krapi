@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Input, InfoBlock, IconButton } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiShield } from "react-icons/fi";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -15,6 +17,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -25,7 +28,7 @@ export default function LoginPage() {
     console.log("Login attempt:", data);
     setIsLoading(false);
     // Redirect to dashboard after successful login
-    window.location.href = "/dashboard";
+    router.push("/dashboard");
   };
 
   return (
@@ -69,11 +72,13 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
+                <Checkbox
+                  id="remember-me"
                   className="rounded border-secondary text-primary focus:ring-primary"
                 />
-                <span className="text-sm text-text/80">Remember me</span>
+                <label htmlFor="remember-me" className="text-sm text-text/80 cursor-pointer">
+                  Remember me
+                </label>
               </label>
               <Button variant="link" type="button" className="text-sm">
                 Forgot password?
