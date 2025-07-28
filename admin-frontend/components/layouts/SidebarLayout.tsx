@@ -29,115 +29,69 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     return false;
   };
 
-  // Check if we're on the login page
-  const isLoginPage = pathname === "/login";
-  const isStyletestPage = pathname === "/styletest";
-
-  // Get navigation items based on current route
-  const getNavigationItems = () => {
-    if (isLoginPage) {
-      return {
-        main: [
-          {
-            icon: navigationItems.dashboard.icon,
-            label: "Back to Dashboard",
-            href: "/dashboard",
-            isActive: false,
-          },
-        ],
-      };
-    }
-
-    if (isStyletestPage) {
-      return {
-        main: [
-          {
-            icon: navigationItems.dashboard.icon,
-            label: "Dashboard",
-            href: "/dashboard",
-            isActive: false,
-          },
-          {
-            icon: navigationItems.projects.icon,
-            label: "Projects",
-            href: "/projects",
-            isActive: false,
-          },
-        ],
-      };
-    }
-
-    // Default admin navigation
-    return {
-      main: [
-        {
-          icon: navigationItems.dashboard.icon,
-          label: navigationItems.dashboard.label,
-          href: navigationItems.dashboard.href,
-          isActive: isActive(navigationItems.dashboard.href),
-        },
-        {
-          icon: navigationItems.projects.icon,
-          label: navigationItems.projects.label,
-          href: navigationItems.projects.href,
-          isActive: isActive(navigationItems.projects.href),
-        },
-      ],
-      management: [
-        {
-          icon: navigationItems.users.icon,
-          label: navigationItems.users.label,
-          href: navigationItems.users.href,
-          isActive: isActive(navigationItems.users.href),
-        },
-        {
-          icon: navigationItems.database.icon,
-          label: navigationItems.database.label,
-          href: navigationItems.database.href,
-          isActive: isActive(navigationItems.database.href),
-        },
-        {
-          icon: navigationItems.files.icon,
-          label: navigationItems.files.label,
-          href: navigationItems.files.href,
-          isActive: isActive(navigationItems.files.href),
-        },
-      ],
-      system: [
-        {
-          icon: navigationItems.health.icon,
-          label: navigationItems.health.label,
-          href: navigationItems.health.href,
-          isActive: isActive(navigationItems.health.href),
-        },
-        {
-          icon: navigationItems.api.icon,
-          label: navigationItems.api.label,
-          href: navigationItems.api.href,
-          isActive: isActive(navigationItems.api.href),
-        },
-        {
-          icon: navigationItems.auth.icon,
-          label: navigationItems.auth.label,
-          href: navigationItems.auth.href,
-          isActive: isActive(navigationItems.auth.href),
-        },
-        {
-          icon: navigationItems.settings.icon,
-          label: navigationItems.settings.label,
-          href: navigationItems.settings.href,
-          isActive: isActive(navigationItems.settings.href),
-        },
-      ],
-    };
+  // Get navigation items
+  const navItems = {
+    main: [
+      {
+        icon: navigationItems.dashboard.icon,
+        label: navigationItems.dashboard.label,
+        href: navigationItems.dashboard.href,
+        isActive: isActive(navigationItems.dashboard.href),
+      },
+      {
+        icon: navigationItems.projects.icon,
+        label: navigationItems.projects.label,
+        href: navigationItems.projects.href,
+        isActive: isActive(navigationItems.projects.href),
+      },
+    ],
+    management: [
+      {
+        icon: navigationItems.users.icon,
+        label: navigationItems.users.label,
+        href: navigationItems.users.href,
+        isActive: isActive(navigationItems.users.href),
+      },
+      {
+        icon: navigationItems.database.icon,
+        label: navigationItems.database.label,
+        href: navigationItems.database.href,
+        isActive: isActive(navigationItems.database.href),
+      },
+      {
+        icon: navigationItems.files.icon,
+        label: navigationItems.files.label,
+        href: navigationItems.files.href,
+        isActive: isActive(navigationItems.files.href),
+      },
+    ],
+    system: [
+      {
+        icon: navigationItems.health.icon,
+        label: navigationItems.health.label,
+        href: navigationItems.health.href,
+        isActive: isActive(navigationItems.health.href),
+      },
+      {
+        icon: navigationItems.api.icon,
+        label: navigationItems.api.label,
+        href: navigationItems.api.href,
+        isActive: isActive(navigationItems.api.href),
+      },
+      {
+        icon: navigationItems.auth.icon,
+        label: navigationItems.auth.label,
+        href: navigationItems.auth.href,
+        isActive: isActive(navigationItems.auth.href),
+      },
+      {
+        icon: navigationItems.settings.icon,
+        label: navigationItems.settings.label,
+        href: navigationItems.settings.href,
+        isActive: isActive(navigationItems.settings.href),
+      },
+    ],
   };
-
-  const navItems = getNavigationItems();
-
-  // For login page, don't render the sidebar at all
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
 
   return (
     <SidebarProvider defaultOpen={true}>
