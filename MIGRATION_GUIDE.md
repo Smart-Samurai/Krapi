@@ -20,7 +20,7 @@ const loginResult = await krapi.auth.login('admin', 'admin123');
 
 ### 2. API Endpoint - Version
 
-❌ **Incorrect** (old version):
+❌ **Incorrect** (old version k1):
 ```javascript
 const krapi = createKrapi({
   endpoint: 'http://localhost:3470/krapi/k1'

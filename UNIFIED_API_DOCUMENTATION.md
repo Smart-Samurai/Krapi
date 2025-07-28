@@ -9,7 +9,7 @@ Krapi now uses a **unified API endpoint** similar to Appwrite, where all operati
 - **Development**: `http://localhost:3470/krapi/v1`
 - **Production**: Configure via environment variables
 
-**Note**: The previous version used `/krapi/k1` but the current version uses `/krapi/v1`
+
 
 ## Authentication
 

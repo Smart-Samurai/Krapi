@@ -45,7 +45,7 @@ export default function LoginPage() {
         // Redirect to dashboard after successful login
         router.push("/dashboard");
       } else {
-        setError(result.error || "Invalid email or password");
+        setError(result.error || "Invalid username or password");
       }
     } catch (err) {
       console.error("Login error:", err);
