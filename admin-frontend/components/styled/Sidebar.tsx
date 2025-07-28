@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
@@ -166,16 +166,26 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
   className,
 }) => {
   const { theme, toggleTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use a consistent title during SSR
+  const buttonTitle = mounted
+    ? `Switch to ${theme === "light" ? "dark" : "light"} mode`
+    : "Toggle theme";
 
   return (
     <div className={cn("p-4 border-t border-secondary", className)}>
       <div className="flex items-center justify-between">
         <IconButton
-          icon={theme === "light" ? FiMoon : FiSun}
+          icon={mounted && theme === "light" ? FiMoon : FiSun}
           onClick={toggleTheme}
           variant="secondary"
           size="sm"
-          title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+          title={buttonTitle}
         />
         {children}
       </div>
