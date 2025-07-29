@@ -2,26 +2,26 @@
 echo Installing Krapi CMS dependencies...
 echo.
 
-echo Installing API Server dependencies...
-cd /d %~dp0api-server
+echo Installing Backend Server dependencies...
+cd /d %~dp0backend-server
 pnpm install
 if %errorlevel% neq 0 (
-    echo Error: Failed to install API Server dependencies
+    echo Error: Failed to install Backend Server dependencies
     pause
     exit /b 1
 )
-echo API Server dependencies installed successfully!
+echo Backend Server dependencies installed successfully!
 echo.
 
-echo Installing Frontend dependencies...
-cd /d %~dp0admin-frontend
+echo Installing Frontend Manager dependencies...
+cd /d %~dp0frontend-manager
 pnpm install
 if %errorlevel% neq 0 (
-    echo Error: Failed to install Frontend dependencies
+    echo Error: Failed to install Frontend Manager dependencies
     pause
     exit /b 1
 )
-echo Frontend dependencies installed successfully!
+echo Frontend Manager dependencies installed successfully!
 echo.
 
 echo.
