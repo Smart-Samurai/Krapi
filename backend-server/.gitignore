@@ -1,0 +1,111 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Database
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# File uploads
+uploads/
+temp/
+tmp/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+jest-coverage/
+*.lcov
+
+# TypeScript
+*.js.map
+*.d.ts.map
+
+# Package manager files
+.npm/
+.yarn/
+yarn.lock
+package-lock.json
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Debug files
+debug/
+.debug/
+
+# Documentation build
+docs/_build/
+docs/.vuepress/dist/
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.p12
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Misc
+.env.example.local
+.maintenance
+.grunt/
+.sass-cache/ 
