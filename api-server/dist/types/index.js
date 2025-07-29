@@ -1,21 +1,40 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-// Export all types from the types directory
-__exportStar(require("./core"), exports);
-__exportStar(require("./mcp"), exports);
-__exportStar(require("./projects"), exports);
+exports.ChangeAction = exports.SessionType = exports.FieldType = exports.AccessLevel = exports.AdminRole = void 0;
+var AdminRole;
+(function (AdminRole) {
+    AdminRole["MASTER_ADMIN"] = "master_admin";
+    AdminRole["ADMIN"] = "admin";
+    AdminRole["PROJECT_ADMIN"] = "project_admin";
+    AdminRole["LIMITED_ADMIN"] = "limited_admin";
+})(AdminRole || (exports.AdminRole = AdminRole = {}));
+var AccessLevel;
+(function (AccessLevel) {
+    AccessLevel["FULL"] = "full";
+    AccessLevel["PROJECTS_ONLY"] = "projects_only";
+    AccessLevel["READ_ONLY"] = "read_only";
+    AccessLevel["CUSTOM"] = "custom";
+})(AccessLevel || (exports.AccessLevel = AccessLevel = {}));
+var FieldType;
+(function (FieldType) {
+    FieldType["STRING"] = "string";
+    FieldType["NUMBER"] = "number";
+    FieldType["BOOLEAN"] = "boolean";
+    FieldType["DATE"] = "date";
+    FieldType["DATETIME"] = "datetime";
+    FieldType["JSON"] = "json";
+    FieldType["REFERENCE"] = "reference";
+    FieldType["FILE"] = "file";
+})(FieldType || (exports.FieldType = FieldType = {}));
+var SessionType;
+(function (SessionType) {
+    SessionType["ADMIN"] = "admin";
+    SessionType["PROJECT"] = "project";
+})(SessionType || (exports.SessionType = SessionType = {}));
+var ChangeAction;
+(function (ChangeAction) {
+    ChangeAction["CREATE"] = "create";
+    ChangeAction["UPDATE"] = "update";
+    ChangeAction["DELETE"] = "delete";
+})(ChangeAction || (exports.ChangeAction = ChangeAction = {}));
 //# sourceMappingURL=index.js.map

@@ -1,22 +1,46 @@
-import express, { Router } from "express";
+import { Router, Router as RouterType } from 'express';
+import authRoutes from './auth.routes';
+import adminRoutes from './admin.routes';
+import projectRoutes from './project.routes';
+import databaseRoutes from './database.routes';
+import storageRoutes from './storage.routes';
 
-const router: express.Router = Router();
+const router: RouterType = Router();
 
-// Root endpoint
-router.get("/", (req, res) => {
+// Health check
+router.get('/health', (req, res) => {
   res.json({
-    message: "Krapi API Server is running",
-    version: "1.0.0",
-    documentation: "See UNIFIED_API_DOCUMENTATION.md for the new API structure",
-    endpoints: {
-      // Krapi API (current)
-      krapi: {
-        base: "/krapi/v1",
-        health: "GET /krapi/v1/health",
-        auth: "POST /krapi/v1/auth",
-        api: "POST /krapi/v1/api (all operations)",
-      },
-    },
+    success: true,
+    message: 'KRAPI Backend is running',
+    version: '2.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API version info
+router.get('/version', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      version: '2.0.0',
+      api: 'KRAPI',
+      documentation: '/docs'
+    }
+  });
+});
+
+// Mount route modules
+router.use('/auth', authRoutes);
+router.use('/admin', adminRoutes);
+router.use('/projects', projectRoutes);
+router.use('/database', databaseRoutes);
+router.use('/storage', storageRoutes);
+
+// 404 handler
+router.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found'
   });
 });
 
