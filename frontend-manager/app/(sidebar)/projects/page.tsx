@@ -30,8 +30,8 @@ import {
   FiMoreVertical,
   FiSearch,
 } from "react-icons/fi";
-import { createDefaultKrapi } from "@/lib/krapi";
-import type { Project } from "@/lib/krapi/types";
+import { apiClient } from "@/lib/api-client";
+import type { Project } from "@/lib/krapi-sdk/types";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -56,8 +56,7 @@ export default function ProjectsPage() {
     setError(null);
     
     try {
-      const krapi = createDefaultKrapi();
-      const result = await krapi.admin.listProjects();
+      const result = await apiClient.projects.getAll();
       
       if (result.success && result.data) {
         setProjects(result.data);
@@ -76,8 +75,7 @@ export default function ProjectsPage() {
     setError(null);
     
     try {
-      const krapi = createDefaultKrapi();
-      const result = await krapi.admin.createProject({
+      const result = await apiClient.projects.create({
         name: data.name,
         description: data.description || "",
       });
@@ -101,8 +99,7 @@ export default function ProjectsPage() {
     }
     
     try {
-      const krapi = createDefaultKrapi();
-      const result = await krapi.admin.deleteProject(projectId);
+      const result = await apiClient.projects.delete(projectId);
       
       if (result.success) {
         // Refresh projects list
@@ -116,16 +113,11 @@ export default function ProjectsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
-      case "inactive":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
-      case "suspended":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
+  const getStatusColor = (active: boolean) => {
+    if (active) {
+      return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+    } else {
+      return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
     }
   };
 
@@ -308,10 +300,10 @@ export default function ProjectsPage() {
                       <h3 className="font-medium text-text">{project.name}</h3>
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
-                          project.status
+                          project.active
                         )}`}
                       >
-                        {project.status}
+                        {project.active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                     {project.description && (
@@ -322,7 +314,6 @@ export default function ProjectsPage() {
                     <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
                       <span>ID: {project.id}</span>
                       <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
-                      {project.domain && <span>Domain: {project.domain}</span>}
                     </div>
                   </div>
                 </div>

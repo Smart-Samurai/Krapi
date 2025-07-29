@@ -39,7 +39,8 @@ import {
   FiFileText,
   FiGlobe,
 } from "react-icons/fi";
-import { useKrapi } from "@/lib/hooks/useKrapi";
+import { apiClient } from "@/lib/api-client";
+import { AdminUser as AdminUserType, AdminRole, AccessLevel } from "@/lib/krapi-sdk/types";
 
 // Permission types
 interface AdminPermissions {
@@ -119,7 +120,7 @@ export default function ServerAdministrationPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const krapi = useKrapi();
+  const krapi = apiClient;
 
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -129,7 +130,7 @@ export default function ServerAdministrationPage() {
     const fetchAdminUsers = async () => {
       try {
         setIsLoading(true);
-        const response = await krapi.client.request("users", "list", "all", {});
+        const response = await krapi.request("users", "list", "all", {});
 
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
