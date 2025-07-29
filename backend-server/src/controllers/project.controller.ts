@@ -166,7 +166,7 @@ export class ProjectController {
       }
 
       // Log the action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(updates).forEach(key => {
         if (updates[key] !== existingProject[key as keyof Project]) {
           changes[key] = { old: existingProject[key as keyof Project], new: updates[key] };
@@ -380,7 +380,7 @@ export class ProjectController {
       const newApiKey = `krapi_${require('uuid').v4().replace(/-/g, '')}`;
 
       // Update project with new API key
-      const updatedProject = await this.db.updateProject(id, { api_key: newApiKey } as any);
+      const updatedProject = await this.db.updateProject(id, { api_key: newApiKey });
 
       if (!updatedProject) {
         res.status(500).json({

@@ -23,9 +23,9 @@ class ApiClient {
   ): Promise<T> {
     const token = localStorage.getItem('auth_token');
     
-    const headers: any = {
+    const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (token) {
@@ -110,7 +110,7 @@ class ApiClient {
       password: string;
       role: string;
       access_level: string;
-      permissions?: any[];
+      permissions?: Array<{ resource: string; actions: string[] }>;
     }) => {
       return this.request<ApiResponse<Omit<AdminUser, 'password_hash'>>>(
         '/admin/users',
@@ -160,7 +160,38 @@ class ApiClient {
     create: async (projectData: {
       name: string;
       description?: string;
-      settings?: any;
+      settings?: {
+        email_config?: {
+          smtp_host: string;
+          smtp_port: number;
+          smtp_secure: boolean;
+          smtp_user: string;
+          smtp_pass: string;
+          from_email: string;
+          from_name?: string;
+        };
+        storage_config?: {
+          max_file_size: number;
+          allowed_types: string[];
+          storage_path: string;
+        };
+        auth_config?: {
+          session_duration: number;
+          require_2fa: boolean;
+          password_policy: {
+            min_length: number;
+            require_uppercase: boolean;
+            require_lowercase: boolean;
+            require_numbers: boolean;
+            require_special: boolean;
+          };
+        };
+        rate_limits?: {
+          requests_per_minute: number;
+          requests_per_hour: number;
+          requests_per_day: number;
+        };
+      };
     }) => {
       return this.request<ApiResponse<Project>>('/projects', {
         method: 'POST',
@@ -182,7 +213,13 @@ class ApiClient {
     },
 
     getStats: async (id: string) => {
-      return this.request<ApiResponse<any>>(`/projects/${id}/stats`);
+      return this.request<ApiResponse<{
+        users: number;
+        documents: number;
+        storage: number;
+        api_calls: number;
+        bandwidth: number;
+      }>>(`/projects/${id}/stats`);
     },
 
     regenerateApiKey: async (id: string) => {
@@ -214,8 +251,25 @@ class ApiClient {
       schema: {
         name: string;
         description?: string;
-        fields: any[];
-        indexes?: any[];
+        fields: Array<{
+          name: string;
+          type: string;
+          required: boolean;
+          unique: boolean;
+          default?: string | number | boolean | null;
+          validation?: {
+            min?: number;
+            max?: number;
+            pattern?: string;
+            enum?: Array<string | number | boolean>;
+            custom?: string;
+          };
+        }>;
+        indexes?: Array<{
+          name: string;
+          fields: string[];
+          unique: boolean;
+        }>;
       }
     ) => {
       return this.request<ApiResponse<TableSchema>>(
@@ -282,7 +336,7 @@ class ApiClient {
     createDocument: async (
       projectId: string,
       tableName: string,
-      data: any
+      data: Record<string, unknown>
     ) => {
       return this.request<ApiResponse<Document>>(
         `/database/${projectId}/${tableName}/documents`,
@@ -297,7 +351,7 @@ class ApiClient {
       projectId: string,
       tableName: string,
       documentId: string,
-      data: any
+      data: Record<string, unknown>
     ) => {
       return this.request<ApiResponse<Document>>(
         `/database/${projectId}/${tableName}/documents/${documentId}`,
@@ -397,7 +451,12 @@ class ApiClient {
     },
 
     getStats: async (projectId: string) => {
-      return this.request<ApiResponse<any>>(`/storage/${projectId}/stats`);
+      return this.request<ApiResponse<{
+        total_size: number;
+        file_count: number;
+        bandwidth_used: number;
+        storage_limit: number;
+      }>>(`/storage/${projectId}/stats`);
     },
   };
 }

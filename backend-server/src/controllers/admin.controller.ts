@@ -192,7 +192,7 @@ export class AdminController {
       }
 
       // Log the action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(updates).forEach(key => {
         if (key !== 'password_hash' && updates[key] !== existingUser[key as keyof AdminUser]) {
           changes[key] = { old: existingUser[key as keyof AdminUser], new: updates[key] };

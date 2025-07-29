@@ -12,8 +12,8 @@ import {
 
 interface ExampleFormProps {
   type: "registration" | "login" | "project";
-  onSubmit: (data: any) => void;
-  defaultValues?: any;
+  onSubmit: (data: Record<string, unknown>) => void;
+  defaultValues?: Record<string, unknown>;
 }
 
 export const ExampleForm: React.FC<ExampleFormProps> = ({

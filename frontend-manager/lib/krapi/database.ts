@@ -26,8 +26,8 @@ export class KrapiDatabase {
   async createCollection(collectionData: {
     name: string;
     description?: string;
-    schema: Record<string, any>;
-    permissions?: Record<string, any>;
+      schema: Record<string, unknown>;
+  permissions?: Record<string, unknown>;
     projectId?: string;
   }): Promise<KrapiResponse<Collection>> {
     return this.client.request(
@@ -73,7 +73,7 @@ export class KrapiDatabase {
 
   async createDocument(documentData: {
     collectionId: string;
-    data: Record<string, any>;
+          data: Record<string, unknown>;
   }): Promise<KrapiResponse<Document>> {
     return this.client.request("database", "documents", "create", documentData);
   }

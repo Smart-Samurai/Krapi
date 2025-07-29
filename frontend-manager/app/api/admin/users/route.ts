@@ -13,7 +13,13 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const options: any = {};
+    const options: {
+      page?: number;
+      limit?: number;
+      sort?: string;
+      order?: 'asc' | 'desc';
+      search?: string;
+    } = {};
     
     const page = searchParams.get('page');
     const limit = searchParams.get('limit');

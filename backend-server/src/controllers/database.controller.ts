@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse, PaginatedResponse, TableSchema, Document, ChangeAction, FieldType } from '@/types';
+import { AuthenticatedRequest, ApiResponse, PaginatedResponse, TableSchema, Document, ChangeAction, FieldType, TableField, FieldValidation } from '@/types';
 
 export class DatabaseController {
   private db: DatabaseService;
@@ -185,7 +185,7 @@ export class DatabaseController {
       }
 
       // Log action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(updates).forEach(key => {
         if (JSON.stringify(updates[key]) !== JSON.stringify(existing[key as keyof TableSchema])) {
           changes[key] = { old: existing[key as keyof TableSchema], new: updates[key] };
@@ -402,7 +402,7 @@ export class DatabaseController {
       const document = await this.db.createDocument(
         projectId,
         tableName,
-        validation.data,
+        validation.data!,
         authReq.user?.id || authReq.session?.api_key || 'system'
       );
 
@@ -478,7 +478,7 @@ export class DatabaseController {
         projectId,
         tableName,
         documentId,
-        validation.data,
+        validation.data!,
         authReq.user?.id || authReq.session?.api_key || 'system'
       );
 
@@ -491,7 +491,7 @@ export class DatabaseController {
       }
 
       // Log action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(data).forEach(key => {
         if (JSON.stringify(data[key]) !== JSON.stringify(existing.data[key])) {
           changes[key] = { old: existing.data[key], new: data[key] };
@@ -591,7 +591,7 @@ export class DatabaseController {
   };
 
   // Helper: Validate fields
-  private validateFields(fields: any[]): any[] | null {
+  private validateFields(fields: TableField[]): TableField[] | null {
     if (!Array.isArray(fields) || fields.length === 0) {
       return null;
     }
@@ -619,8 +619,8 @@ export class DatabaseController {
   }
 
   // Helper: Validate document against schema
-  private validateDocument(data: any, schema: TableSchema): { valid: boolean, data?: any, error?: string } {
-    const validatedData: any = {};
+  private validateDocument(data: Record<string, unknown>, schema: TableSchema): { valid: boolean, data?: Record<string, unknown>, error?: string } {
+    const validatedData: Record<string, unknown> = {};
 
     // Check required fields
     for (const field of schema.fields) {
@@ -660,7 +660,7 @@ export class DatabaseController {
   }
 
   // Helper: Validate field type
-  private validateFieldType(value: any, type: FieldType): { valid: boolean, value?: any, error?: string } {
+  private validateFieldType(value: unknown, type: FieldType): { valid: boolean, value?: unknown, error?: string } {
     switch (type) {
       case FieldType.STRING:
         if (typeof value !== 'string') {
@@ -684,7 +684,7 @@ export class DatabaseController {
 
       case FieldType.DATE:
       case FieldType.DATETIME: {
-        const date = new Date(value);
+        const date = new Date(value as string | number);
         if (isNaN(date.getTime())) {
           return { valid: false, error: 'Must be a valid date' };
         }
@@ -715,12 +715,12 @@ export class DatabaseController {
   }
 
   // Helper: Validate field custom rules
-  private validateFieldCustom(value: any, validation: any): { valid: boolean, error?: string } {
-    if (validation.min !== undefined && value < validation.min) {
+  private validateFieldCustom(value: unknown, validation: FieldValidation): { valid: boolean, error?: string } {
+    if (validation.min !== undefined && typeof value === 'number' && value < validation.min) {
       return { valid: false, error: `Must be at least ${validation.min}` };
     }
 
-    if (validation.max !== undefined && value > validation.max) {
+    if (validation.max !== undefined && typeof value === 'number' && value > validation.max) {
       return { valid: false, error: `Must be at most ${validation.max}` };
     }
 
@@ -731,7 +731,7 @@ export class DatabaseController {
       }
     }
 
-    if (validation.enum && !validation.enum.includes(value)) {
+    if (validation.enum && !validation.enum.includes(value as string | number | boolean)) {
       return { valid: false, error: `Must be one of: ${validation.enum.join(', ')}` };
     }
 

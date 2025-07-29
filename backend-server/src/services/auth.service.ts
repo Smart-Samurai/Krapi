@@ -152,9 +152,13 @@ export class AuthService {
   }
 
   // Verify JWT Token
-  verifyJWT(token: string): any {
+  verifyJWT(token: string): { id: string; type: SessionType; projectId?: string; permissions?: string[]; iat?: number; exp?: number } | null {
     try {
-      return jwt.verify(token, this.jwtSecret);
+      const decoded = jwt.verify(token, this.jwtSecret);
+      if (typeof decoded === 'object' && decoded !== null) {
+        return decoded as { id: string; type: SessionType; projectId?: string; permissions?: string[]; iat?: number; exp?: number };
+      }
+      return null;
     } catch {
       return null;
     }

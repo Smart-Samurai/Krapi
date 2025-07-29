@@ -8,7 +8,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-interface FormProps<T extends z.ZodType<any, any, any>> {
+interface FormProps<T extends z.ZodSchema> {
   schema: T;
   onSubmit: SubmitHandler<z.infer<T>>;
   defaultValues?: Partial<z.infer<T>> | undefined;
@@ -17,7 +17,7 @@ interface FormProps<T extends z.ZodType<any, any, any>> {
   formProps?: Omit<UseFormProps<z.infer<T>>, "resolver" | "defaultValues">;
 }
 
-export function Form<T extends z.ZodType<any, any, any>>({
+export function Form<T extends z.ZodSchema>({
   schema,
   onSubmit,
   defaultValues,
@@ -26,8 +26,10 @@ export function Form<T extends z.ZodType<any, any, any>>({
   formProps,
 }: FormProps<T>) {
   const methods = useForm<z.infer<T>>({
-    resolver: zodResolver(schema as any),
-    defaultValues: defaultValues as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      resolver: zodResolver(schema) as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      defaultValues: defaultValues as any,
     ...formProps,
   });
 

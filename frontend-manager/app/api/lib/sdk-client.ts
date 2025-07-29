@@ -9,7 +9,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
  * @returns KrapiClient instance
  */
 export function createBackendClient(authToken?: string): KrapiClient {
-  const config: any = { baseURL: BACKEND_URL };
+  const config: { baseURL: string; authToken?: string } = { baseURL: BACKEND_URL };
   if (authToken) config.authToken = authToken;
   return createKrapiClient(config);
 }

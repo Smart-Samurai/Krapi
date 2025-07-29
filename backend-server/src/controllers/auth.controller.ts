@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthService } from '@/services/auth.service';
 import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse } from '@/types';
+import { AuthenticatedRequest, ApiResponse, SessionType } from '@/types';
 
 export class AuthController {
   private authService: AuthService;
@@ -106,7 +106,7 @@ export class AuthController {
 
       const session = await this.db.createSession({
         token,
-        type: 'admin' as any,
+        type: SessionType.ADMIN,
         user_id: user.id,
         permissions: ['*'],
         expires_at: expiresAt,
@@ -117,7 +117,7 @@ export class AuthController {
       // Generate JWT
       const jwt = this.authService.generateJWT({
         id: user.id,
-        type: 'admin' as any,
+        type: SessionType.ADMIN,
         permissions: ['*']
       });
 
