@@ -70,5 +70,5 @@ export interface StorageStats {
 export interface KrapiError {
   success: false;
   error: string;
-  details?: any;
+  details?: unknown;
 }

@@ -49,7 +49,15 @@ export default function DashboardPage() {
     storageUsed: "0 GB",
   });
   const [systemHealth, setSystemHealth] = useState<SystemHealthItem[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Array<{
+    id: string;
+    type: string;
+    action: string;
+    resource: string;
+    description: string;
+    timestamp: string;
+    user?: string;
+  }>>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -74,7 +82,12 @@ export default function DashboardPage() {
       // Fetch system health
       const healthResponse = await krapi.client.health();
       if (healthResponse.success) {
-        const healthData = healthResponse.data as any; // Type assertion for now
+        const healthData = healthResponse.data as {
+          api?: { status: string; uptime: string; responseTime: string };
+          database?: { status: string; uptime: string; responseTime: string };
+          storage?: { status: string; uptime: string; responseTime: string };
+          websocket?: { status: string; uptime: string; responseTime: string };
+        };
         setSystemHealth([
           {
             service: "API Gateway",
@@ -101,7 +114,15 @@ export default function DashboardPage() {
       // Fetch recent activity
       const activityResponse = await krapi.admin.getActivity({ limit: 5 });
       if (activityResponse.success && activityResponse.data) {
-        setRecentActivity(activityResponse.data);
+        setRecentActivity(activityResponse.data as Array<{
+          id: string;
+          type: string;
+          action: string;
+          resource: string;
+          description: string;
+          timestamp: string;
+          user?: string;
+        }>);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -320,7 +341,7 @@ export default function DashboardPage() {
           <Button
             variant="secondary"
             className="h-20 flex-col"
-            onClick={() => router.push("/database" as any)}
+            onClick={() => router.push("/database")}
           >
             <FiDatabase className="h-6 w-6 mb-2" />
             <span className="text-sm">Database</span>
@@ -328,7 +349,7 @@ export default function DashboardPage() {
           <Button
             variant="secondary"
             className="h-20 flex-col"
-            onClick={() => router.push("/files" as any)}
+            onClick={() => router.push("/files")}
           >
             <FiFileText className="h-6 w-6 mb-2" />
             <span className="text-sm">Files</span>

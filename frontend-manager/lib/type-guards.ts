@@ -217,7 +217,7 @@ export function createTypedEventHandler<T extends Event>(
 /**
  * Debounce with proper typing
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

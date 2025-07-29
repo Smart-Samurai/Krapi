@@ -41,7 +41,7 @@ export class ErrorHandler {
    * Handle API errors with clear, single error messages
    */
   handleApiError(
-    error: any,
+    error: unknown,
     context: Omit<ErrorContext, "timestamp">
   ): ApiError {
     const errorContext: ErrorContext = {
@@ -49,8 +49,26 @@ export class ErrorHandler {
       timestamp: new Date().toISOString(),
     };
 
+    // Type guard for error with code property
+    const hasCode = (err: unknown): err is { code: string } => {
+      return err !== null && typeof err === 'object' && 'code' in err;
+    };
+
+    // Type guard for axios error
+    const isAxiosError = (err: unknown): err is { 
+      response?: { 
+        status: number; 
+        statusText: string; 
+        data?: { error?: string; message?: string } 
+      };
+      code?: string;
+      message?: string;
+    } => {
+      return err !== null && typeof err === 'object' && 'response' in err;
+    };
+
     // Network/Connection errors
-    if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
+    if (hasCode(error) && (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK")) {
       return {
         message: "Cannot connect to the API server",
         code: error.code,
@@ -65,7 +83,7 @@ export class ErrorHandler {
     }
 
     // HTTP Status errors
-    if (error.response?.status) {
+    if (isAxiosError(error) && error.response?.status) {
       const status = error.response.status;
       const serverError =
         error.response.data?.error || error.response.data?.message;
@@ -77,7 +95,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "Check the request parameters and data format",
               "Verify all required fields are provided",
@@ -91,7 +109,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "Your session may have expired",
               "Please log in again to continue",
@@ -105,7 +123,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "You don't have permission to perform this action",
               "Contact an administrator for access",
@@ -119,7 +137,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "The requested API endpoint doesn't exist",
               "Check if the API route is correctly implemented",
@@ -134,7 +152,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "Check the data validation rules",
               "Ensure all required fields are provided",
@@ -148,7 +166,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "This is a server-side issue",
               "Check the server logs for detailed error information",
@@ -163,7 +181,7 @@ export class ErrorHandler {
             status,
             statusText: error.response.statusText,
             context: errorContext,
-            serverError,
+            ...(serverError && { serverError }),
             suggestions: [
               "An unexpected error occurred",
               "Check the server logs for more details",
@@ -174,7 +192,7 @@ export class ErrorHandler {
     }
 
     // Timeout errors
-    if (error.code === "ECONNABORTED") {
+    if (hasCode(error) && error.code === "ECONNABORTED") {
       return {
         message: "Request timed out - server took too long to respond",
         code: error.code,
@@ -190,7 +208,9 @@ export class ErrorHandler {
 
     // Generic error
     return {
-      message: error.message || "An unexpected error occurred",
+      message: (isAxiosError(error) && error.message) ? error.message : 
+               error instanceof Error ? error.message : 
+               "An unexpected error occurred",
       context: errorContext,
       suggestions: [
         "Check the browser console for more details",

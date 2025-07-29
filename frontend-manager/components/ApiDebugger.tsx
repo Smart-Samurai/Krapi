@@ -10,8 +10,8 @@ import { AlertCircle, CheckCircle, Clock, Activity, Play } from "lucide-react";
 interface ApiTestResult {
   test: string;
   status: "success" | "error" | "loading";
-  response?: any;
-  error?: any;
+  response?: unknown;
+  error?: unknown;
   timestamp: string;
   duration: number;
 }
@@ -22,7 +22,7 @@ export default function ApiDebugger() {
 
   const runTest = async (
     testName: string,
-    testFunction: () => Promise<any>
+    testFunction: () => Promise<unknown>
   ) => {
     const startTime = Date.now();
     const result: ApiTestResult = {
@@ -264,7 +264,7 @@ export default function ApiDebugger() {
                     {new Date(result.timestamp).toLocaleString()}
                   </div>
 
-                  {result.status === "success" && result.response && (
+                  {result.status === "success" && result.response !== undefined && (
                     <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-3">
                       <div className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
                         Response:
@@ -275,7 +275,7 @@ export default function ApiDebugger() {
                     </div>
                   )}
 
-                  {result.status === "error" && result.error && (
+                  {result.status === "error" && result.error !== undefined && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
                       <div className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
                         Error:

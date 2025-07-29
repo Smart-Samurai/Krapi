@@ -83,7 +83,12 @@ export class EmailService {
     html: string,
     options?: {
       text?: string;
-      attachments?: any[];
+      attachments?: Array<{
+        filename?: string;
+        content?: string | Buffer;
+        path?: string;
+        contentType?: string;
+      }>;
       cc?: string | string[];
       bcc?: string | string[];
       replyTo?: string;
@@ -91,7 +96,7 @@ export class EmailService {
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       // Get project
-      const project = this.db.getProjectById(projectId);
+      const project = await this.db.getProjectById(projectId);
       if (!project) {
         return { success: false, error: 'Project not found' };
       }
@@ -124,9 +129,9 @@ export class EmailService {
       });
 
       return { success: true, messageId: info.messageId };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Send email error:', error);
-      return { success: false, error: error.message || 'Failed to send email' };
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to send email' };
     }
   }
 
@@ -252,9 +257,9 @@ export class EmailService {
       });
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Test email config error:', error);
-      return { success: false, error: error.message || 'Failed to test email configuration' };
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to test email configuration' };
     }
   }
 
@@ -269,7 +274,7 @@ export class EmailService {
 
   // Clear all transporters
   clearAllTransporters(): void {
-    for (const [projectId, transporter] of this.transporters) {
+    for (const [_projectId, transporter] of this.transporters) {
       transporter.close();
     }
     this.transporters.clear();

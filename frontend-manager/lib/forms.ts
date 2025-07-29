@@ -149,14 +149,27 @@ export const validatePassword = (password: string): boolean => {
   return passwordSchema.safeParse({ password }).success;
 };
 
-export const validateRequired = (value: any): boolean => {
+export const validateRequired = (value: unknown): boolean => {
   return value !== null && value !== undefined && value !== "";
 };
 
 // Form error helper
-export const getFormError = (error: any): string => {
+export const getFormError = (error: unknown): string => {
   if (typeof error === "string") return error;
-  if (error?.message) return error.message;
-  if (error?.errors?.[0]?.message) return error.errors[0].message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  if (
+    error && 
+    typeof error === "object" && 
+    "errors" in error && 
+    Array.isArray(error.errors) && 
+    error.errors[0] && 
+    typeof error.errors[0] === "object" &&
+    "message" in error.errors[0] &&
+    typeof error.errors[0].message === "string"
+  ) {
+    return error.errors[0].message;
+  }
   return "An error occurred";
 };

@@ -61,7 +61,7 @@ export default function StyleTestPage() {
     checkbox: false,
   });
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -82,7 +82,7 @@ export default function StyleTestPage() {
     });
   };
 
-  const handleExampleFormSubmit = (data: any) => {
+  const handleExampleFormSubmit = (data: Record<string, unknown>) => {
     console.log("Example form submitted:", data);
     toast({
       title: "Form Submitted",

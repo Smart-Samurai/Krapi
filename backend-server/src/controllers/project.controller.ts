@@ -16,7 +16,7 @@ export class ProjectController {
       const pageNum = parseInt(page as string);
       const limitNum = parseInt(limit as string);
 
-      const projects = this.db.getAllProjects();
+      const projects = await this.db.getAllProjects();
       
       // Simple pagination
       const startIndex = (pageNum - 1) * limitNum;
@@ -48,7 +48,7 @@ export class ProjectController {
     try {
       const { id } = req.params;
 
-      const project = this.db.getProjectById(id);
+      const project = await this.db.getProjectById(id);
 
       if (!project) {
         res.status(404).json({
@@ -89,23 +89,27 @@ export class ProjectController {
       }
 
       // Create project
-      const newProject = this.db.createProject({
+      const newProject = await this.db.createProject({
         name,
         description,
         settings,
         created_by: currentUser.id,
-        active: true
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        api_key: `krapi_${require('uuid').v4().replace(/-/g, '')}`
       });
 
       // Log the action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: newProject.id,
         entity_type: 'project',
         entity_id: newProject.id,
         action: ChangeAction.CREATE,
         changes: { name, description },
         performed_by: currentUser.id,
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(201).json({
@@ -141,7 +145,7 @@ export class ProjectController {
       }
 
       // Check if project exists
-      const existingProject = this.db.getProjectById(id);
+      const existingProject = await this.db.getProjectById(id);
       if (!existingProject) {
         res.status(404).json({
           success: false,
@@ -151,7 +155,7 @@ export class ProjectController {
       }
 
       // Update project
-      const updatedProject = this.db.updateProject(id, updates);
+      const updatedProject = await this.db.updateProject(id, updates);
 
       if (!updatedProject) {
         res.status(500).json({
@@ -162,7 +166,7 @@ export class ProjectController {
       }
 
       // Log the action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(updates).forEach(key => {
         if (updates[key] !== existingProject[key as keyof Project]) {
           changes[key] = { old: existingProject[key as keyof Project], new: updates[key] };
@@ -170,14 +174,15 @@ export class ProjectController {
       });
 
       if (Object.keys(changes).length > 0) {
-        this.db.createChangelogEntry({
+        await this.db.createChangelogEntry({
           project_id: id,
           entity_type: 'project',
           entity_id: id,
           action: ChangeAction.UPDATE,
           changes,
           performed_by: currentUser.id,
-          session_id: authReq.session?.id
+          session_id: authReq.session?.id,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -212,7 +217,7 @@ export class ProjectController {
       }
 
       // Check if project exists
-      const existingProject = this.db.getProjectById(id);
+      const existingProject = await this.db.getProjectById(id);
       if (!existingProject) {
         res.status(404).json({
           success: false,
@@ -222,7 +227,7 @@ export class ProjectController {
       }
 
       // Delete project
-      const deleted = this.db.deleteProject(id);
+      const deleted = await this.db.deleteProject(id);
 
       if (!deleted) {
         res.status(500).json({
@@ -233,13 +238,15 @@ export class ProjectController {
       }
 
       // Log the action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
+        project_id: id,
         entity_type: 'project',
         entity_id: id,
         action: ChangeAction.DELETE,
         changes: { name: existingProject.name },
         performed_by: currentUser.id,
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(200).json({
@@ -263,7 +270,7 @@ export class ProjectController {
       const { id } = req.params;
 
       // Check if project exists
-      const project = this.db.getProjectById(id);
+      const project = await this.db.getProjectById(id);
       if (!project) {
         res.status(404).json({
           success: false,
@@ -273,14 +280,14 @@ export class ProjectController {
       }
 
       // Get stats
-      const tables = this.db.getTableSchemasByProject(id);
-      const users = this.db.getProjectUsers(id);
-      const files = this.db.getFilesByProject(id);
+      const tables = await this.db.getProjectTableSchemas(id);
+      const users = await this.db.getProjectUsers(id);
+      const files = await this.db.getProjectFiles(id);
 
       // Calculate document count
       let documentCount = 0;
       for (const table of tables) {
-        const { total } = this.db.getDocumentsByTable(table.id);
+        const { total } = await this.db.getDocumentsByTable(table.id);
         documentCount += total;
       }
 
@@ -314,7 +321,7 @@ export class ProjectController {
       const { limit = 50 } = req.query;
 
       // Check if project exists
-      const project = this.db.getProjectById(id);
+      const project = await this.db.getProjectById(id);
       if (!project) {
         res.status(404).json({
           success: false,
@@ -324,10 +331,10 @@ export class ProjectController {
       }
 
       // Get changelog entries for this project
-      const activities = this.db.getChangelogEntries({
-        project_id: id,
-        limit: parseInt(limit as string)
-      });
+      const activities = await this.db.getProjectChangelog(
+        id,
+        parseInt(limit as string) || 100
+      );
 
       res.status(200).json({
         success: true,
@@ -360,7 +367,7 @@ export class ProjectController {
       }
 
       // Check if project exists
-      const existingProject = this.db.getProjectById(id);
+      const existingProject = await this.db.getProjectById(id);
       if (!existingProject) {
         res.status(404).json({
           success: false,
@@ -373,7 +380,7 @@ export class ProjectController {
       const newApiKey = `krapi_${require('uuid').v4().replace(/-/g, '')}`;
 
       // Update project with new API key
-      const updatedProject = this.db.updateProject(id, { api_key: newApiKey } as any);
+      const updatedProject = await this.db.updateProject(id, { api_key: newApiKey });
 
       if (!updatedProject) {
         res.status(500).json({
@@ -384,14 +391,15 @@ export class ProjectController {
       }
 
       // Log the action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: id,
         entity_type: 'project',
         entity_id: id,
         action: ChangeAction.UPDATE,
         changes: { api_key: 'regenerated' },
         performed_by: currentUser.id,
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(200).json({

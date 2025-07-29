@@ -12,12 +12,17 @@ import {
   ApiResponse,
   PaginatedResponse,
   AdminUser,
+  AdminPermission,
   Project,
+  ProjectSettings,
+  ProjectStats,
   TableSchema,
+  TableField,
+  TableIndex,
   Document,
   FileInfo,
+  StorageStats,
   ProjectUser,
-  Session,
   QueryOptions
 } from './types';
 
@@ -149,7 +154,7 @@ export class KrapiClient {
       password: string;
       role: string;
       access_level: string;
-      permissions?: any[];
+      permissions?: AdminPermission[];
     }): Promise<ApiResponse<Omit<AdminUser, 'password_hash'>>> => {
       const response = await this.client.post('/admin/users', userData);
       return response.data;
@@ -186,7 +191,7 @@ export class KrapiClient {
     create: async (projectData: {
       name: string;
       description?: string;
-      settings?: any;
+      settings?: ProjectSettings;
     }): Promise<ApiResponse<Project>> => {
       const response = await this.client.post('/projects', projectData);
       return response.data;
@@ -205,7 +210,7 @@ export class KrapiClient {
     },
 
     // Get project stats
-    getStats: async (id: string): Promise<ApiResponse<any>> => {
+    getStats: async (id: string): Promise<ApiResponse<ProjectStats>> => {
       const response = await this.client.get(`/projects/${id}/stats`);
       return response.data;
     },
@@ -235,8 +240,8 @@ export class KrapiClient {
     createSchema: async (projectId: string, schema: {
       name: string;
       description?: string;
-      fields: any[];
-      indexes?: any[];
+      fields: TableField[];
+      indexes?: TableIndex[];
     }): Promise<ApiResponse<TableSchema>> => {
       const response = await this.client.post(`/database/${projectId}/schemas`, schema);
       return response.data;
@@ -267,13 +272,13 @@ export class KrapiClient {
     },
 
     // Create document
-    createDocument: async (projectId: string, tableName: string, data: any): Promise<ApiResponse<Document>> => {
+    createDocument: async (projectId: string, tableName: string, data: Record<string, unknown>): Promise<ApiResponse<Document>> => {
       const response = await this.client.post(`/database/${projectId}/${tableName}/documents`, { data });
       return response.data;
     },
 
     // Update document
-    updateDocument: async (projectId: string, tableName: string, documentId: string, data: any): Promise<ApiResponse<Document>> => {
+    updateDocument: async (projectId: string, tableName: string, documentId: string, data: Record<string, unknown>): Promise<ApiResponse<Document>> => {
       const response = await this.client.put(`/database/${projectId}/${tableName}/documents/${documentId}`, { data });
       return response.data;
     },
@@ -300,9 +305,16 @@ export class KrapiClient {
     },
 
     // Upload file
-    uploadFile: async (projectId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<ApiResponse<FileInfo>> => {
-      const formData = new FormData();
-      formData.append('file', file);
+    uploadFile: async (projectId: string, file: Blob | Buffer | { buffer: Buffer; originalname: string; mimetype: string }, onProgress?: (progress: number) => void): Promise<ApiResponse<FileInfo>> => {
+      // Handle both browser and Node.js environments
+      let formData: FormData | Buffer | { buffer: Buffer; originalname: string; mimetype: string };
+      if (typeof FormData !== 'undefined') {
+        formData = new FormData();
+        (formData as FormData).append('file', file as Blob);
+      } else {
+        // In Node.js, the user should pass a proper form-data instance
+        formData = file as Buffer | { buffer: Buffer; originalname: string; mimetype: string };
+      }
 
       const config: AxiosRequestConfig = {
         headers: {
@@ -324,7 +336,7 @@ export class KrapiClient {
     },
 
     // Download file
-    downloadFile: async (projectId: string, fileId: string): Promise<Blob> => {
+    downloadFile: async (projectId: string, fileId: string): Promise<Blob | Buffer> => {
       const response = await this.client.get(`/storage/${projectId}/files/${fileId}/download`, {
         responseType: 'blob'
       });
@@ -338,7 +350,7 @@ export class KrapiClient {
     },
 
     // Get storage stats
-    getStats: async (projectId: string): Promise<ApiResponse<any>> => {
+    getStats: async (projectId: string): Promise<ApiResponse<StorageStats>> => {
       const response = await this.client.get(`/storage/${projectId}/stats`);
       return response.data;
     }
@@ -358,14 +370,14 @@ export class KrapiClient {
       name?: string;
       phone?: string;
       password?: string;
-      metadata?: any;
+      metadata?: Record<string, unknown>;
     }): Promise<ApiResponse<Document>> => {
       const response = await this.client.post(`/database/${projectId}/users/documents`, { data: userData });
       return response.data;
     },
 
     // Update user in project
-    updateUser: async (projectId: string, userId: string, updates: any): Promise<ApiResponse<Document>> => {
+    updateUser: async (projectId: string, userId: string, updates: Record<string, unknown>): Promise<ApiResponse<Document>> => {
       const response = await this.client.put(`/database/${projectId}/users/documents/${userId}`, { data: updates });
       return response.data;
     },

@@ -84,7 +84,7 @@ export const authenticateJWT = async (req: Request, res: Response, next: NextFun
 
     // Attach data to request based on token type
     if (payload.type === SessionType.ADMIN && payload.id) {
-      const user = db.getAdminUserById(payload.id);
+      const user = await db.getAdminUserById(payload.id);
       if (!user || !user.active) {
         res.status(401).json({
           success: false,
@@ -94,7 +94,7 @@ export const authenticateJWT = async (req: Request, res: Response, next: NextFun
       }
       (req as AuthenticatedRequest).user = user;
     } else if (payload.type === SessionType.PROJECT && payload.projectId) {
-      const project = db.getProjectById(payload.projectId);
+      const project = await db.getProjectById(payload.projectId);
       if (!project || !project.active) {
         res.status(401).json({
           success: false,

@@ -127,25 +127,27 @@ export class StorageController {
         }
 
         // Create file record
-        const fileRecord = this.db.createFile({
+        const fileRecord = await this.db.createFile({
           project_id: projectId,
           filename: req.file.filename,
           original_name: req.file.originalname,
           mime_type: req.file.mimetype,
           size: req.file.size,
           path: req.file.path,
-          uploaded_by: authReq.user?.id || authReq.session?.api_key
+          uploaded_by: authReq.user?.id || authReq.session?.api_key,
+          created_at: new Date().toISOString()
         });
 
         // Log action
-        this.db.createChangelogEntry({
+        await this.db.createChangelogEntry({
           project_id: projectId,
           entity_type: 'file',
           entity_id: fileRecord.id,
           action: ChangeAction.CREATE,
           changes: { filename: req.file.originalname, size: req.file.size },
           performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-          session_id: authReq.session?.id
+          session_id: authReq.session?.id,
+          timestamp: new Date().toISOString()
         });
 
         res.status(201).json({
@@ -185,7 +187,7 @@ export class StorageController {
         return;
       }
 
-      const files = this.db.getFilesByProject(projectId);
+      const files = await this.db.getProjectFiles(projectId);
 
       // Map to response format
       const fileData = files.map(file => ({
@@ -217,7 +219,7 @@ export class StorageController {
     try {
       const { projectId, fileId } = req.params;
 
-      const file = this.db.getFileById(fileId);
+      const file = await this.db.getFile(fileId);
 
       if (!file || file.project_id !== projectId) {
         res.status(404).json({
@@ -254,7 +256,7 @@ export class StorageController {
     try {
       const { projectId, fileId } = req.params;
 
-      const file = this.db.getFileById(fileId);
+      const file = await this.db.getFile(fileId);
 
       if (!file || file.project_id !== projectId) {
         res.status(404).json({
@@ -297,7 +299,7 @@ export class StorageController {
       const authReq = req as AuthenticatedRequest;
       const { projectId, fileId } = req.params;
 
-      const file = this.db.getFileById(fileId);
+      const file = await this.db.getFile(fileId);
 
       if (!file || file.project_id !== projectId) {
         res.status(404).json({
@@ -324,14 +326,15 @@ export class StorageController {
       }
 
       // Log action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: projectId,
         entity_type: 'file',
         entity_id: fileId,
         action: ChangeAction.DELETE,
         changes: { filename: file.original_name },
         performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(200).json({
@@ -355,7 +358,7 @@ export class StorageController {
       const { projectId } = req.params;
 
       // Verify project exists
-      const project = this.db.getProjectById(projectId);
+      const project = await this.db.getProjectById(projectId);
       if (!project) {
         res.status(404).json({
           success: false,
@@ -364,11 +367,11 @@ export class StorageController {
         return;
       }
 
-      const files = this.db.getFilesByProject(projectId);
+      const files = await this.db.getProjectFiles(projectId);
 
       const stats = {
         total_files: files.length,
-        total_size: files.reduce((sum, file) => sum + file.size, 0),
+        total_size: files.reduce((sum: number, file: FileRecord) => sum + file.size, 0),
         max_file_size: project.settings.storage_config?.max_file_size || this.maxFileSize,
         allowed_types: project.settings.storage_config?.allowed_types || ['*/*']
       };

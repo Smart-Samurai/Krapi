@@ -23,7 +23,7 @@ export class KrapiStorage {
   // Upload file
   async uploadFile(
     file: File,
-    metadata?: Record<string, any>
+          metadata?: Record<string, unknown>
   ): Promise<KrapiResponse<FileInfo>> {
     const formData = new FormData();
     formData.append("file", file);
@@ -41,10 +41,10 @@ export class KrapiStorage {
           },
         });
       return response.data;
-    } catch (error: any) {
+    } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || error.message || "Upload failed",
+        error: error instanceof Error ? error.message : "Upload failed",
       };
     }
   }

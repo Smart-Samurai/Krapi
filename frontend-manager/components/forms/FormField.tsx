@@ -28,6 +28,7 @@ interface FormFieldProps {
     | "date";
   placeholder?: string;
   required?: boolean;
+  icon?: React.ComponentType;
   disabled?: boolean;
   options?: Array<{ value: string; label: string }>;
   className?: string;

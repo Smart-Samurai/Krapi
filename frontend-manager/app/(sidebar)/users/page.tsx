@@ -130,43 +130,42 @@ export default function ServerAdministrationPage() {
     const fetchAdminUsers = async () => {
       try {
         setIsLoading(true);
-        const response = await krapi.request("users", "list", "all", {});
+        const response = await krapi.admin.getUsers({});
 
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
-          const transformedUsers: AdminUser[] = (response.data as any[]).map(
+          const transformedUsers: AdminUser[] = response.data.map(
             (user) => ({
               id: user.id.toString(),
               email: user.email,
-              firstName: user.firstName || "",
-              lastName: user.lastName || "",
+              firstName: user.username?.split(' ')[0] || "",
+              lastName: user.username?.split(' ')[1] || "",
               role: user.role,
               status: user.active ? "active" : "inactive",
               permissions: {
-                canManageUsers: user.permissions?.canManageUsers || false,
-                canCreateProjects: user.permissions?.canCreateProjects || false,
-                canDeleteProjects: user.permissions?.canDeleteProjects || false,
+                canManageUsers: user.permissions?.some(p => p.resource === 'users' && p.actions.includes('manage')) || false,
+                canCreateProjects: user.permissions?.some(p => p.resource === 'projects' && p.actions.includes('create')) || false,
+                canDeleteProjects: user.permissions?.some(p => p.resource === 'projects' && p.actions.includes('delete')) || false,
                 canManageSystemSettings:
-                  user.permissions?.canManageSystemSettings || false,
-                canViewSystemLogs: user.permissions?.canViewSystemLogs || false,
-                canManageBackups: user.permissions?.canManageBackups || false,
+                  user.permissions?.some(p => p.resource === 'system' && p.actions.includes('manage')) || false,
+                canViewSystemLogs: user.permissions?.some(p => p.resource === 'logs' && p.actions.includes('view')) || false,
+                canManageBackups: user.permissions?.some(p => p.resource === 'backups' && p.actions.includes('manage')) || false,
                 canAccessAllProjects:
-                  user.permissions?.canAccessAllProjects || false,
-                restrictedProjectIds:
-                  user.permissions?.restrictedProjectIds || [],
-                canManageDatabase: user.permissions?.canManageDatabase || false,
-                canManageAPI: user.permissions?.canManageAPI || false,
-                canManageFiles: user.permissions?.canManageFiles || false,
-                canManageAuth: user.permissions?.canManageAuth || false,
+                  user.permissions?.some(p => p.resource === 'projects' && p.actions.includes('*')) || false,
+                restrictedProjectIds: [],
+                canManageDatabase: user.permissions?.some(p => p.resource === 'database' && p.actions.includes('manage')) || false,
+                canManageAPI: user.permissions?.some(p => p.resource === 'api' && p.actions.includes('manage')) || false,
+                canManageFiles: user.permissions?.some(p => p.resource === 'files' && p.actions.includes('manage')) || false,
+                canManageAuth: user.permissions?.some(p => p.resource === 'auth' && p.actions.includes('manage')) || false,
                 canCreateAdminAccounts:
-                  user.permissions?.canCreateAdminAccounts || false,
+                  user.permissions?.some(p => p.resource === 'admin' && p.actions.includes('create')) || false,
                 canModifyOtherAdmins:
-                  user.permissions?.canModifyOtherAdmins || false,
+                  user.permissions?.some(p => p.resource === 'admin' && p.actions.includes('modify')) || false,
                 isMasterAdmin: user.role === "master_admin",
               },
               lastActive: user.last_login || user.updated_at,
               createdAt: user.created_at,
-              lastLogin: user.last_login,
+              lastLogin: user.last_login || "",
             })
           );
           setAdminUsers(transformedUsers);

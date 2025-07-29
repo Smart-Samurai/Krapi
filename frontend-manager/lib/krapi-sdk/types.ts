@@ -96,7 +96,7 @@ export interface TableField {
   type: FieldType;
   required: boolean;
   unique: boolean;
-  default?: any;
+  default?: string | number | boolean | null;
   validation?: FieldValidation;
 }
 
@@ -115,7 +115,7 @@ export interface FieldValidation {
   min?: number;
   max?: number;
   pattern?: string;
-  enum?: any[];
+  enum?: Array<string | number | boolean>;
   custom?: string;
 }
 
@@ -130,7 +130,7 @@ export interface Document {
   id: string;
   table_id: string;
   project_id: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -160,7 +160,7 @@ export interface ProjectUser {
   password_hash?: string;
   verified: boolean;
   active: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   last_login?: string;
@@ -193,7 +193,7 @@ export interface ChangelogEntry {
   entity_type: string;
   entity_id: string;
   action: ChangeAction;
-  changes: Record<string, any>;
+  changes: Record<string, unknown>;
   performed_by: string;
   session_id?: string;
   timestamp: string;
@@ -206,12 +206,12 @@ export enum ChangeAction {
 }
 
 // API Response Types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
@@ -229,7 +229,7 @@ export interface QueryOptions {
   limit?: number;
   sort?: string;
   order?: 'asc' | 'desc';
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
   search?: string;
   fields?: string[];
 }
@@ -274,5 +274,5 @@ export interface StorageStats {
 export interface KrapiError {
   success: false;
   error: string;
-  details?: any;
+  details?: unknown;
 }

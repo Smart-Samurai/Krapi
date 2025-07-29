@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse, PaginatedResponse, TableSchema, Document, ChangeAction, FieldType } from '@/types';
+import { AuthenticatedRequest, ApiResponse, PaginatedResponse, TableSchema, Document, ChangeAction, FieldType, TableField, FieldValidation } from '@/types';
 
 export class DatabaseController {
   private db: DatabaseService;
@@ -24,7 +24,7 @@ export class DatabaseController {
         return;
       }
 
-      const schemas = this.db.getTableSchemasByProject(projectId);
+      const schemas = await this.db.getProjectTableSchemas(projectId);
 
       res.status(200).json({
         success: true,
@@ -46,7 +46,7 @@ export class DatabaseController {
     try {
       const { projectId, tableName } = req.params;
 
-      const schema = this.db.getTableSchemaByName(projectId, tableName);
+      const schema = await this.db.getTableSchema(projectId, tableName);
 
       if (!schema) {
         res.status(404).json({
@@ -89,7 +89,7 @@ export class DatabaseController {
       }
 
       // Check if table already exists
-      const existing = this.db.getTableSchemaByName(projectId, name);
+      const existing = await this.db.getTableSchema(projectId, name);
       if (existing) {
         res.status(400).json({
           success: false,
@@ -109,23 +109,23 @@ export class DatabaseController {
       }
 
       // Create schema
-      const schema = this.db.createTableSchema({
-        project_id: projectId,
+      const schema = await this.db.createTableSchema(
+        projectId,
         name,
-        description,
-        fields: validatedFields,
-        indexes
-      });
+        { description, fields: validatedFields, indexes },
+        authReq.user?.id || authReq.session?.api_key || 'system'
+      );
 
       // Log action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: projectId,
         entity_type: 'table_schema',
         entity_id: schema.id,
         action: ChangeAction.CREATE,
         changes: { name, fields: fields.length },
         performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(201).json({
@@ -151,7 +151,7 @@ export class DatabaseController {
       const updates = req.body;
 
       // Get existing schema
-      const existing = this.db.getTableSchemaByName(projectId, tableName);
+      const existing = await this.db.getTableSchema(projectId, tableName);
       if (!existing) {
         res.status(404).json({
           success: false,
@@ -174,7 +174,7 @@ export class DatabaseController {
       }
 
       // Update schema
-      const updated = this.db.updateTableSchema(existing.id, updates);
+      const updated = await this.db.updateTableSchema(projectId, tableName, updates);
 
       if (!updated) {
         res.status(500).json({
@@ -185,7 +185,7 @@ export class DatabaseController {
       }
 
       // Log action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(updates).forEach(key => {
         if (JSON.stringify(updates[key]) !== JSON.stringify(existing[key as keyof TableSchema])) {
           changes[key] = { old: existing[key as keyof TableSchema], new: updates[key] };
@@ -193,14 +193,15 @@ export class DatabaseController {
       });
 
       if (Object.keys(changes).length > 0) {
-        this.db.createChangelogEntry({
+        await this.db.createChangelogEntry({
           project_id: projectId,
           entity_type: 'table_schema',
           entity_id: existing.id,
           action: ChangeAction.UPDATE,
           changes,
           performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-          session_id: authReq.session?.id
+          session_id: authReq.session?.id,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -226,7 +227,7 @@ export class DatabaseController {
       const { projectId, tableName } = req.params;
 
       // Get existing schema
-      const existing = this.db.getTableSchemaByName(projectId, tableName);
+      const existing = await this.db.getTableSchema(projectId, tableName);
       if (!existing) {
         res.status(404).json({
           success: false,
@@ -236,7 +237,7 @@ export class DatabaseController {
       }
 
       // Check if table has documents
-      const { total } = this.db.getDocumentsByTable(existing.id);
+      const { total } = await this.db.getDocumentsByTable(existing.id);
       if (total > 0) {
         res.status(400).json({
           success: false,
@@ -246,7 +247,7 @@ export class DatabaseController {
       }
 
       // Delete schema
-      const deleted = this.db.deleteTableSchema(existing.id);
+      const deleted = await this.db.deleteTableSchema(projectId, tableName);
 
       if (!deleted) {
         res.status(500).json({
@@ -257,14 +258,15 @@ export class DatabaseController {
       }
 
       // Log action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: projectId,
         entity_type: 'table_schema',
         entity_id: existing.id,
         action: ChangeAction.DELETE,
         changes: { name: existing.name },
         performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(200).json({
@@ -289,7 +291,7 @@ export class DatabaseController {
       const { page = 1, limit = 50, sort, order, filter } = req.query;
 
       // Get table schema
-      const schema = this.db.getTableSchemaByName(projectId, tableName);
+      const schema = await this.db.getTableSchema(projectId, tableName);
       if (!schema) {
         res.status(404).json({
           success: false,
@@ -307,7 +309,7 @@ export class DatabaseController {
         filter: filter ? JSON.parse(filter as string) : undefined
       };
 
-      const { documents, total } = this.db.getDocumentsByTable(schema.id, options);
+      const { documents, total } = await this.db.getDocumentsByTable(schema.id, options);
 
       res.status(200).json({
         success: true,
@@ -335,7 +337,7 @@ export class DatabaseController {
       const { projectId, tableName, documentId } = req.params;
 
       // Verify table exists
-      const schema = this.db.getTableSchemaByName(projectId, tableName);
+      const schema = await this.db.getTableSchema(projectId, tableName);
       if (!schema) {
         res.status(404).json({
           success: false,
@@ -344,7 +346,7 @@ export class DatabaseController {
         return;
       }
 
-      const document = this.db.getDocumentById(documentId);
+      const document = await this.db.getDocument(projectId, tableName, documentId);
 
       if (!document || document.table_id !== schema.id) {
         res.status(404).json({
@@ -377,7 +379,7 @@ export class DatabaseController {
       const { data } = req.body;
 
       // Get table schema
-      const schema = this.db.getTableSchemaByName(projectId, tableName);
+      const schema = await this.db.getTableSchema(projectId, tableName);
       if (!schema) {
         res.status(404).json({
           success: false,
@@ -397,23 +399,23 @@ export class DatabaseController {
       }
 
       // Create document
-      const document = this.db.createDocument({
-        table_id: schema.id,
-        project_id: projectId,
-        data: validation.data,
-        created_by: authReq.user?.id || authReq.session?.api_key,
-        updated_by: authReq.user?.id || authReq.session?.api_key
-      });
+      const document = await this.db.createDocument(
+        projectId,
+        tableName,
+        validation.data!,
+        authReq.user?.id || authReq.session?.api_key || 'system'
+      );
 
       // Log action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: projectId,
         entity_type: 'document',
         entity_id: document.id,
         action: ChangeAction.CREATE,
         changes: { table: tableName },
         performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(201).json({
@@ -439,7 +441,7 @@ export class DatabaseController {
       const { data } = req.body;
 
       // Get table schema
-      const schema = this.db.getTableSchemaByName(projectId, tableName);
+      const schema = await this.db.getTableSchema(projectId, tableName);
       if (!schema) {
         res.status(404).json({
           success: false,
@@ -449,7 +451,7 @@ export class DatabaseController {
       }
 
       // Get existing document
-      const existing = this.db.getDocumentById(documentId);
+      const existing = await this.db.getDocument(projectId, tableName, documentId);
       if (!existing || existing.table_id !== schema.id) {
         res.status(404).json({
           success: false,
@@ -472,10 +474,13 @@ export class DatabaseController {
       }
 
       // Update document
-      const updated = this.db.updateDocument(documentId, {
-        data: validation.data,
-        updated_by: authReq.user?.id || authReq.session?.api_key
-      });
+      const updated = await this.db.updateDocument(
+        projectId,
+        tableName,
+        documentId,
+        validation.data!,
+        authReq.user?.id || authReq.session?.api_key || 'system'
+      );
 
       if (!updated) {
         res.status(500).json({
@@ -486,7 +491,7 @@ export class DatabaseController {
       }
 
       // Log action
-      const changes: any = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       Object.keys(data).forEach(key => {
         if (JSON.stringify(data[key]) !== JSON.stringify(existing.data[key])) {
           changes[key] = { old: existing.data[key], new: data[key] };
@@ -494,14 +499,15 @@ export class DatabaseController {
       });
 
       if (Object.keys(changes).length > 0) {
-        this.db.createChangelogEntry({
+        await this.db.createChangelogEntry({
           project_id: projectId,
           entity_type: 'document',
           entity_id: documentId,
           action: ChangeAction.UPDATE,
           changes,
           performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-          session_id: authReq.session?.id
+          session_id: authReq.session?.id,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -527,7 +533,7 @@ export class DatabaseController {
       const { projectId, tableName, documentId } = req.params;
 
       // Get table schema
-      const schema = this.db.getTableSchemaByName(projectId, tableName);
+      const schema = await this.db.getTableSchema(projectId, tableName);
       if (!schema) {
         res.status(404).json({
           success: false,
@@ -537,7 +543,7 @@ export class DatabaseController {
       }
 
       // Get existing document
-      const existing = this.db.getDocumentById(documentId);
+      const existing = await this.db.getDocument(projectId, tableName, documentId);
       if (!existing || existing.table_id !== schema.id) {
         res.status(404).json({
           success: false,
@@ -547,7 +553,7 @@ export class DatabaseController {
       }
 
       // Delete document
-      const deleted = this.db.deleteDocument(documentId);
+      const deleted = await this.db.deleteDocument(projectId, tableName, documentId);
 
       if (!deleted) {
         res.status(500).json({
@@ -558,14 +564,15 @@ export class DatabaseController {
       }
 
       // Log action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         project_id: projectId,
         entity_type: 'document',
         entity_id: documentId,
         action: ChangeAction.DELETE,
         changes: { table: tableName },
         performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(200).json({
@@ -584,7 +591,7 @@ export class DatabaseController {
   };
 
   // Helper: Validate fields
-  private validateFields(fields: any[]): any[] | null {
+  private validateFields(fields: TableField[]): TableField[] | null {
     if (!Array.isArray(fields) || fields.length === 0) {
       return null;
     }
@@ -612,8 +619,8 @@ export class DatabaseController {
   }
 
   // Helper: Validate document against schema
-  private validateDocument(data: any, schema: TableSchema): { valid: boolean, data?: any, error?: string } {
-    const validatedData: any = {};
+  private validateDocument(data: Record<string, unknown>, schema: TableSchema): { valid: boolean, data?: Record<string, unknown>, error?: string } {
+    const validatedData: Record<string, unknown> = {};
 
     // Check required fields
     for (const field of schema.fields) {
@@ -653,7 +660,7 @@ export class DatabaseController {
   }
 
   // Helper: Validate field type
-  private validateFieldType(value: any, type: FieldType): { valid: boolean, value?: any, error?: string } {
+  private validateFieldType(value: unknown, type: FieldType): { valid: boolean, value?: unknown, error?: string } {
     switch (type) {
       case FieldType.STRING:
         if (typeof value !== 'string') {
@@ -661,12 +668,13 @@ export class DatabaseController {
         }
         return { valid: true, value };
 
-      case FieldType.NUMBER:
+      case FieldType.NUMBER: {
         const num = Number(value);
         if (isNaN(num)) {
           return { valid: false, error: 'Must be a number' };
         }
         return { valid: true, value: num };
+      }
 
       case FieldType.BOOLEAN:
         if (typeof value !== 'boolean') {
@@ -675,12 +683,13 @@ export class DatabaseController {
         return { valid: true, value };
 
       case FieldType.DATE:
-      case FieldType.DATETIME:
-        const date = new Date(value);
+      case FieldType.DATETIME: {
+        const date = new Date(value as string | number);
         if (isNaN(date.getTime())) {
           return { valid: false, error: 'Must be a valid date' };
         }
         return { valid: true, value: date.toISOString() };
+      }
 
       case FieldType.JSON:
         if (typeof value === 'string') {
@@ -706,12 +715,12 @@ export class DatabaseController {
   }
 
   // Helper: Validate field custom rules
-  private validateFieldCustom(value: any, validation: any): { valid: boolean, error?: string } {
-    if (validation.min !== undefined && value < validation.min) {
+  private validateFieldCustom(value: unknown, validation: FieldValidation): { valid: boolean, error?: string } {
+    if (validation.min !== undefined && typeof value === 'number' && value < validation.min) {
       return { valid: false, error: `Must be at least ${validation.min}` };
     }
 
-    if (validation.max !== undefined && value > validation.max) {
+    if (validation.max !== undefined && typeof value === 'number' && value > validation.max) {
       return { valid: false, error: `Must be at most ${validation.max}` };
     }
 
@@ -722,7 +731,7 @@ export class DatabaseController {
       }
     }
 
-    if (validation.enum && !validation.enum.includes(value)) {
+    if (validation.enum && !validation.enum.includes(value as string | number | boolean)) {
       return { valid: false, error: `Must be one of: ${validation.enum.join(', ')}` };
     }
 

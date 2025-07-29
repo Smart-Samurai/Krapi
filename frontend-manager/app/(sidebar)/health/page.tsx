@@ -23,15 +23,20 @@ interface HealthCheck {
   responseTime: string;
   uptime: string;
   lastCheck: string;
-  icon: any;
-  details?: any;
+  icon: React.ComponentType<{ className?: string }>;
+  details?: Record<string, unknown>;
 }
 
 export default function HealthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState(new Date());
   const [healthChecks, setHealthChecks] = useState<HealthCheck[]>([]);
-  const [systemMetrics, setSystemMetrics] = useState<any>({});
+  const [systemMetrics, setSystemMetrics] = useState<{
+    cpu?: { usage: number; cores: number };
+    memory?: { used: number; total: number; percentage: number; usage?: number };
+    disk?: { used: number; total: number; percentage: number; usage?: number };
+    network?: { in: number; out: number };
+  }>({});
   const krapi = useKrapi();
 
   useEffect(() => {
@@ -46,49 +51,68 @@ export default function HealthPage() {
     try {
       const response = await krapi.client.health();
       if (response.success && response.data) {
-        const data = response.data as any;
+        const data = response.data as {
+          api?: { status: string; responseTime: string; uptime: string };
+          database?: { status: string; responseTime: string; uptime: string };
+          storage?: { status: string; responseTime: string; uptime: string };
+          websocket?: { status: string; responseTime: string; uptime: string };
+          metrics?: {
+            cpu?: { usage: number; cores: number };
+            memory?: { used: number; total: number; percentage: number; usage?: number };
+            disk?: { used: number; total: number; percentage: number; usage?: number };
+            network?: { in: number; out: number };
+          };
+        };
         
         // Transform health data into our format
         const checks: HealthCheck[] = [
           {
             id: "api-server",
             name: "API Server",
-            status: data.api?.status === 'ok' ? 'healthy' : data.api?.status || 'unknown',
+            status: data.api?.status === 'ok' ? 'healthy' : 
+                   data.api?.status === 'error' ? 'error' :
+                   data.api?.status === 'warning' ? 'warning' : 'unknown',
             responseTime: data.api?.responseTime || 'N/A',
             uptime: data.api?.uptime || '0%',
             lastCheck: 'Just now',
             icon: FiServer,
-            details: data.api,
+            ...(data.api && { details: data.api }),
           },
           {
             id: "database",
             name: "Database",
-            status: data.database?.status === 'ok' ? 'healthy' : data.database?.status || 'unknown',
+            status: data.database?.status === 'ok' ? 'healthy' : 
+                   data.database?.status === 'error' ? 'error' :
+                   data.database?.status === 'warning' ? 'warning' : 'unknown',
             responseTime: data.database?.responseTime || 'N/A',
             uptime: data.database?.uptime || '0%',
             lastCheck: 'Just now',
             icon: FiDatabase,
-            details: data.database,
+            ...(data.database && { details: data.database }),
           },
           {
             id: "file-storage",
             name: "File Storage",
-            status: data.storage?.status === 'ok' ? 'healthy' : data.storage?.status || 'unknown',
+            status: data.storage?.status === 'ok' ? 'healthy' : 
+                   data.storage?.status === 'error' ? 'error' :
+                   data.storage?.status === 'warning' ? 'warning' : 'unknown',
             responseTime: data.storage?.responseTime || 'N/A',
             uptime: data.storage?.uptime || '0%',
             lastCheck: 'Just now',
             icon: FiGlobe,
-            details: data.storage,
+            ...(data.storage && { details: data.storage }),
           },
           {
             id: "websocket",
             name: "WebSocket Server",
-            status: data.websocket?.status === 'ok' ? 'healthy' : data.websocket?.status || 'unknown',
+            status: data.websocket?.status === 'ok' ? 'healthy' : 
+                   data.websocket?.status === 'error' ? 'error' :
+                   data.websocket?.status === 'warning' ? 'warning' : 'unknown',
             responseTime: data.websocket?.responseTime || 'N/A',
             uptime: data.websocket?.uptime || '0%',
             lastCheck: 'Just now',
             icon: FiWifi,
-            details: data.websocket,
+            ...(data.websocket && { details: data.websocket }),
           },
         ];
         
@@ -318,12 +342,12 @@ export default function HealthPage() {
           </div>
           <div className="space-y-2">
             <div className="text-3xl font-bold text-text">
-              {systemMetrics.memory?.usage || '0'}%
+              {systemMetrics.memory?.percentage || '0'}%
             </div>
             <div className="w-full bg-secondary/20 rounded-full h-2">
               <div
                 className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${systemMetrics.memory?.usage || 0}%` }}
+                                  style={{ width: `${systemMetrics.memory?.percentage || 0}%` }}
               />
             </div>
             <p className="text-sm text-text/60">
@@ -339,12 +363,12 @@ export default function HealthPage() {
           </div>
           <div className="space-y-2">
             <div className="text-3xl font-bold text-text">
-              {systemMetrics.disk?.usage || '0'}%
+              {systemMetrics.disk?.percentage || '0'}%
             </div>
             <div className="w-full bg-secondary/20 rounded-full h-2">
               <div
                 className="bg-primary h-2 rounded-full transition-all"
-                style={{ width: `${systemMetrics.disk?.usage || 0}%` }}
+                                  style={{ width: `${systemMetrics.disk?.percentage || 0}%` }}
               />
             </div>
             <p className="text-sm text-text/60">

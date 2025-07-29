@@ -760,7 +760,7 @@ export default function QueryBuilder({
                     >
                       {index > 0 && (
                         <Select
-                          value={condition.logic}
+                          value={condition.logic || "AND"}
                           onValueChange={(value) =>
                             updateCondition(index, "logic", value)
                           }
@@ -849,7 +849,7 @@ export default function QueryBuilder({
                           ...prev,
                           limit: e.target.value
                             ? parseInt(e.target.value)
-                            : undefined,
+                            : 0,
                         }))
                       }
                     />
