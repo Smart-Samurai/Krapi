@@ -7,7 +7,7 @@ import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiShield } from "react-icons/fi";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createDefaultKrapi } from "@/lib/krapi";
+import { useAuth } from "@/contexts/AuthContext";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -19,6 +19,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +29,9 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const krapi = createDefaultKrapi();
-      const result = await krapi.auth.login(data.email, data.password);
+      const success = await login(data.email, data.password);
 
-      if (result.success && result.token) {
-        // Store user data if needed
-        if (result.user) {
-          localStorage.setItem("user", JSON.stringify(result.user));
-        }
-
+      if (success) {
         // Store remember me preference
         if (data.rememberMe) {
           localStorage.setItem("rememberMe", "true");
@@ -44,33 +39,33 @@ export default function LoginPage() {
 
         // Redirect to dashboard after successful login
         router.push("/dashboard");
-      } else {
-        setError(result.error || "Invalid username or password");
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("An error occurred during login. Please try again.");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
+        {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <FiShield className="h-8 w-8 text-primary" />
-            </div>
+          <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+            <FiShield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-text mb-2">Welcome Back</h1>
-          <p className="text-text/60">Sign in to your KRAPI admin account</p>
+          <h1 className="text-3xl font-bold text-text">Welcome back</h1>
+          <p className="text-text/60 mt-2">Sign in to your account</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-background border border-secondary rounded-lg p-8 shadow-lg">
+        <div className="bg-background border border-secondary rounded-lg p-8">
           {error && (
             <InfoBlock title="Login Failed" variant="error" className="mb-6">
               {error}
@@ -82,40 +77,57 @@ export default function LoginPage() {
             onSubmit={handleLogin}
             className="space-y-6"
           >
-            <FormField
-              name="email"
-              label="Email Address"
-              type="email"
-              placeholder="Enter your email address"
-              required
-              autoComplete="email"
-            />
+            <div className="space-y-4">
+              <FormField
+                name="email"
+                label="Email"
+                type="email"
+                placeholder="Enter your email"
+                icon={FiMail}
+                required
+              />
 
-            <FormField
-              name="password"
-              label="Password"
-              type="password"
-              placeholder="Enter your password"
-              required
-              autoComplete="current-password"
-            />
+              <div className="relative">
+                <FormField
+                  name="password"
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  icon={FiLock}
+                  required
+                />
+                <IconButton
+                  icon={showPassword ? FiEyeOff : FiEye}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-3 top-[34px]"
+                  onClick={() => setShowPassword(!showPassword)}
+                  type="button"
+                />
+              </div>
+            </div>
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center space-x-2">
-                <Checkbox
-                  id="remember-me"
-                  className="rounded border-secondary text-primary focus:ring-primary"
+              <div className="flex items-center space-x-2">
+                <FormField
+                  name="rememberMe"
+                  label=""
+                  type="checkbox"
+                  className="w-4 h-4"
                 />
                 <label
-                  htmlFor="remember-me"
-                  className="text-sm text-text/80 cursor-pointer"
+                  htmlFor="rememberMe"
+                  className="text-sm text-text/80 cursor-pointer select-none"
                 >
                   Remember me
                 </label>
-              </label>
-              <Button variant="link" type="button" className="text-sm">
+              </div>
+              <a
+                href="/forgot-password"
+                className="text-sm text-primary hover:underline"
+              >
                 Forgot password?
-              </Button>
+              </a>
             </div>
 
             <Button
@@ -125,38 +137,32 @@ export default function LoginPage() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Signing in...
+                </div>
+              ) : (
+                "Sign in"
+              )}
             </Button>
           </Form>
 
-          <div className="mt-6 pt-6 border-t border-secondary/50">
-            <p className="text-center text-sm text-text/60">
+          <div className="mt-6 text-center">
+            <p className="text-sm text-text/60">
               Don't have an account?{" "}
-              <Button variant="link" className="text-sm">
-                Contact your administrator
-              </Button>
+              <a href="/register" className="text-primary hover:underline">
+                Contact administrator
+              </a>
             </p>
           </div>
         </div>
 
-        {/* Info Block */}
-        <div className="mt-6">
-          <InfoBlock
-            title="Default Credentials"
-            variant="info"
-            className="bg-background border border-secondary"
-          >
-            <div className="text-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-text">Username:</span>
-                <span className="text-text/80">admin</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-text">Password:</span>
-                <span className="text-text/80">admin123</span>
-              </div>
-            </div>
-          </InfoBlock>
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-text/40">
+            © 2024 KRAPI. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

@@ -8,12 +8,12 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { createDefaultKrapi } from "@/lib/krapi";
-import { AuthUser } from "@/lib/krapi/types";
+import { apiClient } from "@/lib/api-client";
+import { AdminUser } from "@/lib/krapi-sdk/types";
 import { config } from "@/lib/config";
 
 interface AuthContextType {
-  user: AuthUser | null;
+  user: Omit<AdminUser, 'password_hash'> | null;
   token: string | null;
   socket: WebSocket | null;
   isLoading: boolean;
@@ -30,7 +30,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<Omit<AdminUser, 'password_hash'> | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,8 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = useCallback(async () => {
     try {
-      const krapi = createDefaultKrapi();
-      const response = await krapi.auth.verify();
+      const response = await apiClient.auth.getCurrentUser();
 
       if (response.success && response.data) {
         setUser(response.data);
@@ -202,27 +201,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSocket(null);
       }
     }
-  }, [token, reconnectAttempts]);
+  }, [token, reconnectAttempts, user]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoginInProgress(true);
     try {
       console.log("🔐 AuthContext: Attempting login...");
-      const krapi = createDefaultKrapi();
-      const response = await krapi.auth.login(email, password);
+      const response = await apiClient.auth.login(email, password);
       console.log("🔐 AuthContext: Login response:", response);
 
-      if (response.success && response.token && response.user) {
+      if (response.success && response.data) {
         console.log(
           "🔐 AuthContext: Login successful - setting token and user"
         );
-        // Store in localStorage first
-        localStorage.setItem("auth_token", response.token);
-        localStorage.setItem("auth_user", JSON.stringify(response.user));
-
-        // Then set state (this will trigger verifyToken)
-        setToken(response.token);
-        setUser(response.user);
+        
+        // The apiClient already stores the token in localStorage
+        // We just need to update our state
+        setToken(response.data.token);
+        setUser(response.data.user);
 
         setLoginInProgress(false);
         return true;
@@ -238,7 +234,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiClient.auth.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+
     // Close WebSocket connection
     if (socket) {
       socket.close();
@@ -253,8 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const krapi = createDefaultKrapi();
-      const response = await krapi.auth.verify();
+      const response = await apiClient.auth.getCurrentUser();
 
       if (response.success && response.data) {
         setUser(response.data);
