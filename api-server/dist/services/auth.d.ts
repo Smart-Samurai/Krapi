@@ -2,16 +2,18 @@ import { AuthPayload, User } from "../types/core";
 export declare class AuthService {
     static generateToken(payload: AuthPayload): string;
     static verifyToken(token: string): AuthPayload | null;
-    static login(username: string, password: string): Promise<{
+    static login(email: string, password: string): Promise<{
         user: Omit<User, "password_hash">;
         token: string;
     } | null>;
     static createUser(userData: {
-        username: string;
         email: string;
+        firstName: string;
+        lastName: string;
         password: string;
-        role?: "admin" | "user";
+        role?: "master_admin" | "admin" | "project_admin" | "limited_admin";
         active?: boolean;
+        permissions?: Record<string, boolean>;
     }): Promise<Omit<User, "password_hash"> | null>;
     static getAllUsers(): Promise<Omit<User, "password_hash">[]>;
 }

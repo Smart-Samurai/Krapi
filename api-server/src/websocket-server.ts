@@ -34,7 +34,7 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     return;
   }
 
-  const connectionId = `${payload.userId}-${Date.now()}`;
+  const connectionId = `${payload.id}-${Date.now()}`;
   activeConnections.set(connectionId, ws);
 
   console.log(

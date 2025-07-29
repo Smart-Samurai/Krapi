@@ -24,8 +24,8 @@ class AuthService {
             return null;
         }
     }
-    static async login(username, password) {
-        const user = coreDatabase.getUserByUsername(username);
+    static async login(email, password) {
+        const user = coreDatabase.getUserByEmail(email);
         if (!user || !user.active) {
             return null;
         }
@@ -43,17 +43,20 @@ class AuthService {
     }
     static async createUser(userData) {
         // Check if user already exists
-        const existingUser = coreDatabase.getUserByUsername(userData.username);
+        const existingUser = coreDatabase.getUserByEmail(userData.email);
         if (existingUser) {
             return null;
         }
         const hashedPassword = bcryptjs_1.default.hashSync(userData.password, 10);
         const user = coreDatabase.createUser({
-            username: userData.username,
+            username: userData.email, // Use email as username for now
             email: userData.email,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
             password_hash: hashedPassword,
-            role: userData.role || "user",
+            role: userData.role || "admin",
             active: userData.active !== false,
+            permissions: userData.permissions || {},
         });
         if (!user) {
             return null;
