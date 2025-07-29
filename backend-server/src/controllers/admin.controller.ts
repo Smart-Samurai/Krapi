@@ -19,7 +19,7 @@ export class AdminController {
       const pageNum = parseInt(page as string);
       const limitNum = parseInt(limit as string);
 
-      const users = this.db.getAllAdminUsers();
+      const users = await this.db.getAllAdminUsers();
       
       // Simple pagination
       const startIndex = (pageNum - 1) * limitNum;
@@ -28,7 +28,7 @@ export class AdminController {
 
       // Remove password hashes from response
       const sanitizedUsers = paginatedUsers.map(user => {
-        const { password_hash, ...userWithoutPassword } = user;
+        const { password_hash: _password_hash, ...userWithoutPassword } = user;
         return userWithoutPassword;
       });
 
@@ -68,7 +68,7 @@ export class AdminController {
       }
 
       // Remove password hash from response
-      const { password_hash, ...userWithoutPassword } = user;
+      const { password_hash: _password_hash, ...userWithoutPassword } = user;
 
       res.status(200).json({
         success: true,
@@ -208,7 +208,7 @@ export class AdminController {
       }
 
       // Remove password hash from response
-      const { password_hash, ...userWithoutPassword } = updatedUser;
+      const { password_hash: _password_hash, ...userWithoutPassword } = updatedUser;
 
       res.status(200).json({
         success: true,
@@ -348,7 +348,7 @@ export class AdminController {
       });
 
       // Remove password hash from response
-      const { password_hash, ...userWithoutPassword } = updatedUser;
+      const { password_hash: _password_hash, ...userWithoutPassword } = updatedUser;
 
       res.status(200).json({
         success: true,
@@ -382,7 +382,7 @@ export class AdminController {
       }
 
       // Get changelog entries for this user
-      const activities = this.db.getChangelogEntries({
+      const activities = await this.db.getChangelogEntries({
         entity_type: 'admin_user',
         entity_id: id,
         limit: parseInt(limit as string)

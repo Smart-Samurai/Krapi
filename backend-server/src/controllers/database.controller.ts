@@ -661,12 +661,13 @@ export class DatabaseController {
         }
         return { valid: true, value };
 
-      case FieldType.NUMBER:
+      case FieldType.NUMBER: {
         const num = Number(value);
         if (isNaN(num)) {
           return { valid: false, error: 'Must be a number' };
         }
         return { valid: true, value: num };
+      }
 
       case FieldType.BOOLEAN:
         if (typeof value !== 'boolean') {
@@ -675,12 +676,13 @@ export class DatabaseController {
         return { valid: true, value };
 
       case FieldType.DATE:
-      case FieldType.DATETIME:
+      case FieldType.DATETIME: {
         const date = new Date(value);
         if (isNaN(date.getTime())) {
           return { valid: false, error: 'Must be a valid date' };
         }
         return { valid: true, value: date.toISOString() };
+      }
 
       case FieldType.JSON:
         if (typeof value === 'string') {

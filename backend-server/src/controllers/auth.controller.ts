@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthService } from '@/services/auth.service';
 import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse, Session } from '@/types';
+import { AuthenticatedRequest, ApiResponse } from '@/types';
 
 export class AuthController {
   private authService: AuthService;
@@ -27,8 +27,8 @@ export class AuthController {
         return;
       }
 
-      // Log session creation
-      this.authService.logAuthAction('session_created', 'admin', undefined, session.id);
+              // Log session creation
+        await this.authService.logAuthAction('session_created', 'admin', undefined, session.id);
 
       res.status(200).json({
         success: true,
@@ -64,8 +64,8 @@ export class AuthController {
         return;
       }
 
-      // Log session creation
-      this.authService.logAuthAction('session_created', api_key, projectId, session.id);
+              // Log session creation
+        await this.authService.logAuthAction('session_created', api_key, projectId, session.id);
 
       res.status(200).json({
         success: true,
@@ -104,13 +104,14 @@ export class AuthController {
       const token = require('uuid').v4();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
 
-      const session = this.db.createSession({
+      const session = await this.db.createSession({
         token,
         type: 'admin' as any,
         user_id: user.id,
         permissions: ['*'],
         expires_at: expiresAt,
-        consumed: false
+        consumed: false,
+        created_at: new Date().toISOString()
       });
 
       // Generate JWT
@@ -121,7 +122,7 @@ export class AuthController {
       });
 
       // Log login
-      this.authService.logAuthAction('login', user.id, undefined, session.id);
+      await this.authService.logAuthAction('login', user.id, undefined, session.id);
 
       res.status(200).json({
         success: true,
@@ -154,7 +155,7 @@ export class AuthController {
     try {
       const { session_token } = req.body;
 
-      const session = this.db.getSessionByToken(session_token);
+      const session = await this.db.getSessionByToken(session_token);
 
       if (!session || session.consumed || new Date(session.expires_at) < new Date()) {
         res.status(401).json({
@@ -192,12 +193,12 @@ export class AuthController {
 
       if (session && !session.consumed) {
         // Consume the session to invalidate it
-        this.db.consumeSession(session.token);
+        await this.db.consumeSession(session.token);
       }
 
       // Log logout
       if (user) {
-        this.authService.logAuthAction('logout', user.id, undefined, session?.id);
+        await this.authService.logAuthAction('logout', user.id, undefined, session?.id);
       }
 
       res.status(200).json({

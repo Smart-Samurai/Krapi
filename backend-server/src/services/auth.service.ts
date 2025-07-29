@@ -48,7 +48,7 @@ export class AuthService {
 
   // Admin Authentication
   async authenticateAdmin(email: string, password: string): Promise<AdminUser | null> {
-    const user = this.db.getAdminUserByEmail(email);
+    const user = await this.db.getAdminUserByEmail(email);
     if (!user || !user.active) return null;
 
     const isValid = await bcrypt.compare(password, user.password_hash);
@@ -72,12 +72,14 @@ export class AuthService {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + this.sessionExpiresIn).toISOString();
 
-    const session = this.db.createSession({
+    const session = await this.db.createSession({
       token,
       type: SessionType.ADMIN,
+      user_id: user.id,
       permissions: ['*'], // Full permissions for admin session
       expires_at: expiresAt,
-      consumed: false
+      consumed: false,
+      created_at: new Date().toISOString()
     });
 
     return session;
@@ -85,7 +87,7 @@ export class AuthService {
 
   // Create Project Session
   async createProjectSession(projectId: string, apiKey: string): Promise<Session | null> {
-    const project = this.db.getProjectByApiKey(apiKey);
+    const project = await this.db.getProjectByApiKey(apiKey);
     
     if (!project || project.id !== projectId || !project.active) {
       return null;
@@ -94,14 +96,15 @@ export class AuthService {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + this.sessionExpiresIn).toISOString();
 
-    const session = this.db.createSession({
+    const session = await this.db.createSession({
       token,
       type: SessionType.PROJECT,
       api_key: apiKey,
       project_id: projectId,
       permissions: this.getProjectPermissions(project),
       expires_at: expiresAt,
-      consumed: false
+      consumed: false,
+      created_at: new Date().toISOString()
     });
 
     return session;
@@ -109,7 +112,7 @@ export class AuthService {
 
   // Validate and Consume Session
   async validateSession(token: string): Promise<{ valid: boolean, session?: Session, project?: Project, user?: AdminUser }> {
-    const session = this.db.getSessionByToken(token);
+    const session = await this.db.getSessionByToken(token);
     
     if (!session) {
       return { valid: false };
@@ -126,17 +129,17 @@ export class AuthService {
     }
 
     // Consume the session
-    const consumedSession = this.db.consumeSession(token);
+    const consumedSession = await this.db.consumeSession(token);
     if (!consumedSession) {
       return { valid: false };
     }
 
     // Get associated data based on session type
     if (session.type === SessionType.ADMIN && session.user_id) {
-      const user = this.db.getAdminUserById(session.user_id);
+      const user = await this.db.getAdminUserById(session.user_id);
       return { valid: true, session: consumedSession, user: user || undefined };
     } else if (session.type === SessionType.PROJECT && session.project_id) {
-      const project = this.db.getProjectById(session.project_id);
+      const project = await this.db.getProjectById(session.project_id);
       return { valid: true, session: consumedSession, project: project || undefined };
     }
 
@@ -152,7 +155,7 @@ export class AuthService {
   verifyJWT(token: string): any {
     try {
       return jwt.verify(token, this.jwtSecret);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -187,15 +190,16 @@ export class AuthService {
   }
 
   // Log authentication action
-  logAuthAction(action: 'login' | 'logout' | 'session_created', userId: string, projectId?: string, sessionId?: string) {
-    this.db.createChangelogEntry({
+  async logAuthAction(action: 'login' | 'logout' | 'session_created', userId: string, projectId?: string, sessionId?: string) {
+    await this.db.createChangelogEntry({
       project_id: projectId,
       entity_type: 'auth',
       entity_id: userId,
       action: ChangeAction.CREATE,
       changes: { action },
       performed_by: userId,
-      session_id: sessionId
+      session_id: sessionId,
+      timestamp: new Date().toISOString()
     });
   }
 }

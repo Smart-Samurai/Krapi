@@ -17,7 +17,6 @@ import {
   Document,
   FileInfo,
   ProjectUser,
-  Session,
   QueryOptions
 } from './types';
 
@@ -300,9 +299,16 @@ export class KrapiClient {
     },
 
     // Upload file
-    uploadFile: async (projectId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<ApiResponse<FileInfo>> => {
-      const formData = new FormData();
-      formData.append('file', file);
+    uploadFile: async (projectId: string, file: any, onProgress?: (progress: number) => void): Promise<ApiResponse<FileInfo>> => {
+      // Handle both browser and Node.js environments
+      let formData: any;
+      if (typeof FormData !== 'undefined') {
+        formData = new FormData();
+        formData.append('file', file);
+      } else {
+        // In Node.js, the user should pass a proper form-data instance
+        formData = file;
+      }
 
       const config: AxiosRequestConfig = {
         headers: {
@@ -324,7 +330,7 @@ export class KrapiClient {
     },
 
     // Download file
-    downloadFile: async (projectId: string, fileId: string): Promise<Blob> => {
+    downloadFile: async (projectId: string, fileId: string): Promise<any> => {
       const response = await this.client.get(`/storage/${projectId}/files/${fileId}/download`, {
         responseType: 'blob'
       });

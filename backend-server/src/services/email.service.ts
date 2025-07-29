@@ -91,7 +91,7 @@ export class EmailService {
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       // Get project
-      const project = this.db.getProjectById(projectId);
+      const project = await this.db.getProjectById(projectId);
       if (!project) {
         return { success: false, error: 'Project not found' };
       }
@@ -269,7 +269,7 @@ export class EmailService {
 
   // Clear all transporters
   clearAllTransporters(): void {
-    for (const [projectId, transporter] of this.transporters) {
+    for (const [_projectId, transporter] of this.transporters) {
       transporter.close();
     }
     this.transporters.clear();

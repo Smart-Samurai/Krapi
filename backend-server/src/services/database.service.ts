@@ -236,14 +236,14 @@ export class DatabaseService {
   }
 
   // Admin User Methods
-  async createAdminUser(data: Omit<AdminUser, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'loginCount'>): Promise<AdminUser> {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+  async createAdminUser(data: Omit<AdminUser, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'loginCount'> & { password?: string }): Promise<AdminUser> {
+    const hashedPassword = data.password_hash || (data.password ? await bcrypt.hash(data.password, 10) : '');
     
     const result = await this.pool.query(
       `INSERT INTO admin_users (username, email, password, role, access_level, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [data.username, data.email, hashedPassword, data.role, data.accessLevel, data.isActive ?? true]
+      [data.username, data.email, hashedPassword, data.role, data.access_level, data.active ?? true]
     );
 
     return this.mapAdminUser(result.rows[0]);
@@ -253,6 +253,15 @@ export class DatabaseService {
     const result = await this.pool.query(
       'SELECT * FROM admin_users WHERE username = $1',
       [username]
+    );
+
+    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+  }
+
+  async getAdminUserByEmail(email: string): Promise<AdminUser | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [email]
     );
 
     return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
@@ -288,16 +297,16 @@ export class DatabaseService {
       fields.push(`role = $${paramCount++}`);
       values.push(data.role);
     }
-    if (data.accessLevel !== undefined) {
+    if (data.access_level !== undefined) {
       fields.push(`access_level = $${paramCount++}`);
-      values.push(data.accessLevel);
+      values.push(data.access_level);
     }
-    if (data.isActive !== undefined) {
+    if (data.active !== undefined) {
       fields.push(`is_active = $${paramCount++}`);
-      values.push(data.isActive);
+      values.push(data.active);
     }
-    if (data.password !== undefined) {
-      const hashedPassword = await bcrypt.hash(data.password, 10);
+    if ((data as any).password !== undefined) {
+      const hashedPassword = await bcrypt.hash((data as any).password, 10);
       fields.push(`password = $${paramCount++}`);
       values.push(hashedPassword);
     }
@@ -333,9 +342,9 @@ export class DatabaseService {
 
   async verifyAdminPassword(username: string, password: string): Promise<AdminUser | null> {
     const user = await this.getAdminUserByUsername(username);
-    if (!user || !user.isActive) return null;
+    if (!user || !user.active) return null;
 
-    const isValid = await bcrypt.compare(password, user.password);
+    const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) return null;
 
     await this.updateLoginInfo(user.id);
@@ -350,7 +359,7 @@ export class DatabaseService {
       `INSERT INTO projects (name, description, api_key, is_active, created_by, settings) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [data.name, data.description, apiKey, data.isActive ?? true, data.createdBy, data.settings || {}]
+      [data.name, data.description, apiKey, data.active ?? true, data.created_by, data.settings || {}]
     );
 
     return this.mapProject(result.rows[0]);
@@ -395,9 +404,9 @@ export class DatabaseService {
       fields.push(`description = $${paramCount++}`);
       values.push(data.description);
     }
-    if (data.isActive !== undefined) {
+    if (data.active !== undefined) {
       fields.push(`is_active = $${paramCount++}`);
-      values.push(data.isActive);
+      values.push(data.active);
     }
     if (data.settings !== undefined) {
       fields.push(`settings = $${paramCount++}`);
@@ -622,7 +631,7 @@ export class DatabaseService {
     const params: any[] = [projectId, tableName];
 
     if (where && Object.keys(where).length > 0) {
-      Object.entries(where).forEach(([key, value], index) => {
+      Object.entries(where).forEach(([key, value], _index) => {
         whereClause += ` AND data->>'${key}' = $${params.length + 1}`;
         params.push(value);
       });
@@ -670,16 +679,31 @@ export class DatabaseService {
     return result.rowCount > 0;
   }
 
+  async getDocumentsByTable(tableId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
+    // First get the table schema to get project_id and table_name
+    const tableResult = await this.pool.query(
+      'SELECT project_id, name FROM table_schemas WHERE id = $1',
+      [tableId]
+    );
+    
+    if (tableResult.rows.length === 0) {
+      return { documents: [], total: 0 };
+    }
+    
+    const { project_id, name } = tableResult.rows[0];
+    return this.getDocuments(project_id, name, options);
+  }
+
   // File Methods
   async createFile(data: Omit<FileRecord, 'id' | 'createdAt'>): Promise<FileRecord> {
     const result = await this.pool.query(
       `INSERT INTO files (project_id, filename, original_name, mime_type, size, path, metadata, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [data.projectId, data.filename, data.originalName, data.mimeType, data.size, data.path, data.metadata || {}, data.createdBy]
+      [data.project_id, data.filename, data.original_name, data.mime_type, data.size, data.path, {}, data.uploaded_by]
     );
 
-    await this.updateProjectStats(data.projectId, data.size);
+    await this.updateProjectStats(data.project_id, data.size);
     return this.mapFile(result.rows[0]);
   }
 
@@ -709,7 +733,7 @@ export class DatabaseService {
 
     if (result.rows.length > 0) {
       const file = this.mapFile(result.rows[0]);
-      await this.updateProjectStats(file.projectId, -file.size);
+      await this.updateProjectStats(file.project_id, -file.size);
       return file;
     }
 
@@ -722,7 +746,7 @@ export class DatabaseService {
       `INSERT INTO sessions (token, user_id, project_id, user_type, metadata, expires_at, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
-      [data.token, data.userId, data.projectId, data.userType, data.metadata || {}, data.expiresAt, data.isActive ?? true]
+      [data.token, data.user_id, data.project_id, data.type, data.permissions || [], data.expires_at, !data.consumed]
     );
 
     return this.mapSession(result.rows[0]);
@@ -755,6 +779,18 @@ export class DatabaseService {
     return result.rowCount > 0;
   }
 
+  async consumeSession(token: string): Promise<Session | null> {
+    const result = await this.pool.query(
+      `UPDATE sessions 
+       SET consumed = true, consumed_at = CURRENT_TIMESTAMP 
+       WHERE token = $1 AND consumed = false 
+       RETURNING *`,
+      [token]
+    );
+
+    return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
+  }
+
   async invalidateUserSessions(userId: string): Promise<void> {
     await this.pool.query(
       'UPDATE sessions SET is_active = false WHERE user_id = $1',
@@ -773,10 +809,10 @@ export class DatabaseService {
   // Changelog Methods
   async createChangelogEntry(data: Omit<ChangelogEntry, 'id' | 'createdAt'>): Promise<ChangelogEntry> {
     const result = await this.pool.query(
-      `INSERT INTO changelog (project_id, user_id, action, resource_type, resource_id, details) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
+      `INSERT INTO changelog (project_id, entity_type, entity_id, action, changes, performed_by, session_id, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [data.projectId, data.userId, data.action, data.resourceType, data.resourceId, data.details || {}]
+      [data.project_id, data.entity_type, data.entity_id, data.action, data.changes || {}, data.performed_by, data.session_id, data.timestamp || new Date().toISOString()]
     );
 
     return this.mapChangelogEntry(result.rows[0]);
@@ -796,20 +832,63 @@ export class DatabaseService {
     return result.rows.map(row => this.mapChangelogEntry(row));
   }
 
+  async getChangelogEntries(filters: { 
+    project_id?: string; 
+    entity_type?: string; 
+    entity_id?: string; 
+    limit?: number 
+  }): Promise<ChangelogEntry[]> {
+    const { project_id, entity_type, entity_id, limit = 100 } = filters;
+    const conditions: string[] = [];
+    const values: any[] = [];
+    
+    if (project_id) {
+      conditions.push(`project_id = $${values.length + 1}`);
+      values.push(project_id);
+    }
+    
+    if (entity_type) {
+      conditions.push(`entity_type = $${values.length + 1}`);
+      values.push(entity_type);
+    }
+    
+    if (entity_id) {
+      conditions.push(`entity_id = $${values.length + 1}`);
+      values.push(entity_id);
+    }
+    
+    values.push(limit);
+    
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    
+    const result = await this.pool.query(
+      `SELECT c.*, au.username 
+       FROM changelog c 
+       LEFT JOIN admin_users au ON c.performed_by = au.id 
+       ${whereClause}
+       ORDER BY c.created_at DESC 
+       LIMIT $${values.length}`,
+      values
+    );
+
+    return result.rows.map(row => this.mapChangelogEntry(row));
+  }
+
   // Mapping functions
   private mapAdminUser(row: any): AdminUser {
     return {
       id: row.id,
       username: row.username,
       email: row.email,
-      password: row.password,
+      password_hash: row.password,
       role: row.role as AdminRole,
-      accessLevel: row.access_level as AccessLevel,
-      isActive: row.is_active,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      lastLogin: row.last_login,
-      loginCount: row.login_count
+      access_level: row.access_level as AccessLevel,
+      permissions: row.permissions || [],
+      active: row.is_active,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      last_login: row.last_login,
+      login_count: row.login_count
     };
   }
 
@@ -818,25 +897,25 @@ export class DatabaseService {
       id: row.id,
       name: row.name,
       description: row.description,
-      apiKey: row.api_key,
-      isActive: row.is_active,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      createdBy: row.created_by,
+      api_key: row.api_key,
+      active: row.is_active,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      created_by: row.created_by,
       settings: row.settings,
-      storageUsed: parseInt(row.storage_used),
-      apiCallsCount: parseInt(row.api_calls_count),
-      lastApiCall: row.last_api_call
+      storage_used: parseInt(row.storage_used),
+      api_calls_count: parseInt(row.api_calls_count),
+      last_api_call: row.last_api_call
     };
   }
 
   private mapProjectUser(row: any): ProjectUser {
     return {
       id: row.id,
-      projectId: row.project_id,
-      adminUserId: row.admin_user_id,
+      project_id: row.project_id,
+      admin_user_id: row.admin_user_id,
       role: row.role,
-      createdAt: row.created_at,
+      created_at: row.created_at,
       username: row.username,
       email: row.email
     };
@@ -845,40 +924,39 @@ export class DatabaseService {
   private mapTableSchema(row: any): TableSchema {
     return {
       id: row.id,
-      projectId: row.project_id,
-      tableName: row.table_name,
+      project_id: row.project_id,
+      name: row.table_name,
       schema: row.schema,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      createdBy: row.created_by
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      created_by: row.created_by
     };
   }
 
   private mapDocument(row: any): Document {
     return {
       id: row.id,
-      projectId: row.project_id,
-      tableName: row.table_name,
+      project_id: row.project_id,
+      table_name: row.table_name,
       data: row.data,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      createdBy: row.created_by,
-      updatedBy: row.updated_by
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      created_by: row.created_by,
+      updated_by: row.updated_by
     };
   }
 
   private mapFile(row: any): FileRecord {
     return {
       id: row.id,
-      projectId: row.project_id,
+      project_id: row.project_id,
       filename: row.filename,
-      originalName: row.original_name,
-      mimeType: row.mime_type,
+      original_name: row.original_name,
+      mime_type: row.mime_type,
       size: parseInt(row.size),
       path: row.path,
-      metadata: row.metadata,
-      createdAt: row.created_at,
-      createdBy: row.created_by
+      uploaded_by: row.created_by,
+      created_at: row.created_at
     };
   }
 
@@ -886,28 +964,29 @@ export class DatabaseService {
     return {
       id: row.id,
       token: row.token,
-      userId: row.user_id,
-      projectId: row.project_id,
-      userType: row.user_type as 'admin' | 'project',
-      metadata: row.metadata,
-      createdAt: row.created_at,
-      expiresAt: row.expires_at,
-      lastActivity: row.last_activity,
-      isActive: row.is_active
+      type: row.user_type as SessionType,
+      user_id: row.user_id,
+      api_key: row.api_key,
+      project_id: row.project_id,
+      permissions: row.permissions || [],
+      expires_at: row.expires_at,
+      created_at: row.created_at,
+      consumed: row.consumed || false,
+      consumed_at: row.consumed_at
     };
   }
 
   private mapChangelogEntry(row: any): ChangelogEntry {
     return {
       id: row.id,
-      projectId: row.project_id,
-      userId: row.user_id,
-      action: row.action,
-      resourceType: row.resource_type,
-      resourceId: row.resource_id,
-      details: row.details,
-      createdAt: row.created_at,
-      username: row.username
+      project_id: row.project_id,
+      entity_type: row.entity_type,
+      entity_id: row.entity_id,
+      action: row.action as ChangeAction,
+      changes: row.changes || {},
+      performed_by: row.performed_by,
+      session_id: row.session_id,
+      timestamp: row.created_at
     };
   }
 
