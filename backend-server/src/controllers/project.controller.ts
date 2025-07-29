@@ -16,7 +16,7 @@ export class ProjectController {
       const pageNum = parseInt(page as string);
       const limitNum = parseInt(limit as string);
 
-      const projects = this.db.getAllProjects();
+      const projects = await this.db.getAllProjects();
       
       // Simple pagination
       const startIndex = (pageNum - 1) * limitNum;
@@ -48,7 +48,7 @@ export class ProjectController {
     try {
       const { id } = req.params;
 
-      const project = this.db.getProjectById(id);
+      const project = await this.db.getProjectById(id);
 
       if (!project) {
         res.status(404).json({
@@ -94,7 +94,10 @@ export class ProjectController {
         description,
         settings,
         created_by: currentUser.id,
-        active: true
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        api_key: `krapi_${require('uuid').v4().replace(/-/g, '')}`
       });
 
       // Log the action

@@ -24,8 +24,8 @@ import {
 export class KrapiClient {
   private client: AxiosInstance;
   private baseURL: string;
-  private authToken?: string;
-  private sessionToken?: string;
+  private authToken: string | undefined;
+  private sessionToken: string | undefined;
 
   constructor(config: {
     baseURL: string;

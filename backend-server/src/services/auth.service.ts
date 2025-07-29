@@ -75,7 +75,7 @@ export class AuthService {
     const session = await this.db.createSession({
       token,
       type: SessionType.ADMIN,
-      user_id: user.id,
+      user_id: 'system', // System-level admin session
       permissions: ['*'], // Full permissions for admin session
       expires_at: expiresAt,
       consumed: false,

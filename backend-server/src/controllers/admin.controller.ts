@@ -57,7 +57,7 @@ export class AdminController {
     try {
       const { id } = req.params;
 
-      const user = this.db.getAdminUserById(id);
+      const user = await this.db.getAdminUserById(id);
 
       if (!user) {
         res.status(404).json({
@@ -93,7 +93,7 @@ export class AdminController {
       const { email, username, password, role, access_level, permissions = [] } = req.body;
 
       // Check if email already exists
-      const existingUser = this.db.getAdminUserByEmail(email);
+      const existingUser = await this.db.getAdminUserByEmail(email);
       if (existingUser) {
         res.status(400).json({
           success: false,
@@ -106,24 +106,27 @@ export class AdminController {
       const password_hash = await this.authService.hashPassword(password);
 
       // Create user
-      const newUser = this.db.createAdminUser({
+      const newUser = await this.db.createAdminUser({
         email,
         username,
         password_hash,
         role,
         access_level,
         permissions,
-        active: true
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
 
       // Log the action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         entity_type: 'admin_user',
         entity_id: newUser.id,
         action: ChangeAction.CREATE,
         changes: { email, username, role, access_level },
         performed_by: currentUser?.id || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       // Remove password hash from response
@@ -153,7 +156,7 @@ export class AdminController {
       const updates = req.body;
 
       // Check if user exists
-      const existingUser = this.db.getAdminUserById(id);
+      const existingUser = await this.db.getAdminUserById(id);
       if (!existingUser) {
         res.status(404).json({
           success: false,
@@ -178,7 +181,7 @@ export class AdminController {
       }
 
       // Update user
-      const updatedUser = this.db.updateAdminUser(id, updates);
+      const updatedUser = await this.db.updateAdminUser(id, updates);
 
       if (!updatedUser) {
         res.status(500).json({
@@ -197,13 +200,14 @@ export class AdminController {
       });
 
       if (Object.keys(changes).length > 0) {
-        this.db.createChangelogEntry({
+        await this.db.createChangelogEntry({
           entity_type: 'admin_user',
           entity_id: id,
           action: ChangeAction.UPDATE,
           changes,
           performed_by: currentUser?.id || 'system',
-          session_id: authReq.session?.id
+          session_id: authReq.session?.id,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -233,7 +237,7 @@ export class AdminController {
       const { id } = req.params;
 
       // Check if user exists
-      const existingUser = this.db.getAdminUserById(id);
+      const existingUser = await this.db.getAdminUserById(id);
       if (!existingUser) {
         res.status(404).json({
           success: false,
@@ -253,7 +257,7 @@ export class AdminController {
 
       // Prevent deleting the last master admin
       if (existingUser.role === 'master_admin') {
-        const allAdmins = this.db.getAllAdminUsers();
+        const allAdmins = await this.db.getAllAdminUsers();
         const masterAdmins = allAdmins.filter(u => u.role === 'master_admin' && u.active);
         if (masterAdmins.length <= 1) {
           res.status(403).json({
@@ -265,7 +269,7 @@ export class AdminController {
       }
 
       // Delete user
-      const deleted = this.db.deleteAdminUser(id);
+      const deleted = await this.db.deleteAdminUser(id);
 
       if (!deleted) {
         res.status(500).json({
@@ -276,13 +280,14 @@ export class AdminController {
       }
 
       // Log the action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         entity_type: 'admin_user',
         entity_id: id,
         action: ChangeAction.DELETE,
         changes: { email: existingUser.email, username: existingUser.username },
         performed_by: currentUser?.id || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       res.status(200).json({
@@ -308,7 +313,7 @@ export class AdminController {
       const { id } = req.params;
 
       // Check if user exists
-      const existingUser = this.db.getAdminUserById(id);
+      const existingUser = await this.db.getAdminUserById(id);
       if (!existingUser) {
         res.status(404).json({
           success: false,
@@ -327,7 +332,7 @@ export class AdminController {
       }
 
       // Toggle active status
-      const updatedUser = this.db.updateAdminUser(id, { active: !existingUser.active });
+      const updatedUser = await this.db.updateAdminUser(id, { active: !existingUser.active });
 
       if (!updatedUser) {
         res.status(500).json({
@@ -338,13 +343,14 @@ export class AdminController {
       }
 
       // Log the action
-      this.db.createChangelogEntry({
+      await this.db.createChangelogEntry({
         entity_type: 'admin_user',
         entity_id: id,
         action: ChangeAction.UPDATE,
         changes: { active: { old: existingUser.active, new: updatedUser.active } },
         performed_by: currentUser?.id || 'system',
-        session_id: authReq.session?.id
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
       });
 
       // Remove password hash from response

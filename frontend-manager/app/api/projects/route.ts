@@ -13,13 +13,19 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const options = {
-      page: searchParams.get('page') ? parseInt(searchParams.get('page')!) : undefined,
-      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
-      sort: searchParams.get('sort') || undefined,
-      order: (searchParams.get('order') as 'asc' | 'desc') || undefined,
-      search: searchParams.get('search') || undefined,
-    };
+    const options: any = {};
+    
+    const page = searchParams.get('page');
+    const limit = searchParams.get('limit');
+    const sort = searchParams.get('sort');
+    const order = searchParams.get('order');
+    const search = searchParams.get('search');
+    
+    if (page) options.page = parseInt(page);
+    if (limit) options.limit = parseInt(limit);
+    if (sort) options.sort = sort;
+    if (order) options.order = order as 'asc' | 'desc';
+    if (search) options.search = search;
 
     const client = createBackendClient(authToken);
     const response = await client.projects.getAll(options);

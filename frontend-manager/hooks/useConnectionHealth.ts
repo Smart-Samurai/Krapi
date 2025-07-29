@@ -31,6 +31,10 @@ export const useConnectionHealth = (socket: WebSocket | null) => {
     },
     overall: "unhealthy",
   });
+  
+  const [isChecking, setIsChecking] = useState(false);
+  const [status, setStatus] = useState<"connected" | "disconnected" | "checking">("checking");
+  const [lastCheck, setLastCheck] = useState<Date | null>(null);
 
   const checkConnection = useCallback(async () => {
     try {
@@ -125,22 +129,22 @@ export const useConnectionHealth = (socket: WebSocket | null) => {
   // Periodic API health checks
   useEffect(() => {
     // Initial check
-    checkApiHealth();
+    checkConnection();
 
     // Set up periodic checks every 30 seconds
-    const interval = setInterval(checkApiHealth, 30000);
+    const interval = setInterval(checkConnection, 30000);
 
     return () => clearInterval(interval);
-  }, [checkApiHealth]);
+  }, [checkConnection]);
 
   const retryConnections = useCallback(async () => {
-    checkApiHealth();
+    checkConnection();
     // WebSocket reconnection is handled by AuthContext
-  }, [checkApiHealth]);
+  }, [checkConnection]);
 
   return {
     health,
-    checkApiHealth,
+    checkApiHealth: checkConnection,
     retryConnections,
     updateWebSocketStatus,
   };

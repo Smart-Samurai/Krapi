@@ -23,7 +23,7 @@ class ApiClient {
   ): Promise<T> {
     const token = localStorage.getItem('auth_token');
     
-    const headers: HeadersInit = {
+    const headers: any = {
       'Content-Type': 'application/json',
       ...options.headers,
     };

@@ -8,10 +8,11 @@ interface IconButtonProps {
   icon: IconType;
   onClick?: () => void;
   size?: "sm" | "md" | "lg";
-  variant?: "primary" | "secondary" | "accent";
+  variant?: "primary" | "secondary" | "accent" | "ghost";
   disabled?: boolean;
   className?: string;
   title?: string;
+  type?: "button" | "submit" | "reset";
 }
 
 const sizeClasses = {
@@ -30,6 +31,7 @@ const variantClasses = {
   primary: "bg-primary text-background hover:bg-primary/90",
   secondary: "bg-secondary text-text hover:bg-secondary/90",
   accent: "bg-accent text-background hover:bg-accent/90",
+  ghost: "hover:bg-accent hover:text-accent-foreground",
 };
 
 export const IconButton: React.FC<IconButtonProps> = ({
@@ -40,9 +42,11 @@ export const IconButton: React.FC<IconButtonProps> = ({
   disabled = false,
   className,
   title,
+  type = "button",
 }) => {
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       title={title}

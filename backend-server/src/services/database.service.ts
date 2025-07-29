@@ -11,7 +11,9 @@ import {
   FileRecord,
   ProjectUser,
   Session,
-  ChangelogEntry
+  SessionType,
+  ChangelogEntry,
+  ChangeAction
 } from '@/types';
 
 export class DatabaseService {
@@ -337,7 +339,7 @@ export class DatabaseService {
       [id]
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async verifyAdminPassword(username: string, password: string): Promise<AdminUser | null> {
@@ -441,7 +443,7 @@ export class DatabaseService {
       [id]
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async updateProjectStats(projectId: string, storageChange: number = 0, apiCall: boolean = false): Promise<void> {
@@ -512,7 +514,7 @@ export class DatabaseService {
       [projectId, adminUserId]
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async checkProjectAccess(projectId: string, adminUserId: string): Promise<boolean> {
@@ -584,7 +586,7 @@ export class DatabaseService {
       );
 
       await client.query('COMMIT');
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -676,7 +678,7 @@ export class DatabaseService {
       [documentId, projectId, tableName]
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getDocumentsByTable(tableId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
@@ -776,7 +778,7 @@ export class DatabaseService {
       [token]
     );
 
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async consumeSession(token: string): Promise<Session | null> {
@@ -803,7 +805,7 @@ export class DatabaseService {
       'DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP OR is_active = false'
     );
 
-    return result.rowCount;
+    return result.rowCount ?? 0;
   }
 
   // Changelog Methods
@@ -887,8 +889,7 @@ export class DatabaseService {
       active: row.is_active,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      last_login: row.last_login,
-      login_count: row.login_count
+      last_login: row.last_login
     };
   }
 
@@ -902,22 +903,22 @@ export class DatabaseService {
       created_at: row.created_at,
       updated_at: row.updated_at,
       created_by: row.created_by,
-      settings: row.settings,
-      storage_used: parseInt(row.storage_used),
-      api_calls_count: parseInt(row.api_calls_count),
-      last_api_call: row.last_api_call
+      settings: row.settings
     };
   }
 
   private mapProjectUser(row: any): ProjectUser {
+    // Note: This is mapping from project_users join with admin_users
+    // The project_users table links admin users to projects
     return {
       id: row.id,
       project_id: row.project_id,
-      admin_user_id: row.admin_user_id,
-      role: row.role,
+      email: row.email,
+      name: row.username,
+      verified: true, // Admin users are considered verified
+      active: row.is_active || true,
       created_at: row.created_at,
-      username: row.username,
-      email: row.email
+      updated_at: row.created_at // Using created_at as updated_at for this join
     };
   }
 
@@ -926,10 +927,10 @@ export class DatabaseService {
       id: row.id,
       project_id: row.project_id,
       name: row.table_name,
-      schema: row.schema,
+      fields: row.schema,
+      indexes: row.indexes || [],
       created_at: row.created_at,
-      updated_at: row.updated_at,
-      created_by: row.created_by
+      updated_at: row.updated_at
     };
   }
 
@@ -937,7 +938,7 @@ export class DatabaseService {
     return {
       id: row.id,
       project_id: row.project_id,
-      table_name: row.table_name,
+      table_id: row.table_id,
       data: row.data,
       created_at: row.created_at,
       updated_at: row.updated_at,
