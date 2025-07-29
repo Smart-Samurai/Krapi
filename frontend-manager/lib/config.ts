@@ -3,13 +3,13 @@ const baseConfig = {
   // API Configuration
   api: {
     baseUrl:
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/krapi/k1",
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1",
     timeout: 30000,
   },
 
   // WebSocket Configuration
   websocket: {
-          url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001/ws",
+          url: process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3470/ws",
     heartbeatInterval: 300000,
     reconnectDelay: {
       initial: 1000, // 1 second

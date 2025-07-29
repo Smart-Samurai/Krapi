@@ -2,7 +2,7 @@
 
 ## Server Configuration
 
-**Default Port:** 3001
+**Default Port:** 3470
 
 ## Default Admin Credentials
 
