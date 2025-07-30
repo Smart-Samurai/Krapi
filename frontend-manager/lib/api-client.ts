@@ -81,6 +81,16 @@ class ApiClient {
     getCurrentUser: async () => {
       return this.request<ApiResponse<Omit<AdminUser, 'password_hash'>>>('/auth/me');
     },
+
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      return this.request<ApiResponse>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          current_password: currentPassword, 
+          new_password: newPassword 
+        }),
+      });
+    },
   };
 
   // Admin endpoints

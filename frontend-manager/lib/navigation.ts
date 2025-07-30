@@ -1,82 +1,76 @@
 import {
-  Users,
-  Code,
-  Activity,
   Home,
-  FolderOpen,
+  Activity,
   Settings,
+  Users,
+  Database,
+  FileText,
+  Code,
   Shield,
 } from "lucide-react";
-import { LucideProps } from "lucide-react";
 
-export const categories = {
-  main: "Main",
-  admin: "Administration",
-  project: "Project Management",
-  system: "System",
-  tools: "Tools",
-};
-
-export interface NavigationItem {
+export type NavItem = {
   name: string;
   href: string;
-  icon: React.ForwardRefExoticComponent<
-    Omit<LucideProps, "ref"> & React.RefAttributes<SVGSVGElement>
-  >;
-  category: string;
+  icon: any;
   badge?: string;
-}
+  children?: NavItem[];
+};
 
-export const navigation: NavigationItem[] = [
-  // Main
+export const navigationItems: NavItem[] = [
   {
     name: "Dashboard",
     href: "/dashboard",
     icon: Home,
-    category: "main",
   },
-
-  // Project Management
   {
     name: "Projects",
-    href: "/dashboard",
-    icon: FolderOpen,
-    category: "project",
+    href: "/projects",
+    icon: Code,
   },
+  {
+    name: "Admin Users",
+    href: "/users",
+    icon: Users,
+  },
+  {
+    name: "Database",
+    href: "/database",
+    icon: Database,
+  },
+  {
+    name: "Storage",
+    href: "/storage", 
+    icon: FileText,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+];
 
-  // Administration
+export const adminNavigationItems: NavItem[] = [
   {
     name: "Admin Dashboard",
     href: "/admin",
     icon: Shield,
-    category: "admin",
-  },
-  {
-    name: "Server Administration",
-    href: "/admin/users",
-    icon: Users,
-    category: "admin",
-  },
-  {
-    name: "System Settings",
-    href: "/admin/settings",
-    icon: Settings,
-    category: "admin",
-  },
-
-  // System
-  {
-    name: "Health Monitor",
-    href: "/admin/health",
-    icon: Activity,
-    category: "system",
-  },
-
-  // Tools
-  {
-    name: "API Test",
-    href: "/admin/api-test",
-    icon: Code,
-    category: "tools",
+    children: [
+      {
+        name: "Overview",
+        href: "/admin/dashboard",
+        icon: Home,
+      },
+      {
+        name: "User Management",
+        href: "/admin/users",
+        icon: Users,
+      },
+      {
+        name: "System Settings",
+        href: "/admin/settings",
+        icon: Settings,
+      },
+    ],
   },
 ];
