@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = useCallback(async () => {
     try {
-      const krapi = getKrapiClient();
+      const krapi = getKrapiClient(token || undefined);
       const response = await krapi.auth.getCurrentUser();
 
       if (response.success && response.data) {
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       setIsHydrated(true);
     }
-  }, [getKrapiClient]);
+  }, [getKrapiClient, token]);
 
   useEffect(() => {
     // Check for existing token on mount
@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getKrapiClient]);
 
   const logout = useCallback(() => {
-    const krapi = getKrapiClient();
+    const krapi = getKrapiClient(token || undefined);
     // Call logout endpoint
     krapi.auth.logout().catch(console.error);
     
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     try {
-      const krapi = getKrapiClient();
+      const krapi = getKrapiClient(token);
       const response = await krapi.auth.getCurrentUser();
       if (response.success && response.data) {
         setUser(response.data);
