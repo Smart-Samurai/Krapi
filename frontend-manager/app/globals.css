@@ -6,6 +6,13 @@
   --color-primary: #545d28;
   --color-secondary: #85cc91;
   --color-accent: #48ad77;
+  
+  /* Map the old variable names to the new ones for backward compatibility */
+  --text: var(--color-text);
+  --background: var(--color-background);
+  --primary: var(--color-primary);
+  --secondary: var(--color-secondary);
+  --accent: var(--color-accent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,6 +22,13 @@
     --color-primary: #ced7a2;
     --color-secondary: #337a3f;
     --color-accent: #52b781;
+    
+    /* Map the old variable names to the new ones for backward compatibility */
+    --text: var(--color-text);
+    --background: var(--color-background);
+    --primary: var(--color-primary);
+    --secondary: var(--color-secondary);
+    --accent: var(--color-accent);
   }
 }
 
@@ -24,6 +38,13 @@
   --color-primary: #ced7a2;
   --color-secondary: #337a3f;
   --color-accent: #52b781;
+  
+  /* Map the old variable names to the new ones for backward compatibility */
+  --text: var(--color-text);
+  --background: var(--color-background);
+  --primary: var(--color-primary);
+  --secondary: var(--color-secondary);
+  --accent: var(--color-accent);
 }
 
 body {
