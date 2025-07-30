@@ -54,7 +54,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
       setIsLoadingProject(true);
       try {
-        const result = await krapiClient.admin.getProject(projectId);
+        const result = await krapiClient.projects.getById(projectId);
 
         if (result.success && result.data) {
           setCurrentProject(result.data);

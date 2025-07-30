@@ -54,7 +54,7 @@ export default function ProjectDatabasePage() {
     
     try {
       // When using admin auth, we need to pass projectId explicitly
-      const result = await krapi.database.listCollections({ projectId });
+              const result = await krapi.database.getSchemas(projectId);
       
       if (result.success && result.data) {
         setCollections(result.data);
