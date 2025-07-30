@@ -6,10 +6,12 @@ import type { AdminRole, AccessLevel } from "@krapi/sdk";
  * This will use the configuration from environment variables
  */
 export function createDefaultKrapi(): KrapiClient {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468";
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
+  // Remove /krapi/k1 from the baseURL since SDK appends it
+  const cleanBaseURL = baseURL.replace(/\/krapi\/k1\/?$/, '');
   
   return createKrapiClient({
-    baseURL,
+    baseURL: cleanBaseURL,
   });
 }
 

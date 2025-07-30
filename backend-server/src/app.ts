@@ -102,7 +102,7 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 // Start server
-const PORT = parseInt(process.env.PORT || "3468");
+const PORT = parseInt(process.env.PORT || "3470");
 const HOST = process.env.HOST || "localhost";
 
 // Async startup function

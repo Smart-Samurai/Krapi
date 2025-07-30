@@ -7,8 +7,10 @@ export function useKrapi(): KrapiClient {
   const { token } = useAuth();
   
   const krapi = useMemo(() => {
+    // Remove /krapi/k1 from the baseURL since SDK appends it
+    const baseURL = config.api.baseUrl.replace(/\/krapi\/k1\/?$/, '');
     return new KrapiClient({
-      baseURL: config.api.baseUrl,
+      baseURL,
       authToken: token || undefined,
     });
   }, [token]);
