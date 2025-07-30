@@ -40,7 +40,8 @@ import {
   FiGlobe,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { AdminUser as AdminUserType, AdminRole, AccessLevel } from "@krapi/sdk";
+import type { AdminUser as AdminUserType } from "@/lib/krapi";
+import { AdminRole, AccessLevel } from "@/lib/krapi";
 
 // Permission types
 interface AdminPermissions {
