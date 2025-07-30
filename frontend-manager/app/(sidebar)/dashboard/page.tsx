@@ -49,13 +49,15 @@ export default function DashboardPage() {
     storageUsed: "0 GB",
   });
   const [systemHealth, setSystemHealth] = useState<SystemHealthItem[]>([]);
-  const [recentProjects, setRecentProjects] = useState<Array<{
-    id: string;
-    name: string;
-    description: string;
-    created_at: string;
-    api_calls_count: number;
-  }>>([]);
+  const [recentProjects, setRecentProjects] = useState<
+    Array<{
+      id: string;
+      name: string;
+      description: string;
+      created_at: string;
+      api_calls_count: number;
+    }>
+  >([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -69,23 +71,53 @@ export default function DashboardPage() {
       const projectsResponse = await krapi.projects.getAll();
       if (projectsResponse.success && projectsResponse.data) {
         const projects = projectsResponse.data;
-        setStats(prev => ({
+        setStats((prev) => ({
           ...prev,
           totalProjects: projects.length,
         }));
-        
+
         // Get recent projects (last 5)
-        const sortedProjects = [...projects].sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        const sortedProjects = [...projects].sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
-        setRecentProjects(sortedProjects.slice(0, 5));
+        setRecentProjects(
+          sortedProjects.slice(0, 5).map((project) => ({
+            id: project.id,
+            name: project.name,
+            description: project.description || "",
+            created_at: project.created_at,
+            api_calls_count: project.api_calls_count || 0,
+          }))
+        );
+
+        // Calculate storage used from all projects
+        let totalStorage = 0;
+        for (const project of projects) {
+          try {
+            const storageResponse = await krapi.storage.getStats(project.id);
+            if (storageResponse.success && storageResponse.data) {
+              totalStorage += storageResponse.data.used || 0;
+            }
+          } catch (error) {
+            console.error(
+              `Error fetching storage for project ${project.id}:`,
+              error
+            );
+          }
+        }
+
+        setStats((prev) => ({
+          ...prev,
+          storageUsed: formatBytes(totalStorage),
+        }));
       }
 
       // Fetch admin users
       const usersResponse = await krapi.admin.getUsers();
       if (usersResponse.success && usersResponse.data) {
-        const activeUsers = usersResponse.data.filter(user => user.is_active);
-        setStats(prev => ({
+        const activeUsers = usersResponse.data.filter((user) => user.is_active);
+        setStats((prev) => ({
           ...prev,
           activeUsers: activeUsers.length,
         }));
@@ -115,25 +147,6 @@ export default function DashboardPage() {
           },
         ]);
       }
-
-      // Calculate storage used from all projects
-      let totalStorage = 0;
-      for (const project of recentProjects) {
-        try {
-          const storageResponse = await krapi.storage.getStats(project.id);
-          if (storageResponse.success && storageResponse.data) {
-            totalStorage += storageResponse.data.used || 0;
-          }
-        } catch (error) {
-          console.error(`Error fetching storage for project ${project.id}:`, error);
-        }
-      }
-      
-      setStats(prev => ({
-        ...prev,
-        storageUsed: formatBytes(totalStorage),
-      }));
-
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -273,7 +286,8 @@ export default function DashboardPage() {
                           {project.name}
                         </h3>
                         <p className="text-sm text-text/60">
-                          {project.description || "No description"} • Created {new Date(project.created_at).toLocaleDateString()}
+                          {project.description || "No description"} • Created{" "}
+                          {new Date(project.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -285,9 +299,7 @@ export default function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-text/60 text-center py-8">
-                  No projects yet
-                </p>
+                <p className="text-text/60 text-center py-8">No projects yet</p>
               )}
             </div>
           </div>

@@ -12,12 +12,14 @@ import {
   DialogDescription,
   Input,
   Label,
+} from "@/components/styled";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/styled";
+} from "@/components/ui/select";
 import {
   FiFile,
   FiUpload,
@@ -30,7 +32,7 @@ import {
   FiMusic,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project, FileInfo } from "@krapi/sdk";
+import type { Project, FileInfo } from "@/lib/types";
 
 export default function StoragePage() {
   const krapi = useKrapi();
@@ -66,7 +68,7 @@ export default function StoragePage() {
       if (response.success && response.data) {
         setProjects(response.data);
         if (response.data.length > 0 && !selectedProject) {
-          setSelectedProject(response.data[0].id);
+          setSelectedProject(response.data[0]?.id || "");
         }
       }
     } catch (err) {
@@ -79,7 +81,7 @@ export default function StoragePage() {
 
   const fetchFiles = async () => {
     if (!selectedProject) return;
-    
+
     try {
       setLoading(true);
       const response = await krapi.storage.getFiles(selectedProject);
@@ -96,7 +98,7 @@ export default function StoragePage() {
 
   const fetchStorageStats = async () => {
     if (!selectedProject) return;
-    
+
     try {
       const response = await krapi.storage.getStats(selectedProject);
       if (response.success && response.data) {
@@ -111,10 +113,10 @@ export default function StoragePage() {
     if (!selectedProject || !uploadFile) return;
 
     try {
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-
-      const response = await krapi.storage.uploadFile(selectedProject, formData);
+      const response = await krapi.storage.uploadFile(
+        selectedProject,
+        uploadFile
+      );
 
       if (response.success) {
         setIsUploadOpen(false);
@@ -131,7 +133,10 @@ export default function StoragePage() {
   };
 
   const handleDeleteFile = async (fileId: string, fileName: string) => {
-    if (!selectedProject || !confirm(`Are you sure you want to delete "${fileName}"?`)) {
+    if (
+      !selectedProject ||
+      !confirm(`Are you sure you want to delete "${fileName}"?`)
+    ) {
       return;
     }
 
@@ -153,10 +158,17 @@ export default function StoragePage() {
     if (!selectedProject) return;
 
     try {
-      const response = await krapi.storage.downloadFile(selectedProject, fileId);
+      const response = await krapi.storage.downloadFile(
+        selectedProject,
+        fileId
+      );
       if (response.success && response.data) {
-        // Create a download link
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        // Create a download link - response.data is already a Blob
+        const blob =
+          response.data instanceof Blob
+            ? response.data
+            : new Blob([response.data]);
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
         link.download = fileName;
@@ -177,7 +189,8 @@ export default function StoragePage() {
     if (mimeType.startsWith("image/")) return FiImage;
     if (mimeType.startsWith("video/")) return FiFilm;
     if (mimeType.startsWith("audio/")) return FiMusic;
-    if (mimeType.includes("pdf") || mimeType.includes("document")) return FiFileText;
+    if (mimeType.includes("pdf") || mimeType.includes("document"))
+      return FiFileText;
     return FiFile;
   };
 
@@ -232,12 +245,15 @@ export default function StoragePage() {
       {/* Storage Stats */}
       {storageStats && (
         <div className="bg-background border border-secondary rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-text mb-4">Storage Usage</h2>
+          <h2 className="text-lg font-semibold text-text mb-4">
+            Storage Usage
+          </h2>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-text/60">Used Space</span>
               <span className="font-medium text-text">
-                {formatFileSize(storageStats.used)} / {formatFileSize(storageStats.limit)}
+                {formatFileSize(storageStats.used)} /{" "}
+                {formatFileSize(storageStats.limit)}
               </span>
             </div>
             <div className="w-full bg-secondary rounded-full h-2">
@@ -250,7 +266,9 @@ export default function StoragePage() {
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-text/60">Total Files</span>
-              <span className="font-medium text-text">{storageStats.count}</span>
+              <span className="font-medium text-text">
+                {storageStats.count}
+              </span>
             </div>
           </div>
         </div>
@@ -305,7 +323,10 @@ export default function StoragePage() {
                     </Button>
                   </div>
                 </div>
-                <h4 className="font-medium text-text truncate mb-1" title={file.name}>
+                <h4
+                  className="font-medium text-text truncate mb-1"
+                  title={file.name}
+                >
                   {file.name}
                 </h4>
                 <div className="space-y-1 text-sm text-text/60">
@@ -339,7 +360,9 @@ export default function StoragePage() {
             </div>
             {uploadFile && (
               <div className="bg-secondary/20 rounded-lg p-3">
-                <p className="text-sm font-medium text-text">{uploadFile.name}</p>
+                <p className="text-sm font-medium text-text">
+                  {uploadFile.name}
+                </p>
                 <p className="text-sm text-text/60">
                   {formatFileSize(uploadFile.size)}
                 </p>

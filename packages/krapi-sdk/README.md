@@ -11,11 +11,11 @@ This package is part of the monorepo and is installed automatically when you run
 ### Basic Setup
 
 ```typescript
-import { KrapiClient } from '@krapi/sdk';
+import { KrapiClient } from "@krapi/sdk";
 
 const client = new KrapiClient({
-  baseURL: 'http://localhost:3470',
-  authToken: 'your-auth-token' // Optional
+  baseURL: "http://localhost:3470",
+  authToken: "your-auth-token", // Optional
 });
 ```
 
@@ -23,7 +23,7 @@ const client = new KrapiClient({
 
 ```typescript
 // Admin login
-const response = await client.auth.adminLogin('email@example.com', 'password');
+const response = await client.auth.adminLogin("email@example.com", "password");
 
 // Get current user
 const user = await client.auth.getCurrentUser();
@@ -32,7 +32,7 @@ const user = await client.auth.getCurrentUser();
 await client.auth.logout();
 
 // Change password
-await client.auth.changePassword('currentPassword', 'newPassword');
+await client.auth.changePassword("currentPassword", "newPassword");
 ```
 
 ### Projects
@@ -42,43 +42,46 @@ await client.auth.changePassword('currentPassword', 'newPassword');
 const projects = await client.projects.getAll();
 
 // Get project by ID
-const project = await client.projects.getById('project-id');
+const project = await client.projects.getById("project-id");
 
 // Create project
 const newProject = await client.projects.create({
-  name: 'My Project',
-  description: 'Project description'
+  name: "My Project",
+  description: "Project description",
 });
 
 // Update project
-await client.projects.update('project-id', { name: 'Updated Name' });
+await client.projects.update("project-id", { name: "Updated Name" });
 
 // Delete project
-await client.projects.delete('project-id');
+await client.projects.delete("project-id");
 ```
 
 ### Database Operations
 
 ```typescript
 // Get table schemas
-const schemas = await client.database.getSchemas('project-id');
+const schemas = await client.database.getSchemas("project-id");
 
 // Create table schema
-const schema = await client.database.createSchema('project-id', {
-  name: 'users',
+const schema = await client.database.createSchema("project-id", {
+  name: "users",
   fields: [
-    { name: 'id', type: 'string', required: true, unique: true },
-    { name: 'email', type: 'string', required: true },
-    { name: 'created_at', type: 'datetime', default: 'now()' }
-  ]
+    { name: "id", type: "string", required: true, unique: true },
+    { name: "email", type: "string", required: true },
+    { name: "created_at", type: "datetime", default: "now()" },
+  ],
 });
 
 // Get documents
-const documents = await client.database.getDocuments('project-id', 'table-name');
+const documents = await client.database.getDocuments(
+  "project-id",
+  "table-name"
+);
 
 // Create document
-const doc = await client.database.createDocument('project-id', 'table-name', {
-  email: 'user@example.com'
+const doc = await client.database.createDocument("project-id", "table-name", {
+  email: "user@example.com",
 });
 ```
 
@@ -86,21 +89,20 @@ const doc = await client.database.createDocument('project-id', 'table-name', {
 
 ```typescript
 // Get files
-const files = await client.storage.getFiles('project-id');
+const files = await client.storage.getFiles("project-id");
 
 // Upload file (browser)
-const formData = new FormData();
-formData.append('file', fileInput.files[0]);
-await client.storage.uploadFile('project-id', formData);
+const file = fileInput.files[0];
+await client.storage.uploadFile("project-id", file);
 
 // Download file
-const fileData = await client.storage.downloadFile('project-id', 'file-id');
+const fileData = await client.storage.downloadFile("project-id", "file-id");
 
 // Delete file
-await client.storage.deleteFile('project-id', 'file-id');
+await client.storage.deleteFile("project-id", "file-id");
 
 // Get storage stats
-const stats = await client.storage.getStats('project-id');
+const stats = await client.storage.getStats("project-id");
 ```
 
 ### Admin Operations
@@ -111,18 +113,18 @@ const users = await client.admin.getUsers();
 
 // Create admin user
 const newUser = await client.admin.createUser({
-  email: 'admin@example.com',
-  username: 'admin',
-  password: 'password123',
-  role: 'admin',
-  access_level: 'admin'
+  email: "admin@example.com",
+  username: "admin",
+  password: "password123",
+  role: "admin",
+  access_level: "admin",
 });
 
 // Update admin user
-await client.admin.updateUser('user-id', { is_active: false });
+await client.admin.updateUser("user-id", { is_active: false });
 
 // Delete admin user
-await client.admin.deleteUser('user-id');
+await client.admin.deleteUser("user-id");
 ```
 
 ## Frontend Usage with React
@@ -130,11 +132,11 @@ await client.admin.deleteUser('user-id');
 The SDK can be used with React hooks for better integration:
 
 ```typescript
-import { useKrapi } from '@/lib/hooks/useKrapi';
+import { useKrapi } from "@/lib/hooks/useKrapi";
 
 function MyComponent() {
   const krapi = useKrapi();
-  
+
   const fetchProjects = async () => {
     const response = await krapi.projects.getAll();
     if (response.success) {
@@ -165,12 +167,12 @@ pnpm dev
 All methods return typed responses using TypeScript generics. The SDK exports all necessary types:
 
 ```typescript
-import type { 
-  Project, 
-  AdminUser, 
-  TableSchema, 
+import type {
+  Project,
+  AdminUser,
+  TableSchema,
   Document,
   ApiResponse,
-  PaginatedResponse 
-} from '@krapi/sdk';
+  PaginatedResponse,
+} from "@krapi/sdk";
 ```
