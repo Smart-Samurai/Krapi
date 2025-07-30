@@ -27,7 +27,7 @@ import {
   FiFolder,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project, TableSchema } from "@/lib/krapi-sdk/types";
+import type { Project, TableSchema } from "@krapi/sdk";
 
 export default function DatabasePage() {
   const krapi = useKrapi();
@@ -74,7 +74,7 @@ export default function DatabasePage() {
     
     try {
       setLoading(true);
-      const response = await krapi.database.getTableSchemas(selectedProject);
+      const response = await krapi.database.getSchemas(selectedProject);
       if (response.success && response.data) {
         setSchemas(response.data);
       }
@@ -90,26 +90,29 @@ export default function DatabasePage() {
     if (!selectedProject || !newSchemaName) return;
 
     try {
-      const response = await krapi.database.createTableSchema(selectedProject, {
+      const response = await krapi.database.createSchema(selectedProject, {
         name: newSchemaName,
         description: newSchemaDescription,
-        fields: {
-          id: {
+        fields: [
+          {
+            name: "id",
             type: "string",
             required: true,
             unique: true,
           },
-          created_at: {
+          {
+            name: "created_at",
             type: "datetime",
             required: true,
             default: "now()",
           },
-          updated_at: {
+          {
+            name: "updated_at",
             type: "datetime",
             required: true,
             default: "now()",
           },
-        },
+        ],
         indexes: [],
       });
 
@@ -133,7 +136,7 @@ export default function DatabasePage() {
     }
 
     try {
-      const response = await krapi.database.deleteTableSchema(selectedProject, schemaName);
+      const response = await krapi.database.deleteSchema(selectedProject, schemaName);
       if (response.success) {
         fetchSchemas();
       } else {

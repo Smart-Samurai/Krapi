@@ -8,8 +8,8 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { apiClient } from "@/lib/api-client";
-import { AdminUser } from "@/lib/krapi-sdk/types";
+import { KrapiClient, AdminUser } from "@krapi/sdk";
+import config from "@/lib/config";
 
 interface AuthContextType {
   user: Omit<AdminUser, 'password_hash'> | null;
@@ -36,9 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!token;
 
+  // Create a krapi client instance
+  const getKrapiClient = useCallback((authToken?: string) => {
+    return new KrapiClient({
+      baseURL: config.api.baseUrl,
+      authToken: authToken || token || undefined,
+    });
+  }, [token]);
+
   const verifyToken = useCallback(async () => {
     try {
-      const response = await apiClient.auth.getCurrentUser();
+      const krapi = getKrapiClient();
+      const response = await krapi.auth.getCurrentUser();
 
       if (response.success && response.data) {
         setUser(response.data);
@@ -56,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       setIsHydrated(true);
     }
-  }, []);
+  }, [getKrapiClient]);
 
   useEffect(() => {
     // Check for existing token on mount
@@ -91,7 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.auth.login(email, password);
+      const krapi = getKrapiClient();
+      const response = await krapi.auth.adminLogin(email, password);
 
       if (response.success && response.data) {
         const { token: authToken, user: userData } = response.data;
@@ -112,30 +122,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginInProgress(false);
       setIsLoading(false);
     }
-  }, []);
+  }, [getKrapiClient]);
 
   const logout = useCallback(() => {
+    const krapi = getKrapiClient();
     // Call logout endpoint
-    apiClient.auth.logout().catch(console.error);
+    krapi.auth.logout().catch(console.error);
     
     // Clear local state
     localStorage.removeItem("auth_token");
     setToken(null);
     setUser(null);
-  }, []);
+  }, [getKrapiClient]);
 
   const refreshUser = useCallback(async () => {
     if (!token) return;
 
     try {
-      const response = await apiClient.auth.getCurrentUser();
+      const krapi = getKrapiClient();
+      const response = await krapi.auth.getCurrentUser();
       if (response.success && response.data) {
         setUser(response.data);
       }
     } catch (error) {
       console.error("Failed to refresh user:", error);
     }
-  }, [token]);
+  }, [token, getKrapiClient]);
 
   const value: AuthContextType = {
     user,

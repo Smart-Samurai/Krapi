@@ -30,7 +30,7 @@ import {
   FiMusic,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project, FileInfo } from "@/lib/krapi-sdk/types";
+import type { Project, FileInfo } from "@krapi/sdk";
 
 export default function StoragePage() {
   const krapi = useKrapi();

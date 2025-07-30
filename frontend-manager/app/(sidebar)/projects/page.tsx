@@ -30,8 +30,8 @@ import {
   FiMoreVertical,
   FiSearch,
 } from "react-icons/fi";
-import { apiClient } from "@/lib/api-client";
-import type { Project } from "@/lib/krapi-sdk/types";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { Project } from "@krapi/sdk";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -41,6 +41,7 @@ const projectSchema = z.object({
 type ProjectFormData = z.infer<typeof projectSchema>;
 
 export default function ProjectsPage() {
+  const krapi = useKrapi();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +57,7 @@ export default function ProjectsPage() {
     setError(null);
     
     try {
-      const result = await apiClient.projects.getAll();
+      const result = await krapi.projects.getAll();
       
       if (result.success && result.data) {
         setProjects(result.data);
@@ -75,7 +76,7 @@ export default function ProjectsPage() {
     setError(null);
     
     try {
-      const result = await apiClient.projects.create({
+      const result = await krapi.projects.create({
         name: data.name,
         description: data.description || "",
       });
@@ -99,7 +100,7 @@ export default function ProjectsPage() {
     }
     
     try {
-      const result = await apiClient.projects.delete(projectId);
+      const result = await krapi.projects.delete(projectId);
       
       if (result.success) {
         // Refresh projects list

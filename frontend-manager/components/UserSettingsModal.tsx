@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotification } from "@/hooks/useNotification";
-import { apiClient } from "@/lib/api-client";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ export default function UserSettingsModal({
 }: UserSettingsModalProps) {
   const { user, refreshUser } = useAuth();
   const { showSuccess, showError } = useNotification();
+  const krapi = useKrapi();
 
   // Password state
   const [passwordForm, setPasswordForm] = useState<PasswordChangeData>({
@@ -65,7 +66,7 @@ export default function UserSettingsModal({
 
     setIsChangingPassword(true);
     try {
-      const response = await apiClient.auth.changePassword(
+      const response = await krapi.auth.changePassword(
         passwordForm.currentPassword,
         passwordForm.newPassword
       );

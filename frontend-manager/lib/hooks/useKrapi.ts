@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
-import { createKrapi, KrapiPackage } from '@/lib/krapi/factory';
+import { KrapiClient } from '@krapi/sdk';
 import config from '@/lib/config';
+import { useAuth } from '@/contexts/AuthContext';
 
-export function useKrapi(): KrapiPackage {
+export function useKrapi(): KrapiClient {
+  const { token } = useAuth();
+  
   const krapi = useMemo(() => {
-    return createKrapi({
-      endpoint: config.api.baseUrl,
-      timeout: config.api.timeout,
+    return new KrapiClient({
+      baseURL: config.api.baseUrl,
+      authToken: token || undefined,
     });
-  }, []);
+  }, [token]);
 
   return krapi;
 }

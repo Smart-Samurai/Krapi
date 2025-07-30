@@ -92,7 +92,7 @@ export default function DashboardPage() {
       }
 
       // Fetch system health
-      const healthResponse = await krapi.client.health();
+      const healthResponse = await krapi.health();
       if (healthResponse.success) {
         setSystemHealth([
           {

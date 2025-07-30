@@ -23,15 +23,14 @@ import {
   FileInfo,
   StorageStats,
   ProjectUser,
-  Session,
   QueryOptions
 } from './types';
 
 export class KrapiClient {
   private client: AxiosInstance;
   private baseURL: string;
-  private authToken: string | undefined;
-  private sessionToken: string | undefined;
+  private authToken?: string;
+  private sessionToken?: string;
 
   constructor(config: {
     baseURL: string;
@@ -130,6 +129,15 @@ export class KrapiClient {
       const response = await this.client.post('/auth/logout');
       this.authToken = undefined;
       this.sessionToken = undefined;
+      return response.data;
+    },
+
+    // Change password
+    changePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse> => {
+      const response = await this.client.post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
       return response.data;
     }
   };
@@ -306,9 +314,16 @@ export class KrapiClient {
     },
 
     // Upload file
-    uploadFile: async (projectId: string, file: File | Blob, onProgress?: (progress: number) => void): Promise<ApiResponse<FileInfo>> => {
-      const formData = new FormData();
-      formData.append('file', file);
+    uploadFile: async (projectId: string, file: Blob | Buffer | { buffer: Buffer; originalname: string; mimetype: string }, onProgress?: (progress: number) => void): Promise<ApiResponse<FileInfo>> => {
+      // Handle both browser and Node.js environments
+      let formData: FormData | Buffer | { buffer: Buffer; originalname: string; mimetype: string };
+      if (typeof FormData !== 'undefined') {
+        formData = new FormData();
+        (formData as FormData).append('file', file as Blob);
+      } else {
+        // In Node.js, the user should pass a proper form-data instance
+        formData = file as Buffer | { buffer: Buffer; originalname: string; mimetype: string };
+      }
 
       const config: AxiosRequestConfig = {
         headers: {
@@ -330,7 +345,7 @@ export class KrapiClient {
     },
 
     // Download file
-    downloadFile: async (projectId: string, fileId: string): Promise<Blob> => {
+    downloadFile: async (projectId: string, fileId: string): Promise<Blob | Buffer> => {
       const response = await this.client.get(`/storage/${projectId}/files/${fileId}/download`, {
         responseType: 'blob'
       });
@@ -381,6 +396,17 @@ export class KrapiClient {
       const response = await this.client.delete(`/database/${projectId}/users/documents/${userId}`);
       return response.data;
     }
+  };
+
+  // Health check
+  health = async (): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    version: string;
+    timestamp: string;
+  }>> => {
+    const response = await this.client.get('/health');
+    return response.data;
   };
 }
 
