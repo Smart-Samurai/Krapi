@@ -39,8 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Create a krapi client instance
   const getKrapiClient = useCallback((authToken?: string) => {
+    // Remove /krapi/k1 from the baseURL since SDK appends it
+    const baseURL = config.api.baseUrl.replace(/\/krapi\/k1\/?$/, '');
     return new KrapiClient({
-      baseURL: config.api.baseUrl,
+      baseURL,
       authToken: authToken || token || undefined,
     });
   }, [token]);

@@ -194,18 +194,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       ],
       system: [
         {
-          icon: navigationItems.api.icon,
-          label: navigationItems.api.label,
-          href: navigationItems.api.href,
-          isActive: isActive(navigationItems.api.href),
-        },
-        {
-          icon: navigationItems.auth.icon,
-          label: navigationItems.auth.label,
-          href: navigationItems.auth.href,
-          isActive: isActive(navigationItems.auth.href),
-        },
-        {
           icon: navigationItems.settings.icon,
           label: "System Settings",
           href: navigationItems.settings.href,

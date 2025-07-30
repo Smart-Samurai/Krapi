@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
 
   // Environment variables
   env: {
-    NEXT_PUBLIC_API_URL: "http://localhost:3468/krapi/k1",
+    NEXT_PUBLIC_API_URL: "http://localhost:3470/krapi/k1",
     PORT: "3469",
   },
 
