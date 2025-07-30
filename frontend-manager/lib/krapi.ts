@@ -1,11 +1,12 @@
 import { createKrapiClient, KrapiClient } from "@krapi/sdk";
+import type { AdminRole, AccessLevel } from "@krapi/sdk";
 
 /**
  * Create a default Krapi client instance
  * This will use the configuration from environment variables
  */
 export function createDefaultKrapi(): KrapiClient {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468";
   
   return createKrapiClient({
     baseURL,
@@ -40,8 +41,7 @@ export type {
   FileInfo,
   StorageStats,
   ProjectUser,
-  QueryOptions
+  QueryOptions,
+  AdminRole,
+  AccessLevel
 } from "@krapi/sdk";
-
-// Re-export enums
-export { AdminRole, AccessLevel } from "@krapi/sdk";
