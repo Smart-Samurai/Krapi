@@ -26,8 +26,17 @@ export class DatabaseService {
   private isConnected: boolean = false;
   private connectionAttempts: number = 0;
   private maxConnectionAttempts: number = 10;
+  private readyPromise: Promise<void>;
+  private readyResolve!: () => void;
+  private readyReject!: (error: Error) => void;
 
   private constructor() {
+    // Create the ready promise
+    this.readyPromise = new Promise((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+    });
+
     // PostgreSQL connection configuration
     this.pool = new Pool({
       host: process.env.DB_HOST || 'localhost',
@@ -45,7 +54,11 @@ export class DatabaseService {
       console.error('Unexpected error on idle client', err);
     });
 
-    this.initializeWithRetry();
+    // Initialize with proper error handling
+    this.initializeWithRetry().catch((error) => {
+      console.error('Database initialization failed:', error);
+      this.readyReject(error);
+    });
   }
 
   static getInstance(): DatabaseService {
@@ -53,6 +66,23 @@ export class DatabaseService {
       DatabaseService.instance = new DatabaseService();
     }
     return DatabaseService.instance;
+  }
+
+  // Public method to wait for database to be ready
+  async waitForReady(): Promise<void> {
+    return this.readyPromise;
+  }
+
+  // Check if database is ready (non-blocking)
+  isReady(): boolean {
+    return this.isConnected;
+  }
+
+  // Ensure database is ready before operations
+  private async ensureReady(): Promise<void> {
+    if (!this.isConnected) {
+      await this.waitForReady();
+    }
   }
 
   private async initializeWithRetry() {
@@ -71,6 +101,9 @@ export class DatabaseService {
         
         // Initialize tables after successful connection
         await this.initializeTables();
+        
+        // Resolve the ready promise on successful initialization
+        this.readyResolve();
         break;
       } catch (error) {
         console.error(`Failed to connect to PostgreSQL (attempt ${this.connectionAttempts}):`, error);
@@ -82,7 +115,9 @@ export class DatabaseService {
           await new Promise(resolve => setTimeout(resolve, waitTime));
         } else {
           console.error('Max connection attempts reached. Please ensure PostgreSQL is running.');
-          throw new Error('Failed to connect to PostgreSQL after multiple attempts');
+          const connectionError = new Error('Failed to connect to PostgreSQL after multiple attempts');
+          this.readyReject(connectionError);
+          throw connectionError;
         }
       }
     }
@@ -282,8 +317,9 @@ export class DatabaseService {
     }
   }
 
-  // Admin User Methods
+  // Admin User Management
   async createAdminUser(data: Omit<AdminUser, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'loginCount'> & { password?: string }): Promise<AdminUser> {
+    await this.ensureReady();
     const hashedPassword = data.password_hash || (data.password ? await bcrypt.hash(data.password, 10) : '');
     
     const result = await this.pool.query(
@@ -297,6 +333,7 @@ export class DatabaseService {
   }
 
   async getAdminUserByUsername(username: string): Promise<AdminUser | null> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'SELECT * FROM admin_users WHERE username = $1',
       [username]
@@ -306,6 +343,7 @@ export class DatabaseService {
   }
 
   async getAdminUserByEmail(email: string): Promise<AdminUser | null> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'SELECT * FROM admin_users WHERE email = $1',
       [email]
@@ -315,6 +353,7 @@ export class DatabaseService {
   }
 
   async getAdminUserById(id: string): Promise<AdminUser | null> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'SELECT * FROM admin_users WHERE id = $1',
       [id]
@@ -324,6 +363,7 @@ export class DatabaseService {
   }
 
   async getAllAdminUsers(): Promise<AdminUser[]> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'SELECT * FROM admin_users ORDER BY created_at DESC'
     );
@@ -332,6 +372,7 @@ export class DatabaseService {
   }
 
   async updateAdminUser(id: string, data: Partial<AdminUser>): Promise<AdminUser | null> {
+    await this.ensureReady();
     const fields = [];
     const values = [];
     let paramCount = 1;
@@ -370,6 +411,7 @@ export class DatabaseService {
   }
 
   async updateLoginInfo(id: string): Promise<void> {
+    await this.ensureReady();
     await this.pool.query(
       `UPDATE admin_users 
        SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 
@@ -379,6 +421,7 @@ export class DatabaseService {
   }
 
   async deleteAdminUser(id: string): Promise<boolean> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'DELETE FROM admin_users WHERE id = $1',
       [id]
@@ -388,6 +431,7 @@ export class DatabaseService {
   }
 
   async verifyAdminPassword(username: string, password: string): Promise<AdminUser | null> {
+    await this.ensureReady();
     const user = await this.getAdminUserByUsername(username);
     if (!user || !user.active) return null;
 
@@ -400,6 +444,7 @@ export class DatabaseService {
 
   // Project Methods
   async createProject(data: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'storageUsed' | 'apiCallsCount' | 'lastApiCall'>): Promise<Project> {
+    await this.ensureReady();
     const apiKey = `pk_${uuidv4().replace(/-/g, '')}`;
     
     const result = await this.pool.query(
@@ -413,6 +458,7 @@ export class DatabaseService {
   }
 
   async getProjectById(id: string): Promise<Project | null> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'SELECT * FROM projects WHERE id = $1',
       [id]
@@ -422,6 +468,7 @@ export class DatabaseService {
   }
 
   async getProjectByApiKey(apiKey: string): Promise<Project | null> {
+    await this.ensureReady();
     const result = await this.pool.query(
       'SELECT * FROM projects WHERE api_key = $1 AND is_active = true',
       [apiKey]
