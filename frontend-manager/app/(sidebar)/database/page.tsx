@@ -27,7 +27,7 @@ import {
   FiFolder,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project, TableSchema } from "@krapi/sdk";
+import type { Project, TableSchema } from "@/lib/krapi";
 
 export default function DatabasePage() {
   const krapi = useKrapi();

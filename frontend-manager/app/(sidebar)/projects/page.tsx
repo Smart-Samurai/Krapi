@@ -31,7 +31,7 @@ import {
   FiSearch,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project } from "@krapi/sdk";
+import type { Project } from "@/lib/krapi";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required"),

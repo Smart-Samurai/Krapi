@@ -8,7 +8,8 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { KrapiClient, AdminUser } from "@krapi/sdk";
+import { createDefaultKrapi, KrapiClient } from "@/lib/krapi";
+import type { AdminUser } from "@krapi/sdk";
 import config from "@/lib/config";
 
 interface AuthContextType {
