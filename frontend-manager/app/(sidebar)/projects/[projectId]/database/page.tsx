@@ -216,31 +216,17 @@ export default function ProjectDatabasePage() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => {
-                        // Navigate to collection documents
-                        window.location.href = `/projects/${projectId}/database/${collection.id}`;
-                      }}
+                      onClick={() => handleEditCollection(collection)}
                     >
-                      View Documents
+                      Edit Schema
                     </Button>
-                    <IconButton
-                      icon={FiEdit}
-                      variant="secondary"
+                    <Button
+                      variant="danger"
                       size="sm"
-                      title="Edit Collection"
-                    />
-                    <IconButton
-                      icon={FiTrash2}
-                      variant="secondary"
-                      size="sm"
-                      title="Delete Collection"
-                    />
-                    <IconButton
-                      icon={FiMoreVertical}
-                      variant="secondary"
-                      size="sm"
-                      title="More Options"
-                    />
+                      onClick={() => handleDeleteCollection(collection.name)}
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
               </div>

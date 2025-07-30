@@ -6,7 +6,6 @@ import { Button, Input, InfoBlock, IconButton } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiShield } from "react-icons/fi";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 
 const loginSchema = z.object({
@@ -108,26 +107,11 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <FormField
-                  name="rememberMe"
-                  label=""
-                  type="checkbox"
-                  className="w-4 h-4"
-                />
-                <label
-                  htmlFor="rememberMe"
-                  className="text-sm text-text/80 cursor-pointer select-none"
-                >
-                  Remember me
-                </label>
-              </div>
-              <a
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot password?
-              </a>
+              <FormField
+                name="rememberMe"
+                label="Remember me"
+                type="checkbox"
+              />
             </div>
 
             <Button
@@ -151,9 +135,9 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-text/60">
               Don't have an account?{" "}
-              <a href="/register" className="text-primary hover:underline">
+              <span className="text-primary">
                 Contact administrator
-              </a>
+              </span>
             </p>
           </div>
         </div>
