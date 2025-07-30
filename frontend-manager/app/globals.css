@@ -1,22 +1,31 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --text: #0f1208;
-    --background: #f0f4e6;
-    --primary: #545d28;
-    --secondary: #85cc91;
-    --accent: #48ad77;
-  }
-  .dark {
-    --text: #f4f7ed;
-    --background: #15190b;
-    --primary: #ced7a2;
-    --secondary: #337a3f;
-    --accent: #52b781;
-  }
+@theme {
+  --color-text: #0f1208;
+  --color-background: #f0f4e6;
+  --color-primary: #545d28;
+  --color-secondary: #85cc91;
+  --color-accent: #48ad77;
+}
 
-  body {
-    @apply antialiased bg-background text-text min-h-screen;
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-text: #f4f7ed;
+    --color-background: #15190b;
+    --color-primary: #ced7a2;
+    --color-secondary: #337a3f;
+    --color-accent: #52b781;
   }
+}
+
+.dark {
+  --color-text: #f4f7ed;
+  --color-background: #15190b;
+  --color-primary: #ced7a2;
+  --color-secondary: #337a3f;
+  --color-accent: #52b781;
+}
+
+body {
+  @apply antialiased bg-background text-text min-h-screen;
 }
