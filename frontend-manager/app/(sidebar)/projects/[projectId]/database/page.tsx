@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { createDefaultKrapi } from "@/lib/krapi";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
   Button,
   IconButton,
@@ -36,6 +37,7 @@ interface Collection {
 export default function ProjectDatabasePage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const krapi = useKrapi();
   
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +53,6 @@ export default function ProjectDatabasePage() {
     setError(null);
     
     try {
-      const krapi = createDefaultKrapi();
       // When using admin auth, we need to pass projectId explicitly
       const result = await krapi.database.listCollections({ projectId });
       
