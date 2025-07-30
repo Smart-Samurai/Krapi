@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { createDefaultKrapi } from "@/lib/krapi";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
   Button,
   IconButton,
@@ -41,6 +42,7 @@ interface FileItem {
 export default function ProjectFilesPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const krapi = useKrapi();
   
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,8 +58,7 @@ export default function ProjectFilesPage() {
     setError(null);
     
     try {
-      const krapi = createDefaultKrapi();
-      const result = await krapi.storage.listFiles({ projectId });
+              const result = await krapi.storage.getFiles(projectId);
       
       if (result.success && result.data) {
         setFiles(result.data);
@@ -234,8 +235,7 @@ export default function ProjectFilesPage() {
                       size="sm"
                       title="Preview File"
                       onClick={() => {
-                        const krapi = createDefaultKrapi();
-                        const url = krapi.storage.getFileUrl(file.id);
+                        const url = krapi.storage.getFileUrl(projectId, file.id);
                         window.open(url, "_blank");
                       }}
                     />

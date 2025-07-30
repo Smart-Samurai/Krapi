@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
   ReactNode,
+  useRef,
 } from "react";
 import { createDefaultKrapi, KrapiClient } from "@/lib/krapi";
 import type { AdminUser } from "@krapi/sdk";
@@ -22,6 +23,7 @@ interface AuthContextType {
   logout: () => void;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
+  krapiClient: KrapiClient;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -34,18 +36,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [loginInProgress, setLoginInProgress] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Keep a ref to the krapi client
+  const krapiClientRef = useRef<KrapiClient>();
 
   const isAuthenticated = !!token;
 
-  // Create a krapi client instance
+  // Create or update krapi client instance
   const getKrapiClient = useCallback((authToken?: string) => {
     // Remove /krapi/k1 from the baseURL since SDK appends it
     const baseURL = config.api.baseUrl.replace(/\/krapi\/k1\/?$/, '');
-    return new KrapiClient({
-      baseURL,
-      authToken: authToken || undefined,
-    });
-  }, []);
+    
+    if (!krapiClientRef.current) {
+      krapiClientRef.current = new KrapiClient({
+        baseURL,
+        authToken: authToken || token || undefined,
+      });
+    } else {
+      // Update the auth token on the existing client
+      krapiClientRef.current.setAuthToken(authToken || token || '');
+    }
+    
+    return krapiClientRef.current;
+  }, [token]);
 
   const verifyToken = useCallback(async () => {
     try {
@@ -77,6 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (storedToken) {
         setToken(storedToken);
+        // Update the krapi client with the stored token
+        getKrapiClient(storedToken);
       } else {
         setIsLoading(false);
         setIsHydrated(true);
@@ -85,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       setIsHydrated(true);
     }
-  }, []);
+  }, [getKrapiClient]);
 
   // Verify token when it changes
   useEffect(() => {
@@ -113,6 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("auth_token", authToken);
         setToken(authToken);
         setUser(userData);
+        
+        // Update the krapi client with the new token
+        getKrapiClient(authToken);
 
         return true;
       } else {
@@ -136,7 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("auth_token");
     setToken(null);
     setUser(null);
-  }, [getKrapiClient, token]);
+    
+    // Clear the auth token from the client
+    krapi.setAuthToken('');
+  }, [getKrapiClient]);
 
   const refreshUser = useCallback(async () => {
     if (!token) return;
@@ -162,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     refreshUser,
     isAuthenticated,
+    krapiClient: getKrapiClient(),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

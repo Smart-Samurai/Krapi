@@ -502,6 +502,11 @@ export class KrapiClient {
       const response = await this.client.get(`/storage/${projectId}/stats`);
       return response.data;
     },
+
+    // Get file URL
+    getFileUrl: (projectId: string, fileId: string): string => {
+      return `${this.baseURL}/krapi/k1/storage/${projectId}/files/${fileId}/download`;
+    },
   };
 
   // Project Users Methods (for project-specific users)

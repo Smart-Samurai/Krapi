@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   SidebarProvider,
   SidebarRoot,
@@ -15,6 +15,7 @@ import {
   navigationItems,
 } from "@/components/styled";
 import { createDefaultKrapi } from "@/lib/krapi";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -28,8 +29,11 @@ interface Project {
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const { krapiClient } = useAuth();
 
   // Check if we're on the login page
   const isLoginPage = pathname === "/login";
@@ -50,8 +54,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
       setIsLoadingProject(true);
       try {
-        const krapi = createDefaultKrapi();
-        const result = await krapi.admin.getProject(projectId);
+        const result = await krapiClient.projects.getById(projectId);
 
         if (result.success && result.data) {
           setCurrentProject(result.data);
@@ -67,7 +70,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     };
 
     fetchProject();
-  }, [projectId, isProjectDetailPage]);
+  }, [projectId, isProjectDetailPage, krapiClient]);
 
   // Determine which navigation item is active based on current path
   const isActive = (href: string) => {
