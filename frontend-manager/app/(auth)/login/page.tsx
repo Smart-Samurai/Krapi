@@ -108,26 +108,20 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <FormField
-                  name="rememberMe"
-                  label=""
+              <div className="flex items-center">
+                <input
                   type="checkbox"
-                  className="w-4 h-4"
+                  id="remember"
+                  name="remember"
+                  className="h-4 w-4 text-primary border-secondary rounded focus:ring-primary"
                 />
                 <label
-                  htmlFor="rememberMe"
+                  htmlFor="remember"
                   className="text-sm text-text/80 cursor-pointer select-none"
                 >
                   Remember me
                 </label>
               </div>
-              <a
-                href="/forgot-password"
-                className="text-sm text-primary hover:underline"
-              >
-                Forgot password?
-              </a>
             </div>
 
             <Button
@@ -151,9 +145,9 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-text/60">
               Don't have an account?{" "}
-              <a href="/register" className="text-primary hover:underline">
+              <span className="text-primary">
                 Contact administrator
-              </a>
+              </span>
             </p>
           </div>
         </div>

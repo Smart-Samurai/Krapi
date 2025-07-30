@@ -340,16 +340,10 @@ export const navigationItems = {
     label: "Database",
     href: "/database",
   },
-  files: {
+  storage: {
     icon: <FiFileText className="h-4 w-4" />,
-    label: "Files",
-    href: "/files",
-  },
-
-  health: {
-    icon: <FiActivity className="h-4 w-4" />,
-    label: "Health",
-    href: "/health",
+    label: "Storage",
+    href: "/storage",
   },
   api: {
     icon: <FiCode className="h-4 w-4" />,

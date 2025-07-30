@@ -142,19 +142,19 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           },
           {
             icon: navigationItems.database.icon,
-            label: "Project Database",
+            label: "Database",
             href: `/projects/${projectId}/database`,
             isActive: pathname === `/projects/${projectId}/database`,
           },
           {
-            icon: navigationItems.files.icon,
-            label: "Project Files",
-            href: `/projects/${projectId}/files`,
-            isActive: pathname === `/projects/${projectId}/files`,
+            icon: navigationItems.storage.icon,
+            label: "Storage",
+            href: `/projects/${projectId}/storage`,
+            isActive: pathname === `/projects/${projectId}/storage`,
           },
           {
             icon: navigationItems.api.icon,
-            label: "Project API",
+            label: "API",
             href: `/projects/${projectId}/api`,
             isActive: pathname === `/projects/${projectId}/api`,
           },
@@ -193,12 +193,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         },
       ],
       system: [
-        {
-          icon: navigationItems.health.icon,
-          label: navigationItems.health.label,
-          href: navigationItems.health.href,
-          isActive: isActive(navigationItems.health.href),
-        },
         {
           icon: navigationItems.api.icon,
           label: navigationItems.api.label,
