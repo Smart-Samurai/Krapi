@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -23,6 +23,9 @@ import {
 export class DatabaseService {
   private pool: Pool;
   private static instance: DatabaseService;
+  private isConnected: boolean = false;
+  private connectionAttempts: number = 0;
+  private maxConnectionAttempts: number = 10;
 
   private constructor() {
     // PostgreSQL connection configuration
@@ -34,10 +37,15 @@ export class DatabaseService {
       password: process.env.DB_PASSWORD || 'postgres',
       max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 5000, // Increased from 2000
     });
 
-    this.initializeTables();
+    // Set up error handlers
+    this.pool.on('error', (err) => {
+      console.error('Unexpected error on idle client', err);
+    });
+
+    this.initializeWithRetry();
   }
 
   static getInstance(): DatabaseService {
@@ -45,6 +53,39 @@ export class DatabaseService {
       DatabaseService.instance = new DatabaseService();
     }
     return DatabaseService.instance;
+  }
+
+  private async initializeWithRetry() {
+    while (this.connectionAttempts < this.maxConnectionAttempts && !this.isConnected) {
+      this.connectionAttempts++;
+      console.log(`Attempting to connect to PostgreSQL (attempt ${this.connectionAttempts}/${this.maxConnectionAttempts})...`);
+      
+      try {
+        // Test the connection
+        const client = await this.pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+        
+        this.isConnected = true;
+        console.log('Successfully connected to PostgreSQL');
+        
+        // Initialize tables after successful connection
+        await this.initializeTables();
+        break;
+      } catch (error) {
+        console.error(`Failed to connect to PostgreSQL (attempt ${this.connectionAttempts}):`, error);
+        
+        if (this.connectionAttempts < this.maxConnectionAttempts) {
+          // Wait before retrying (exponential backoff)
+          const waitTime = Math.min(1000 * Math.pow(2, this.connectionAttempts - 1), 10000);
+          console.log(`Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          console.error('Max connection attempts reached. Please ensure PostgreSQL is running.');
+          throw new Error('Failed to connect to PostgreSQL after multiple attempts');
+        }
+      }
+    }
   }
 
   private async initializeTables() {
