@@ -2,6 +2,23 @@
 echo Installing Krapi CMS dependencies...
 echo.
 
+echo Installing SDK dependencies and building...
+cd /d %~dp0packages\krapi-sdk
+pnpm install
+if %errorlevel% neq 0 (
+    echo Error: Failed to install SDK dependencies
+    pause
+    exit /b 1
+)
+pnpm run build
+if %errorlevel% neq 0 (
+    echo Error: Failed to build SDK
+    pause
+    exit /b 1
+)
+echo SDK built successfully!
+echo.
+
 echo Installing Backend Server dependencies...
 cd /d %~dp0backend-server
 pnpm install
