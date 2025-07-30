@@ -13,7 +13,7 @@ import { AuthService } from "./services/auth.service";
 dotenv.config();
 
 // Initialize services
-DatabaseService.getInstance();
+const db = DatabaseService.getInstance();
 const authService = AuthService.getInstance();
 
 // Create Express app
@@ -95,45 +95,67 @@ app.use(
   }
 );
 
+// Error handling middleware
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error(err.stack);
+  res.status(500).json({ error: "Something went wrong!" });
+});
+
 // Start server
-const PORT = process.env.PORT || 3470;
+const PORT = parseInt(process.env.PORT || "3468");
 const HOST = process.env.HOST || "localhost";
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
-  console.log(`📚 API Base URL: http://${HOST}:${PORT}/krapi/k1`);
-  console.log(`🔐 Default admin: admin@krapi.com / admin123`);
+// Async startup function
+async function startServer() {
+  try {
+    // Wait for database to be ready
+    console.log("⏳ Waiting for database connection...");
+    await db.waitForReady();
+    console.log("✅ Database connected successfully");
 
-  // Schedule session cleanup
-  setInterval(async () => {
-    try {
-      const cleaned = await authService.cleanupSessions();
-      if (cleaned > 0) {
-        console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
-      }
-    } catch (error) {
-      console.error("Session cleanup error:", error);
-    }
-  }, 60 * 60 * 1000); // Every hour
-});
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
+      console.log(`📚 API Base URL: http://${HOST}:${PORT}/krapi/k1`);
+      console.log(`🔐 Default admin: admin@krapi.com / admin123`);
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down gracefully...");
-  server.close(() => {
-    console.log("Server closed");
-    DatabaseService.getInstance().close();
-    process.exit(0);
-  });
-});
+      // Schedule session cleanup
+      setInterval(async () => {
+        try {
+          const cleaned = await authService.cleanupSessions();
+          if (cleaned > 0) {
+            console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
+          }
+        } catch (error) {
+          console.error("Session cleanup error:", error);
+        }
+      }, 60 * 60 * 1000); // Every hour
+    });
 
-process.on("SIGINT", () => {
-  console.log("SIGINT received, shutting down gracefully...");
-  server.close(() => {
-    console.log("Server closed");
-    DatabaseService.getInstance().close();
-    process.exit(0);
-  });
-});
+    // Graceful shutdown
+    process.on("SIGTERM", () => {
+      console.log("SIGTERM received, shutting down gracefully...");
+      server.close(() => {
+        console.log("Server closed");
+        db.close();
+        process.exit(0);
+      });
+    });
+
+    process.on("SIGINT", () => {
+      console.log("SIGINT received, shutting down gracefully...");
+      server.close(() => {
+        console.log("Server closed");
+        db.close();
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
 
 export default app;
