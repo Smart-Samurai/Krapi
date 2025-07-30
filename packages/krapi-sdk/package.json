@@ -1,0 +1,27 @@
+{
+  "name": "@krapi/sdk",
+  "version": "2.0.0",
+  "description": "KRAPI TypeScript SDK - Shared between backend and frontend",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.31",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "axios": "^1.10.0"
+  }
+}

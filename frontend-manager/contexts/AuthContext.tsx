@@ -8,14 +8,12 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { apiClient } from "@/lib/api-client";
-import { AdminUser } from "@/lib/krapi-sdk/types";
-import { config } from "@/lib/config";
+import { KrapiClient, AdminUser } from "@krapi/sdk";
+import config from "@/lib/config";
 
 interface AuthContextType {
   user: Omit<AdminUser, 'password_hash'> | null;
   token: string | null;
-  socket: WebSocket | null;
   isLoading: boolean;
   isHydrated: boolean;
   loginInProgress: boolean;
@@ -32,52 +30,55 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Omit<AdminUser, 'password_hash'> | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loginInProgress, setLoginInProgress] = useState(false);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  const isAuthenticated = !!token; // Simplified: if we have a token, we're authenticated
+  const isAuthenticated = !!token;
+
+  // Create a krapi client instance
+  const getKrapiClient = useCallback((authToken?: string) => {
+    return new KrapiClient({
+      baseURL: config.api.baseUrl,
+      authToken: authToken || token || undefined,
+    });
+  }, [token]);
 
   const verifyToken = useCallback(async () => {
     try {
-      const response = await apiClient.auth.getCurrentUser();
+      const krapi = getKrapiClient();
+      const response = await krapi.auth.getCurrentUser();
 
       if (response.success && response.data) {
         setUser(response.data);
       } else {
         localStorage.removeItem("auth_token");
         setToken(null);
+        setUser(null);
       }
-    } catch (_error) {
-      console.error("❌ Token verification failed:", _error);
+    } catch (error) {
+      console.error("Token verification failed:", error);
       localStorage.removeItem("auth_token");
       setToken(null);
+      setUser(null);
     } finally {
       setIsLoading(false);
       setIsHydrated(true);
     }
-  }, []);
+  }, [getKrapiClient]);
 
   useEffect(() => {
-    console.log("🔐 AuthContext: Initial useEffect running");
     // Check for existing token on mount
     if (typeof window !== "undefined") {
-      console.log("🔐 AuthContext: Window is defined, checking localStorage");
       const storedToken = localStorage.getItem("auth_token");
 
       if (storedToken) {
-        console.log("🔐 AuthContext: Found stored token");
         setToken(storedToken);
-        // Don't call verifyToken here - let the next useEffect handle it
       } else {
-        console.log("🔐 AuthContext: No stored token found");
         setIsLoading(false);
         setIsHydrated(true);
       }
     } else {
-      console.log("🔐 AuthContext: Window is not defined (SSR)");
       setIsLoading(false);
       setIsHydrated(true);
     }
@@ -85,216 +86,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verify token when it changes
   useEffect(() => {
-    console.log("🔐 AuthContext: Token verification useEffect running", {
-      token: !!token,
-      loginInProgress,
-    });
-    // Don't verify token during login attempts or if no token
     if (!token || loginInProgress) {
-      console.log(
-        "🔐 AuthContext: Skipping token verification - no token or login in progress"
-      );
       setIsLoading(false);
       setIsHydrated(true);
       return;
     }
 
-    console.log("🔐 AuthContext: Verifying token...");
     verifyToken();
   }, [token, loginInProgress, verifyToken]);
 
-  // Open WebSocket when authenticated
-  useEffect(() => {
-    if (token) {
-      // Build WS URL using centralized config
-      const wsUrl = config.getWebSocketUrl(token);
-
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        // Send initial heartbeat
-        const heartbeat = () => {
-          if (ws.readyState === WebSocket.OPEN) {
-            try {
-              ws.send(JSON.stringify({ type: "heartbeat" }));
-            } catch {
-              console.warn("Failed to send heartbeat");
-            }
-          }
-        };
-
-        // Send heartbeat using config interval
-        const heartbeatInterval = setInterval(
-          heartbeat,
-          config.websocket.heartbeatInterval
-        );
-
-        // Store interval ID for cleanup
-        (ws as any).heartbeatInterval = heartbeatInterval;
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const _data = JSON.parse(event.data);
-          // Handle WebSocket messages here
-        } catch {
-          console.warn("Non-JSON WebSocket message:", event.data);
-        }
-      };
-
-      ws.onerror = (_error) => {
-        // Don't attempt to use the connection after an error
-      };
-
-      ws.onclose = (event) => {
-        // Clean up heartbeat interval
-        if ((ws as any).heartbeatInterval) {
-          clearInterval((ws as any).heartbeatInterval);
-        }
-
-        // Only attempt reconnection if token is still valid and connection wasn't intentionally closed
-        // Also check that we're still authenticated to prevent unnecessary reconnection attempts
-        if (
-          token &&
-          user &&
-          event.code !== 1000 &&
-          reconnectAttempts < config.websocket.maxReconnectAttempts
-        ) {
-          const delay = Math.min(
-            config.websocket.reconnectDelay.initial *
-              Math.pow(
-                config.websocket.reconnectDelay.multiplier,
-                reconnectAttempts
-              ),
-            config.websocket.reconnectDelay.max
-          );
-
-          setTimeout(() => {
-            if (token && user) {
-              // Double-check we're still authenticated
-              setReconnectAttempts((prev) => prev + 1);
-              // Trigger re-effect by updating a state variable
-              setSocket(null);
-            }
-          }, delay);
-        } else if (reconnectAttempts >= config.websocket.maxReconnectAttempts) {
-          console.error(
-            "❌ Maximum reconnection attempts reached. WebSocket will not reconnect automatically."
-          );
-        }
-      };
-
-      setSocket(ws);
-
-      return () => {
-        // Clean up heartbeat interval
-        if ((ws as any).heartbeatInterval) {
-          clearInterval((ws as any).heartbeatInterval);
-        }
-
-        ws.close(1000, "Component unmounting");
-      };
-    } else {
-      // Clear socket when not authenticated
-      if (socket) {
-        socket.close(1000, "User logged out");
-        setSocket(null);
-      }
-    }
-  }, [token, reconnectAttempts, user]);
-
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string) => {
     setLoginInProgress(true);
+    setIsLoading(true);
+
     try {
-      console.log("🔐 AuthContext: Attempting login...");
-      const response = await apiClient.auth.login(email, password);
-      console.log("🔐 AuthContext: Login response:", response);
+      const krapi = getKrapiClient();
+      const response = await krapi.auth.adminLogin(email, password);
 
       if (response.success && response.data) {
-        console.log(
-          "🔐 AuthContext: Login successful - setting token and user"
-        );
+        const { token: authToken, user: userData } = response.data;
         
-        // The apiClient already stores the token in localStorage
-        // We just need to update our state
-        setToken(response.data.token);
-        setUser(response.data.user);
+        // Store token
+        localStorage.setItem("auth_token", authToken);
+        setToken(authToken);
+        setUser(userData);
 
-        setLoginInProgress(false);
         return true;
+      } else {
+        throw new Error(response.error || "Login failed");
       }
-      console.log("🔐 AuthContext: Login failed - invalid response");
-      // If login failed but no exception, throw the error message
-      throw new Error(response.error || "Login failed");
     } catch (error) {
-      console.log("🔐 AuthContext: Login error caught:", error);
-      setLoginInProgress(false);
-      // Re-throw the error so the login page can handle it
+      console.error("Login error:", error);
       throw error;
+    } finally {
+      setLoginInProgress(false);
+      setIsLoading(false);
     }
-  };
+  }, [getKrapiClient]);
 
-  const logout = async () => {
-    try {
-      await apiClient.auth.logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-
-    // Close WebSocket connection
-    if (socket) {
-      socket.close();
-      setSocket(null);
-    }
-
-    // Clear auth state
-    setUser(null);
-    setToken(null);
+  const logout = useCallback(() => {
+    const krapi = getKrapiClient();
+    // Call logout endpoint
+    krapi.auth.logout().catch(console.error);
+    
+    // Clear local state
     localStorage.removeItem("auth_token");
-  };
+    setToken(null);
+    setUser(null);
+  }, [getKrapiClient]);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+
     try {
-      const response = await apiClient.auth.getCurrentUser();
-
+      const krapi = getKrapiClient();
+      const response = await krapi.auth.getCurrentUser();
       if (response.success && response.data) {
         setUser(response.data);
-      } else {
-        localStorage.removeItem("auth_token");
-        setToken(null);
       }
     } catch (error) {
-      console.error("Token verification failed:", error);
-      localStorage.removeItem("auth_token");
-      setToken(null);
+      console.error("Failed to refresh user:", error);
     }
+  }, [token, getKrapiClient]);
+
+  const value: AuthContextType = {
+    user,
+    token,
+    isLoading,
+    isHydrated,
+    loginInProgress,
+    login,
+    logout,
+    refreshUser,
+    isAuthenticated,
   };
 
-  // Don't render children until hydration is complete to prevent hydration mismatch
-  // Temporarily disabled to fix hydration issues
-  // if (!isHydrated) {
-  //   console.log("🔐 AuthContext: Not hydrated yet, returning null");
-  //   return null;
-  // }
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        socket,
-        isLoading,
-        isHydrated,
-        loginInProgress,
-        login,
-        logout,
-        refreshUser,
-        isAuthenticated,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

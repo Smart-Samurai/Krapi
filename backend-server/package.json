@@ -19,6 +19,7 @@
   "license": "MIT",
   "description": "KRAPI - Project-driven API backend with session-based authentication",
   "dependencies": {
+    "@krapi/sdk": "workspace:*",
     "express": "^4.21.2",
     "cors": "^2.8.5",
     "helmet": "^8.1.0",
