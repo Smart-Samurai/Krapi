@@ -16,9 +16,9 @@ import {
   Project,
   ProjectSettings,
   ProjectStats,
-  TableSchema,
-  TableField,
-  TableIndex,
+  Collection,
+  CollectionField,
+  CollectionIndex,
   Document,
   FileInfo,
   StorageStats,
@@ -276,128 +276,131 @@ export class KrapiClient {
     },
   };
 
-  // Database Methods
-  database = {
-    // Get table schemas
-    getSchemas: async (
+  // Collections Methods (formerly database)
+  collections = {
+    // Get all collections in a project
+    getAll: async (
       projectId: string
-    ): Promise<ApiResponse<TableSchema[]>> => {
-      const response = await this.client.get(`/database/${projectId}/schemas`);
+    ): Promise<ApiResponse<Collection[]>> => {
+      const response = await this.client.get(`/projects/${projectId}/collections`);
       return response.data;
     },
 
-    // Get table schema by name
-    getSchema: async (
+    // Get collection by name
+    get: async (
       projectId: string,
-      tableName: string
-    ): Promise<ApiResponse<TableSchema>> => {
+      collectionName: string
+    ): Promise<ApiResponse<Collection>> => {
       const response = await this.client.get(
-        `/database/${projectId}/schemas/${tableName}`
+        `/projects/${projectId}/collections/${collectionName}`
       );
       return response.data;
     },
 
-    // Create table schema
-    createSchema: async (
+    // Create collection
+    create: async (
       projectId: string,
-      schema: {
+      collection: {
         name: string;
         description?: string;
-        fields: TableField[];
-        indexes?: TableIndex[];
+        fields: CollectionField[];
+        indexes?: CollectionIndex[];
       }
-    ): Promise<ApiResponse<TableSchema>> => {
+    ): Promise<ApiResponse<Collection>> => {
       const response = await this.client.post(
-        `/database/${projectId}/schemas`,
-        schema
+        `/projects/${projectId}/collections`,
+        collection
       );
       return response.data;
     },
 
-    // Update table schema
-    updateSchema: async (
+    // Update collection
+    update: async (
       projectId: string,
-      tableName: string,
-      updates: Partial<TableSchema>
-    ): Promise<ApiResponse<TableSchema>> => {
+      collectionName: string,
+      updates: Partial<Collection>
+    ): Promise<ApiResponse<Collection>> => {
       const response = await this.client.put(
-        `/database/${projectId}/schemas/${tableName}`,
+        `/projects/${projectId}/collections/${collectionName}`,
         updates
       );
       return response.data;
     },
 
-    // Delete table schema
-    deleteSchema: async (
+    // Delete collection
+    delete: async (
       projectId: string,
-      tableName: string
+      collectionName: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/database/${projectId}/schemas/${tableName}`
+        `/projects/${projectId}/collections/${collectionName}`
       );
       return response.data;
     },
+  };
 
-    // Get documents
-    getDocuments: async (
+  // Documents Methods
+  documents = {
+    // Get documents from a collection
+    getAll: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       options?: QueryOptions
     ): Promise<PaginatedResponse<Document>> => {
       const response = await this.client.get(
-        `/database/${projectId}/${tableName}/documents`,
+        `/projects/${projectId}/collections/${collectionName}/documents`,
         { params: options }
       );
       return response.data;
     },
 
     // Get document by ID
-    getDocument: async (
+    get: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       documentId: string
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.get(
-        `/database/${projectId}/${tableName}/documents/${documentId}`
+        `/projects/${projectId}/collections/${collectionName}/documents/${documentId}`
       );
       return response.data;
     },
 
     // Create document
-    createDocument: async (
+    create: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       data: Record<string, unknown>
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.post(
-        `/database/${projectId}/${tableName}/documents`,
+        `/projects/${projectId}/collections/${collectionName}/documents`,
         { data }
       );
       return response.data;
     },
 
     // Update document
-    updateDocument: async (
+    update: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       documentId: string,
       data: Record<string, unknown>
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.put(
-        `/database/${projectId}/${tableName}/documents/${documentId}`,
+        `/projects/${projectId}/collections/${collectionName}/documents/${documentId}`,
         { data }
       );
       return response.data;
     },
 
     // Delete document
-    deleteDocument: async (
+    delete: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       documentId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/database/${projectId}/${tableName}/documents/${documentId}`
+        `/projects/${projectId}/collections/${collectionName}/documents/${documentId}`
       );
       return response.data;
     },
@@ -405,9 +408,9 @@ export class KrapiClient {
 
   // Storage Methods
   storage = {
-    // Get files
+    // Get files in a project
     getFiles: async (projectId: string): Promise<ApiResponse<FileInfo[]>> => {
-      const response = await this.client.get(`/storage/${projectId}/files`);
+      const response = await this.client.get(`/projects/${projectId}/storage/files`);
       return response.data;
     },
 
@@ -417,7 +420,7 @@ export class KrapiClient {
       fileId: string
     ): Promise<ApiResponse<FileInfo>> => {
       const response = await this.client.get(
-        `/storage/${projectId}/files/${fileId}`
+        `/projects/${projectId}/storage/files/${fileId}`
       );
       return response.data;
     },
@@ -462,7 +465,7 @@ export class KrapiClient {
       }
 
       const response = await this.client.post(
-        `/storage/${projectId}/files`,
+        `/projects/${projectId}/storage/files`,
         formData,
         config
       );
@@ -475,7 +478,7 @@ export class KrapiClient {
       fileId: string
     ): Promise<ApiResponse<Blob | Buffer>> => {
       const response = await this.client.get(
-        `/storage/${projectId}/files/${fileId}/download`,
+        `/projects/${projectId}/storage/files/${fileId}/download`,
         {
           responseType: "blob",
         }
@@ -492,20 +495,20 @@ export class KrapiClient {
       fileId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/storage/${projectId}/files/${fileId}`
+        `/projects/${projectId}/storage/files/${fileId}`
       );
       return response.data;
     },
 
     // Get storage stats
     getStats: async (projectId: string): Promise<ApiResponse<StorageStats>> => {
-      const response = await this.client.get(`/storage/${projectId}/stats`);
+      const response = await this.client.get(`/projects/${projectId}/storage/stats`);
       return response.data;
     },
 
     // Get file URL
     getFileUrl: (projectId: string, fileId: string): string => {
-      return `${this.baseURL}/krapi/k1/storage/${projectId}/files/${fileId}/download`;
+      return `${this.baseURL}/krapi/k1/projects/${projectId}/storage/files/${fileId}/download`;
     },
   };
 
@@ -517,7 +520,7 @@ export class KrapiClient {
       options?: QueryOptions
     ): Promise<PaginatedResponse<ProjectUser>> => {
       const response = await this.client.get(
-        `/database/${projectId}/users/documents`,
+        `/projects/${projectId}/collections/users/documents`,
         { params: options }
       );
       return response.data;
@@ -535,7 +538,7 @@ export class KrapiClient {
       }
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.post(
-        `/database/${projectId}/users/documents`,
+        `/projects/${projectId}/collections/users/documents`,
         { data: userData }
       );
       return response.data;
@@ -548,7 +551,7 @@ export class KrapiClient {
       updates: Record<string, unknown>
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.put(
-        `/database/${projectId}/users/documents/${userId}`,
+        `/projects/${projectId}/collections/users/documents/${userId}`,
         { data: updates }
       );
       return response.data;
@@ -560,10 +563,24 @@ export class KrapiClient {
       userId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/database/${projectId}/users/documents/${userId}`
+        `/projects/${projectId}/collections/users/documents/${userId}`
       );
       return response.data;
     },
+  };
+
+  // Legacy database methods (deprecated - use collections instead)
+  database = {
+    getSchemas: async (projectId: string) => this.collections.getAll(projectId),
+    getSchema: async (projectId: string, tableName: string) => this.collections.get(projectId, tableName),
+    createSchema: async (projectId: string, schema: any) => this.collections.create(projectId, schema),
+    updateSchema: async (projectId: string, tableName: string, updates: any) => this.collections.update(projectId, tableName, updates),
+    deleteSchema: async (projectId: string, tableName: string) => this.collections.delete(projectId, tableName),
+    getDocuments: async (projectId: string, tableName: string, options?: QueryOptions) => this.documents.getAll(projectId, tableName, options),
+    getDocument: async (projectId: string, tableName: string, documentId: string) => this.documents.get(projectId, tableName, documentId),
+    createDocument: async (projectId: string, tableName: string, data: Record<string, unknown>) => this.documents.create(projectId, tableName, data),
+    updateDocument: async (projectId: string, tableName: string, documentId: string, data: Record<string, unknown>) => this.documents.update(projectId, tableName, documentId, data),
+    deleteDocument: async (projectId: string, tableName: string, documentId: string) => this.documents.delete(projectId, tableName, documentId),
   };
 
   // Health check
@@ -573,6 +590,11 @@ export class KrapiClient {
       message: string;
       version: string;
       timestamp: string;
+      database?: {
+        status: string;
+        checks: Record<string, any>;
+        timestamp: string;
+      };
     }>
   > => {
     const response = await this.client.get("/health");

@@ -17,7 +17,10 @@ import {
   Session,
   SessionType,
   ChangelogEntry,
-  ChangeAction
+  ChangeAction,
+  Collection,
+  CollectionField,
+  CollectionIndex
 } from '@/types';
 
 export class DatabaseService {
@@ -826,7 +829,91 @@ export class DatabaseService {
     return result.rows.length > 0;
   }
 
-  // Table Schema Methods
+  // Collection Methods (new terminology for tables/schemas)
+  async createCollection(projectId: string, collectionName: string, schema: { description?: string; fields: CollectionField[]; indexes?: CollectionIndex[] }, createdBy: string): Promise<Collection> {
+    const result = await this.pool.query(
+      `INSERT INTO table_schemas (project_id, table_name, schema, created_by) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING *`,
+      [projectId, collectionName, schema, createdBy]
+    );
+
+    return this.mapCollection(result.rows[0]);
+  }
+
+  async getCollection(projectId: string, collectionName: string): Promise<Collection | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM table_schemas WHERE project_id = $1 AND table_name = $2',
+      [projectId, collectionName]
+    );
+
+    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+  }
+
+  async getProjectCollections(projectId: string): Promise<Collection[]> {
+    const result = await this.pool.query(
+      'SELECT * FROM table_schemas WHERE project_id = $1 ORDER BY created_at DESC',
+      [projectId]
+    );
+
+    return result.rows.map(row => this.mapCollection(row));
+  }
+
+  async updateCollection(projectId: string, collectionName: string, schema: { description?: string; fields?: CollectionField[]; indexes?: CollectionIndex[] }): Promise<Collection | null> {
+    const result = await this.pool.query(
+      `UPDATE table_schemas 
+       SET schema = $1 
+       WHERE project_id = $2 AND table_name = $3 
+       RETURNING *`,
+      [schema, projectId, collectionName]
+    );
+
+    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+  }
+
+  async deleteCollection(projectId: string, collectionName: string): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Delete all documents for this collection
+      await client.query(
+        'DELETE FROM documents WHERE project_id = $1 AND table_name = $2',
+        [projectId, collectionName]
+      );
+
+      // Delete the collection schema
+      const result = await client.query(
+        'DELETE FROM table_schemas WHERE project_id = $1 AND table_name = $2',
+        [projectId, collectionName]
+      );
+
+      await client.query('COMMIT');
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getDocumentsByCollection(collectionId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
+    // First get the collection to get project_id and collection_name
+    const collectionResult = await this.pool.query(
+      'SELECT project_id, table_name FROM table_schemas WHERE id = $1',
+      [collectionId]
+    );
+    
+    if (collectionResult.rows.length === 0) {
+      return { documents: [], total: 0 };
+    }
+    
+    const { project_id, table_name } = collectionResult.rows[0];
+    return this.getDocuments(project_id, table_name, options);
+  }
+
+  // Table Schema Methods (keeping for backward compatibility)
   async createTableSchema(projectId: string, tableName: string, schema: { description?: string; fields: TableField[]; indexes?: TableIndex[] }, createdBy: string): Promise<TableSchema> {
     const result = await this.pool.query(
       `INSERT INTO table_schemas (project_id, table_name, schema, created_by) 
@@ -1234,11 +1321,23 @@ export class DatabaseService {
     };
   }
 
+  private mapCollection(row: Record<string, unknown>): Collection {
+    return {
+      id: row.id as string,
+      project_id: row.project_id as string,
+      name: row.table_name as string,
+      fields: (row.schema as CollectionField[]) || [],
+      indexes: (row.indexes as CollectionIndex[]) || [],
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string
+    };
+  }
+
   private mapDocument(row: Record<string, unknown>): Document {
     return {
       id: row.id as string,
       project_id: row.project_id as string,
-      table_id: row.table_id as string,
+      collection_id: row.table_id as string, // Maps to table_id in DB for now
       data: row.data as Record<string, unknown>,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,

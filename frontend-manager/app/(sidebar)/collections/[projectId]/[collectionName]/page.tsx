@@ -39,7 +39,7 @@ import {
   FiList,
 } from "react-icons/fi";
 import { useKrapi } from "@/contexts/krapi-context";
-import type { TableSchema, TableField } from "@/lib/krapi";
+import type { Collection, CollectionField } from "@/lib/krapi";
 
 // Field type icons mapping
 const fieldTypeIcons: Record<string, React.ReactNode> = {
@@ -51,20 +51,20 @@ const fieldTypeIcons: Record<string, React.ReactNode> = {
   object: <FiFile className="h-4 w-4" />,
 };
 
-export default function TableSchemaPage() {
+export default function CollectionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { krapi } = useKrapi();
   const projectId = params.projectId as string;
-  const tableName = params.tableName as string;
+  const collectionName = params.collectionName as string;
 
-  const [schema, setSchema] = useState<TableSchema | null>(null);
+  const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Field management state
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
-  const [editingField, setEditingField] = useState<TableField | null>(null);
+  const [editingField, setEditingField] = useState<CollectionField | null>(null);
   const [fieldForm, setFieldForm] = useState({
     name: "",
     type: "string",
@@ -76,35 +76,35 @@ export default function TableSchemaPage() {
   });
 
   useEffect(() => {
-    if (krapi && projectId && tableName) {
-      fetchSchema();
+    if (krapi && projectId && collectionName) {
+      fetchCollection();
     }
-  }, [krapi, projectId, tableName]);
+  }, [krapi, projectId, collectionName]);
 
-  const fetchSchema = async () => {
+  const fetchCollection = async () => {
     try {
       setLoading(true);
-      const response = await krapi.database.getSchema(projectId, tableName);
+      const response = await krapi.collections.get(projectId, collectionName);
       if (response.success) {
-        setSchema(response.data);
+        setCollection(response.data);
       } else {
-        setError(response.error || "Failed to fetch schema");
+        setError(response.error || "Failed to fetch collection");
       }
     } catch (err) {
-      console.error("Error fetching schema:", err);
-      setError("Failed to fetch table schema");
+      console.error("Error fetching collection:", err);
+      setError("Failed to fetch collection");
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddField = async () => {
-    if (!schema || !fieldForm.name) return;
+    if (!collection || !fieldForm.name) return;
 
     try {
-      const newField: TableField = {
+      const newField: CollectionField = {
         name: fieldForm.name,
-        type: fieldForm.type,
+        type: fieldForm.type as any,
         required: fieldForm.required,
         unique: fieldForm.unique,
         indexed: fieldForm.indexed,
@@ -112,14 +112,14 @@ export default function TableSchemaPage() {
         description: fieldForm.description || undefined,
       };
 
-      const updatedFields = [...(schema.fields || []), newField];
+      const updatedFields = [...(collection.fields || []), newField];
       
-      const response = await krapi.database.updateSchema(projectId, tableName, {
+      const response = await krapi.collections.update(projectId, collectionName, {
         fields: updatedFields,
       });
 
       if (response.success) {
-        setSchema(response.data);
+        setCollection(response.data);
         setIsAddFieldOpen(false);
         resetFieldForm();
       } else {
@@ -132,14 +132,14 @@ export default function TableSchemaPage() {
   };
 
   const handleUpdateField = async () => {
-    if (!schema || !editingField || !fieldForm.name) return;
+    if (!collection || !editingField || !fieldForm.name) return;
 
     try {
-      const updatedFields = schema.fields.map((field) =>
+      const updatedFields = collection.fields.map((field) =>
         field.name === editingField.name
           ? {
               name: fieldForm.name,
-              type: fieldForm.type,
+              type: fieldForm.type as any,
               required: fieldForm.required,
               unique: fieldForm.unique,
               indexed: fieldForm.indexed,
@@ -149,12 +149,12 @@ export default function TableSchemaPage() {
           : field
       );
 
-      const response = await krapi.database.updateSchema(projectId, tableName, {
+      const response = await krapi.collections.update(projectId, collectionName, {
         fields: updatedFields,
       });
 
       if (response.success) {
-        setSchema(response.data);
+        setCollection(response.data);
         setEditingField(null);
         resetFieldForm();
       } else {
@@ -167,19 +167,19 @@ export default function TableSchemaPage() {
   };
 
   const handleDeleteField = async (fieldName: string) => {
-    if (!schema || !confirm(`Are you sure you want to delete the "${fieldName}" field?`)) {
+    if (!collection || !confirm(`Are you sure you want to delete the "${fieldName}" field?`)) {
       return;
     }
 
     try {
-      const updatedFields = schema.fields.filter((field) => field.name !== fieldName);
+      const updatedFields = collection.fields.filter((field) => field.name !== fieldName);
       
-      const response = await krapi.database.updateSchema(projectId, tableName, {
+      const response = await krapi.collections.update(projectId, collectionName, {
         fields: updatedFields,
       });
 
       if (response.success) {
-        setSchema(response.data);
+        setCollection(response.data);
       } else {
         setError(response.error || "Failed to delete field");
       }
@@ -201,7 +201,7 @@ export default function TableSchemaPage() {
     });
   };
 
-  const openEditField = (field: TableField) => {
+  const openEditField = (field: CollectionField) => {
     setEditingField(field);
     setFieldForm({
       name: field.name,
@@ -225,19 +225,19 @@ export default function TableSchemaPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <p className="text-text/60">Loading schema...</p>
+        <p className="text-text/60">Loading collection...</p>
       </div>
     );
   }
 
-  if (!schema) {
+  if (!collection) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <div className="text-center">
           <FiDatabase className="h-12 w-12 text-text/40 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text mb-2">Schema not found</h3>
-          <Button onClick={() => router.push("/database")}>
-            Back to Database
+          <h3 className="text-lg font-medium text-text mb-2">Collection not found</h3>
+          <Button onClick={() => router.push("/collections")}>
+            Back to Collections
           </Button>
         </div>
       </div>
@@ -248,9 +248,9 @@ export default function TableSchemaPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-text">{schema.name}</h1>
+        <h1 className="text-3xl font-bold text-text">{collection.name}</h1>
         <p className="text-text/60 mt-1">
-          {schema.description || "Manage collection schema and documents"}
+          {collection.description || "Manage collection fields and structure"}
         </p>
       </div>
 
@@ -268,7 +268,7 @@ export default function TableSchemaPage() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => router.push(`/database/${projectId}/${tableName}/documents`)}
+          onClick={() => router.push(`/collections/${projectId}/${collectionName}/documents`)}
         >
           <FiFile className="mr-2 h-4 w-4" />
           View Documents
@@ -278,10 +278,10 @@ export default function TableSchemaPage() {
       {/* Fields */}
       <Card>
         <CardHeader>
-          <CardTitle>Schema Fields</CardTitle>
+          <CardTitle>Collection Fields</CardTitle>
         </CardHeader>
         <CardContent>
-          {schema.fields.length === 0 ? (
+          {collection.fields.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-text/60 mb-4">No fields defined yet</p>
               <Button onClick={() => setIsAddFieldOpen(true)} variant="outline">
@@ -291,7 +291,7 @@ export default function TableSchemaPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {schema.fields.map((field) => (
+              {collection.fields.map((field) => (
                 <div
                   key={field.name}
                   className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
@@ -370,7 +370,7 @@ export default function TableSchemaPage() {
             <DialogDescription>
               {editingField
                 ? "Update the field configuration"
-                : "Add a new field to your collection schema"}
+                : "Add a new field to your collection"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

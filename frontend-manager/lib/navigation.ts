@@ -1,76 +1,54 @@
-import {
-  Home,
-  Activity,
-  Settings,
-  Users,
-  Database,
-  FileText,
-  Code,
-  Shield,
-} from "lucide-react";
+import { 
+  FiHome, 
+  FiFolder, 
+  FiUsers, 
+  FiDatabase,
+  FiHardDrive,
+  FiSettings,
+  FiLogOut,
+  FiChevronRight
+} from 'react-icons/fi';
 
-export type NavItem = {
+export interface NavItem {
   name: string;
   href: string;
-  icon: any;
-  badge?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
   children?: NavItem[];
-};
+}
 
-export const navigationItems: NavItem[] = [
+export const mainNavigation: NavItem[] = [
   {
     name: "Dashboard",
     href: "/dashboard",
-    icon: Home,
+    icon: FiHome,
   },
   {
     name: "Projects",
     href: "/projects",
-    icon: Code,
+    icon: FiFolder,
   },
   {
-    name: "Admin Users",
-    href: "/users",
-    icon: Users,
-  },
-  {
-    name: "Database",
-    href: "/database",
-    icon: Database,
+    name: "Collections",
+    href: "/collections",
+    icon: FiDatabase,
   },
   {
     name: "Storage",
-    href: "/storage", 
-    icon: FileText,
+    href: "/storage",
+    icon: FiHardDrive,
   },
   {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
+    name: "Users",
+    href: "/users",
+    icon: FiUsers,
   },
 ];
 
-export const adminNavigationItems: NavItem[] = [
+export const bottomNavigation: NavItem[] = [
   {
-    name: "Admin Dashboard",
-    href: "/admin",
-    icon: Shield,
-    children: [
-      {
-        name: "Overview",
-        href: "/admin/dashboard",
-        icon: Home,
-      },
-      {
-        name: "User Management",
-        href: "/admin/users",
-        icon: Users,
-      },
-      {
-        name: "System Settings",
-        href: "/admin/settings",
-        icon: Settings,
-      },
-    ],
+    name: "Settings",
+    href: "/settings",
+    icon: FiSettings,
   },
 ];

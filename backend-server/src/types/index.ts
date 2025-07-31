@@ -79,56 +79,60 @@ export interface RateLimitConfig {
   max_requests: number;
 }
 
-// Table/Schema Types
-export interface TableSchema {
+// Collection Types (formerly Table/Schema Types)
+export interface Collection {
   id: string;
   project_id: string;
   name: string;
   description?: string;
-  fields: TableField[];
-  indexes: TableIndex[];
+  fields: CollectionField[];
+  indexes: CollectionIndex[];
   created_at: string;
   updated_at: string;
 }
 
-export interface TableField {
+export interface CollectionField {
   name: string;
   type: FieldType;
-  required: boolean;
-  unique: boolean;
+  required?: boolean;
+  unique?: boolean;
+  indexed?: boolean;
   default?: string | number | boolean | null;
+  description?: string;
   validation?: FieldValidation;
 }
 
-export enum FieldType {
-  STRING = 'string',
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  DATE = 'date',
-  DATETIME = 'datetime',
-  JSON = 'json',
-  REFERENCE = 'reference',
-  FILE = 'file'
-}
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
 
 export interface FieldValidation {
+  // String validations
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  
+  // Number validations
   min?: number;
   max?: number;
-  pattern?: string;
+  
+  // Array validations
+  minItems?: number;
+  maxItems?: number;
+  
+  // General validations
   enum?: Array<string | number | boolean>;
   custom?: string;
 }
 
-export interface TableIndex {
+export interface CollectionIndex {
   name: string;
   fields: string[];
-  unique: boolean;
+  unique?: boolean;
 }
 
 // Document Types
 export interface Document {
   id: string;
-  table_id: string;
+  collection_id: string;
   project_id: string;
   data: Record<string, unknown>;
   created_at: string;
@@ -200,9 +204,9 @@ export interface ChangelogEntry {
 }
 
 export enum ChangeAction {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete'
+  CREATED = 'created',
+  UPDATED = 'updated',
+  DELETED = 'deleted'
 }
 
 // API Response Types

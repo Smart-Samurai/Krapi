@@ -34,16 +34,16 @@ import {
   FiCopy,
 } from "react-icons/fi";
 import { useKrapi } from "@/contexts/krapi-context";
-import type { TableSchema, Document } from "@/lib/krapi";
+import type { Collection, Document } from "@/lib/krapi";
 
 export default function DocumentsPage() {
   const params = useParams();
   const router = useRouter();
   const { krapi } = useKrapi();
   const projectId = params.projectId as string;
-  const tableName = params.tableName as string;
+  const collectionName = params.collectionName as string;
 
-  const [schema, setSchema] = useState<TableSchema | null>(null);
+  const [collection, setCollection] = useState<Collection | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,23 +56,23 @@ export default function DocumentsPage() {
   const [documentForm, setDocumentForm] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    if (krapi && projectId && tableName) {
+    if (krapi && projectId && collectionName) {
       fetchData();
     }
-  }, [krapi, projectId, tableName]);
+  }, [krapi, projectId, collectionName]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Fetch schema first
-      const schemaResponse = await krapi.database.getSchema(projectId, tableName);
-      if (schemaResponse.success) {
-        setSchema(schemaResponse.data);
+      // Fetch collection first
+      const collectionResponse = await krapi.collections.get(projectId, collectionName);
+      if (collectionResponse.success) {
+        setCollection(collectionResponse.data);
         
         // Initialize form with default values
         const defaultForm: Record<string, any> = {};
-        schemaResponse.data.fields.forEach((field) => {
+        collectionResponse.data.fields.forEach((field) => {
           if (field.default !== undefined) {
             defaultForm[field.name] = field.default;
           } else if (field.type === "boolean") {
@@ -91,7 +91,7 @@ export default function DocumentsPage() {
       }
       
       // Fetch documents
-      const docsResponse = await krapi.database.getDocuments(projectId, tableName);
+      const docsResponse = await krapi.documents.getAll(projectId, collectionName);
       if (docsResponse.success) {
         setDocuments(docsResponse.data);
       }
@@ -105,9 +105,9 @@ export default function DocumentsPage() {
 
   const handleCreateDocument = async () => {
     try {
-      const response = await krapi.database.createDocument(
+      const response = await krapi.documents.create(
         projectId,
-        tableName,
+        collectionName,
         documentForm
       );
       
@@ -128,9 +128,9 @@ export default function DocumentsPage() {
     if (!selectedDocument) return;
     
     try {
-      const response = await krapi.database.updateDocument(
+      const response = await krapi.documents.update(
         projectId,
-        tableName,
+        collectionName,
         selectedDocument.id,
         documentForm
       );
@@ -152,9 +152,9 @@ export default function DocumentsPage() {
     if (!confirm("Are you sure you want to delete this document?")) return;
     
     try {
-      const response = await krapi.database.deleteDocument(
+      const response = await krapi.documents.delete(
         projectId,
-        tableName,
+        collectionName,
         documentId
       );
       
@@ -170,9 +170,9 @@ export default function DocumentsPage() {
   };
 
   const resetForm = () => {
-    if (schema) {
+    if (collection) {
       const defaultForm: Record<string, any> = {};
-      schema.fields.forEach((field) => {
+      collection.fields.forEach((field) => {
         if (field.default !== undefined) {
           defaultForm[field.name] = field.default;
         } else if (field.type === "boolean") {
@@ -306,14 +306,14 @@ export default function DocumentsPage() {
     );
   }
 
-  if (!schema) {
+  if (!collection) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <div className="text-center">
           <FiFile className="h-12 w-12 text-text/40 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text mb-2">Schema not found</h3>
-          <Button onClick={() => router.push("/database")}>
-            Back to Database
+          <h3 className="text-lg font-medium text-text mb-2">Collection not found</h3>
+          <Button onClick={() => router.push("/collections")}>
+            Back to Collections
           </Button>
         </div>
       </div>
@@ -324,9 +324,9 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-text">{schema.name} Documents</h1>
+        <h1 className="text-3xl font-bold text-text">{collection.name} Documents</h1>
         <p className="text-text/60 mt-1">
-          Manage documents in the {schema.name} collection
+          Manage documents in the {collection.name} collection
         </p>
       </div>
 
@@ -344,9 +344,9 @@ export default function DocumentsPage() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => router.push(`/database/${projectId}/${tableName}`)}
+          onClick={() => router.push(`/collections/${projectId}/${collectionName}`)}
         >
-          Back to Schema
+          Back to Collection
         </Button>
       </div>
 
@@ -369,7 +369,7 @@ export default function DocumentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  {schema.fields.slice(0, 3).map((field) => (
+                  {collection.fields.slice(0, 3).map((field) => (
                     <TableHead key={field.name}>{field.name}</TableHead>
                   ))}
                   <TableHead>Created</TableHead>
@@ -391,7 +391,7 @@ export default function DocumentsPage() {
                         </Button>
                       </div>
                     </TableCell>
-                    {schema.fields.slice(0, 3).map((field) => (
+                    {collection.fields.slice(0, 3).map((field) => (
                       <TableCell key={field.name}>
                         {typeof doc.data[field.name] === "object"
                           ? JSON.stringify(doc.data[field.name])
@@ -457,7 +457,7 @@ export default function DocumentsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {schema.fields.map((field) => (
+            {collection.fields.map((field) => (
               <div key={field.name}>
                 <Label htmlFor={field.name}>
                   {field.name}

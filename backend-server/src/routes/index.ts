@@ -2,7 +2,7 @@ import { Router, Router as RouterType } from 'express';
 import authRoutes from './auth.routes';
 import adminRoutes from './admin.routes';
 import projectRoutes from './project.routes';
-import databaseRoutes from './database.routes';
+import collectionsRoutes from './collections.routes';
 import storageRoutes from './storage.routes';
 import { DatabaseService } from '@/services/database.service';
 
@@ -66,8 +66,8 @@ router.get('/version', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
 router.use('/projects', projectRoutes);
-router.use('/database', databaseRoutes);
-router.use('/storage', storageRoutes);
+router.use('/projects', collectionsRoutes); // Collections are under projects
+router.use('/projects', storageRoutes); // Storage is under projects
 
 // 404 handler
 router.use('*', (req, res) => {

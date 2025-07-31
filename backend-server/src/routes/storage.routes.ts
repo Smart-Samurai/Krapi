@@ -1,22 +1,30 @@
-import { Router, Router as RouterType } from 'express';
-import storageController from '@/controllers/storage.controller';
-import { validate, requestSchemas } from '@/middleware/validation.middleware';
-import { authenticateJWT, requireProjectAccess } from '@/middleware/auth.middleware';
+import { Router } from 'express';
+import { authenticate, authorize } from '@/middleware/auth.middleware';
+import { StorageController } from '@/controllers/storage.controller';
+import multer from 'multer';
 
-const router: RouterType = Router();
+const router = Router();
+const controller = new StorageController();
 
-// All storage routes require authentication and project access
-router.use(authenticateJWT);
-router.use(requireProjectAccess);
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB default limit
+  }
+});
 
-// File management
-router.get('/:projectId/files', storageController.getFiles);
-router.get('/:projectId/files/:fileId', storageController.getFileInfo);
-router.get('/:projectId/files/:fileId/download', storageController.downloadFile);
-router.post('/:projectId/files', validate(requestSchemas.uploadFile), storageController.uploadFile);
-router.delete('/:projectId/files/:fileId', storageController.deleteFile);
+// All routes require authentication
+router.use(authenticate);
+
+// File management routes
+router.get('/:projectId/storage/files', authorize('storage.read'), controller.getFiles);
+router.get('/:projectId/storage/files/:fileId', authorize('storage.read'), controller.getFile);
+router.post('/:projectId/storage/files', authorize('storage.upload'), upload.single('file'), controller.uploadFile);
+router.get('/:projectId/storage/files/:fileId/download', authorize('storage.read'), controller.downloadFile);
+router.delete('/:projectId/storage/files/:fileId', authorize('storage.delete'), controller.deleteFile);
 
 // Storage stats
-router.get('/:projectId/stats', storageController.getStorageStats);
+router.get('/:projectId/storage/stats', authorize('storage.read'), controller.getStorageStats);
 
 export default router;

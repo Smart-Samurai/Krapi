@@ -231,25 +231,21 @@ export class StorageController {
 
       res.status(200).json({
         success: true,
-        data: {
-          id: file.id,
-          filename: file.original_name,
-          size: file.size,
-          mime_type: file.mime_type,
-          uploaded_at: file.created_at,
-          uploaded_by: file.uploaded_by
-        }
-      } as ApiResponse);
+        data: file
+      } as ApiResponse<FileRecord>);
         return;
     } catch (error) {
       console.error('Get file info error:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch file info'
+        error: 'Failed to fetch file information'
       } as ApiResponse);
         return;
     }
   };
+
+  // Alias for getFileInfo
+  getFile = this.getFileInfo;
 
   // Download file
   downloadFile = async (req: Request, res: Response): Promise<void> => {
@@ -391,5 +387,3 @@ export class StorageController {
     }
   };
 }
-
-export default new StorageController();
