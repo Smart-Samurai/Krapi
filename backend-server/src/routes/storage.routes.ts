@@ -1,22 +1,31 @@
-import { Router, Router as RouterType } from 'express';
-import storageController from '@/controllers/storage.controller';
-import { validate, requestSchemas } from '@/middleware/validation.middleware';
-import { authenticateJWT, requireProjectAccess } from '@/middleware/auth.middleware';
+import { Router } from 'express';
+import { StorageController } from '@/controllers/storage.controller';
+import { 
+  authenticate, 
+  requireStorageRead, 
+  requireStorageWrite,
+  requireScopes
+} from '@/middleware/auth.middleware';
+import { Scope } from '@/types';
+import { uploadMiddleware } from '@/middleware/upload.middleware';
 
-const router: RouterType = Router();
+const router = Router();
+const controller = new StorageController();
 
-// All storage routes require authentication and project access
-router.use(authenticateJWT);
-router.use(requireProjectAccess);
+// All routes require authentication
+router.use(authenticate);
 
-// File management
-router.get('/:projectId/files', storageController.getFiles);
-router.get('/:projectId/files/:fileId', storageController.getFileInfo);
-router.get('/:projectId/files/:fileId/download', storageController.downloadFile);
-router.post('/:projectId/files', validate(requestSchemas.uploadFile), storageController.uploadFile);
-router.delete('/:projectId/files/:fileId', storageController.deleteFile);
+// File operations
+router.get('/:projectId/storage/files', requireStorageRead, controller.getFiles);
+router.get('/:projectId/storage/files/:fileId', requireStorageRead, controller.getFile);
+router.get('/:projectId/storage/files/:fileId/download', requireStorageRead, controller.downloadFile);
+router.post('/:projectId/storage/upload', requireStorageWrite, uploadMiddleware.single('file'), controller.uploadFile);
+router.delete('/:projectId/storage/files/:fileId', requireScopes({
+  scopes: [Scope.STORAGE_DELETE],
+  projectSpecific: true
+}), controller.deleteFile);
 
-// Storage stats
-router.get('/:projectId/stats', storageController.getStorageStats);
+// Storage statistics
+router.get('/:projectId/storage/stats', requireStorageRead, controller.getStorageStats);
 
 export default router;

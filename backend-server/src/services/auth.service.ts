@@ -4,10 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { DatabaseService } from './database.service';
 import { 
   AdminUser, 
+  AdminRole, 
   Session, 
   SessionType,
-  Project,
-  ChangeAction
+  Scope,
+  ApiKey
 } from '@/types';
 
 export class AuthService {
@@ -60,90 +61,141 @@ export class AuthService {
     return user;
   }
 
-  // Create Admin Session
-  async createAdminSession(apiKey: string): Promise<Session | null> {
-    // For admin sessions, we use a special API key stored in environment
-    const masterApiKey = process.env.MASTER_API_KEY || 'master_key_change_this';
-    
-    if (apiKey !== masterApiKey) {
-      return null;
+  /**
+   * Get scopes for a given admin role
+   */
+  getScopesForRole(role: AdminRole): Scope[] {
+    switch (role) {
+      case AdminRole.MASTER_ADMIN:
+        return [Scope.MASTER]; // Master scope includes everything
+      
+      case AdminRole.ADMIN:
+        return [
+          Scope.ADMIN_READ,
+          Scope.ADMIN_WRITE,
+          Scope.PROJECTS_READ,
+          Scope.PROJECTS_WRITE,
+          Scope.PROJECTS_DELETE,
+          Scope.COLLECTIONS_READ,
+          Scope.COLLECTIONS_WRITE,
+          Scope.COLLECTIONS_DELETE,
+          Scope.DOCUMENTS_READ,
+          Scope.DOCUMENTS_WRITE,
+          Scope.DOCUMENTS_DELETE,
+          Scope.STORAGE_READ,
+          Scope.STORAGE_WRITE,
+          Scope.STORAGE_DELETE,
+          Scope.EMAIL_SEND,
+          Scope.EMAIL_READ,
+          Scope.FUNCTIONS_EXECUTE,
+          Scope.FUNCTIONS_WRITE,
+          Scope.FUNCTIONS_DELETE
+        ];
+      
+      case AdminRole.DEVELOPER:
+        return [
+          Scope.PROJECTS_READ,
+          Scope.COLLECTIONS_READ,
+          Scope.COLLECTIONS_WRITE,
+          Scope.DOCUMENTS_READ,
+          Scope.DOCUMENTS_WRITE,
+          Scope.STORAGE_READ,
+          Scope.STORAGE_WRITE,
+          Scope.EMAIL_SEND,
+          Scope.FUNCTIONS_EXECUTE,
+          Scope.FUNCTIONS_WRITE
+        ];
+      
+      default:
+        return [];
     }
+  }
 
-    const token = uuidv4();
-    const expiresAt = new Date(Date.now() + this.sessionExpiresIn).toISOString();
+  /**
+   * Get default scopes for project API keys
+   */
+  getDefaultProjectScopes(): Scope[] {
+    return [
+      Scope.COLLECTIONS_READ,
+      Scope.DOCUMENTS_READ,
+      Scope.DOCUMENTS_WRITE,
+      Scope.STORAGE_READ,
+      Scope.STORAGE_WRITE,
+      Scope.EMAIL_SEND,
+      Scope.FUNCTIONS_EXECUTE
+    ];
+  }
 
+  /**
+   * Create admin session with appropriate scopes
+   */
+  async createAdminSessionWithScopes(adminUser: AdminUser): Promise<Session> {
+    const scopes = this.getScopesForRole(adminUser.role);
+    
     const session = await this.db.createSession({
-      token,
+      token: this.generateSecureToken(),
       type: SessionType.ADMIN,
-      user_id: 'system', // System-level admin session
-      permissions: ['*'], // Full permissions for admin session
-      expires_at: expiresAt,
-      consumed: false,
-      created_at: new Date().toISOString()
+      user_id: adminUser.id,
+      scopes,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      consumed: false
     });
 
     return session;
   }
 
-  // Create Project Session
-  async createProjectSession(projectId: string, apiKey: string): Promise<Session | null> {
-    const project = await this.db.getProjectByApiKey(apiKey);
-    
-    if (!project || project.id !== projectId || !project.active) {
-      return null;
+  /**
+   * Create project session with appropriate scopes
+   */
+  async createProjectSessionWithScopes(projectId: string, scopes?: Scope[]): Promise<Session> {
+    const project = await this.db.getProject(projectId);
+    if (!project || !project.is_active) {
+      throw new Error('Project not found or inactive');
     }
 
-    const token = uuidv4();
-    const expiresAt = new Date(Date.now() + this.sessionExpiresIn).toISOString();
-
+    const sessionScopes = scopes || this.getDefaultProjectScopes();
+    
     const session = await this.db.createSession({
-      token,
+      token: this.generateSecureToken(),
       type: SessionType.PROJECT,
-      api_key: apiKey,
       project_id: projectId,
-      permissions: this.getProjectPermissions(project),
-      expires_at: expiresAt,
-      consumed: false,
-      created_at: new Date().toISOString()
+      scopes: sessionScopes,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      consumed: false
     });
 
     return session;
   }
 
-  // Validate and Consume Session
-  async validateSession(token: string): Promise<{ valid: boolean, session?: Session, project?: Project, user?: AdminUser }> {
+  /**
+   * Validate session token and return session with scopes
+   */
+  async validateSessionToken(token: string): Promise<Session | null> {
     const session = await this.db.getSessionByToken(token);
     
-    if (!session) {
-      return { valid: false };
+    if (!session || session.consumed) {
+      return null;
     }
 
     // Check if expired
     if (new Date(session.expires_at) < new Date()) {
-      return { valid: false };
+      await this.db.updateSession(session.id, { consumed: true });
+      return null;
     }
 
-    // Check if already consumed
-    if (session.consumed) {
-      return { valid: false };
-    }
+    // Update last activity
+    await this.db.updateSession(session.id, { 
+      last_activity: new Date().toISOString() 
+    });
 
-    // Consume the session
-    const consumedSession = await this.db.consumeSession(token);
-    if (!consumedSession) {
-      return { valid: false };
-    }
+    return session;
+  }
 
-    // Get associated data based on session type
-    if (session.type === SessionType.ADMIN && session.user_id) {
-      const user = await this.db.getAdminUserById(session.user_id);
-      return { valid: true, session: consumedSession, user: user || undefined };
-    } else if (session.type === SessionType.PROJECT && session.project_id) {
-      const project = await this.db.getProjectById(session.project_id);
-      return { valid: true, session: consumedSession, project: project || undefined };
-    }
-
-    return { valid: true, session: consumedSession };
+  /**
+   * Generate secure token
+   */
+  private generateSecureToken(): string {
+    return `tok_${require('crypto').randomBytes(32).toString('hex')}`;
   }
 
   // Validate Session Token (without consuming)

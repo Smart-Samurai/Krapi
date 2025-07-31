@@ -1,76 +1,47 @@
-import {
-  Home,
-  Activity,
+import { 
+  LayoutDashboard, 
+  Database, 
+  HardDrive, 
+  Users, 
   Settings,
-  Users,
-  Database,
-  FileText,
-  Code,
-  Shield,
-} from "lucide-react";
+  KeyRound,
+  TestTube2
+} from 'lucide-react';
 
-export type NavItem = {
-  name: string;
-  href: string;
-  icon: any;
-  badge?: string;
-  children?: NavItem[];
-};
-
-export const navigationItems: NavItem[] = [
+export const navigation = [
   {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: Home,
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboard,
   },
   {
-    name: "Projects",
-    href: "/projects",
-    icon: Code,
+    name: 'Projects',
+    href: '/projects',
+    icon: Settings,
   },
   {
-    name: "Admin Users",
-    href: "/users",
-    icon: Users,
-  },
-  {
-    name: "Database",
-    href: "/database",
+    name: 'Collections',
+    href: '/collections',
     icon: Database,
   },
   {
-    name: "Storage",
-    href: "/storage", 
-    icon: FileText,
+    name: 'Storage',
+    href: '/storage',
+    icon: HardDrive,
   },
   {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
+    name: 'Admin Users',
+    href: '/admin-users',
+    icon: Users,
   },
-];
-
-export const adminNavigationItems: NavItem[] = [
   {
-    name: "Admin Dashboard",
-    href: "/admin",
-    icon: Shield,
-    children: [
-      {
-        name: "Overview",
-        href: "/admin/dashboard",
-        icon: Home,
-      },
-      {
-        name: "User Management",
-        href: "/admin/users",
-        icon: Users,
-      },
-      {
-        name: "System Settings",
-        href: "/admin/settings",
-        icon: Settings,
-      },
-    ],
+    name: 'API Keys',
+    href: '/api-keys',
+    icon: KeyRound,
+  },
+  {
+    name: 'Test Access',
+    href: '/test-access',
+    icon: TestTube2,
   },
 ];

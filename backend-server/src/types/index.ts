@@ -1,8 +1,8 @@
 // Admin User Types
 export interface AdminUser {
   id: string;
-  email: string;
   username: string;
+  email: string;
   password_hash: string;
   role: AdminRole;
   access_level: AccessLevel;
@@ -11,6 +11,8 @@ export interface AdminUser {
   created_at: string;
   updated_at: string;
   last_login?: string;
+  api_key?: string; // Primary API key
+  api_keys?: ApiKey[]; // All API keys for this user
 }
 
 export enum AdminRole {
@@ -79,56 +81,60 @@ export interface RateLimitConfig {
   max_requests: number;
 }
 
-// Table/Schema Types
-export interface TableSchema {
+// Collection Types (formerly Table/Schema Types)
+export interface Collection {
   id: string;
   project_id: string;
   name: string;
   description?: string;
-  fields: TableField[];
-  indexes: TableIndex[];
+  fields: CollectionField[];
+  indexes: CollectionIndex[];
   created_at: string;
   updated_at: string;
 }
 
-export interface TableField {
+export interface CollectionField {
   name: string;
   type: FieldType;
-  required: boolean;
-  unique: boolean;
+  required?: boolean;
+  unique?: boolean;
+  indexed?: boolean;
   default?: string | number | boolean | null;
+  description?: string;
   validation?: FieldValidation;
 }
 
-export enum FieldType {
-  STRING = 'string',
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  DATE = 'date',
-  DATETIME = 'datetime',
-  JSON = 'json',
-  REFERENCE = 'reference',
-  FILE = 'file'
-}
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
 
 export interface FieldValidation {
+  // String validations
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  
+  // Number validations
   min?: number;
   max?: number;
-  pattern?: string;
+  
+  // Array validations
+  minItems?: number;
+  maxItems?: number;
+  
+  // General validations
   enum?: Array<string | number | boolean>;
   custom?: string;
 }
 
-export interface TableIndex {
+export interface CollectionIndex {
   name: string;
   fields: string[];
-  unique: boolean;
+  unique?: boolean;
 }
 
 // Document Types
 export interface Document {
   id: string;
-  table_id: string;
+  collection_id: string;
   project_id: string;
   data: Record<string, unknown>;
   created_at: string;
@@ -154,31 +160,59 @@ export interface FileRecord {
 export interface ProjectUser {
   id: string;
   project_id: string;
+  username: string;
   email: string;
-  name?: string;
+  password?: string; // Only used for creation/update
+  password_hash?: string; // Internal use only
   phone?: string;
-  password_hash?: string;
-  verified: boolean;
-  active: boolean;
-  metadata?: Record<string, unknown>;
+  is_verified: boolean;
+  is_active: boolean;
+  scopes: string[];
+  metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
   last_login?: string;
+  email_verified_at?: string;
+  phone_verified_at?: string;
+}
+
+// Project-level scopes (for project users)
+export enum ProjectScope {
+  // User management (for project admins)
+  USERS_READ = 'users:read',
+  USERS_WRITE = 'users:write',
+  USERS_DELETE = 'users:delete',
+  
+  // Data access
+  DATA_READ = 'data:read',
+  DATA_WRITE = 'data:write',
+  DATA_DELETE = 'data:delete',
+  
+  // File access
+  FILES_READ = 'files:read',
+  FILES_WRITE = 'files:write',
+  FILES_DELETE = 'files:delete',
+  
+  // Function execution
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  
+  // Email sending
+  EMAIL_SEND = 'email:send',
 }
 
 // Session Types
 export interface Session {
   id: string;
   token: string;
-  type: SessionType;
   user_id?: string;
-  api_key?: string;
   project_id?: string;
-  permissions: string[];
-  expires_at: string;
+  type: SessionType;
+  scopes: Scope[];
+  metadata?: Record<string, any>;
   created_at: string;
+  expires_at: string;
+  last_activity?: string;
   consumed: boolean;
-  consumed_at?: string;
 }
 
 export enum SessionType {
@@ -200,9 +234,9 @@ export interface ChangelogEntry {
 }
 
 export enum ChangeAction {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete'
+  CREATED = 'created',
+  UPDATED = 'updated',
+  DELETED = 'deleted'
 }
 
 // API Response Types
@@ -219,7 +253,9 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     page: number;
     limit: number;
     total: number;
-    pages: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
 }
 
@@ -227,9 +263,15 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 import { Request } from 'express';
 
 export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    type: 'admin' | 'project';
+    role?: AdminRole;
+    project_id?: string;
+    scopes: Scope[];
+  };
   session?: Session;
-  user?: AdminUser | ProjectUser;
-  project?: Project;
+  apiKey?: ApiKey;
 }
 
 // Query Types
@@ -241,4 +283,67 @@ export interface QueryOptions {
   filter?: Record<string, unknown>;
   search?: string;
   fields?: string[];
+}
+
+// Access Scopes
+export enum Scope {
+  // Master scope - full access to everything
+  MASTER = 'master',
+  
+  // Admin scopes
+  ADMIN_READ = 'admin:read',
+  ADMIN_WRITE = 'admin:write',
+  ADMIN_DELETE = 'admin:delete',
+  
+  // Project scopes
+  PROJECTS_READ = 'projects:read',
+  PROJECTS_WRITE = 'projects:write',
+  PROJECTS_DELETE = 'projects:delete',
+  
+  // Collection scopes (per project)
+  COLLECTIONS_READ = 'collections:read',
+  COLLECTIONS_WRITE = 'collections:write',
+  COLLECTIONS_DELETE = 'collections:delete',
+  
+  // Document scopes (per project)
+  DOCUMENTS_READ = 'documents:read',
+  DOCUMENTS_WRITE = 'documents:write',
+  DOCUMENTS_DELETE = 'documents:delete',
+  
+  // Storage scopes (per project)
+  STORAGE_READ = 'storage:read',
+  STORAGE_WRITE = 'storage:write',
+  STORAGE_DELETE = 'storage:delete',
+  
+  // Email scopes (per project)
+  EMAIL_SEND = 'email:send',
+  EMAIL_READ = 'email:read',
+  
+  // Function scopes (per project)
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  FUNCTIONS_WRITE = 'functions:write',
+  FUNCTIONS_DELETE = 'functions:delete',
+}
+
+// API Key Types
+export interface ApiKey {
+  id: string;
+  key: string;
+  name: string;
+  type: 'master' | 'admin' | 'project';
+  owner_id: string; // admin_user_id or project_id
+  scopes: Scope[];
+  project_ids?: string[]; // For admin keys with limited project access
+  metadata?: Record<string, any>;
+  expires_at?: string;
+  last_used_at?: string;
+  created_at: string;
+  is_active: boolean;
+}
+
+// Scope validation helpers
+export interface ScopeRequirement {
+  scopes: Scope[];
+  requireAll?: boolean; // If true, all scopes required. If false, any scope is sufficient
+  projectSpecific?: boolean; // If true, scope must be for the specific project in the request
 }

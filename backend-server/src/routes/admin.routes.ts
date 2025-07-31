@@ -1,21 +1,59 @@
-import { Router, Router as RouterType } from 'express';
-import adminController from '@/controllers/admin.controller';
-import { validate, requestSchemas } from '@/middleware/validation.middleware';
-import { authenticateJWT, requireAdmin, requireMasterAdmin } from '@/middleware/auth.middleware';
+import { Router } from 'express';
+import { AdminController } from '@/controllers/admin.controller';
+import { 
+  authenticate, 
+  requireScopes
+} from '@/middleware/auth.middleware';
+import { Scope } from '@/types';
 
-const router: RouterType = Router();
+const router = Router();
+const controller = new AdminController();
 
-// All admin routes require authentication and admin role
-router.use(authenticateJWT);
-router.use(requireAdmin);
+// All routes require authentication
+router.use(authenticate);
 
 // Admin user management
-router.get('/users', adminController.getAllAdminUsers);
-router.get('/users/:id', adminController.getAdminUserById);
-router.post('/users', requireMasterAdmin, validate(requestSchemas.createAdminUser), adminController.createAdminUser);
-router.put('/users/:id', requireMasterAdmin, validate(requestSchemas.updateAdminUser), adminController.updateAdminUser);
-router.delete('/users/:id', requireMasterAdmin, adminController.deleteAdminUser);
-router.post('/users/:id/toggle-status', requireMasterAdmin, adminController.toggleAdminUserStatus);
-router.get('/users/:id/activity', adminController.getAdminUserActivity);
+router.get('/users', requireScopes({
+  scopes: [Scope.ADMIN_READ]
+}), controller.getAdminUsers);
+
+router.get('/users/:userId', requireScopes({
+  scopes: [Scope.ADMIN_READ]
+}), controller.getAdminUser);
+
+router.post('/users', requireScopes({
+  scopes: [Scope.ADMIN_WRITE]
+}), controller.createAdminUser);
+
+router.put('/users/:userId', requireScopes({
+  scopes: [Scope.ADMIN_WRITE]
+}), controller.updateAdminUser);
+
+router.delete('/users/:userId', requireScopes({
+  scopes: [Scope.ADMIN_DELETE]
+}), controller.deleteAdminUser);
+
+// API key management for admin users
+router.get('/users/:userId/api-keys', requireScopes({
+  scopes: [Scope.ADMIN_READ]
+}), controller.getUserApiKeys);
+
+router.post('/users/:userId/api-keys', requireScopes({
+  scopes: [Scope.ADMIN_WRITE]
+}), controller.createUserApiKey);
+
+router.delete('/api-keys/:keyId', requireScopes({
+  scopes: [Scope.ADMIN_WRITE]
+}), controller.deleteApiKey);
+
+// System statistics
+router.get('/stats', requireScopes({
+  scopes: [Scope.ADMIN_READ]
+}), controller.getSystemStats);
+
+// Activity logs
+router.get('/activity', requireScopes({
+  scopes: [Scope.ADMIN_READ]
+}), controller.getActivityLogs);
 
 export default router;

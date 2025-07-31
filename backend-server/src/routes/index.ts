@@ -2,19 +2,54 @@ import { Router, Router as RouterType } from 'express';
 import authRoutes from './auth.routes';
 import adminRoutes from './admin.routes';
 import projectRoutes from './project.routes';
-import databaseRoutes from './database.routes';
+import collectionsRoutes from './collections.routes';
 import storageRoutes from './storage.routes';
+import usersRoutes from './users.routes';
+import { DatabaseService } from '@/services/database.service';
 
 const router: RouterType = Router();
 
+// ===== System Routes =====
 // Health check
-router.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'KRAPI Backend is running',
-    version: '2.0.0',
-    timestamp: new Date().toISOString()
-  });
+router.get('/health', async (req, res) => {
+  try {
+    const db = DatabaseService.getInstance();
+    const dbHealth = await db.performHealthCheck();
+    
+    res.json({
+      success: true,
+      message: 'KRAPI Backend is running',
+      version: '2.0.0',
+      timestamp: new Date().toISOString(),
+      database: dbHealth
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: 'Health check failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Database repair endpoint (protected - should be admin only in production)
+router.post('/health/repair', async (req, res) => {
+  try {
+    const db = DatabaseService.getInstance();
+    const repairResult = await db.repairDatabase();
+    
+    res.json({
+      success: repairResult.success,
+      message: repairResult.success ? 'Database repair completed' : 'Database repair failed',
+      actions: repairResult.actions
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database repair failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // API version info
@@ -29,12 +64,25 @@ router.get('/version', (req, res) => {
   });
 });
 
-// Mount route modules
+// ===== Admin-Level Routes =====
+// Authentication routes for admin users
 router.use('/auth', authRoutes);
+
+// Admin management routes (users, system settings)
 router.use('/admin', adminRoutes);
+
+// Project management routes (CRUD operations on projects)
 router.use('/projects', projectRoutes);
-router.use('/database', databaseRoutes);
-router.use('/storage', storageRoutes);
+
+// ===== Project-Level Routes =====
+// All project-specific resources are nested under /projects/:projectId
+router.use('/projects', collectionsRoutes); // /projects/:projectId/collections
+router.use('/projects', storageRoutes);     // /projects/:projectId/storage
+router.use('/projects', usersRoutes);       // /projects/:projectId/users
+
+// Future project-level routes will follow the same pattern:
+// router.use('/projects', emailRoutes);    // /projects/:projectId/email
+// router.use('/projects', functionsRoutes); // /projects/:projectId/functions
 
 // 404 handler
 router.use('*', (req, res) => {

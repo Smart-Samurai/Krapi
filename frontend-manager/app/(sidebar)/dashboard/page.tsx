@@ -1,446 +1,233 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
-import {
-  Button,
-  InfoBlock,
-  IconButton,
-  TextButton,
-  ExpandableList,
-} from "@/components/styled";
-import {
-  FiUsers,
-  FiDatabase,
-  FiFileText,
-  FiActivity,
-  FiCode,
-  FiShield,
-  FiMail,
-  FiPlus,
-  FiTrendingUp,
-  FiServer,
-  FiGlobe,
-} from "react-icons/fi";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { useRouter } from "next/navigation";
-
-interface DashboardStats {
-  totalProjects: number;
-  activeUsers: number;
-  databaseCollections: number;
-  storageUsed: string;
-}
-
-interface SystemHealthItem {
-  service: string;
-  status: "healthy" | "warning" | "error";
-  uptime: string;
-  responseTime: string;
-}
+import { useAuth } from '@/contexts/auth-context';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Activity, 
+  Database, 
+  HardDrive, 
+  Users, 
+  Shield,
+  KeyRound,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
+import Link from 'next/link';
+import { Scope } from '@/lib/krapi-client';
 
 export default function DashboardPage() {
-  const krapi = useKrapi();
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalProjects: 0,
-    activeUsers: 0,
-    databaseCollections: 0,
-    storageUsed: "0 GB",
-  });
-  const [systemHealth, setSystemHealth] = useState<SystemHealthItem[]>([]);
-  const [recentProjects, setRecentProjects] = useState<
-    Array<{
-      id: string;
-      name: string;
-      description: string;
-      created_at: string;
-      api_calls_count: number;
-    }>
-  >([]);
+  const { user, loading, scopes, hasScope, hasMasterAccess } = useAuth();
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch projects
-      const projectsResponse = await krapi.projects.getAll();
-      if (projectsResponse.success && projectsResponse.data) {
-        const projects = projectsResponse.data;
-        setStats((prev) => ({
-          ...prev,
-          totalProjects: projects.length,
-        }));
-
-        // Get recent projects (last 5)
-        const sortedProjects = [...projects].sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setRecentProjects(
-          sortedProjects.slice(0, 5).map((project) => ({
-            id: project.id,
-            name: project.name,
-            description: project.description || "",
-            created_at: project.created_at,
-            api_calls_count: project.api_calls_count || 0,
-          }))
-        );
-
-        // Calculate storage used from all projects
-        let totalStorage = 0;
-        for (const project of projects) {
-          try {
-            const storageResponse = await krapi.storage.getStats(project.id);
-            if (storageResponse.success && storageResponse.data) {
-              totalStorage += storageResponse.data.used || 0;
-            }
-          } catch (error) {
-            console.error(
-              `Error fetching storage for project ${project.id}:`,
-              error
-            );
-          }
-        }
-
-        setStats((prev) => ({
-          ...prev,
-          storageUsed: formatBytes(totalStorage),
-        }));
-      }
-
-      // Fetch admin users
-      const usersResponse = await krapi.admin.getUsers();
-      if (usersResponse.success && usersResponse.data) {
-        const activeUsers = usersResponse.data.filter((user) => user.is_active);
-        setStats((prev) => ({
-          ...prev,
-          activeUsers: activeUsers.length,
-        }));
-      }
-
-      // Fetch system health
-      const healthResponse = await krapi.health();
-      if (healthResponse.success) {
-        setSystemHealth([
-          {
-            service: "API Gateway",
-            status: "healthy",
-            uptime: "99.9%",
-            responseTime: "< 100ms",
-          },
-          {
-            service: "Database",
-            status: "healthy",
-            uptime: "99.9%",
-            responseTime: "< 50ms",
-          },
-          {
-            service: "File Storage",
-            status: "healthy",
-            uptime: "99.9%",
-            responseTime: "< 200ms",
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return "0 GB";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const statsDisplay = [
-    {
-      title: "Total Projects",
-      value: stats.totalProjects.toString(),
-      change: "+0",
-      changeType: "positive" as const,
-      icon: FiCode,
-    },
-    {
-      title: "Active Users",
-      value: stats.activeUsers.toString(),
-      change: "+0%",
-      changeType: "positive" as const,
-      icon: FiUsers,
-    },
-    {
-      title: "Database Collections",
-      value: stats.databaseCollections.toString(),
-      change: "+0",
-      changeType: "positive" as const,
-      icon: FiDatabase,
-    },
-    {
-      title: "Storage Used",
-      value: stats.storageUsed,
-      change: "+0 GB",
-      changeType: "positive" as const,
-      icon: FiFileText,
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-text">Admin Dashboard</h1>
-          <p className="text-text/60 mt-1">
-            System-wide overview and management
-          </p>
-        </div>
-        <Button
-          variant="default"
-          size="lg"
-          onClick={() => router.push("/projects")}
-        >
-          <FiPlus className="mr-2 h-4 w-4" />
-          View Projects
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold">Welcome back, {user?.username}!</h1>
+        <p className="text-muted-foreground">
+          Here's an overview of your KRAPI instance
+        </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsDisplay.map((stat, index) => (
-          <div
-            key={index}
-            className="bg-background border border-secondary rounded-lg p-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-text/60">{stat.title}</p>
-                <p className="text-2xl font-bold text-text mt-1">
-                  {loading ? "..." : stat.value}
-                </p>
-                <div className="flex items-center mt-2">
-                  <span
-                    className={`text-sm font-medium ${
-                      stat.changeType === "positive"
-                        ? "text-green-600"
-                        : stat.changeType === "negative"
-                        ? "text-red-600"
-                        : "text-text/60"
-                    }`}
-                  >
-                    {stat.change}
-                  </span>
-                  <span className="text-sm text-text/40 ml-1">
-                    from last month
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <stat.icon className="h-6 w-6 text-primary" />
-              </div>
+      {/* Access Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Your Access Permissions
+          </CardTitle>
+          <CardDescription>
+            Current authentication status and available scopes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm font-medium mb-1">Role</p>
+              <Badge variant={user?.role === 'master_admin' ? 'default' : 'secondary'}>
+                {user?.role}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-1">Access Level</p>
+              <Badge variant="outline">{user?.access_level}</Badge>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-1">Total Scopes</p>
+              <Badge variant="outline">{scopes.length}</Badge>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Projects */}
-        <div className="lg:col-span-2">
-          <div className="bg-background border border-secondary rounded-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-text">
-                Recent Projects
-              </h2>
-              <TextButton
-                variant="link"
-                onClick={() => router.push("/projects")}
-              >
-                View All Projects
-              </TextButton>
+          {hasMasterAccess() ? (
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertTitle>Master Access Enabled</AlertTitle>
+              <AlertDescription>
+                You have full unrestricted access to all resources and endpoints
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div>
+              <p className="text-sm font-medium mb-2">Available Scopes</p>
+              <div className="flex flex-wrap gap-2">
+                {scopes.map(scope => (
+                  <Badge key={scope} variant="secondary" className="text-xs">
+                    {scope}
+                  </Badge>
+                ))}
+              </div>
             </div>
-            <div className="space-y-4">
-              {loading ? (
-                <p className="text-text/60">Loading...</p>
-              ) : recentProjects.length > 0 ? (
-                recentProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="flex items-center justify-between p-4 border border-secondary/50 rounded-lg hover:bg-secondary/5 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/projects/${project.id}`)}
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <FiCode className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-text">
-                          {project.name}
-                        </h3>
-                        <p className="text-sm text-text/60">
-                          {project.description || "No description"} • Created{" "}
-                          {new Date(project.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-text">
-                        {project.api_calls_count || 0} API calls
-                      </p>
-                    </div>
-                  </div>
-                ))
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <Link href="/api-keys">
+              <Button variant="outline" size="sm">
+                <KeyRound className="mr-2 h-4 w-4" />
+                Manage API Keys
+              </Button>
+            </Link>
+            <Link href="/test-access">
+              <Button variant="outline" size="sm">
+                Test Permissions
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">
+              {hasScope(Scope.PROJECTS_READ) ? (
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Can view projects
+                </span>
               ) : (
-                <p className="text-text/60 text-center py-8">No projects yet</p>
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  No project access
+                </span>
               )}
-            </div>
-          </div>
-        </div>
+            </p>
+          </CardContent>
+        </Card>
 
-        {/* System Health */}
-        <div>
-          <div className="bg-background border border-secondary rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-text mb-4">
-              System Health
-            </h2>
-            <div className="space-y-4">
-              {systemHealth.map((service, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          service.status === "healthy"
-                            ? "bg-green-500"
-                            : service.status === "warning"
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                        }`}
-                      />
-                      <span className="font-medium text-text">
-                        {service.service}
-                      </span>
-                    </div>
-                    <span className="text-sm text-text/60">
-                      {service.responseTime}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm text-text/60">
-                    <span>Uptime: {service.uptime}</span>
-                    <span
-                      className={
-                        service.status === "healthy"
-                          ? "text-green-600"
-                          : service.status === "warning"
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      }
-                    >
-                      {service.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Collections</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">
+              {hasScope(Scope.COLLECTIONS_READ) ? (
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Can manage data
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  No collection access
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
+            <HardDrive className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0 MB</div>
+            <p className="text-xs text-muted-foreground">
+              {hasScope(Scope.STORAGE_READ) ? (
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Can manage files
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  No storage access
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Admin Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">1</div>
+            <p className="text-xs text-muted-foreground">
+              {hasScope(Scope.ADMIN_READ) ? (
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Can manage admins
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  No admin access
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-background border border-secondary rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-text mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button
-            variant="secondary"
-            className="h-20 flex-col"
-            onClick={() => router.push("/users")}
-          >
-            <FiUsers className="h-6 w-6 mb-2" />
-            <span className="text-sm">Manage Users</span>
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-20 flex-col"
-            onClick={() => router.push("/projects")}
-          >
-            <FiCode className="h-6 w-6 mb-2" />
-            <span className="text-sm">Projects</span>
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-20 flex-col"
-            onClick={() => router.push("/database")}
-          >
-            <FiDatabase className="h-6 w-6 mb-2" />
-            <span className="text-sm">Database</span>
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-20 flex-col"
-            onClick={() => router.push("/storage")}
-          >
-            <FiFileText className="h-6 w-6 mb-2" />
-            <span className="text-sm">Storage</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Info Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <InfoBlock
-          title="Platform Status"
-          variant="info"
-          className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">API Endpoints</span>
-              <span className="text-sm font-medium text-green-600">
-                All Operational
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Database</span>
-              <span className="text-sm font-medium text-green-600">
-                Connected
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">File Storage</span>
-              <span className="text-sm font-medium text-green-600">
-                Available
-              </span>
-            </div>
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Recent Activity
+          </CardTitle>
+          <CardDescription>
+            Your recent actions in the system
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <Activity className="mx-auto h-12 w-12 mb-4 opacity-50" />
+            <p>No recent activity to display</p>
           </div>
-        </InfoBlock>
-
-        <InfoBlock
-          title="System Information"
-          variant="success"
-          className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-        >
-          <div className="space-y-2">
-            <div className="text-sm">
-              <strong>KRAPI Version</strong> - v2.0.0
-            </div>
-            <div className="text-sm">
-              <strong>Node.js</strong> - {process.version || "N/A"}
-            </div>
-            <div className="text-sm">
-              <strong>Environment</strong> -{" "}
-              {process.env.NODE_ENV || "development"}
-            </div>
-          </div>
-        </InfoBlock>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

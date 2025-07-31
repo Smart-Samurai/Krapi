@@ -3,229 +3,301 @@ export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
-  details?: unknown;
+  message?: string;
 }
 
 export interface PaginatedResponse<T = any> extends ApiResponse<T[]> {
-  pagination?: {
+  pagination: {
     page: number;
     limit: number;
     total: number;
-    pages: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
 }
 
-export interface QueryOptions {
-  page?: number;
-  limit?: number;
-  sort?: string;
-  order?: 'asc' | 'desc';
-  search?: string;
-}
-
-// User Types
-export type AdminRole = 'admin' | 'master_admin';
-export type AccessLevel = 'read' | 'write' | 'admin' | 'owner';
-
-export interface AdminPermission {
-  resource: string;
-  actions: string[];
-}
-
+// Admin Types
 export interface AdminUser {
   id: string;
-  email: string;
   username: string;
-  password_hash?: string;
+  email: string;
+  password_hash: string;
   role: AdminRole;
   access_level: AccessLevel;
   permissions: AdminPermission[];
-  is_active: boolean;
+  active: boolean;
   created_at: string;
   updated_at: string;
+  last_login?: string;
 }
+
+export enum AdminRole {
+  MASTER_ADMIN = 'master_admin',
+  ADMIN = 'admin',
+  DEVELOPER = 'developer'
+}
+
+export enum AccessLevel {
+  FULL = 'full',
+  READ_WRITE = 'read_write',
+  READ_ONLY = 'read_only'
+}
+
+export type AdminPermission = 
+  | 'users.create' | 'users.read' | 'users.update' | 'users.delete'
+  | 'projects.create' | 'projects.read' | 'projects.update' | 'projects.delete'
+  | 'collections.create' | 'collections.read' | 'collections.write' | 'collections.delete'
+  | 'storage.upload' | 'storage.read' | 'storage.delete'
+  | 'settings.read' | 'settings.update';
 
 // Project Types
-export interface ProjectSettings {
-  email?: EmailConfig;
-  storage?: StorageConfig;
-  auth?: AuthConfig;
-  rate_limit?: RateLimitConfig;
-}
-
-export interface EmailConfig {
-  enabled: boolean;
-  smtp_host?: string;
-  smtp_port?: number;
-  smtp_user?: string;
-  smtp_pass?: string;
-  from_email?: string;
-  from_name?: string;
-}
-
-export interface StorageConfig {
-  enabled: boolean;
-  max_file_size?: number;
-  allowed_types?: string[];
-}
-
-export interface AuthConfig {
-  session_duration?: number;
-  max_sessions?: number;
-  require_2fa?: boolean;
-}
-
-export interface RateLimitConfig {
-  enabled: boolean;
-  window_ms?: number;
-  max_requests?: number;
-}
-
 export interface Project {
   id: string;
   name: string;
   description?: string;
   api_key: string;
-  settings: ProjectSettings;
-  created_by: string;
+  active: boolean;
   created_at: string;
   updated_at: string;
-  is_active: boolean;
-  api_calls_count: number;
+  created_by: string;
+  settings: ProjectSettings;
+}
+
+export interface ProjectSettings {
+  cors_origins?: string[];
+  rate_limit?: RateLimitConfig;
+  auth?: AuthConfig;
+  storage?: StorageConfig;
+}
+
+export interface StorageConfig {
+  max_file_size: number;
+  allowed_mime_types: string[];
+  storage_limit: number;
+}
+
+export interface AuthConfig {
+  session_duration: number;
+  password_min_length: number;
+  require_email_verification: boolean;
+}
+
+export interface RateLimitConfig {
+  window_ms: number;
+  max_requests: number;
+}
+
+export interface ProjectStats {
   storage_used: number;
-  last_activity?: string;
+  api_calls_count: number;
+  last_api_call?: string;
+  collections_count: number;
+  documents_count: number;
+  users_count: number;
 }
 
-// Database Types
-export type FieldType = 'string' | 'number' | 'boolean' | 'datetime' | 'json' | 'array' | 'reference';
-
-export interface FieldValidation {
-  min?: number;
-  max?: number;
-  pattern?: string;
-  enum?: any[];
-  required?: boolean;
+// Collection Types (formerly Table/Schema)
+export interface Collection {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  fields: CollectionField[];
+  indexes?: CollectionIndex[];
+  created_at: string;
+  updated_at: string;
 }
 
-export interface TableField {
+export interface CollectionField {
   name: string;
   type: FieldType;
   required?: boolean;
   unique?: boolean;
   indexed?: boolean;
   default?: any;
+  description?: string;
   validation?: FieldValidation;
-  reference?: {
-    table: string;
-    field: string;
-  };
 }
 
-export interface TableIndex {
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+
+export interface FieldValidation {
+  // String validations
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  
+  // Number validations
+  min?: number;
+  max?: number;
+  
+  // Array validations
+  minItems?: number;
+  maxItems?: number;
+  
+  // General validations
+  enum?: Array<string | number | boolean>;
+  custom?: string;
+}
+
+export interface CollectionIndex {
   name: string;
   fields: string[];
   unique?: boolean;
 }
 
-export interface TableSchema {
-  name: string;
-  description?: string;
-  fields: Record<string, TableField>;
-  indexes?: TableIndex[];
-  created_at: string;
-  updated_at: string;
-}
-
+// Document Types
 export interface Document {
   id: string;
-  [key: string]: any;
+  collection_id: string;
+  project_id: string;
+  data: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
-// Storage Types
-export interface FileRecord {
+// File/Storage Types
+export interface FileInfo {
   id: string;
   project_id: string;
   filename: string;
+  original_name: string;
   mime_type: string;
   size: number;
-  path: string;
-  uploaded_by?: string;
-  uploaded_at: string;
-}
-
-export interface FileInfo {
-  id: string;
-  name: string;
-  filename?: string;
-  size: number;
-  mime_type: string;
-  uploaded_at: string;
-  uploaded_by?: string;
-}
-
-// Session Types
-export type SessionType = 'admin' | 'project' | 'user';
-
-export interface Session {
-  id: string;
-  type: SessionType;
-  user_id?: string;
-  project_id?: string;
-  token: string;
-  expires_at: string;
+  url: string;
   created_at: string;
-  last_activity?: string;
-}
-
-// Project User Types
-export interface ProjectUser {
-  id: string;
-  project_id: string;
-  email: string;
-  username?: string;
-  role: string;
-  permissions: string[];
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-// Changelog Types
-export type ChangeAction = 'create' | 'update' | 'delete';
-
-export interface ChangelogEntry {
-  id: string;
-  project_id: string;
-  user_id?: string;
-  action: ChangeAction;
-  resource_type: string;
-  resource_id: string;
-  changes?: Record<string, any>;
-  timestamp: string;
-}
-
-// Stats Types
-export interface ProjectStats {
-  tables: number;
-  documents: number;
-  users: number;
-  files: number;
-  storage_used: number;
+  created_by?: string;
 }
 
 export interface StorageStats {
-  used: number;
-  limit: number;
-  count: number;
-  total_files?: number;
-  total_size?: number;
-  max_file_size?: number;
-  allowed_types?: string[];
+  total_size: number;
+  file_count: number;
+  storage_limit: number;
+  usage_percentage: number;
 }
 
-// Error Types
-export interface KrapiError {
-  success: false;
-  error: string;
-  details?: unknown;
+// User Types (for project users, not admin users)
+export interface ProjectUser {
+  id: string;
+  project_id: string;
+  username: string;
+  email: string;
+  phone?: string;
+  is_verified: boolean;
+  is_active: boolean;
+  scopes: string[];
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  last_login?: string;
+  email_verified_at?: string;
+  phone_verified_at?: string;
+}
+
+// Project-level scopes (for project users)
+export enum ProjectScope {
+  // User management (for project admins)
+  USERS_READ = 'users:read',
+  USERS_WRITE = 'users:write',
+  USERS_DELETE = 'users:delete',
+  
+  // Data access
+  DATA_READ = 'data:read',
+  DATA_WRITE = 'data:write',
+  DATA_DELETE = 'data:delete',
+  
+  // File access
+  FILES_READ = 'files:read',
+  FILES_WRITE = 'files:write',
+  FILES_DELETE = 'files:delete',
+  
+  // Function execution
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  
+  // Email sending
+  EMAIL_SEND = 'email:send',
+}
+
+// Query Options
+export interface QueryOptions {
+  page?: number;
+  limit?: number;
+  orderBy?: string;
+  order?: 'asc' | 'desc';
+  where?: Record<string, any>;
+  search?: string;
+}
+
+// Session Types
+export interface Session {
+  id: string;
+  token: string;
+  user_id?: string;
+  project_id?: string;
+  type: 'admin' | 'project';
+  scopes: string[];
+  metadata?: Record<string, any>;
+  created_at: string;
+  expires_at: string;
+  last_activity?: string;
+  consumed: boolean;
+}
+
+// Access Scopes
+export enum Scope {
+  // Master scope - full access to everything
+  MASTER = 'master',
+  
+  // Admin scopes
+  ADMIN_READ = 'admin:read',
+  ADMIN_WRITE = 'admin:write',
+  ADMIN_DELETE = 'admin:delete',
+  
+  // Project scopes
+  PROJECTS_READ = 'projects:read',
+  PROJECTS_WRITE = 'projects:write',
+  PROJECTS_DELETE = 'projects:delete',
+  
+  // Collection scopes (per project)
+  COLLECTIONS_READ = 'collections:read',
+  COLLECTIONS_WRITE = 'collections:write',
+  COLLECTIONS_DELETE = 'collections:delete',
+  
+  // Document scopes (per project)
+  DOCUMENTS_READ = 'documents:read',
+  DOCUMENTS_WRITE = 'documents:write',
+  DOCUMENTS_DELETE = 'documents:delete',
+  
+  // Storage scopes (per project)
+  STORAGE_READ = 'storage:read',
+  STORAGE_WRITE = 'storage:write',
+  STORAGE_DELETE = 'storage:delete',
+  
+  // Email scopes (per project)
+  EMAIL_SEND = 'email:send',
+  EMAIL_READ = 'email:read',
+  
+  // Function scopes (per project)
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  FUNCTIONS_WRITE = 'functions:write',
+  FUNCTIONS_DELETE = 'functions:delete',
+}
+
+// API Key Types
+export interface ApiKey {
+  id: string;
+  key: string;
+  name: string;
+  type: 'master' | 'admin' | 'project';
+  owner_id: string;
+  scopes: string[];
+  project_ids?: string[];
+  metadata?: Record<string, any>;
+  expires_at?: string;
+  last_used_at?: string;
+  created_at: string;
+  is_active: boolean;
 }

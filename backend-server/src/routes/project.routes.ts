@@ -1,22 +1,72 @@
-import { Router, Router as RouterType } from 'express';
-import projectController from '@/controllers/project.controller';
-import { validate, requestSchemas } from '@/middleware/validation.middleware';
-import { authenticateJWT, requireAdmin } from '@/middleware/auth.middleware';
+import { Router } from 'express';
+import { ProjectController } from '@/controllers/project.controller';
+import { 
+  authenticate, 
+  requireScopes
+} from '@/middleware/auth.middleware';
+import { Scope } from '@/types';
 
-const router: RouterType = Router();
+const router = Router();
+const controller = new ProjectController();
 
-// All project routes require authentication and admin role
-router.use(authenticateJWT);
-router.use(requireAdmin);
+// All routes require authentication
+router.use(authenticate);
 
-// Project management
-router.get('/', projectController.getAllProjects);
-router.get('/:id', projectController.getProjectById);
-router.post('/', validate(requestSchemas.createProject), projectController.createProject);
-router.put('/:id', validate(requestSchemas.updateProject), projectController.updateProject);
-router.delete('/:id', projectController.deleteProject);
-router.get('/:id/stats', projectController.getProjectStats);
-router.get('/:id/activity', projectController.getProjectActivity);
-router.post('/:id/regenerate-api-key', projectController.regenerateApiKey);
+// Project CRUD operations
+router.get('/', requireScopes({
+  scopes: [Scope.PROJECTS_READ]
+}), controller.getProjects);
+
+router.get('/:projectId', requireScopes({
+  scopes: [Scope.PROJECTS_READ],
+  projectSpecific: true
+}), controller.getProject);
+
+router.post('/', requireScopes({
+  scopes: [Scope.PROJECTS_WRITE]
+}), controller.createProject);
+
+router.put('/:projectId', requireScopes({
+  scopes: [Scope.PROJECTS_WRITE],
+  projectSpecific: true
+}), controller.updateProject);
+
+router.delete('/:projectId', requireScopes({
+  scopes: [Scope.PROJECTS_DELETE],
+  projectSpecific: true
+}), controller.deleteProject);
+
+// Project settings
+router.get('/:projectId/settings', requireScopes({
+  scopes: [Scope.PROJECTS_READ],
+  projectSpecific: true
+}), controller.getProjectSettings);
+
+router.put('/:projectId/settings', requireScopes({
+  scopes: [Scope.PROJECTS_WRITE],
+  projectSpecific: true
+}), controller.updateProjectSettings);
+
+// Project API key management
+router.post('/:projectId/api-keys', requireScopes({
+  scopes: [Scope.PROJECTS_WRITE],
+  projectSpecific: true
+}), controller.createProjectApiKey);
+
+router.get('/:projectId/api-keys', requireScopes({
+  scopes: [Scope.PROJECTS_READ],
+  projectSpecific: true
+}), controller.getProjectApiKeys);
+
+router.delete('/:projectId/api-keys/:keyId', requireScopes({
+  scopes: [Scope.PROJECTS_WRITE],
+  projectSpecific: true
+}), controller.deleteProjectApiKey);
+
+// Project statistics
+router.get('/:projectId/stats', requireScopes({
+  scopes: [Scope.PROJECTS_READ],
+  projectSpecific: true
+}), controller.getProjectStats);
 
 export default router;

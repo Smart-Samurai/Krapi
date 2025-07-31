@@ -30,7 +30,9 @@ export class ProjectController {
           page: pageNum,
           limit: limitNum,
           total: projects.length,
-          pages: Math.ceil(projects.length / limitNum)
+          totalPages: Math.ceil(projects.length / limitNum),
+          hasNext: pageNum < Math.ceil(projects.length / limitNum),
+          hasPrev: pageNum > 1
         }
       } as PaginatedResponse<Project>);
     } catch (error) {

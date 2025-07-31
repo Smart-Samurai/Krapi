@@ -4,118 +4,132 @@
  * A type-safe client SDK for interacting with the KRAPI backend
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
-
-// Re-export types
-export * from "./types";
+import axios, { AxiosInstance, AxiosError } from "axios";
 import {
   ApiResponse,
   PaginatedResponse,
   AdminUser,
-  AdminPermission,
   Project,
-  ProjectSettings,
-  ProjectStats,
-  TableSchema,
-  TableField,
-  TableIndex,
+  Collection,
   Document,
   FileInfo,
-  StorageStats,
-  ProjectUser,
+  Session,
   QueryOptions,
+  ProjectUser,
 } from "./types";
 
-export class KrapiClient {
+export * from "./types";
+
+export class KrapiSDK {
   private client: AxiosInstance;
-  private baseURL: string;
-  private authToken?: string;
   private sessionToken?: string;
+  private apiKey?: string;
+  private baseURL: string;
 
-  constructor(config: {
-    baseURL: string;
+  constructor(config: { 
+    baseUrl: string; 
+    sessionToken?: string;
     apiKey?: string;
-    authToken?: string;
   }) {
-    this.baseURL = config.baseURL.replace(/\/$/, ""); // Remove trailing slash
-    this.authToken = config.authToken;
-
+    this.sessionToken = config.sessionToken;
+    this.apiKey = config.apiKey;
+    this.baseURL = config.baseUrl;
+    
     this.client = axios.create({
-      baseURL: `${this.baseURL}/krapi/k1`,
+      baseURL: config.baseUrl,
       headers: {
         "Content-Type": "application/json",
       },
     });
 
-    // Add auth interceptor
+    // Request interceptor to add authentication
     this.client.interceptors.request.use((config) => {
-      if (this.authToken) {
-        config.headers.Authorization = `Bearer ${this.authToken}`;
-      }
-      if (this.sessionToken) {
-        config.headers["X-Session-Token"] = this.sessionToken;
+      if (this.apiKey) {
+        config.headers.Authorization = `ApiKey ${this.apiKey}`;
+      } else if (this.sessionToken) {
+        config.headers.Authorization = `Bearer ${this.sessionToken}`;
       }
       return config;
     });
 
-    // Add response interceptor to capture auth token
-    this.client.interceptors.response.use((response) => {
-      const authToken = response.headers["x-auth-token"];
-      if (authToken) {
-        this.authToken = authToken;
+    // Response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Clear tokens on authentication failure
+          this.sessionToken = undefined;
+          this.apiKey = undefined;
+        }
+        return Promise.reject(error);
       }
-      return response;
-    });
+    );
   }
 
-  // Set auth token
-  setAuthToken(token: string): void {
-    this.authToken = token;
-  }
-
-  // Set session token
-  setSessionToken(token: string): void {
+  // Set authentication tokens
+  setSessionToken(token: string) {
     this.sessionToken = token;
   }
 
-  // Auth Methods
+  setApiKey(key: string) {
+    this.apiKey = key;
+  }
+
+  clearAuth() {
+    this.sessionToken = undefined;
+    this.apiKey = undefined;
+  }
+
+  // Auth methods
   auth = {
-    // Admin login
-    adminLogin: async (
-      email: string,
-      password: string
-    ): Promise<
+    // Admin login with username/password
+    adminLogin: async (credentials: {
+      username: string;
+      password: string;
+    }): Promise<
       ApiResponse<{
-        user: Omit<AdminUser, "password_hash">;
+        user: AdminUser & { scopes: string[] };
         token: string;
         session_token: string;
         expires_at: string;
       }>
     > => {
-      const response = await this.client.post("/auth/admin/login", {
-        email,
-        password,
-      });
-      if (response.data.success && response.data.data.token) {
-        this.authToken = response.data.data.token;
+      const response = await this.client.post("/auth/admin/login", credentials);
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
       }
       return response.data;
     },
 
-    // Create admin session
-    createAdminSession: async (
-      apiKey: string
-    ): Promise<
+    // Admin login with API key
+    adminApiLogin: async (apiKey: string): Promise<
       ApiResponse<{
+        user: AdminUser & { scopes: string[] };
+        token: string;
         session_token: string;
         expires_at: string;
       }>
     > => {
+      const response = await this.client.post("/auth/admin/api-login", { api_key: apiKey });
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
+      }
+      return response.data;
+    },
+
+    // Create admin session with API key
+    createAdminSession: async (
+      apiKey: string
+    ): Promise<ApiResponse<{ 
+      session_token: string; 
+      expires_at: string;
+      scopes: string[];
+    }>> => {
       const response = await this.client.post("/auth/admin/session", {
         api_key: apiKey,
       });
-      if (response.data.success && response.data.data.session_token) {
-        this.sessionToken = response.data.data.session_token;
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
       }
       return response.data;
     },
@@ -124,26 +138,33 @@ export class KrapiClient {
     createProjectSession: async (
       projectId: string,
       apiKey: string
-    ): Promise<
-      ApiResponse<{
-        session_token: string;
-        expires_at: string;
-      }>
-    > => {
+    ): Promise<ApiResponse<{ 
+      session_token: string; 
+      expires_at: string;
+      scopes: string[];
+    }>> => {
       const response = await this.client.post(
         `/auth/project/${projectId}/session`,
         { api_key: apiKey }
       );
-      if (response.data.success && response.data.data.session_token) {
-        this.sessionToken = response.data.data.session_token;
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
       }
       return response.data;
     },
 
+    // Validate session
+    validateSession: async (
+      token: string
+    ): Promise<ApiResponse<{ valid: boolean; session?: Session }>> => {
+      const response = await this.client.post("/auth/session/validate", {
+        token,
+      });
+      return response.data;
+    },
+
     // Get current user
-    getCurrentUser: async (): Promise<
-      ApiResponse<Omit<AdminUser, "password_hash">>
-    > => {
+    getCurrentUser: async (): Promise<ApiResponse<AdminUser>> => {
       const response = await this.client.get("/auth/me");
       return response.data;
     },
@@ -151,20 +172,25 @@ export class KrapiClient {
     // Logout
     logout: async (): Promise<ApiResponse> => {
       const response = await this.client.post("/auth/logout");
-      this.authToken = undefined;
-      this.sessionToken = undefined;
+      this.clearAuth();
       return response.data;
     },
 
     // Change password
-    changePassword: async (
-      currentPassword: string,
-      newPassword: string
-    ): Promise<ApiResponse> => {
-      const response = await this.client.post("/auth/change-password", {
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
+    changePassword: async (data: {
+      current_password: string;
+      new_password: string;
+    }): Promise<ApiResponse> => {
+      const response = await this.client.post("/auth/change-password", data);
+      return response.data;
+    },
+
+    // Regenerate API key
+    regenerateApiKey: async (): Promise<ApiResponse<{
+      api_key: string;
+      message: string;
+    }>> => {
+      const response = await this.client.post("/auth/regenerate-api-key");
       return response.data;
     },
   };
@@ -276,128 +302,131 @@ export class KrapiClient {
     },
   };
 
-  // Database Methods
-  database = {
-    // Get table schemas
-    getSchemas: async (
+  // Collections Methods (formerly database)
+  collections = {
+    // Get all collections in a project
+    getAll: async (
       projectId: string
-    ): Promise<ApiResponse<TableSchema[]>> => {
-      const response = await this.client.get(`/database/${projectId}/schemas`);
+    ): Promise<ApiResponse<Collection[]>> => {
+      const response = await this.client.get(`/projects/${projectId}/collections`);
       return response.data;
     },
 
-    // Get table schema by name
-    getSchema: async (
+    // Get collection by name
+    get: async (
       projectId: string,
-      tableName: string
-    ): Promise<ApiResponse<TableSchema>> => {
+      collectionName: string
+    ): Promise<ApiResponse<Collection>> => {
       const response = await this.client.get(
-        `/database/${projectId}/schemas/${tableName}`
+        `/projects/${projectId}/collections/${collectionName}`
       );
       return response.data;
     },
 
-    // Create table schema
-    createSchema: async (
+    // Create collection
+    create: async (
       projectId: string,
-      schema: {
+      collection: {
         name: string;
         description?: string;
-        fields: TableField[];
-        indexes?: TableIndex[];
+        fields: CollectionField[];
+        indexes?: CollectionIndex[];
       }
-    ): Promise<ApiResponse<TableSchema>> => {
+    ): Promise<ApiResponse<Collection>> => {
       const response = await this.client.post(
-        `/database/${projectId}/schemas`,
-        schema
+        `/projects/${projectId}/collections`,
+        collection
       );
       return response.data;
     },
 
-    // Update table schema
-    updateSchema: async (
+    // Update collection
+    update: async (
       projectId: string,
-      tableName: string,
-      updates: Partial<TableSchema>
-    ): Promise<ApiResponse<TableSchema>> => {
+      collectionName: string,
+      updates: Partial<Collection>
+    ): Promise<ApiResponse<Collection>> => {
       const response = await this.client.put(
-        `/database/${projectId}/schemas/${tableName}`,
+        `/projects/${projectId}/collections/${collectionName}`,
         updates
       );
       return response.data;
     },
 
-    // Delete table schema
-    deleteSchema: async (
+    // Delete collection
+    delete: async (
       projectId: string,
-      tableName: string
+      collectionName: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/database/${projectId}/schemas/${tableName}`
+        `/projects/${projectId}/collections/${collectionName}`
       );
       return response.data;
     },
+  };
 
-    // Get documents
-    getDocuments: async (
+  // Documents Methods
+  documents = {
+    // Get documents from a collection
+    getAll: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       options?: QueryOptions
     ): Promise<PaginatedResponse<Document>> => {
       const response = await this.client.get(
-        `/database/${projectId}/${tableName}/documents`,
+        `/projects/${projectId}/collections/${collectionName}/documents`,
         { params: options }
       );
       return response.data;
     },
 
     // Get document by ID
-    getDocument: async (
+    get: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       documentId: string
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.get(
-        `/database/${projectId}/${tableName}/documents/${documentId}`
+        `/projects/${projectId}/collections/${collectionName}/documents/${documentId}`
       );
       return response.data;
     },
 
     // Create document
-    createDocument: async (
+    create: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       data: Record<string, unknown>
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.post(
-        `/database/${projectId}/${tableName}/documents`,
+        `/projects/${projectId}/collections/${collectionName}/documents`,
         { data }
       );
       return response.data;
     },
 
     // Update document
-    updateDocument: async (
+    update: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       documentId: string,
       data: Record<string, unknown>
     ): Promise<ApiResponse<Document>> => {
       const response = await this.client.put(
-        `/database/${projectId}/${tableName}/documents/${documentId}`,
+        `/projects/${projectId}/collections/${collectionName}/documents/${documentId}`,
         { data }
       );
       return response.data;
     },
 
     // Delete document
-    deleteDocument: async (
+    delete: async (
       projectId: string,
-      tableName: string,
+      collectionName: string,
       documentId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/database/${projectId}/${tableName}/documents/${documentId}`
+        `/projects/${projectId}/collections/${collectionName}/documents/${documentId}`
       );
       return response.data;
     },
@@ -405,9 +434,9 @@ export class KrapiClient {
 
   // Storage Methods
   storage = {
-    // Get files
+    // Get files in a project
     getFiles: async (projectId: string): Promise<ApiResponse<FileInfo[]>> => {
-      const response = await this.client.get(`/storage/${projectId}/files`);
+      const response = await this.client.get(`/projects/${projectId}/storage/files`);
       return response.data;
     },
 
@@ -417,7 +446,7 @@ export class KrapiClient {
       fileId: string
     ): Promise<ApiResponse<FileInfo>> => {
       const response = await this.client.get(
-        `/storage/${projectId}/files/${fileId}`
+        `/projects/${projectId}/storage/files/${fileId}`
       );
       return response.data;
     },
@@ -462,7 +491,7 @@ export class KrapiClient {
       }
 
       const response = await this.client.post(
-        `/storage/${projectId}/files`,
+        `/projects/${projectId}/storage/files`,
         formData,
         config
       );
@@ -475,7 +504,7 @@ export class KrapiClient {
       fileId: string
     ): Promise<ApiResponse<Blob | Buffer>> => {
       const response = await this.client.get(
-        `/storage/${projectId}/files/${fileId}/download`,
+        `/projects/${projectId}/storage/files/${fileId}/download`,
         {
           responseType: "blob",
         }
@@ -492,75 +521,128 @@ export class KrapiClient {
       fileId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/storage/${projectId}/files/${fileId}`
+        `/projects/${projectId}/storage/files/${fileId}`
       );
       return response.data;
     },
 
     // Get storage stats
     getStats: async (projectId: string): Promise<ApiResponse<StorageStats>> => {
-      const response = await this.client.get(`/storage/${projectId}/stats`);
+      const response = await this.client.get(`/projects/${projectId}/storage/stats`);
       return response.data;
     },
 
     // Get file URL
     getFileUrl: (projectId: string, fileId: string): string => {
-      return `${this.baseURL}/krapi/k1/storage/${projectId}/files/${fileId}/download`;
+      return `${this.baseURL}/krapi/k1/projects/${projectId}/storage/files/${fileId}/download`;
     },
   };
 
   // Project Users Methods (for project-specific users)
   users = {
     // Get users in a project
-    getUsers: async (
+    getAll: async (
       projectId: string,
-      options?: QueryOptions
+      options?: QueryOptions & { active?: boolean }
     ): Promise<PaginatedResponse<ProjectUser>> => {
       const response = await this.client.get(
-        `/database/${projectId}/users/documents`,
+        `/projects/${projectId}/users`,
         { params: options }
       );
       return response.data;
     },
 
+    // Get a specific user
+    get: async (
+      projectId: string,
+      userId: string
+    ): Promise<ApiResponse<ProjectUser>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/users/${userId}`
+      );
+      return response.data;
+    },
+
     // Create user in project
-    createUser: async (
+    create: async (
       projectId: string,
       userData: {
+        username: string;
         email: string;
-        name?: string;
+        password: string;
         phone?: string;
-        password?: string;
+        scopes?: string[];
         metadata?: Record<string, unknown>;
       }
-    ): Promise<ApiResponse<Document>> => {
+    ): Promise<ApiResponse<ProjectUser>> => {
       const response = await this.client.post(
-        `/database/${projectId}/users/documents`,
-        { data: userData }
+        `/projects/${projectId}/users`,
+        userData
       );
       return response.data;
     },
 
     // Update user in project
-    updateUser: async (
+    update: async (
       projectId: string,
       userId: string,
-      updates: Record<string, unknown>
-    ): Promise<ApiResponse<Document>> => {
+      updates: Partial<{
+        username: string;
+        email: string;
+        password: string;
+        phone: string;
+        is_verified: boolean;
+        is_active: boolean;
+        scopes: string[];
+        metadata: Record<string, unknown>;
+      }>
+    ): Promise<ApiResponse<ProjectUser>> => {
       const response = await this.client.put(
-        `/database/${projectId}/users/documents/${userId}`,
-        { data: updates }
+        `/projects/${projectId}/users/${userId}`,
+        updates
       );
       return response.data;
     },
 
     // Delete user from project
-    deleteUser: async (
+    delete: async (
       projectId: string,
       userId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/database/${projectId}/users/documents/${userId}`
+        `/projects/${projectId}/users/${userId}`
+      );
+      return response.data;
+    },
+
+    // Update user scopes
+    updateScopes: async (
+      projectId: string,
+      userId: string,
+      scopes: string[]
+    ): Promise<ApiResponse<ProjectUser>> => {
+      const response = await this.client.put(
+        `/projects/${projectId}/users/${userId}/scopes`,
+        { scopes }
+      );
+      return response.data;
+    },
+
+    // Authenticate project user
+    authenticate: async (
+      projectId: string,
+      credentials: {
+        username: string;
+        password: string;
+      }
+    ): Promise<ApiResponse<{
+      user: ProjectUser;
+      session_token: string;
+      expires_at: string;
+    }>> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/users/authenticate`,
+        credentials
       );
       return response.data;
     },
@@ -573,6 +655,11 @@ export class KrapiClient {
       message: string;
       version: string;
       timestamp: string;
+      database?: {
+        status: string;
+        checks: Record<string, any>;
+        timestamp: string;
+      };
     }>
   > => {
     const response = await this.client.get("/health");
@@ -580,11 +667,5 @@ export class KrapiClient {
   };
 }
 
-// Export a factory function
-export function createKrapiClient(config: {
-  baseURL: string;
-  apiKey?: string;
-  authToken?: string;
-}): KrapiClient {
-  return new KrapiClient(config);
-}
+// Export as both names for backward compatibility
+export { KrapiSDK as KrapiClient };
