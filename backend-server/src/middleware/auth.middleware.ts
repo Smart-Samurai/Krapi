@@ -108,15 +108,17 @@ export const authenticate = async (
       (req as AuthenticatedRequest).apiKey = apiKey;
     } else {
       // Handle session token authentication
-      const session = await authService.validateSessionToken(token);
+      const result = await authService.validateSessionToken(token);
 
-      if (!session) {
+      if (!result.valid || !result.session) {
         res.status(401).json({
           success: false,
           error: "Invalid or expired session",
         });
         return;
       }
+
+      const session = result.session;
 
       // For project sessions, user_id might be null
       // In such cases, use the session id as the user identifier

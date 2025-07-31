@@ -36,6 +36,7 @@ export class AuthController {
         user_id: apiKey.owner_id,
         scopes: apiKey.scopes,
         metadata: { api_key_id: apiKey.id },
+        created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         consumed: false
       });
@@ -70,7 +71,7 @@ export class AuthController {
 
       const project = await this.db.getProjectByApiKey(api_key);
 
-      if (!project || project.id !== projectId || !project.is_active) {
+      if (!project || project.id !== projectId || !project.active) {
         res.status(401).json({
           success: false,
           error: 'Invalid API key or project'
@@ -222,9 +223,9 @@ export class AuthController {
   getCurrentUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;
-      const user = authReq.user;
+      const authUser = authReq.user;
 
-      if (!user) {
+      if (!authUser) {
         res.status(401).json({
           success: false,
           error: 'Not authenticated'
@@ -232,30 +233,47 @@ export class AuthController {
         return;
       }
 
-      // Determine user type and return appropriate data
-      if ('role' in user) {
-        // AdminUser
+      // Fetch full user data based on type
+      if (authUser.type === 'admin') {
+        const adminUser = await this.db.getAdminUserById(authUser.id);
+        if (!adminUser) {
+          res.status(404).json({
+            success: false,
+            error: 'User not found'
+          } as ApiResponse);
+          return;
+        }
+        
         res.status(200).json({
           success: true,
           data: {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            role: user.role,
-            access_level: user.access_level,
-            permissions: user.permissions
+            id: adminUser.id,
+            email: adminUser.email,
+            username: adminUser.username,
+            role: adminUser.role,
+            access_level: adminUser.access_level,
+            permissions: adminUser.permissions
           }
         } as ApiResponse);
       } else {
         // ProjectUser
+        const projectUser = await this.db.getProjectUser(authUser.project_id!, authUser.id);
+        if (!projectUser) {
+          res.status(404).json({
+            success: false,
+            error: 'User not found'
+          } as ApiResponse);
+          return;
+        }
+        
         res.status(200).json({
           success: true,
           data: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            phone: user.phone,
-            active: user.active
+            id: projectUser.id,
+            email: projectUser.email,
+            username: projectUser.username,
+            phone: projectUser.phone,
+            is_active: projectUser.is_active
           }
         } as ApiResponse);
       }
@@ -285,8 +303,18 @@ export class AuthController {
         return;
       }
 
+      // Get the full admin user data to verify password
+      const adminUser = await this.db.getAdminUserById(user.id);
+      if (!adminUser) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        } as ApiResponse);
+        return;
+      }
+
       // Verify current password
-      const validUser = await this.authService.authenticateAdmin(user.email, current_password);
+      const validUser = await this.authService.authenticateAdmin(adminUser.email, current_password);
       if (!validUser) {
         res.status(401).json({
           success: false,
@@ -366,6 +394,7 @@ export class AuthController {
         user_id: user.id,
         scopes: apiKey.scopes,
         metadata: { api_key_id: apiKey.id },
+        created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
         consumed: false
       });
