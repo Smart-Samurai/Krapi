@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '@/services/database.service';
 import { AuthenticatedRequest, ApiResponse, ProjectUser, ProjectScope } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { SessionType, Scope } from '@/types';
 
 export class UsersController {
   private db: DatabaseService;
@@ -256,11 +257,12 @@ export class UsersController {
       const sessionToken = `pst_${uuidv4().replace(/-/g, '')}`;
       const session = await this.db.createSession({
         token: sessionToken,
-        type: 'project',
+        type: SessionType.PROJECT,
         user_id: user.id,
         project_id: projectId,
-        scopes: user.scopes,
+        scopes: user.scopes.map(scope => scope as Scope),
         metadata: { user_type: 'project_user' },
+        created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         consumed: false
       });
