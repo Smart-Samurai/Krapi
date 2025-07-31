@@ -1,6 +1,14 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '@/middleware/auth.middleware';
 import { CollectionsController } from '@/controllers/collections.controller';
+import { 
+  authenticate, 
+  requireCollectionRead, 
+  requireCollectionWrite,
+  requireDocumentRead,
+  requireDocumentWrite,
+  requireScopes
+} from '@/middleware/auth.middleware';
+import { Scope } from '@/types';
 
 const router = Router();
 const controller = new CollectionsController();
@@ -9,17 +17,31 @@ const controller = new CollectionsController();
 router.use(authenticate);
 
 // Collection routes
-router.get('/:projectId/collections', authorize('collections.read'), controller.getCollections);
-router.get('/:projectId/collections/:collectionName', authorize('collections.read'), controller.getCollection);
-router.post('/:projectId/collections', authorize('collections.write'), controller.createCollection);
-router.put('/:projectId/collections/:collectionName', authorize('collections.write'), controller.updateCollection);
-router.delete('/:projectId/collections/:collectionName', authorize('collections.write'), controller.deleteCollection);
+router.get('/:projectId/collections', requireCollectionRead, controller.getCollections);
+router.get('/:projectId/collections/:collectionName', requireCollectionRead, controller.getCollection);
+router.post('/:projectId/collections', requireCollectionWrite, controller.createCollection);
+router.put('/:projectId/collections/:collectionName', requireCollectionWrite, controller.updateCollection);
+router.delete('/:projectId/collections/:collectionName', requireScopes({
+  scopes: [Scope.COLLECTIONS_DELETE],
+  projectSpecific: true
+}), controller.deleteCollection);
 
 // Document routes
-router.get('/:projectId/collections/:collectionName/documents', authorize('collections.read'), controller.getDocuments);
-router.get('/:projectId/collections/:collectionName/documents/:documentId', authorize('collections.read'), controller.getDocument);
-router.post('/:projectId/collections/:collectionName/documents', authorize('collections.write'), controller.createDocument);
-router.put('/:projectId/collections/:collectionName/documents/:documentId', authorize('collections.write'), controller.updateDocument);
-router.delete('/:projectId/collections/:collectionName/documents/:documentId', authorize('collections.write'), controller.deleteDocument);
+router.get('/:projectId/collections/:collectionName/documents', requireDocumentRead, controller.getDocuments);
+router.get('/:projectId/collections/:collectionName/documents/:documentId', requireDocumentRead, controller.getDocument);
+router.post('/:projectId/collections/:collectionName/documents', requireDocumentWrite, controller.createDocument);
+router.put('/:projectId/collections/:collectionName/documents/:documentId', requireDocumentWrite, controller.updateDocument);
+router.delete('/:projectId/collections/:collectionName/documents/:documentId', requireScopes({
+  scopes: [Scope.DOCUMENTS_DELETE],
+  projectSpecific: true
+}), controller.deleteDocument);
+
+// Batch operations (require write permissions)
+router.post('/:projectId/collections/:collectionName/documents/batch', requireDocumentWrite, controller.batchCreateDocuments);
+router.put('/:projectId/collections/:collectionName/documents/batch', requireDocumentWrite, controller.batchUpdateDocuments);
+router.delete('/:projectId/collections/:collectionName/documents/batch', requireScopes({
+  scopes: [Scope.DOCUMENTS_DELETE],
+  projectSpecific: true
+}), controller.batchDeleteDocuments);
 
 export default router;

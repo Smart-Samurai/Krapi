@@ -11,7 +11,8 @@ export interface AdminUser {
   created_at: string;
   updated_at: string;
   last_login?: string;
-  api_key?: string;
+  api_key?: string; // Primary API key
+  api_keys?: ApiKey[]; // All API keys for this user
 }
 
 export enum AdminRole {
@@ -175,15 +176,15 @@ export interface ProjectUser {
 export interface Session {
   id: string;
   token: string;
-  type: SessionType;
   user_id?: string;
-  api_key?: string;
   project_id?: string;
-  permissions: string[];
-  expires_at: string;
+  type: SessionType;
+  scopes: Scope[];
+  metadata?: Record<string, any>;
   created_at: string;
+  expires_at: string;
+  last_activity?: string;
   consumed: boolean;
-  consumed_at?: string;
 }
 
 export enum SessionType {
@@ -232,9 +233,15 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 import { Request } from 'express';
 
 export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    type: 'admin' | 'project';
+    role?: AdminRole;
+    project_id?: string;
+    scopes: Scope[];
+  };
   session?: Session;
-  user?: AdminUser | ProjectUser;
-  project?: Project;
+  apiKey?: ApiKey;
 }
 
 // Query Types
@@ -246,4 +253,67 @@ export interface QueryOptions {
   filter?: Record<string, unknown>;
   search?: string;
   fields?: string[];
+}
+
+// Access Scopes
+export enum Scope {
+  // Master scope - full access to everything
+  MASTER = 'master',
+  
+  // Admin scopes
+  ADMIN_READ = 'admin:read',
+  ADMIN_WRITE = 'admin:write',
+  ADMIN_DELETE = 'admin:delete',
+  
+  // Project scopes
+  PROJECTS_READ = 'projects:read',
+  PROJECTS_WRITE = 'projects:write',
+  PROJECTS_DELETE = 'projects:delete',
+  
+  // Collection scopes (per project)
+  COLLECTIONS_READ = 'collections:read',
+  COLLECTIONS_WRITE = 'collections:write',
+  COLLECTIONS_DELETE = 'collections:delete',
+  
+  // Document scopes (per project)
+  DOCUMENTS_READ = 'documents:read',
+  DOCUMENTS_WRITE = 'documents:write',
+  DOCUMENTS_DELETE = 'documents:delete',
+  
+  // Storage scopes (per project)
+  STORAGE_READ = 'storage:read',
+  STORAGE_WRITE = 'storage:write',
+  STORAGE_DELETE = 'storage:delete',
+  
+  // Email scopes (per project)
+  EMAIL_SEND = 'email:send',
+  EMAIL_READ = 'email:read',
+  
+  // Function scopes (per project)
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  FUNCTIONS_WRITE = 'functions:write',
+  FUNCTIONS_DELETE = 'functions:delete',
+}
+
+// API Key Types
+export interface ApiKey {
+  id: string;
+  key: string;
+  name: string;
+  type: 'master' | 'admin' | 'project';
+  owner_id: string; // admin_user_id or project_id
+  scopes: Scope[];
+  project_ids?: string[]; // For admin keys with limited project access
+  metadata?: Record<string, any>;
+  expires_at?: string;
+  last_used_at?: string;
+  created_at: string;
+  is_active: boolean;
+}
+
+// Scope validation helpers
+export interface ScopeRequirement {
+  scopes: Scope[];
+  requireAll?: boolean; // If true, all scopes required. If false, any scope is sufficient
+  projectSpecific?: boolean; // If true, scope must be for the specific project in the request
 }

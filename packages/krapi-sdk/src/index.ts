@@ -4,118 +4,130 @@
  * A type-safe client SDK for interacting with the KRAPI backend
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
-
-// Re-export types
-export * from "./types";
+import axios, { AxiosInstance, AxiosError } from "axios";
 import {
   ApiResponse,
   PaginatedResponse,
   AdminUser,
-  AdminPermission,
   Project,
-  ProjectSettings,
-  ProjectStats,
   Collection,
-  CollectionField,
-  CollectionIndex,
   Document,
   FileInfo,
-  StorageStats,
-  ProjectUser,
+  Session,
   QueryOptions,
+  ProjectUser,
 } from "./types";
 
-export class KrapiClient {
+export * from "./types";
+
+export class KrapiSDK {
   private client: AxiosInstance;
-  private baseURL: string;
-  private authToken?: string;
   private sessionToken?: string;
+  private apiKey?: string;
 
-  constructor(config: {
-    baseURL: string;
+  constructor(config: { 
+    baseUrl: string; 
+    sessionToken?: string;
     apiKey?: string;
-    authToken?: string;
   }) {
-    this.baseURL = config.baseURL.replace(/\/$/, ""); // Remove trailing slash
-    this.authToken = config.authToken;
-
+    this.sessionToken = config.sessionToken;
+    this.apiKey = config.apiKey;
+    
     this.client = axios.create({
-      baseURL: `${this.baseURL}/krapi/k1`,
+      baseURL: config.baseUrl,
       headers: {
         "Content-Type": "application/json",
       },
     });
 
-    // Add auth interceptor
+    // Request interceptor to add authentication
     this.client.interceptors.request.use((config) => {
-      if (this.authToken) {
-        config.headers.Authorization = `Bearer ${this.authToken}`;
-      }
-      if (this.sessionToken) {
-        config.headers["X-Session-Token"] = this.sessionToken;
+      if (this.apiKey) {
+        config.headers.Authorization = `ApiKey ${this.apiKey}`;
+      } else if (this.sessionToken) {
+        config.headers.Authorization = `Bearer ${this.sessionToken}`;
       }
       return config;
     });
 
-    // Add response interceptor to capture auth token
-    this.client.interceptors.response.use((response) => {
-      const authToken = response.headers["x-auth-token"];
-      if (authToken) {
-        this.authToken = authToken;
+    // Response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Clear tokens on authentication failure
+          this.sessionToken = undefined;
+          this.apiKey = undefined;
+        }
+        return Promise.reject(error);
       }
-      return response;
-    });
+    );
   }
 
-  // Set auth token
-  setAuthToken(token: string): void {
-    this.authToken = token;
-  }
-
-  // Set session token
-  setSessionToken(token: string): void {
+  // Set authentication tokens
+  setSessionToken(token: string) {
     this.sessionToken = token;
   }
 
-  // Auth Methods
+  setApiKey(key: string) {
+    this.apiKey = key;
+  }
+
+  clearAuth() {
+    this.sessionToken = undefined;
+    this.apiKey = undefined;
+  }
+
+  // Auth methods
   auth = {
-    // Admin login
-    adminLogin: async (
-      email: string,
-      password: string
-    ): Promise<
+    // Admin login with username/password
+    adminLogin: async (credentials: {
+      username: string;
+      password: string;
+    }): Promise<
       ApiResponse<{
-        user: Omit<AdminUser, "password_hash">;
+        user: AdminUser & { scopes: string[] };
         token: string;
         session_token: string;
         expires_at: string;
       }>
     > => {
-      const response = await this.client.post("/auth/admin/login", {
-        email,
-        password,
-      });
-      if (response.data.success && response.data.data.token) {
-        this.authToken = response.data.data.token;
+      const response = await this.client.post("/auth/admin/login", credentials);
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
       }
       return response.data;
     },
 
-    // Create admin session
-    createAdminSession: async (
-      apiKey: string
-    ): Promise<
+    // Admin login with API key
+    adminApiLogin: async (apiKey: string): Promise<
       ApiResponse<{
+        user: AdminUser & { scopes: string[] };
+        token: string;
         session_token: string;
         expires_at: string;
       }>
     > => {
+      const response = await this.client.post("/auth/admin/api-login", { api_key: apiKey });
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
+      }
+      return response.data;
+    },
+
+    // Create admin session with API key
+    createAdminSession: async (
+      apiKey: string
+    ): Promise<ApiResponse<{ 
+      session_token: string; 
+      expires_at: string;
+      scopes: string[];
+    }>> => {
       const response = await this.client.post("/auth/admin/session", {
         api_key: apiKey,
       });
-      if (response.data.success && response.data.data.session_token) {
-        this.sessionToken = response.data.data.session_token;
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
       }
       return response.data;
     },
@@ -124,26 +136,33 @@ export class KrapiClient {
     createProjectSession: async (
       projectId: string,
       apiKey: string
-    ): Promise<
-      ApiResponse<{
-        session_token: string;
-        expires_at: string;
-      }>
-    > => {
+    ): Promise<ApiResponse<{ 
+      session_token: string; 
+      expires_at: string;
+      scopes: string[];
+    }>> => {
       const response = await this.client.post(
         `/auth/project/${projectId}/session`,
         { api_key: apiKey }
       );
-      if (response.data.success && response.data.data.session_token) {
-        this.sessionToken = response.data.data.session_token;
+      if (response.data.data?.session_token) {
+        this.setSessionToken(response.data.data.session_token);
       }
       return response.data;
     },
 
+    // Validate session
+    validateSession: async (
+      token: string
+    ): Promise<ApiResponse<{ valid: boolean; session?: Session }>> => {
+      const response = await this.client.post("/auth/session/validate", {
+        token,
+      });
+      return response.data;
+    },
+
     // Get current user
-    getCurrentUser: async (): Promise<
-      ApiResponse<Omit<AdminUser, "password_hash">>
-    > => {
+    getCurrentUser: async (): Promise<ApiResponse<AdminUser>> => {
       const response = await this.client.get("/auth/me");
       return response.data;
     },
@@ -151,20 +170,25 @@ export class KrapiClient {
     // Logout
     logout: async (): Promise<ApiResponse> => {
       const response = await this.client.post("/auth/logout");
-      this.authToken = undefined;
-      this.sessionToken = undefined;
+      this.clearAuth();
       return response.data;
     },
 
     // Change password
-    changePassword: async (
-      currentPassword: string,
-      newPassword: string
-    ): Promise<ApiResponse> => {
-      const response = await this.client.post("/auth/change-password", {
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
+    changePassword: async (data: {
+      current_password: string;
+      new_password: string;
+    }): Promise<ApiResponse> => {
+      const response = await this.client.post("/auth/change-password", data);
+      return response.data;
+    },
+
+    // Regenerate API key
+    regenerateApiKey: async (): Promise<ApiResponse<{
+      api_key: string;
+      message: string;
+    }>> => {
+      const response = await this.client.post("/auth/regenerate-api-key");
       return response.data;
     },
   };
@@ -588,11 +612,5 @@ export class KrapiClient {
   };
 }
 
-// Export a factory function
-export function createKrapiClient(config: {
-  baseURL: string;
-  apiKey?: string;
-  authToken?: string;
-}): KrapiClient {
-  return new KrapiClient(config);
-}
+// Export as both names for backward compatibility
+export { KrapiSDK as KrapiClient };

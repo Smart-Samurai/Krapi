@@ -1,195 +1,262 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '@/services/auth.service';
 import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, SessionType, AdminPermission } from '@/types';
+import { AuthenticatedRequest, Scope, ScopeRequirement } from '@/types';
 
 const authService = AuthService.getInstance();
 const db = DatabaseService.getInstance();
 
-// Session-based authentication middleware
-export const authenticateSession = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const sessionToken = req.headers['x-session-token'] as string;
-    
-    if (!sessionToken) {
-      res.status(401).json({
-        success: false,
-        error: 'Session token required'
-      });
-      return;
-    }
-
-    const validation = await authService.validateSession(sessionToken);
-    
-    if (!validation.valid || !validation.session) {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid or expired session'
-      });
-      return;
-    }
-
-    // Attach session and related data to request
-    (req as AuthenticatedRequest).session = validation.session;
-    (req as AuthenticatedRequest).project = validation.project;
-    (req as AuthenticatedRequest).user = validation.user;
-
-    // Generate JWT for subsequent requests
-    const jwt = authService.generateJWT({
-      id: validation.session.id,
-      type: validation.session.type,
-      projectId: validation.project?.id,
-      permissions: validation.session.permissions
-    });
-
-    // Set JWT in response header
-    res.setHeader('X-Auth-Token', jwt);
-
-    next();
-  } catch (error) {
-    console.error('Session authentication error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    });
-      return;
-  }
-};
-
-// JWT-based authentication middleware (for requests after session validation)
-export const authenticateJWT = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/**
+ * Authenticate request using Bearer token or API key
+ */
+export const authenticate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') 
-      ? authHeader.substring(7) 
-      : null;
-
-    if (!token) {
-      res.status(401).json({
-        success: false,
-        error: 'Authorization token required'
-      });
-      return;
-    }
-
-    const payload = authService.verifyJWT(token);
     
-    if (!payload) {
+    if (!authHeader) {
       res.status(401).json({
         success: false,
-        error: 'Invalid or expired token'
+        error: 'Authorization header required'
       });
       return;
     }
 
-    // Attach data to request based on token type
-    if (payload.type === SessionType.ADMIN && payload.id) {
-      const user = await db.getAdminUserById(payload.id);
-      if (!user || !user.active) {
+    let token: string;
+    let isApiKey = false;
+
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else if (authHeader.startsWith('ApiKey ')) {
+      token = authHeader.substring(7);
+      isApiKey = true;
+    } else {
+      res.status(401).json({
+        success: false,
+        error: 'Invalid authorization format'
+      });
+      return;
+    }
+
+    if (isApiKey) {
+      // Handle API key authentication
+      const apiKey = await db.getApiKey(token);
+      
+      if (!apiKey || !apiKey.is_active) {
         res.status(401).json({
           success: false,
-          error: 'User not found or inactive'
+          error: 'Invalid or inactive API key'
         });
-      return;
+        return;
       }
-      (req as AuthenticatedRequest).user = user;
-    } else if (payload.type === SessionType.PROJECT && payload.projectId) {
-      const project = await db.getProjectById(payload.projectId);
-      if (!project || !project.active) {
+
+      // Check if API key is expired
+      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: 'Project not found or inactive'
+          error: 'API key expired'
         });
-      return;
+        return;
       }
-      (req as AuthenticatedRequest).project = project;
+
+      // Get owner details
+      let userId: string;
+      let userType: 'admin' | 'project';
+      let projectId: string | undefined;
+
+      if (apiKey.type === 'master' || apiKey.type === 'admin') {
+        userId = apiKey.owner_id;
+        userType = 'admin';
+        
+        // Verify admin user exists and is active
+        const adminUser = await db.getAdminUserById(userId);
+        if (!adminUser || !adminUser.active) {
+          res.status(401).json({
+            success: false,
+            error: 'Admin user not found or inactive'
+          });
+          return;
+        }
+      } else {
+        // Project API key
+        projectId = apiKey.owner_id;
+        userType = 'project';
+        
+        // Verify project exists and is active
+        const project = await db.getProject(projectId);
+        if (!project || !project.is_active) {
+          res.status(401).json({
+            success: false,
+            error: 'Project not found or inactive'
+          });
+          return;
+        }
+        
+        userId = project.created_by;
+      }
+
+      (req as AuthenticatedRequest).user = {
+        id: userId,
+        type: userType,
+        project_id: projectId,
+        scopes: apiKey.scopes as Scope[]
+      };
+      (req as AuthenticatedRequest).apiKey = apiKey;
+    } else {
+      // Handle session token authentication
+      const session = await authService.validateSessionToken(token);
+      
+      if (!session) {
+        res.status(401).json({
+          success: false,
+          error: 'Invalid or expired session'
+        });
+        return;
+      }
+
+      (req as AuthenticatedRequest).user = {
+        id: session.user_id!,
+        type: session.type === 'admin' ? 'admin' : 'project',
+        project_id: session.project_id,
+        scopes: session.scopes as Scope[]
+      };
+      (req as AuthenticatedRequest).session = session;
     }
 
     next();
   } catch (error) {
-    console.error('JWT authentication error:', error);
+    console.error('Authentication error:', error);
     res.status(500).json({
       success: false,
       error: 'Authentication failed'
     });
-      return;
   }
 };
 
-// Admin-only middleware
-export const requireAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const user = (req as AuthenticatedRequest).user;
-  
-  if (!user || !('role' in user) || !['master_admin', 'admin'].includes(user.role)) {
-    res.status(403).json({
-      success: false,
-      error: 'Admin access required'
-    });
-      return;
-  }
-
-  next();
-};
-
-// Master admin only middleware
-export const requireMasterAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const user = (req as AuthenticatedRequest).user;
-  
-  if (!user || !('role' in user) || user.role !== 'master_admin') {
-    res.status(403).json({
-      success: false,
-      error: 'Master admin access required'
-    });
-      return;
-  }
-
-  next();
-};
-
-// Project access middleware
-export const requireProjectAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const project = (req as AuthenticatedRequest).project;
-  const projectId = req.params.projectId || req.body.projectId;
-  
-  if (!project || (projectId && project.id !== projectId)) {
-    res.status(403).json({
-      success: false,
-      error: 'Project access denied'
-    });
-      return;
-  }
-
-  next();
-};
-
-// Permission check middleware
-export const requirePermission = (permission: string) => {
+/**
+ * Require specific scopes for access
+ */
+export const requireScopes = (requirement: ScopeRequirement) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const session = (req as AuthenticatedRequest).session;
-    const user = (req as AuthenticatedRequest).user;
+    const authReq = req as AuthenticatedRequest;
     
-    // Master admins have all permissions
-    if (user && 'role' in user && user.role === 'master_admin') {
-      return next();
-    }
-
-    // Check session permissions
-    if (session && (session.permissions.includes('*') || session.permissions.includes(permission))) {
-      return next();
-    }
-
-    // Check user permissions
-    if (user && 'permissions' in user && user.permissions.some((p: AdminPermission) => 
-      p.resource === permission.split('.')[0] && 
-      p.actions.includes(permission.split('.')[1])
-    )) {
-      return next();
-    }
-
-    res.status(403).json({
-      success: false,
-      error: `Permission denied: ${permission}`
-    });
+    if (!authReq.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
       return;
+    }
+
+    const userScopes = authReq.user.scopes || [];
+    
+    // Master scope bypasses all checks
+    if (userScopes.includes(Scope.MASTER)) {
+      next();
+      return;
+    }
+
+    // Check if project-specific scope is required
+    if (requirement.projectSpecific) {
+      const projectId = req.params.projectId || authReq.user.project_id;
+      
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: 'Project ID required'
+        });
+        return;
+      }
+
+      // For API keys with limited project access
+      if (authReq.apiKey?.project_ids && !authReq.apiKey.project_ids.includes(projectId)) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied to this project'
+        });
+        return;
+      }
+    }
+
+    // Check required scopes
+    let hasAccess = false;
+    
+    if (requirement.requireAll) {
+      // All scopes required
+      hasAccess = requirement.scopes.every(scope => userScopes.includes(scope));
+    } else {
+      // Any scope is sufficient
+      hasAccess = requirement.scopes.some(scope => userScopes.includes(scope));
+    }
+
+    if (!hasAccess) {
+      res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions',
+        required_scopes: requirement.scopes,
+        user_scopes: userScopes
+      });
+      return;
+    }
+
+    next();
   };
 };
+
+/**
+ * Shorthand middleware for common scope requirements
+ */
+export const requireAdmin = requireScopes({
+  scopes: [Scope.ADMIN_READ],
+  requireAll: false
+});
+
+export const requireProjectAccess = requireScopes({
+  scopes: [Scope.PROJECTS_READ],
+  requireAll: false,
+  projectSpecific: true
+});
+
+export const requireCollectionRead = requireScopes({
+  scopes: [Scope.COLLECTIONS_READ],
+  requireAll: false,
+  projectSpecific: true
+});
+
+export const requireCollectionWrite = requireScopes({
+  scopes: [Scope.COLLECTIONS_WRITE],
+  requireAll: false,
+  projectSpecific: true
+});
+
+export const requireDocumentRead = requireScopes({
+  scopes: [Scope.DOCUMENTS_READ],
+  requireAll: false,
+  projectSpecific: true
+});
+
+export const requireDocumentWrite = requireScopes({
+  scopes: [Scope.DOCUMENTS_WRITE],
+  requireAll: false,
+  projectSpecific: true
+});
+
+export const requireStorageRead = requireScopes({
+  scopes: [Scope.STORAGE_READ],
+  requireAll: false,
+  projectSpecific: true
+});
+
+export const requireStorageWrite = requireScopes({
+  scopes: [Scope.STORAGE_WRITE],
+  requireAll: false,
+  projectSpecific: true
+});
+
+// Legacy exports for backward compatibility
+export const authenticateJWT = authenticate;
+export const authenticateAdmin = authenticate;
+export const authenticateProject = authenticate;

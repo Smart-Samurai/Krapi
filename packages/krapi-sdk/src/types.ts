@@ -203,3 +203,74 @@ export interface QueryOptions {
   where?: Record<string, any>;
   search?: string;
 }
+
+// Session Types
+export interface Session {
+  id: string;
+  token: string;
+  user_id?: string;
+  project_id?: string;
+  type: 'admin' | 'project';
+  scopes: string[];
+  metadata?: Record<string, any>;
+  created_at: string;
+  expires_at: string;
+  last_activity?: string;
+  consumed: boolean;
+}
+
+// Access Scopes
+export enum Scope {
+  // Master scope - full access to everything
+  MASTER = 'master',
+  
+  // Admin scopes
+  ADMIN_READ = 'admin:read',
+  ADMIN_WRITE = 'admin:write',
+  ADMIN_DELETE = 'admin:delete',
+  
+  // Project scopes
+  PROJECTS_READ = 'projects:read',
+  PROJECTS_WRITE = 'projects:write',
+  PROJECTS_DELETE = 'projects:delete',
+  
+  // Collection scopes (per project)
+  COLLECTIONS_READ = 'collections:read',
+  COLLECTIONS_WRITE = 'collections:write',
+  COLLECTIONS_DELETE = 'collections:delete',
+  
+  // Document scopes (per project)
+  DOCUMENTS_READ = 'documents:read',
+  DOCUMENTS_WRITE = 'documents:write',
+  DOCUMENTS_DELETE = 'documents:delete',
+  
+  // Storage scopes (per project)
+  STORAGE_READ = 'storage:read',
+  STORAGE_WRITE = 'storage:write',
+  STORAGE_DELETE = 'storage:delete',
+  
+  // Email scopes (per project)
+  EMAIL_SEND = 'email:send',
+  EMAIL_READ = 'email:read',
+  
+  // Function scopes (per project)
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  FUNCTIONS_WRITE = 'functions:write',
+  FUNCTIONS_DELETE = 'functions:delete',
+}
+
+// API Key Types
+export interface ApiKey {
+  id: string;
+  key: string;
+  name: string;
+  type: 'master' | 'admin' | 'project';
+  owner_id: string;
+  scopes: string[];
+  project_ids?: string[];
+  metadata?: Record<string, any>;
+  expires_at?: string;
+  last_used_at?: string;
+  created_at: string;
+  is_active: boolean;
+}

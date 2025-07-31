@@ -20,7 +20,8 @@ import {
   ChangeAction,
   Collection,
   CollectionField,
-  CollectionIndex
+  CollectionIndex,
+  ApiKey
 } from '@/types';
 
 export class DatabaseService {
@@ -149,6 +150,32 @@ export class DatabaseService {
         )
       `);
 
+      // API Keys Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS api_keys (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          key VARCHAR(255) UNIQUE NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          type VARCHAR(50) NOT NULL CHECK (type IN ('master', 'admin', 'project')),
+          owner_id UUID NOT NULL,
+          scopes TEXT[] NOT NULL DEFAULT '{}',
+          project_ids UUID[] DEFAULT NULL,
+          metadata JSONB DEFAULT '{}'::jsonb,
+          expires_at TIMESTAMP,
+          last_used_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_active BOOLEAN DEFAULT true
+        )
+      `);
+
+      // Create indexes for API keys
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = true
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_id)
+      `);
+
       // Projects Table
       await client.query(`
         CREATE TABLE IF NOT EXISTS projects (
@@ -245,6 +272,7 @@ export class DatabaseService {
           user_id UUID REFERENCES admin_users(id),
           project_id UUID REFERENCES projects(id),
           user_type VARCHAR(50) NOT NULL CHECK (user_type IN ('admin', 'project')),
+          scopes TEXT[] NOT NULL DEFAULT '{}',
           metadata JSONB DEFAULT '{}'::jsonb,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           expires_at TIMESTAMP NOT NULL,
@@ -326,20 +354,25 @@ export class DatabaseService {
         ['admin']
       );
 
+      let adminId: string;
+      let masterApiKey: string;
+
       if (result.rows.length === 0) {
         // Create default master admin with API key
         const hashedPassword = await bcrypt.hash('admin123', 10);
-        const masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
+        masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
         
-        await this.pool.query(
+        const adminResult = await this.pool.query(
           `INSERT INTO admin_users (username, email, password, role, access_level, api_key) 
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id`,
           ['admin', 'admin@krapi.com', hashedPassword, 'master_admin', 'full', masterApiKey]
         );
+        adminId = adminResult.rows[0].id;
         console.log('Default master admin created');
-        console.log(`Master API Key: ${masterApiKey}`);
-        console.log('⚠️  Save this API key securely - it will not be shown again!');
       } else {
+        adminId = result.rows[0].id;
+        
         // Ensure default admin has correct password and generate API key if missing
         const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
         const hashedPassword = await bcrypt.hash(defaultPassword, 10);
@@ -351,7 +384,7 @@ export class DatabaseService {
         );
         
         if (!adminResult.rows[0].api_key) {
-          const masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
+          masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
           await this.pool.query(
             `UPDATE admin_users 
              SET password = $1, is_active = true, api_key = $2 
@@ -359,9 +392,8 @@ export class DatabaseService {
             [hashedPassword, masterApiKey, 'admin']
           );
           console.log('Default master admin password reset and API key generated');
-          console.log(`Master API Key: ${masterApiKey}`);
-          console.log('⚠️  Save this API key securely - it will not be shown again!');
         } else {
+          masterApiKey = adminResult.rows[0].api_key;
           await this.pool.query(
             `UPDATE admin_users 
              SET password = $1, is_active = true 
@@ -370,6 +402,28 @@ export class DatabaseService {
           );
           console.log('Default master admin password reset to default');
         }
+      }
+
+      // Create or update master API key in api_keys table
+      if (masterApiKey) {
+        await this.pool.query(`
+          INSERT INTO api_keys (key, name, type, owner_id, scopes, is_active)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (key) 
+          DO UPDATE SET 
+            is_active = true,
+            scopes = $5
+        `, [
+          masterApiKey, 
+          'Master API Key', 
+          'master', 
+          adminId, 
+          ['master'], // Master scope gives full access
+          true
+        ]);
+        
+        console.log(`Master API Key: ${masterApiKey}`);
+        console.log('⚠️  Save this API key securely - it will not be shown again!');
       }
       
       // Create a system check table to track initialization
@@ -1197,10 +1251,10 @@ export class DatabaseService {
   // Session Methods
   async createSession(data: Omit<Session, 'id' | 'createdAt' | 'lastActivity'>): Promise<Session> {
     const result = await this.pool.query(
-      `INSERT INTO sessions (token, user_id, project_id, user_type, metadata, expires_at, is_active) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+      `INSERT INTO sessions (token, user_id, project_id, user_type, scopes, metadata, expires_at, is_active) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [data.token, data.user_id, data.project_id, data.type, data.permissions || [], data.expires_at, !data.consumed]
+      [data.token, data.user_id, data.project_id, data.type, data.scopes || [], data.metadata || {}, data.expires_at, !data.consumed]
     );
 
     return this.mapSession(result.rows[0]);
@@ -1328,6 +1382,116 @@ export class DatabaseService {
     return result.rows.map(row => this.mapChangelogEntry(row));
   }
 
+  // API Key Methods
+  async createApiKey(data: {
+    name: string;
+    type: 'master' | 'admin' | 'project';
+    owner_id: string;
+    scopes: string[];
+    project_ids?: string[];
+    expires_at?: string;
+  }): Promise<ApiKey> {
+    await this.ensureReady();
+    const key = data.type === 'master' ? `mak_${uuidv4().replace(/-/g, '')}` :
+                data.type === 'admin' ? `ak_${uuidv4().replace(/-/g, '')}` :
+                `pk_${uuidv4().replace(/-/g, '')}`;
+    
+    const result = await this.pool.query(
+      `INSERT INTO api_keys (key, name, type, owner_id, scopes, project_ids, expires_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING *`,
+      [key, data.name, data.type, data.owner_id, data.scopes, data.project_ids, data.expires_at]
+    );
+
+    return this.mapApiKey(result.rows[0]);
+  }
+
+  async getApiKey(key: string): Promise<ApiKey | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT * FROM api_keys WHERE key = $1 AND is_active = true',
+      [key]
+    );
+
+    if (result.rows.length === 0) return null;
+
+    // Update last_used_at
+    await this.pool.query(
+      'UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key = $1',
+      [key]
+    );
+
+    return this.mapApiKey(result.rows[0]);
+  }
+
+  async getApiKeysByOwner(ownerId: string): Promise<ApiKey[]> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT * FROM api_keys WHERE owner_id = $1 ORDER BY created_at DESC',
+      [ownerId]
+    );
+
+    return result.rows.map(row => this.mapApiKey(row));
+  }
+
+  async updateApiKey(id: string, data: Partial<ApiKey>): Promise<ApiKey | null> {
+    await this.ensureReady();
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (data.name !== undefined) {
+      fields.push(`name = $${paramCount++}`);
+      values.push(data.name);
+    }
+    if (data.scopes !== undefined) {
+      fields.push(`scopes = $${paramCount++}`);
+      values.push(data.scopes);
+    }
+    if (data.project_ids !== undefined) {
+      fields.push(`project_ids = $${paramCount++}`);
+      values.push(data.project_ids);
+    }
+    if (data.is_active !== undefined) {
+      fields.push(`is_active = $${paramCount++}`);
+      values.push(data.is_active);
+    }
+    if (data.expires_at !== undefined) {
+      fields.push(`expires_at = $${paramCount++}`);
+      values.push(data.expires_at);
+    }
+
+    if (fields.length === 0) return this.getApiKeyById(id);
+
+    values.push(id);
+    const result = await this.pool.query(
+      `UPDATE api_keys SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      values
+    );
+
+    return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+  }
+
+  async deleteApiKey(id: string): Promise<boolean> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'UPDATE api_keys SET is_active = false WHERE id = $1',
+      [id]
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getApiKeyById(id: string): Promise<ApiKey | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT * FROM api_keys WHERE id = $1',
+      [id]
+    );
+
+    return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+  }
+
   // Mapping functions
   private mapAdminUser(row: Record<string, unknown>): AdminUser {
     return {
@@ -1421,14 +1585,14 @@ export class DatabaseService {
       id: row.id as string,
       token: row.token as string,
       type: row.user_type as SessionType,
-      user_id: row.user_id as string,
-      api_key: row.api_key as string | undefined,
+      user_id: row.user_id as string | undefined,
       project_id: row.project_id as string | undefined,
-      permissions: (row.permissions as string[]) || [],
+      scopes: (row.scopes as string[]) || [],
+      metadata: (row.metadata as Record<string, unknown>) || {},
       expires_at: row.expires_at as string,
       created_at: row.created_at as string,
-      consumed: (row.consumed as boolean) || false,
-      consumed_at: row.consumed_at as string | undefined
+      last_activity: row.last_activity as string | undefined,
+      consumed: !(row.is_active as boolean)
     };
   }
 
@@ -1443,6 +1607,23 @@ export class DatabaseService {
       performed_by: row.performed_by as string,
       session_id: row.session_id as string | undefined,
       timestamp: row.created_at as string
+    };
+  }
+
+  private mapApiKey(row: Record<string, unknown>): ApiKey {
+    return {
+      id: row.id as string,
+      key: row.key as string,
+      name: row.name as string,
+      type: row.type as 'master' | 'admin' | 'project',
+      owner_id: row.owner_id as string,
+      scopes: (row.scopes as string[]) || [],
+      project_ids: (row.project_ids as string[]) || null,
+      metadata: (row.metadata as Record<string, unknown>) || {},
+      expires_at: row.expires_at as string | undefined,
+      last_used_at: row.last_used_at as string | undefined,
+      created_at: row.created_at as string,
+      is_active: row.is_active as boolean
     };
   }
 
