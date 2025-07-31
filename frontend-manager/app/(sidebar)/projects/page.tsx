@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScopeGuard, ScopeIndicator } from '@/components/scope-guard';
 import { toast } from 'sonner';
-import { Plus, Settings, Trash2, Activity, Key } from 'lucide-react';
+import { Plus, Settings, Trash2, Activity, Key, Users } from 'lucide-react';
 import { Project, Scope } from '@/lib/krapi-client';
 import Link from 'next/link';
 
@@ -158,6 +158,12 @@ export default function ProjectsPage() {
                   </div>
 
                   <div className="flex gap-2">
+                    <Link href={`/projects/${project.id}/users`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Users className="mr-2 h-4 w-4" />
+                        Users
+                      </Button>
+                    </Link>
                     <Link href={`/collections?project=${project.id}`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full">
                         Manage Data

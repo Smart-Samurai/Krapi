@@ -539,55 +539,108 @@ export class KrapiSDK {
   // Project Users Methods (for project-specific users)
   users = {
     // Get users in a project
-    getUsers: async (
+    getAll: async (
       projectId: string,
-      options?: QueryOptions
+      options?: QueryOptions & { active?: boolean }
     ): Promise<PaginatedResponse<ProjectUser>> => {
       const response = await this.client.get(
-        `/projects/${projectId}/collections/users/documents`,
+        `/projects/${projectId}/users`,
         { params: options }
       );
       return response.data;
     },
 
+    // Get a specific user
+    get: async (
+      projectId: string,
+      userId: string
+    ): Promise<ApiResponse<ProjectUser>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/users/${userId}`
+      );
+      return response.data;
+    },
+
     // Create user in project
-    createUser: async (
+    create: async (
       projectId: string,
       userData: {
+        username: string;
         email: string;
-        name?: string;
+        password: string;
         phone?: string;
-        password?: string;
+        scopes?: string[];
         metadata?: Record<string, unknown>;
       }
-    ): Promise<ApiResponse<Document>> => {
+    ): Promise<ApiResponse<ProjectUser>> => {
       const response = await this.client.post(
-        `/projects/${projectId}/collections/users/documents`,
-        { data: userData }
+        `/projects/${projectId}/users`,
+        userData
       );
       return response.data;
     },
 
     // Update user in project
-    updateUser: async (
+    update: async (
       projectId: string,
       userId: string,
-      updates: Record<string, unknown>
-    ): Promise<ApiResponse<Document>> => {
+      updates: Partial<{
+        username: string;
+        email: string;
+        password: string;
+        phone: string;
+        is_verified: boolean;
+        is_active: boolean;
+        scopes: string[];
+        metadata: Record<string, unknown>;
+      }>
+    ): Promise<ApiResponse<ProjectUser>> => {
       const response = await this.client.put(
-        `/projects/${projectId}/collections/users/documents/${userId}`,
-        { data: updates }
+        `/projects/${projectId}/users/${userId}`,
+        updates
       );
       return response.data;
     },
 
     // Delete user from project
-    deleteUser: async (
+    delete: async (
       projectId: string,
       userId: string
     ): Promise<ApiResponse> => {
       const response = await this.client.delete(
-        `/projects/${projectId}/collections/users/documents/${userId}`
+        `/projects/${projectId}/users/${userId}`
+      );
+      return response.data;
+    },
+
+    // Update user scopes
+    updateScopes: async (
+      projectId: string,
+      userId: string,
+      scopes: string[]
+    ): Promise<ApiResponse<ProjectUser>> => {
+      const response = await this.client.put(
+        `/projects/${projectId}/users/${userId}/scopes`,
+        { scopes }
+      );
+      return response.data;
+    },
+
+    // Authenticate project user
+    authenticate: async (
+      projectId: string,
+      credentials: {
+        username: string;
+        password: string;
+      }
+    ): Promise<ApiResponse<{
+      user: ProjectUser;
+      session_token: string;
+      expires_at: string;
+    }>> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/users/authenticate`,
+        credentials
       );
       return response.data;
     },

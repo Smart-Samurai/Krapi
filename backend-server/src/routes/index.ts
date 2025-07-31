@@ -4,6 +4,7 @@ import adminRoutes from './admin.routes';
 import projectRoutes from './project.routes';
 import collectionsRoutes from './collections.routes';
 import storageRoutes from './storage.routes';
+import usersRoutes from './users.routes';
 import { DatabaseService } from '@/services/database.service';
 
 const router: RouterType = Router();
@@ -77,6 +78,7 @@ router.use('/projects', projectRoutes);
 // All project-specific resources are nested under /projects/:projectId
 router.use('/projects', collectionsRoutes); // /projects/:projectId/collections
 router.use('/projects', storageRoutes);     // /projects/:projectId/storage
+router.use('/projects', usersRoutes);       // /projects/:projectId/users
 
 // Future project-level routes will follow the same pattern:
 // router.use('/projects', emailRoutes);    // /projects/:projectId/email

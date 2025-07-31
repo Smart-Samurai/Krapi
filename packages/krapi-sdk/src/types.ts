@@ -183,15 +183,42 @@ export interface StorageStats {
 export interface ProjectUser {
   id: string;
   project_id: string;
+  username: string;
   email: string;
-  name?: string;
   phone?: string;
-  verified: boolean;
-  active: boolean;
+  is_verified: boolean;
+  is_active: boolean;
+  scopes: string[];
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
   last_login?: string;
+  email_verified_at?: string;
+  phone_verified_at?: string;
+}
+
+// Project-level scopes (for project users)
+export enum ProjectScope {
+  // User management (for project admins)
+  USERS_READ = 'users:read',
+  USERS_WRITE = 'users:write',
+  USERS_DELETE = 'users:delete',
+  
+  // Data access
+  DATA_READ = 'data:read',
+  DATA_WRITE = 'data:write',
+  DATA_DELETE = 'data:delete',
+  
+  // File access
+  FILES_READ = 'files:read',
+  FILES_WRITE = 'files:write',
+  FILES_DELETE = 'files:delete',
+  
+  // Function execution
+  FUNCTIONS_EXECUTE = 'functions:execute',
+  
+  // Email sending
+  EMAIL_SEND = 'email:send',
 }
 
 // Query Options

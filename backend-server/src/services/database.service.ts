@@ -194,9 +194,9 @@ export class DatabaseService {
         )
       `);
 
-      // Project Users Table
+      // Project Users Table (for admin access to projects)
       await client.query(`
-        CREATE TABLE IF NOT EXISTS project_users (
+        CREATE TABLE IF NOT EXISTS project_admins (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
           admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
@@ -204,6 +204,36 @@ export class DatabaseService {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(project_id, admin_user_id)
         )
+      `);
+
+      // Project Users Table (for project-specific user accounts)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS project_users (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          username VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          phone VARCHAR(50),
+          is_verified BOOLEAN DEFAULT false,
+          is_active BOOLEAN DEFAULT true,
+          scopes TEXT[] NOT NULL DEFAULT '{}',
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          last_login TIMESTAMP,
+          email_verified_at TIMESTAMP,
+          phone_verified_at TIMESTAMP,
+          UNIQUE(project_id, username),
+          UNIQUE(project_id, email)
+        )
+      `);
+
+      // Create indexes for project users
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id);
+        CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email);
+        CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username);
       `);
 
       // Collections Table (formerly table_schemas)
@@ -488,8 +518,8 @@ export class DatabaseService {
       
       // Check required tables exist
       const requiredTables = [
-        'admin_users', 'projects', 'project_users', 'collections',
-        'documents', 'files', 'sessions', 'changelog', 'system_checks'
+        'admin_users', 'projects', 'project_admins', 'project_users', 'collections',
+        'documents', 'files', 'sessions', 'changelog', 'system_checks', 'api_keys'
       ];
       
       try {
@@ -893,28 +923,201 @@ export class DatabaseService {
   }
 
   // Project User Methods
-  async addProjectUser(projectId: string, adminUserId: string, role: string): Promise<ProjectUser> {
+  async createProjectUser(projectId: string, userData: {
+    username: string;
+    email: string;
+    password: string;
+    phone?: string;
+    scopes?: string[];
+    metadata?: Record<string, any>;
+  }): Promise<ProjectUser> {
+    await this.ensureReady();
+    
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    
     const result = await this.pool.query(
-      `INSERT INTO project_users (project_id, admin_user_id, role) 
-       VALUES ($1, $2, $3) 
+      `INSERT INTO project_users (project_id, username, email, password, phone, scopes, metadata) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
-      [projectId, adminUserId, role]
+      [
+        projectId, 
+        userData.username, 
+        userData.email, 
+        hashedPassword, 
+        userData.phone,
+        userData.scopes || [],
+        userData.metadata || {}
+      ]
     );
 
     return this.mapProjectUser(result.rows[0]);
   }
 
-  async getProjectUsers(projectId: string): Promise<ProjectUser[]> {
+  async getProjectUser(projectId: string, userId: string): Promise<ProjectUser | null> {
+    await this.ensureReady();
     const result = await this.pool.query(
-      `SELECT pu.*, au.username, au.email 
-       FROM project_users pu 
-       JOIN admin_users au ON pu.admin_user_id = au.id 
-       WHERE pu.project_id = $1 
-       ORDER BY pu.created_at DESC`,
-      [projectId]
+      'SELECT * FROM project_users WHERE project_id = $1 AND id = $2',
+      [projectId, userId]
     );
 
-    return result.rows.map(row => this.mapProjectUser(row));
+    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+  }
+
+  async getProjectUserByEmail(projectId: string, email: string): Promise<ProjectUser | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT * FROM project_users WHERE project_id = $1 AND email = $2',
+      [projectId, email]
+    );
+
+    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+  }
+
+  async getProjectUserByUsername(projectId: string, username: string): Promise<ProjectUser | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT * FROM project_users WHERE project_id = $1 AND username = $2',
+      [projectId, username]
+    );
+
+    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+  }
+
+  async getProjectUsers(projectId: string, options?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    active?: boolean;
+  }): Promise<{ users: ProjectUser[]; total: number }> {
+    await this.ensureReady();
+    const { limit = 100, offset = 0, search, active } = options || {};
+
+    let whereClause = 'WHERE project_id = $1';
+    const params: any[] = [projectId];
+    let paramCount = 1;
+
+    if (active !== undefined) {
+      whereClause += ` AND is_active = $${++paramCount}`;
+      params.push(active);
+    }
+
+    if (search) {
+      whereClause += ` AND (username ILIKE $${++paramCount} OR email ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+    }
+
+    // Get total count
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) FROM project_users ${whereClause}`,
+      params
+    );
+
+    // Get paginated results
+    const result = await this.pool.query(
+      `SELECT * FROM project_users ${whereClause} 
+       ORDER BY created_at DESC 
+       LIMIT $${++paramCount} OFFSET $${++paramCount}`,
+      [...params, limit, offset]
+    );
+
+    return {
+      users: result.rows.map(row => this.mapProjectUser(row)),
+      total: parseInt(countResult.rows[0].count)
+    };
+  }
+
+  async updateProjectUser(projectId: string, userId: string, updates: Partial<ProjectUser>): Promise<ProjectUser | null> {
+    await this.ensureReady();
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (updates.username !== undefined) {
+      fields.push(`username = $${paramCount++}`);
+      values.push(updates.username);
+    }
+    if (updates.email !== undefined) {
+      fields.push(`email = $${paramCount++}`);
+      values.push(updates.email);
+    }
+    if (updates.password !== undefined) {
+      const hashedPassword = await bcrypt.hash(updates.password, 10);
+      fields.push(`password = $${paramCount++}`);
+      values.push(hashedPassword);
+    }
+    if (updates.phone !== undefined) {
+      fields.push(`phone = $${paramCount++}`);
+      values.push(updates.phone);
+    }
+    if (updates.is_verified !== undefined) {
+      fields.push(`is_verified = $${paramCount++}`);
+      values.push(updates.is_verified);
+      if (updates.is_verified && updates.email) {
+        fields.push(`email_verified_at = CURRENT_TIMESTAMP`);
+      }
+    }
+    if (updates.is_active !== undefined) {
+      fields.push(`is_active = $${paramCount++}`);
+      values.push(updates.is_active);
+    }
+    if (updates.scopes !== undefined) {
+      fields.push(`scopes = $${paramCount++}`);
+      values.push(updates.scopes);
+    }
+    if (updates.metadata !== undefined) {
+      fields.push(`metadata = $${paramCount++}`);
+      values.push(updates.metadata);
+    }
+
+    if (fields.length === 0) return this.getProjectUser(projectId, userId);
+
+    values.push(projectId, userId);
+    const result = await this.pool.query(
+      `UPDATE project_users 
+       SET ${fields.join(', ')} 
+       WHERE project_id = $${paramCount} AND id = $${paramCount + 1} 
+       RETURNING *`,
+      values
+    );
+
+    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+  }
+
+  async deleteProjectUser(projectId: string, userId: string): Promise<boolean> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'DELETE FROM project_users WHERE project_id = $1 AND id = $2',
+      [projectId, userId]
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async authenticateProjectUser(projectId: string, username: string, password: string): Promise<ProjectUser | null> {
+    await this.ensureReady();
+    
+    // Username could be either username or email
+    const result = await this.pool.query(
+      `SELECT * FROM project_users 
+       WHERE project_id = $1 AND (username = $2 OR email = $2) AND is_active = true`,
+      [projectId, username]
+    );
+
+    if (result.rows.length === 0) return null;
+
+    const user = result.rows[0];
+    const isValid = await bcrypt.compare(password, user.password);
+    
+    if (!isValid) return null;
+
+    // Update last login
+    await this.pool.query(
+      'UPDATE project_users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+      [user.id]
+    );
+
+    return this.mapProjectUser(user);
   }
 
   async getUserProjects(adminUserId: string): Promise<Project[]> {
@@ -1525,17 +1728,21 @@ export class DatabaseService {
   }
 
   private mapProjectUser(row: Record<string, unknown>): ProjectUser {
-    // Note: This is mapping from project_users join with admin_users
-    // The project_users table links admin users to projects
     return {
       id: row.id as string,
       project_id: row.project_id as string,
+      username: row.username as string,
       email: row.email as string,
-      name: row.username as string | undefined,
-      verified: true, // Admin users are considered verified
-      active: (row.is_active as boolean) || true,
+      phone: row.phone as string | undefined,
+      is_verified: row.is_verified as boolean,
+      is_active: row.is_active as boolean,
+      scopes: (row.scopes as string[]) || [],
+      metadata: (row.metadata as Record<string, any>) || {},
       created_at: row.created_at as string,
-      updated_at: row.created_at as string // Using created_at as updated_at for this join
+      updated_at: row.updated_at as string,
+      last_login: row.last_login as string | undefined,
+      email_verified_at: row.email_verified_at as string | undefined,
+      phone_verified_at: row.phone_verified_at as string | undefined
     };
   }
 
