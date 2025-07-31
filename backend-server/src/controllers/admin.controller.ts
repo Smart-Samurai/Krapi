@@ -39,7 +39,9 @@ export class AdminController {
           page: pageNum,
           limit: limitNum,
           total: users.length,
-          pages: Math.ceil(users.length / limitNum)
+          totalPages: Math.ceil(users.length / limitNum),
+          hasNext: pageNum < Math.ceil(users.length / limitNum),
+          hasPrev: pageNum > 1
         }
       } as PaginatedResponse<Omit<AdminUser, 'password_hash'>>);
     } catch (error) {

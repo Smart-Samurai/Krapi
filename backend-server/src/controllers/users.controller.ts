@@ -31,7 +31,9 @@ export class UsersController {
           page: Number(page),
           limit: Number(limit),
           total: result.total,
-          pages: Math.ceil(result.total / Number(limit))
+          totalPages: Math.ceil(result.total / Number(limit)),
+          hasNext: Number(page) < Math.ceil(result.total / Number(limit)),
+          hasPrev: Number(page) > 1
         }
       } as ApiResponse);
     } catch (error) {

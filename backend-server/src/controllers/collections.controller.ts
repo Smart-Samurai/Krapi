@@ -357,7 +357,9 @@ export class CollectionsController {
           page: pageNum,
           limit: limitNum,
           total,
-          pages: totalPages,
+          totalPages: totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
         },
       } as PaginatedResponse<Document>);
       return;
