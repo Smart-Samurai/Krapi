@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '@/services/auth.service';
-import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, Scope, ScopeRequirement } from '@/types';
+import { Request, Response, NextFunction } from "express";
+import { AuthService } from "@/services/auth.service";
+import { DatabaseService } from "@/services/database.service";
+import { AuthenticatedRequest, Scope, ScopeRequirement } from "@/types";
 
 const authService = AuthService.getInstance();
 const db = DatabaseService.getInstance();
@@ -16,11 +16,11 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       res.status(401).json({
         success: false,
-        error: 'Authorization header required'
+        error: "Authorization header required",
       });
       return;
     }
@@ -28,15 +28,15 @@ export const authenticate = async (
     let token: string;
     let isApiKey = false;
 
-    if (authHeader.startsWith('Bearer ')) {
+    if (authHeader.startsWith("Bearer ")) {
       token = authHeader.substring(7);
-    } else if (authHeader.startsWith('ApiKey ')) {
+    } else if (authHeader.startsWith("ApiKey ")) {
       token = authHeader.substring(7);
       isApiKey = true;
     } else {
       res.status(401).json({
         success: false,
-        error: 'Invalid authorization format'
+        error: "Invalid authorization format",
       });
       return;
     }
@@ -44,11 +44,11 @@ export const authenticate = async (
     if (isApiKey) {
       // Handle API key authentication
       const apiKey = await db.getApiKey(token);
-      
+
       if (!apiKey || !apiKey.is_active) {
         res.status(401).json({
           success: false,
-          error: 'Invalid or inactive API key'
+          error: "Invalid or inactive API key",
         });
         return;
       }
@@ -57,81 +57,82 @@ export const authenticate = async (
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: 'API key expired'
+          error: "API key expired",
         });
         return;
       }
 
       // Get owner details
       let userId: string;
-      let userType: 'admin' | 'project';
+      let userType: "admin" | "project";
       let projectId: string | undefined;
 
-      if (apiKey.type === 'master' || apiKey.type === 'admin') {
+      if (apiKey.type === "master" || apiKey.type === "admin") {
         userId = apiKey.owner_id;
-        userType = 'admin';
-        
+        userType = "admin";
+
         // Verify admin user exists and is active
         const adminUser = await db.getAdminUserById(userId);
         if (!adminUser || !adminUser.active) {
           res.status(401).json({
             success: false,
-            error: 'Admin user not found or inactive'
+            error: "Admin user not found or inactive",
           });
           return;
         }
       } else {
         // Project API key
         projectId = apiKey.owner_id;
-        userType = 'project';
-        
+        userType = "project";
+
         // Verify project exists and is active
-        const project = await db.getProject(projectId);
-        if (!project || !project.is_active) {
+        const project = await db.getProjectById(projectId);
+        if (!project || !project.active) {
           res.status(401).json({
             success: false,
-            error: 'Project not found or inactive'
+            error: "Project not found or inactive",
           });
           return;
         }
-        
-        userId = project.created_by;
+
+        // For project API keys, use the project ID as the user ID to maintain proper context
+        userId = projectId;
       }
 
       (req as AuthenticatedRequest).user = {
         id: userId,
         type: userType,
         project_id: projectId,
-        scopes: apiKey.scopes as Scope[]
+        scopes: apiKey.scopes as Scope[],
       };
       (req as AuthenticatedRequest).apiKey = apiKey;
     } else {
       // Handle session token authentication
       const session = await authService.validateSessionToken(token);
-      
+
       if (!session) {
         res.status(401).json({
           success: false,
-          error: 'Invalid or expired session'
+          error: "Invalid or expired session",
         });
         return;
       }
 
       (req as AuthenticatedRequest).user = {
         id: session.user_id!,
-        type: session.type === 'admin' ? 'admin' : 'project',
+        type: session.type === "admin" ? "admin" : "project",
         project_id: session.project_id,
-        scopes: session.scopes as Scope[]
+        scopes: session.scopes as Scope[],
       };
       (req as AuthenticatedRequest).session = session;
     }
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error("Authentication error:", error);
     res.status(500).json({
       success: false,
-      error: 'Authentication failed'
+      error: "Authentication failed",
     });
   }
 };
@@ -140,19 +141,23 @@ export const authenticate = async (
  * Require specific scopes for access
  */
 export const requireScopes = (requirement: ScopeRequirement) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     const authReq = req as AuthenticatedRequest;
-    
+
     if (!authReq.user) {
       res.status(401).json({
         success: false,
-        error: 'Authentication required'
+        error: "Authentication required",
       });
       return;
     }
 
     const userScopes = authReq.user.scopes || [];
-    
+
     // Master scope bypasses all checks
     if (userScopes.includes(Scope.MASTER)) {
       next();
@@ -162,20 +167,23 @@ export const requireScopes = (requirement: ScopeRequirement) => {
     // Check if project-specific scope is required
     if (requirement.projectSpecific) {
       const projectId = req.params.projectId || authReq.user.project_id;
-      
+
       if (!projectId) {
         res.status(400).json({
           success: false,
-          error: 'Project ID required'
+          error: "Project ID required",
         });
         return;
       }
 
       // For API keys with limited project access
-      if (authReq.apiKey?.project_ids && !authReq.apiKey.project_ids.includes(projectId)) {
+      if (
+        authReq.apiKey?.project_ids &&
+        !authReq.apiKey.project_ids.includes(projectId)
+      ) {
         res.status(403).json({
           success: false,
-          error: 'Access denied to this project'
+          error: "Access denied to this project",
         });
         return;
       }
@@ -183,21 +191,25 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 
     // Check required scopes
     let hasAccess = false;
-    
+
     if (requirement.requireAll) {
       // All scopes required
-      hasAccess = requirement.scopes.every(scope => userScopes.includes(scope));
+      hasAccess = requirement.scopes.every((scope) =>
+        userScopes.includes(scope)
+      );
     } else {
       // Any scope is sufficient
-      hasAccess = requirement.scopes.some(scope => userScopes.includes(scope));
+      hasAccess = requirement.scopes.some((scope) =>
+        userScopes.includes(scope)
+      );
     }
 
     if (!hasAccess) {
       res.status(403).json({
         success: false,
-        error: 'Insufficient permissions',
+        error: "Insufficient permissions",
         required_scopes: requirement.scopes,
-        user_scopes: userScopes
+        user_scopes: userScopes,
       });
       return;
     }
@@ -211,49 +223,49 @@ export const requireScopes = (requirement: ScopeRequirement) => {
  */
 export const requireAdmin = requireScopes({
   scopes: [Scope.ADMIN_READ],
-  requireAll: false
+  requireAll: false,
 });
 
 export const requireProjectAccess = requireScopes({
   scopes: [Scope.PROJECTS_READ],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 export const requireCollectionRead = requireScopes({
   scopes: [Scope.COLLECTIONS_READ],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 export const requireCollectionWrite = requireScopes({
   scopes: [Scope.COLLECTIONS_WRITE],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 export const requireDocumentRead = requireScopes({
   scopes: [Scope.DOCUMENTS_READ],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 export const requireDocumentWrite = requireScopes({
   scopes: [Scope.DOCUMENTS_WRITE],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 export const requireStorageRead = requireScopes({
   scopes: [Scope.STORAGE_READ],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 export const requireStorageWrite = requireScopes({
   scopes: [Scope.STORAGE_WRITE],
   requireAll: false,
-  projectSpecific: true
+  projectSpecific: true,
 });
 
 // Legacy exports for backward compatibility

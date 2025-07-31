@@ -1,16 +1,13 @@
-import { Pool, PoolClient } from 'pg';
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { 
-  AdminUser, 
-  AdminRole, 
+import { Pool } from "pg";
+import bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
+import {
+  AdminUser,
+  AdminRole,
   AccessLevel,
   AdminPermission,
   Project,
   ProjectSettings,
-  TableSchema,
-  TableField,
-  TableIndex,
   Document,
   FileRecord,
   ProjectUser,
@@ -21,8 +18,9 @@ import {
   Collection,
   CollectionField,
   CollectionIndex,
-  ApiKey
-} from '@/types';
+  ApiKey,
+  Scope,
+} from "@/types";
 
 export class DatabaseService {
   private pool: Pool;
@@ -43,24 +41,24 @@ export class DatabaseService {
 
     // PostgreSQL connection configuration
     this.pool = new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'krapi',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
+      host: process.env.DB_HOST || "localhost",
+      port: parseInt(process.env.DB_PORT || "5432"),
+      database: process.env.DB_NAME || "krapi",
+      user: process.env.DB_USER || "postgres",
+      password: process.env.DB_PASSWORD || "postgres",
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000, // Increased from 2000
     });
 
     // Set up error handlers
-    this.pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
+    this.pool.on("error", (err) => {
+      console.error("Unexpected error on idle client", err);
     });
 
     // Initialize with proper error handling
     this.initializeWithRetry().catch((error) => {
-      console.error('Database initialization failed:', error);
+      console.error("Database initialization failed:", error);
       this.readyReject(error);
     });
   }
@@ -90,36 +88,51 @@ export class DatabaseService {
   }
 
   private async initializeWithRetry() {
-    while (this.connectionAttempts < this.maxConnectionAttempts && !this.isConnected) {
+    while (
+      this.connectionAttempts < this.maxConnectionAttempts &&
+      !this.isConnected
+    ) {
       this.connectionAttempts++;
-      console.log(`Attempting to connect to PostgreSQL (attempt ${this.connectionAttempts}/${this.maxConnectionAttempts})...`);
-      
+      console.log(
+        `Attempting to connect to PostgreSQL (attempt ${this.connectionAttempts}/${this.maxConnectionAttempts})...`
+      );
+
       try {
         // Test the connection
         const client = await this.pool.connect();
-        await client.query('SELECT 1');
+        await client.query("SELECT 1");
         client.release();
-        
+
         this.isConnected = true;
-        console.log('Successfully connected to PostgreSQL');
-        
+        console.log("Successfully connected to PostgreSQL");
+
         // Initialize tables after successful connection
         await this.initializeTables();
-        
+
         // Resolve the ready promise on successful initialization
         this.readyResolve();
         break;
       } catch (error) {
-        console.error(`Failed to connect to PostgreSQL (attempt ${this.connectionAttempts}):`, error);
-        
+        console.error(
+          `Failed to connect to PostgreSQL (attempt ${this.connectionAttempts}):`,
+          error
+        );
+
         if (this.connectionAttempts < this.maxConnectionAttempts) {
           // Wait before retrying (exponential backoff)
-          const waitTime = Math.min(1000 * Math.pow(2, this.connectionAttempts - 1), 10000);
+          const waitTime = Math.min(
+            1000 * Math.pow(2, this.connectionAttempts - 1),
+            10000
+          );
           console.log(`Waiting ${waitTime}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
         } else {
-          console.error('Max connection attempts reached. Please ensure PostgreSQL is running.');
-          const connectionError = new Error('Failed to connect to PostgreSQL after multiple attempts');
+          console.error(
+            "Max connection attempts reached. Please ensure PostgreSQL is running."
+          );
+          const connectionError = new Error(
+            "Failed to connect to PostgreSQL after multiple attempts"
+          );
           this.readyReject(connectionError);
           throw connectionError;
         }
@@ -130,7 +143,7 @@ export class DatabaseService {
   private async initializeTables() {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Admin Users Table
       await client.query(`
@@ -272,7 +285,7 @@ export class DatabaseService {
         CREATE INDEX IF NOT EXISTS idx_documents_project_collection 
         ON documents(project_id, collection_name)
       `);
-      
+
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_documents_collection_id 
         ON documents(collection_id)
@@ -354,7 +367,12 @@ export class DatabaseService {
       `);
 
       // Create triggers for updated_at
-      const tablesWithUpdatedAt = ['admin_users', 'projects', 'collections', 'documents'];
+      const tablesWithUpdatedAt = [
+        "admin_users",
+        "projects",
+        "collections",
+        "documents",
+      ];
       for (const table of tablesWithUpdatedAt) {
         await client.query(`
           DROP TRIGGER IF EXISTS update_${table}_updated_at ON ${table};
@@ -364,12 +382,12 @@ export class DatabaseService {
         `);
       }
 
-      await client.query('COMMIT');
-      
+      await client.query("COMMIT");
+
       // Seed default data after tables are created
       await this.seedDefaultData();
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -380,8 +398,8 @@ export class DatabaseService {
     try {
       // Check if master admin exists
       const result = await this.pool.query(
-        'SELECT id FROM admin_users WHERE username = $1',
-        ['admin']
+        "SELECT id FROM admin_users WHERE username = $1",
+        ["admin"]
       );
 
       let adminId: string;
@@ -389,73 +407,88 @@ export class DatabaseService {
 
       if (result.rows.length === 0) {
         // Create default master admin with API key
-        const hashedPassword = await bcrypt.hash('admin123', 10);
-        masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
-        
+        const hashedPassword = await bcrypt.hash("admin123", 10);
+        masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+
         const adminResult = await this.pool.query(
           `INSERT INTO admin_users (username, email, password, role, access_level, api_key) 
            VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
-          ['admin', 'admin@krapi.com', hashedPassword, 'master_admin', 'full', masterApiKey]
+          [
+            "admin",
+            "admin@krapi.com",
+            hashedPassword,
+            "master_admin",
+            "full",
+            masterApiKey,
+          ]
         );
         adminId = adminResult.rows[0].id;
-        console.log('Default master admin created');
+        console.log("Default master admin created");
       } else {
         adminId = result.rows[0].id;
-        
+
         // Ensure default admin has correct password and generate API key if missing
-        const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+        const defaultPassword =
+          process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
         const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-        
+
         // Check if admin has API key
         const adminResult = await this.pool.query(
-          'SELECT api_key FROM admin_users WHERE username = $1',
-          ['admin']
+          "SELECT api_key FROM admin_users WHERE username = $1",
+          ["admin"]
         );
-        
+
         if (!adminResult.rows[0].api_key) {
-          masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
+          masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
           await this.pool.query(
             `UPDATE admin_users 
              SET password = $1, is_active = true, api_key = $2 
              WHERE username = $3`,
-            [hashedPassword, masterApiKey, 'admin']
+            [hashedPassword, masterApiKey, "admin"]
           );
-          console.log('Default master admin password reset and API key generated');
+          console.log(
+            "Default master admin password reset and API key generated"
+          );
         } else {
           masterApiKey = adminResult.rows[0].api_key;
           await this.pool.query(
             `UPDATE admin_users 
              SET password = $1, is_active = true 
              WHERE username = $2`,
-            [hashedPassword, 'admin']
+            [hashedPassword, "admin"]
           );
-          console.log('Default master admin password reset to default');
+          console.log("Default master admin password reset to default");
         }
       }
 
       // Create or update master API key in api_keys table
       if (masterApiKey) {
-        await this.pool.query(`
+        await this.pool.query(
+          `
           INSERT INTO api_keys (key, name, type, owner_id, scopes, is_active)
           VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (key) 
           DO UPDATE SET 
             is_active = true,
             scopes = $5
-        `, [
-          masterApiKey, 
-          'Master API Key', 
-          'master', 
-          adminId, 
-          ['master'], // Master scope gives full access
-          true
-        ]);
-        
+        `,
+          [
+            masterApiKey,
+            "Master API Key",
+            "master",
+            adminId,
+            ["master"], // Master scope gives full access
+            true,
+          ]
+        );
+
         console.log(`Master API Key: ${masterApiKey}`);
-        console.log('⚠️  Save this API key securely - it will not be shown again!');
+        console.log(
+          "⚠️  Save this API key securely - it will not be shown again!"
+        );
       }
-      
+
       // Create a system check table to track initialization
       await this.pool.query(`
         CREATE TABLE IF NOT EXISTS system_checks (
@@ -467,9 +500,10 @@ export class DatabaseService {
           UNIQUE(check_type)
         )
       `);
-      
+
       // Record successful initialization
-      await this.pool.query(`
+      await this.pool.query(
+        `
         INSERT INTO system_checks (check_type, status, details)
         VALUES ('database_initialization', 'success', $1)
         ON CONFLICT (check_type) 
@@ -477,21 +511,24 @@ export class DatabaseService {
           status = 'success',
           details = $1,
           last_checked = CURRENT_TIMESTAMP
-      `, [JSON.stringify({
-        version: '1.0.0',
-        initialized_at: new Date().toISOString(),
-        default_admin_created: result.rows.length === 0
-      })]);
-      
+      `,
+        [
+          JSON.stringify({
+            version: "1.0.0",
+            initialized_at: new Date().toISOString(),
+            default_admin_created: result.rows.length === 0,
+          }),
+        ]
+      );
     } catch (error) {
-      console.error('Error seeding default data:', error);
+      console.error("Error seeding default data:", error);
       throw error; // Re-throw to ensure proper error handling
     }
   }
 
   // Health check methods
   async performHealthCheck(): Promise<{
-    status: 'healthy' | 'unhealthy' | 'degraded';
+    status: "healthy" | "unhealthy" | "degraded";
     checks: {
       database: { status: boolean; message: string };
       tables: { status: boolean; message: string; missing?: string[] };
@@ -501,69 +538,112 @@ export class DatabaseService {
     timestamp: string;
   }> {
     const checks = {
-      database: { status: false, message: 'Not checked' },
-      tables: { status: false, message: 'Not checked', missing: [] as string[] },
-      defaultAdmin: { status: false, message: 'Not checked' },
-      initialization: { status: false, message: 'Not checked', details: {} }
+      database: { status: false, message: "Not checked" },
+      tables: {
+        status: false,
+        message: "Not checked",
+        missing: [] as string[],
+      },
+      defaultAdmin: { status: false, message: "Not checked" },
+      initialization: { status: false, message: "Not checked", details: {} },
     };
-    
+
     try {
       // Check database connection
       try {
-        const result = await this.pool.query('SELECT 1');
-        checks.database = { status: true, message: 'Connected' };
+        await this.pool.query("SELECT 1");
+        checks.database = { status: true, message: "Connected" };
       } catch (error) {
-        checks.database = { status: false, message: `Connection failed: ${error}` };
+        checks.database = {
+          status: false,
+          message: `Connection failed: ${error}`,
+        };
       }
-      
+
       // Check required tables exist
       const requiredTables = [
-        'admin_users', 'projects', 'project_admins', 'project_users', 'collections',
-        'documents', 'files', 'sessions', 'changelog', 'system_checks', 'api_keys'
+        "admin_users",
+        "projects",
+        "project_admins",
+        "project_users",
+        "collections",
+        "documents",
+        "files",
+        "sessions",
+        "changelog",
+        "system_checks",
+        "api_keys",
       ];
-      
+
       try {
-        const tableCheckResult = await this.pool.query(`
+        const tableCheckResult = await this.pool.query(
+          `
           SELECT table_name 
           FROM information_schema.tables 
           WHERE table_schema = 'public' 
           AND table_name = ANY($1)
-        `, [requiredTables]);
-        
-        const existingTables = tableCheckResult.rows.map(row => row.table_name);
-        const missingTables = requiredTables.filter(table => !existingTables.includes(table));
-        
+        `,
+          [requiredTables]
+        );
+
+        const existingTables = tableCheckResult.rows.map(
+          (row) => row.table_name
+        );
+        const missingTables = requiredTables.filter(
+          (table) => !existingTables.includes(table)
+        );
+
         if (missingTables.length === 0) {
-          checks.tables = { status: true, message: 'All required tables exist' };
+          checks.tables = {
+            status: true,
+            message: "All required tables exist",
+            missing: [],
+          };
         } else {
-          checks.tables = { 
-            status: false, 
-            message: `Missing tables: ${missingTables.join(', ')}`,
-            missing: missingTables
+          checks.tables = {
+            status: false,
+            message: `Missing tables: ${missingTables.join(", ")}`,
+            missing: missingTables,
           };
         }
       } catch (error) {
-        checks.tables = { status: false, message: `Table check failed: ${error}` };
+        checks.tables = {
+          status: false,
+          message: `Table check failed: ${error}`,
+          missing: [],
+        };
       }
-      
+
       // Check default admin exists and is active
       try {
         const adminResult = await this.pool.query(
-          'SELECT id, is_active FROM admin_users WHERE username = $1',
-          ['admin']
+          "SELECT id, is_active FROM admin_users WHERE username = $1",
+          ["admin"]
         );
-        
+
         if (adminResult.rows.length > 0 && adminResult.rows[0].is_active) {
-          checks.defaultAdmin = { status: true, message: 'Default admin exists and is active' };
+          checks.defaultAdmin = {
+            status: true,
+            message: "Default admin exists and is active",
+          };
         } else if (adminResult.rows.length > 0) {
-          checks.defaultAdmin = { status: false, message: 'Default admin exists but is inactive' };
+          checks.defaultAdmin = {
+            status: false,
+            message: "Default admin exists but is inactive",
+          };
         } else {
-          checks.defaultAdmin = { status: false, message: 'Default admin does not exist' };
+          checks.defaultAdmin = {
+            status: false,
+            message: "Default admin does not exist",
+          };
         }
       } catch (error) {
-        checks.defaultAdmin = { status: false, message: `Admin check failed: ${error}` };
+        checks.defaultAdmin = {
+          status: false,
+          message: `Admin check failed: ${error}`,
+        };
       }
-      
+
       // Check initialization status
       try {
         const initResult = await this.pool.query(
@@ -571,70 +651,79 @@ export class DatabaseService {
            FROM system_checks 
            WHERE check_type = 'database_initialization'`
         );
-        
-        if (initResult.rows.length > 0 && initResult.rows[0].status === 'success') {
-          checks.initialization = { 
-            status: true, 
-            message: 'Database properly initialized',
-            details: initResult.rows[0].details
+
+        if (
+          initResult.rows.length > 0 &&
+          initResult.rows[0].status === "success"
+        ) {
+          checks.initialization = {
+            status: true,
+            message: "Database properly initialized",
+            details: initResult.rows[0].details,
           };
         } else {
-          checks.initialization = { 
-            status: false, 
-            message: 'Database not properly initialized' 
+          checks.initialization = {
+            status: false,
+            message: "Database not properly initialized",
+            details: {},
           };
         }
-      } catch (error) {
+      } catch {
         // Table might not exist yet
-        checks.initialization = { 
-          status: false, 
-          message: 'Initialization check not available' 
+        checks.initialization = {
+          status: false,
+          message: "Initialization check not available",
+          details: {},
         };
       }
-      
+
       // Determine overall status
-      const allHealthy = Object.values(checks).every(check => check.status);
-      const anyUnhealthy = Object.values(checks).some(check => !check.status);
-      
+      const allHealthy = Object.values(checks).every((check) => check.status);
+      const anyUnhealthy = Object.values(checks).some((check) => !check.status);
+
       return {
-        status: allHealthy ? 'healthy' : anyUnhealthy ? 'unhealthy' : 'degraded',
+        status: allHealthy
+          ? "healthy"
+          : anyUnhealthy
+          ? "unhealthy"
+          : "degraded",
         checks,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-      
-    } catch (error) {
+    } catch {
       return {
-        status: 'unhealthy',
+        status: "unhealthy",
         checks,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
-  
+
   // Repair database issues found during health check
   async repairDatabase(): Promise<{ success: boolean; actions: string[] }> {
     const actions: string[] = [];
-    
+
     try {
       // Run health check first
       const health = await this.performHealthCheck();
-      
+
       // Fix missing tables
       if (!health.checks.tables.status && health.checks.tables.missing) {
-        console.log('Repairing: Creating missing tables...');
+        console.log("Repairing: Creating missing tables...");
         await this.initializeTables();
-        actions.push('Created missing tables');
+        actions.push("Created missing tables");
       }
-      
+
       // Fix default admin
       if (!health.checks.defaultAdmin.status) {
-        console.log('Repairing: Fixing default admin...');
+        console.log("Repairing: Fixing default admin...");
         await this.seedDefaultData();
-        actions.push('Fixed default admin user');
+        actions.push("Fixed default admin user");
       }
-      
+
       // Record repair action
-      await this.pool.query(`
+      await this.pool.query(
+        `
         INSERT INTO system_checks (check_type, status, details)
         VALUES ('database_repair', 'success', $1)
         ON CONFLICT (check_type) 
@@ -642,29 +731,46 @@ export class DatabaseService {
           status = 'success',
           details = $1,
           last_checked = CURRENT_TIMESTAMP
-      `, [JSON.stringify({
-        actions,
-        repaired_at: new Date().toISOString()
-      })]);
-      
+      `,
+        [
+          JSON.stringify({
+            actions,
+            repaired_at: new Date().toISOString(),
+          }),
+        ]
+      );
+
       return { success: true, actions };
-      
     } catch (error) {
-      console.error('Database repair failed:', error);
+      console.error("Database repair failed:", error);
       return { success: false, actions };
     }
   }
 
   // Admin User Management
-  async createAdminUser(data: Omit<AdminUser, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'loginCount'> & { password?: string }): Promise<AdminUser> {
+  async createAdminUser(
+    data: Omit<
+      AdminUser,
+      "id" | "createdAt" | "updatedAt" | "lastLogin" | "loginCount"
+    > & { password?: string }
+  ): Promise<AdminUser> {
     await this.ensureReady();
-    const hashedPassword = data.password_hash || (data.password ? await bcrypt.hash(data.password, 10) : '');
-    
+    const hashedPassword =
+      data.password_hash ||
+      (data.password ? await bcrypt.hash(data.password, 10) : "");
+
     const result = await this.pool.query(
       `INSERT INTO admin_users (username, email, password, role, access_level, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [data.username, data.email, hashedPassword, data.role, data.access_level, data.active ?? true]
+      [
+        data.username,
+        data.email,
+        hashedPassword,
+        data.role,
+        data.access_level,
+        data.active ?? true,
+      ]
     );
 
     return this.mapAdminUser(result.rows[0]);
@@ -673,7 +779,7 @@ export class DatabaseService {
   async getAdminUserByUsername(username: string): Promise<AdminUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM admin_users WHERE username = $1',
+      "SELECT * FROM admin_users WHERE username = $1",
       [username]
     );
 
@@ -683,7 +789,7 @@ export class DatabaseService {
   async getAdminUserByEmail(email: string): Promise<AdminUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM admin_users WHERE email = $1',
+      "SELECT * FROM admin_users WHERE email = $1",
       [email]
     );
 
@@ -693,7 +799,7 @@ export class DatabaseService {
   async getAdminUserById(id: string): Promise<AdminUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM admin_users WHERE id = $1',
+      "SELECT * FROM admin_users WHERE id = $1",
       [id]
     );
 
@@ -703,7 +809,7 @@ export class DatabaseService {
   async getAdminUserByApiKey(apiKey: string): Promise<AdminUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM admin_users WHERE api_key = $1 AND is_active = true',
+      "SELECT * FROM admin_users WHERE api_key = $1 AND is_active = true",
       [apiKey]
     );
 
@@ -713,13 +819,16 @@ export class DatabaseService {
   async getAllAdminUsers(): Promise<AdminUser[]> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM admin_users ORDER BY created_at DESC'
+      "SELECT * FROM admin_users ORDER BY created_at DESC"
     );
 
-    return result.rows.map(row => this.mapAdminUser(row));
+    return result.rows.map((row) => this.mapAdminUser(row));
   }
 
-  async updateAdminUser(id: string, data: Partial<AdminUser>): Promise<AdminUser | null> {
+  async updateAdminUser(
+    id: string,
+    data: Partial<AdminUser>
+  ): Promise<AdminUser | null> {
     await this.ensureReady();
     const fields = [];
     const values = [];
@@ -749,7 +858,7 @@ export class DatabaseService {
       fields.push(`last_login = $${paramCount++}`);
       values.push(data.last_login);
     }
-    if ('password' in data && typeof data.password === 'string') {
+    if ("password" in data && typeof data.password === "string") {
       const hashedPassword = await bcrypt.hash(data.password, 10);
       fields.push(`password = $${paramCount++}`);
       values.push(hashedPassword);
@@ -763,7 +872,9 @@ export class DatabaseService {
 
     values.push(id);
     const result = await this.pool.query(
-      `UPDATE admin_users SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      `UPDATE admin_users SET ${fields.join(
+        ", "
+      )} WHERE id = $${paramCount} RETURNING *`,
       values
     );
 
@@ -783,14 +894,17 @@ export class DatabaseService {
   async deleteAdminUser(id: string): Promise<boolean> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'DELETE FROM admin_users WHERE id = $1',
+      "DELETE FROM admin_users WHERE id = $1",
       [id]
     );
 
     return (result.rowCount ?? 0) > 0;
   }
 
-  async verifyAdminPassword(username: string, password: string): Promise<AdminUser | null> {
+  async verifyAdminPassword(
+    username: string,
+    password: string
+  ): Promise<AdminUser | null> {
     await this.ensureReady();
     const user = await this.getAdminUserByUsername(username);
     if (!user || !user.active) return null;
@@ -803,15 +917,32 @@ export class DatabaseService {
   }
 
   // Project Methods
-  async createProject(data: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'storageUsed' | 'apiCallsCount' | 'lastApiCall'>): Promise<Project> {
+  async createProject(
+    data: Omit<
+      Project,
+      | "id"
+      | "createdAt"
+      | "updatedAt"
+      | "storageUsed"
+      | "apiCallsCount"
+      | "lastApiCall"
+    >
+  ): Promise<Project> {
     await this.ensureReady();
-    const apiKey = `pk_${uuidv4().replace(/-/g, '')}`;
-    
+    const apiKey = `pk_${uuidv4().replace(/-/g, "")}`;
+
     const result = await this.pool.query(
       `INSERT INTO projects (name, description, api_key, is_active, created_by, settings) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [data.name, data.description, apiKey, data.active ?? true, data.created_by, data.settings || {}]
+      [
+        data.name,
+        data.description,
+        apiKey,
+        data.active ?? true,
+        data.created_by,
+        data.settings || {},
+      ]
     );
 
     return this.mapProject(result.rows[0]);
@@ -820,7 +951,7 @@ export class DatabaseService {
   async getProjectById(id: string): Promise<Project | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM projects WHERE id = $1',
+      "SELECT * FROM projects WHERE id = $1",
       [id]
     );
 
@@ -830,7 +961,7 @@ export class DatabaseService {
   async getProjectByApiKey(apiKey: string): Promise<Project | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM projects WHERE api_key = $1 AND is_active = true',
+      "SELECT * FROM projects WHERE api_key = $1 AND is_active = true",
       [apiKey]
     );
 
@@ -839,13 +970,16 @@ export class DatabaseService {
 
   async getAllProjects(): Promise<Project[]> {
     const result = await this.pool.query(
-      'SELECT * FROM projects ORDER BY created_at DESC'
+      "SELECT * FROM projects ORDER BY created_at DESC"
     );
 
-    return result.rows.map(row => this.mapProject(row));
+    return result.rows.map((row) => this.mapProject(row));
   }
 
-  async updateProject(id: string, data: Partial<Project>): Promise<Project | null> {
+  async updateProject(
+    id: string,
+    data: Partial<Project>
+  ): Promise<Project | null> {
     const fields = [];
     const values = [];
     let paramCount = 1;
@@ -871,7 +1005,9 @@ export class DatabaseService {
 
     values.push(id);
     const result = await this.pool.query(
-      `UPDATE projects SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      `UPDATE projects SET ${fields.join(
+        ", "
+      )} WHERE id = $${paramCount} RETURNING *`,
       values
     );
 
@@ -879,10 +1015,10 @@ export class DatabaseService {
   }
 
   async regenerateProjectApiKey(id: string): Promise<string | null> {
-    const apiKey = `pk_${uuidv4().replace(/-/g, '')}`;
-    
+    const apiKey = `pk_${uuidv4().replace(/-/g, "")}`;
+
     const result = await this.pool.query(
-      'UPDATE projects SET api_key = $1 WHERE id = $2 RETURNING api_key',
+      "UPDATE projects SET api_key = $1 WHERE id = $2 RETURNING api_key",
       [apiKey, id]
     );
 
@@ -890,15 +1026,18 @@ export class DatabaseService {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    const result = await this.pool.query(
-      'DELETE FROM projects WHERE id = $1',
-      [id]
-    );
+    const result = await this.pool.query("DELETE FROM projects WHERE id = $1", [
+      id,
+    ]);
 
     return (result.rowCount ?? 0) > 0;
   }
 
-  async updateProjectStats(projectId: string, storageChange: number = 0, apiCall: boolean = false): Promise<void> {
+  async updateProjectStats(
+    projectId: string,
+    storageChange: number = 0,
+    apiCall: boolean = false
+  ): Promise<void> {
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -916,84 +1055,99 @@ export class DatabaseService {
     if (updates.length > 0) {
       values.push(projectId);
       await this.pool.query(
-        `UPDATE projects SET ${updates.join(', ')} WHERE id = $${paramCount}`,
+        `UPDATE projects SET ${updates.join(", ")} WHERE id = $${paramCount}`,
         values
       );
     }
   }
 
   // Project User Methods
-  async createProjectUser(projectId: string, userData: {
-    username: string;
-    email: string;
-    password: string;
-    phone?: string;
-    scopes?: string[];
-    metadata?: Record<string, any>;
-  }): Promise<ProjectUser> {
+  async createProjectUser(
+    projectId: string,
+    userData: {
+      username: string;
+      email: string;
+      password: string;
+      phone?: string;
+      scopes?: string[];
+      metadata?: Record<string, any>;
+    }
+  ): Promise<ProjectUser> {
     await this.ensureReady();
-    
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
+
     const result = await this.pool.query(
       `INSERT INTO project_users (project_id, username, email, password, phone, scopes, metadata) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
       [
-        projectId, 
-        userData.username, 
-        userData.email, 
-        hashedPassword, 
+        projectId,
+        userData.username,
+        userData.email,
+        hashedPassword,
         userData.phone,
         userData.scopes || [],
-        userData.metadata || {}
+        userData.metadata || {},
       ]
     );
 
     return this.mapProjectUser(result.rows[0]);
   }
 
-  async getProjectUser(projectId: string, userId: string): Promise<ProjectUser | null> {
+  async getProjectUser(
+    projectId: string,
+    userId: string
+  ): Promise<ProjectUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM project_users WHERE project_id = $1 AND id = $2',
+      "SELECT * FROM project_users WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
 
     return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
   }
 
-  async getProjectUserByEmail(projectId: string, email: string): Promise<ProjectUser | null> {
+  async getProjectUserByEmail(
+    projectId: string,
+    email: string
+  ): Promise<ProjectUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM project_users WHERE project_id = $1 AND email = $2',
+      "SELECT * FROM project_users WHERE project_id = $1 AND email = $2",
       [projectId, email]
     );
 
     return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
   }
 
-  async getProjectUserByUsername(projectId: string, username: string): Promise<ProjectUser | null> {
+  async getProjectUserByUsername(
+    projectId: string,
+    username: string
+  ): Promise<ProjectUser | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM project_users WHERE project_id = $1 AND username = $2',
+      "SELECT * FROM project_users WHERE project_id = $1 AND username = $2",
       [projectId, username]
     );
 
     return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
   }
 
-  async getProjectUsers(projectId: string, options?: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-    active?: boolean;
-  }): Promise<{ users: ProjectUser[]; total: number }> {
+  async getProjectUsers(
+    projectId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+      active?: boolean;
+    }
+  ): Promise<{ users: ProjectUser[]; total: number }> {
     await this.ensureReady();
     const { limit = 100, offset = 0, search, active } = options || {};
 
-    let whereClause = 'WHERE project_id = $1';
+    let whereClause = "WHERE project_id = $1";
     const params: any[] = [projectId];
     let paramCount = 1;
 
@@ -1022,12 +1176,16 @@ export class DatabaseService {
     );
 
     return {
-      users: result.rows.map(row => this.mapProjectUser(row)),
-      total: parseInt(countResult.rows[0].count)
+      users: result.rows.map((row) => this.mapProjectUser(row)),
+      total: parseInt(countResult.rows[0].count),
     };
   }
 
-  async updateProjectUser(projectId: string, userId: string, updates: Partial<ProjectUser>): Promise<ProjectUser | null> {
+  async updateProjectUser(
+    projectId: string,
+    userId: string,
+    updates: Partial<ProjectUser>
+  ): Promise<ProjectUser | null> {
     await this.ensureReady();
     const fields = [];
     const values = [];
@@ -1075,7 +1233,7 @@ export class DatabaseService {
     values.push(projectId, userId);
     const result = await this.pool.query(
       `UPDATE project_users 
-       SET ${fields.join(', ')} 
+       SET ${fields.join(", ")} 
        WHERE project_id = $${paramCount} AND id = $${paramCount + 1} 
        RETURNING *`,
       values
@@ -1087,16 +1245,20 @@ export class DatabaseService {
   async deleteProjectUser(projectId: string, userId: string): Promise<boolean> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'DELETE FROM project_users WHERE project_id = $1 AND id = $2',
+      "DELETE FROM project_users WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
 
     return (result.rowCount ?? 0) > 0;
   }
 
-  async authenticateProjectUser(projectId: string, username: string, password: string): Promise<ProjectUser | null> {
+  async authenticateProjectUser(
+    projectId: string,
+    username: string,
+    password: string
+  ): Promise<ProjectUser | null> {
     await this.ensureReady();
-    
+
     // Username could be either username or email
     const result = await this.pool.query(
       `SELECT * FROM project_users 
@@ -1108,12 +1270,12 @@ export class DatabaseService {
 
     const user = result.rows[0];
     const isValid = await bcrypt.compare(password, user.password);
-    
+
     if (!isValid) return null;
 
     // Update last login
     await this.pool.query(
-      'UPDATE project_users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+      "UPDATE project_users SET last_login = CURRENT_TIMESTAMP WHERE id = $1",
       [user.id]
     );
 
@@ -1130,21 +1292,27 @@ export class DatabaseService {
       [adminUserId]
     );
 
-    return result.rows.map(row => this.mapProject(row));
+    return result.rows.map((row) => this.mapProject(row));
   }
 
-  async removeProjectUser(projectId: string, adminUserId: string): Promise<boolean> {
+  async removeProjectUser(
+    projectId: string,
+    adminUserId: string
+  ): Promise<boolean> {
     const result = await this.pool.query(
-      'DELETE FROM project_users WHERE project_id = $1 AND admin_user_id = $2',
+      "DELETE FROM project_users WHERE project_id = $1 AND admin_user_id = $2",
       [projectId, adminUserId]
     );
 
     return (result.rowCount ?? 0) > 0;
   }
 
-  async checkProjectAccess(projectId: string, adminUserId: string): Promise<boolean> {
+  async checkProjectAccess(
+    projectId: string,
+    adminUserId: string
+  ): Promise<boolean> {
     const result = await this.pool.query(
-      'SELECT id FROM project_users WHERE project_id = $1 AND admin_user_id = $2',
+      "SELECT id FROM project_users WHERE project_id = $1 AND admin_user_id = $2",
       [projectId, adminUserId]
     );
 
@@ -1152,20 +1320,39 @@ export class DatabaseService {
   }
 
   // Collection Methods (new terminology for tables/schemas)
-  async createCollection(projectId: string, collectionName: string, schema: { description?: string; fields: CollectionField[]; indexes?: CollectionIndex[] }, createdBy: string): Promise<Collection> {
+  async createCollection(
+    projectId: string,
+    collectionName: string,
+    schema: {
+      description?: string;
+      fields: CollectionField[];
+      indexes?: CollectionIndex[];
+    },
+    createdBy: string
+  ): Promise<Collection> {
     const result = await this.pool.query(
       `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [projectId, collectionName, schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), createdBy]
+      [
+        projectId,
+        collectionName,
+        schema.description,
+        JSON.stringify(schema.fields),
+        JSON.stringify(schema.indexes),
+        createdBy,
+      ]
     );
 
     return this.mapCollection(result.rows[0]);
   }
 
-  async getCollection(projectId: string, collectionName: string): Promise<Collection | null> {
+  async getCollection(
+    projectId: string,
+    collectionName: string
+  ): Promise<Collection | null> {
     const result = await this.pool.query(
-      'SELECT * FROM collections WHERE project_id = $1 AND name = $2',
+      "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, collectionName]
     );
 
@@ -1174,82 +1361,121 @@ export class DatabaseService {
 
   async getProjectCollections(projectId: string): Promise<Collection[]> {
     const result = await this.pool.query(
-      'SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC',
+      "SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
 
-    return result.rows.map(row => this.mapCollection(row));
+    return result.rows.map((row) => this.mapCollection(row));
   }
 
-  async updateCollection(projectId: string, collectionName: string, schema: { description?: string; fields?: CollectionField[]; indexes?: CollectionIndex[] }): Promise<Collection | null> {
+  async updateCollection(
+    projectId: string,
+    collectionName: string,
+    schema: {
+      description?: string;
+      fields?: CollectionField[];
+      indexes?: CollectionIndex[];
+    }
+  ): Promise<Collection | null> {
     const result = await this.pool.query(
       `UPDATE collections 
        SET description = $1, fields = $2, indexes = $3 
        WHERE project_id = $4 AND name = $5 
        RETURNING *`,
-      [schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), projectId, collectionName]
+      [
+        schema.description,
+        JSON.stringify(schema.fields),
+        JSON.stringify(schema.indexes),
+        projectId,
+        collectionName,
+      ]
     );
 
     return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
   }
 
-  async deleteCollection(projectId: string, collectionName: string): Promise<boolean> {
+  async deleteCollection(
+    projectId: string,
+    collectionName: string
+  ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Delete all documents for this collection
       await client.query(
-        'DELETE FROM documents WHERE project_id = $1 AND collection_name = $2',
+        "DELETE FROM documents WHERE project_id = $1 AND collection_name = $2",
         [projectId, collectionName]
       );
 
       // Delete the collection schema
       const result = await client.query(
-        'DELETE FROM collections WHERE project_id = $1 AND name = $2',
+        "DELETE FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, collectionName]
       );
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
   }
 
-  async getDocumentsByCollection(collectionId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
+  async getDocumentsByCollection(
+    collectionId: string,
+    options?: { limit?: number; offset?: number }
+  ): Promise<{ documents: Document[]; total: number }> {
     // First get the collection to get project_id and collection_name
     const collectionResult = await this.pool.query(
-      'SELECT project_id, name FROM collections WHERE id = $1',
+      "SELECT project_id, name FROM collections WHERE id = $1",
       [collectionId]
     );
-    
+
     if (collectionResult.rows.length === 0) {
       return { documents: [], total: 0 };
     }
-    
+
     const { project_id, name } = collectionResult.rows[0];
     return this.getDocuments(project_id, name, options);
   }
 
   // Table Schema Methods (keeping for backward compatibility)
-  async createTableSchema(projectId: string, tableName: string, schema: { description?: string; fields: CollectionField[]; indexes?: CollectionIndex[] }, createdBy: string): Promise<Collection> {
+  async createTableSchema(
+    projectId: string,
+    tableName: string,
+    schema: {
+      description?: string;
+      fields: CollectionField[];
+      indexes?: CollectionIndex[];
+    },
+    createdBy: string
+  ): Promise<Collection> {
     const result = await this.pool.query(
       `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [projectId, tableName, schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), createdBy]
+      [
+        projectId,
+        tableName,
+        schema.description,
+        JSON.stringify(schema.fields),
+        JSON.stringify(schema.indexes),
+        createdBy,
+      ]
     );
 
     return this.mapCollection(result.rows[0]);
   }
 
-  async getTableSchema(projectId: string, tableName: string): Promise<Collection | null> {
+  async getTableSchema(
+    projectId: string,
+    tableName: string
+  ): Promise<Collection | null> {
     const result = await this.pool.query(
-      'SELECT * FROM collections WHERE project_id = $1 AND name = $2',
+      "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, tableName]
     );
 
@@ -1258,46 +1484,63 @@ export class DatabaseService {
 
   async getProjectTableSchemas(projectId: string): Promise<Collection[]> {
     const result = await this.pool.query(
-      'SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC',
+      "SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
 
-    return result.rows.map(row => this.mapCollection(row));
+    return result.rows.map((row) => this.mapCollection(row));
   }
 
-  async updateTableSchema(projectId: string, tableName: string, schema: { description?: string; fields?: CollectionField[]; indexes?: CollectionIndex[] }): Promise<Collection | null> {
+  async updateTableSchema(
+    projectId: string,
+    tableName: string,
+    schema: {
+      description?: string;
+      fields?: CollectionField[];
+      indexes?: CollectionIndex[];
+    }
+  ): Promise<Collection | null> {
     const result = await this.pool.query(
       `UPDATE collections 
        SET description = $1, fields = $2, indexes = $3 
        WHERE project_id = $4 AND name = $5 
        RETURNING *`,
-      [schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), projectId, tableName]
+      [
+        schema.description,
+        JSON.stringify(schema.fields),
+        JSON.stringify(schema.indexes),
+        projectId,
+        tableName,
+      ]
     );
 
     return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
   }
 
-  async deleteTableSchema(projectId: string, tableName: string): Promise<boolean> {
+  async deleteTableSchema(
+    projectId: string,
+    tableName: string
+  ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Delete all documents for this table
       await client.query(
-        'DELETE FROM documents WHERE project_id = $1 AND collection_name = $2',
+        "DELETE FROM documents WHERE project_id = $1 AND collection_name = $2",
         [projectId, tableName]
       );
 
       // Delete the schema
       const result = await client.query(
-        'DELETE FROM collections WHERE project_id = $1 AND name = $2',
+        "DELETE FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, tableName]
       );
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
@@ -1305,20 +1548,46 @@ export class DatabaseService {
   }
 
   // Document Methods
-  async createDocument(projectId: string, collectionName: string, data: Record<string, unknown>, createdBy?: string): Promise<Document> {
+  async createDocument(
+    projectId: string,
+    collectionName: string,
+    data: Record<string, unknown>,
+    createdBy?: string
+  ): Promise<Document> {
+    await this.ensureReady();
+
+    // First, get the collection_id using project_id and collection_name
+    const collectionResult = await this.pool.query(
+      "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
+      [projectId, collectionName]
+    );
+
+    if (collectionResult.rows.length === 0) {
+      throw new Error(
+        `Collection '${collectionName}' not found in project '${projectId}'`
+      );
+    }
+
+    const collectionId = collectionResult.rows[0].id;
+
+    // Now insert the document with the collection_id
     const result = await this.pool.query(
-      `INSERT INTO documents (project_id, collection_name, data, created_by, updated_by) 
-       VALUES ($1, $2, $3, $4, $4) 
+      `INSERT INTO documents (project_id, collection_id, collection_name, data, created_by, updated_by) 
+       VALUES ($1, $2, $3, $4, $5, $5) 
        RETURNING *`,
-      [projectId, collectionName, data, createdBy]
+      [projectId, collectionId, collectionName, data, createdBy]
     );
 
     return this.mapDocument(result.rows[0]);
   }
 
-  async getDocument(projectId: string, collectionName: string, documentId: string): Promise<Document | null> {
+  async getDocument(
+    projectId: string,
+    collectionName: string,
+    documentId: string
+  ): Promise<Document | null> {
     const result = await this.pool.query(
-      'SELECT * FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3',
+      "SELECT * FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3",
       [documentId, projectId, collectionName]
     );
 
@@ -1326,19 +1595,25 @@ export class DatabaseService {
   }
 
   async getDocuments(
-    projectId: string, 
-    collectionName: string, 
-    options: { 
-      limit?: number; 
-      offset?: number; 
-      orderBy?: string; 
-      order?: 'asc' | 'desc';
+    projectId: string,
+    collectionName: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      orderBy?: string;
+      order?: "asc" | "desc";
       where?: Record<string, unknown>;
     } = {}
   ): Promise<{ documents: Document[]; total: number }> {
-    const { limit = 100, offset = 0, orderBy = 'created_at', order = 'desc', where } = options;
+    const {
+      limit = 100,
+      offset = 0,
+      orderBy = "created_at",
+      order = "desc",
+      where,
+    } = options;
 
-    let whereClause = 'WHERE project_id = $1 AND collection_name = $2';
+    let whereClause = "WHERE project_id = $1 AND collection_name = $2";
     const params: unknown[] = [projectId, collectionName];
 
     if (where && Object.keys(where).length > 0) {
@@ -1364,12 +1639,18 @@ export class DatabaseService {
     );
 
     return {
-      documents: result.rows.map(row => this.mapDocument(row)),
-      total
+      documents: result.rows.map((row) => this.mapDocument(row)),
+      total,
     };
   }
 
-  async updateDocument(projectId: string, collectionName: string, documentId: string, data: Record<string, unknown>, updatedBy?: string): Promise<Document | null> {
+  async updateDocument(
+    projectId: string,
+    collectionName: string,
+    documentId: string,
+    data: Record<string, unknown>,
+    updatedBy?: string
+  ): Promise<Document | null> {
     const result = await this.pool.query(
       `UPDATE documents 
        SET data = $1, updated_by = $2 
@@ -1381,37 +1662,55 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
   }
 
-  async deleteDocument(projectId: string, collectionName: string, documentId: string): Promise<boolean> {
+  async deleteDocument(
+    projectId: string,
+    collectionName: string,
+    documentId: string
+  ): Promise<boolean> {
     const result = await this.pool.query(
-      'DELETE FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3',
+      "DELETE FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3",
       [documentId, projectId, collectionName]
     );
 
     return (result.rowCount ?? 0) > 0;
   }
 
-  async getDocumentsByTable(tableId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
+  async getDocumentsByTable(
+    tableId: string,
+    options?: { limit?: number; offset?: number }
+  ): Promise<{ documents: Document[]; total: number }> {
     // First get the table schema to get project_id and table_name
     const tableResult = await this.pool.query(
-      'SELECT project_id, name FROM collections WHERE id = $1',
+      "SELECT project_id, name FROM collections WHERE id = $1",
       [tableId]
     );
-    
+
     if (tableResult.rows.length === 0) {
       return { documents: [], total: 0 };
     }
-    
+
     const { project_id, name } = tableResult.rows[0];
     return this.getDocuments(project_id, name, options);
   }
 
   // File Methods
-  async createFile(data: Omit<FileRecord, 'id' | 'createdAt'>): Promise<FileRecord> {
+  async createFile(
+    data: Omit<FileRecord, "id" | "createdAt">
+  ): Promise<FileRecord> {
     const result = await this.pool.query(
       `INSERT INTO files (project_id, filename, original_name, mime_type, size, path, metadata, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [data.project_id, data.filename, data.original_name, data.mime_type, data.size, data.path, {}, data.uploaded_by]
+      [
+        data.project_id,
+        data.filename,
+        data.original_name,
+        data.mime_type,
+        data.size,
+        data.path,
+        {},
+        data.uploaded_by,
+      ]
     );
 
     await this.updateProjectStats(data.project_id, data.size);
@@ -1419,26 +1718,25 @@ export class DatabaseService {
   }
 
   async getFile(fileId: string): Promise<FileRecord | null> {
-    const result = await this.pool.query(
-      'SELECT * FROM files WHERE id = $1',
-      [fileId]
-    );
+    const result = await this.pool.query("SELECT * FROM files WHERE id = $1", [
+      fileId,
+    ]);
 
     return result.rows.length > 0 ? this.mapFile(result.rows[0]) : null;
   }
 
   async getProjectFiles(projectId: string): Promise<FileRecord[]> {
     const result = await this.pool.query(
-      'SELECT * FROM files WHERE project_id = $1 ORDER BY created_at DESC',
+      "SELECT * FROM files WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
 
-    return result.rows.map(row => this.mapFile(row));
+    return result.rows.map((row) => this.mapFile(row));
   }
 
   async deleteFile(fileId: string): Promise<FileRecord | null> {
     const result = await this.pool.query(
-      'DELETE FROM files WHERE id = $1 RETURNING *',
+      "DELETE FROM files WHERE id = $1 RETURNING *",
       [fileId]
     );
 
@@ -1452,12 +1750,23 @@ export class DatabaseService {
   }
 
   // Session Methods
-  async createSession(data: Omit<Session, 'id' | 'createdAt' | 'lastActivity'>): Promise<Session> {
+  async createSession(
+    data: Omit<Session, "id" | "createdAt" | "lastActivity">
+  ): Promise<Session> {
     const result = await this.pool.query(
       `INSERT INTO sessions (token, user_id, project_id, user_type, scopes, metadata, expires_at, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [data.token, data.user_id, data.project_id, data.type, data.scopes || [], data.metadata || {}, data.expires_at, !data.consumed]
+      [
+        data.token,
+        data.user_id,
+        data.project_id,
+        data.type,
+        data.scopes || [],
+        data.metadata || {},
+        data.expires_at,
+        !data.consumed,
+      ]
     );
 
     return this.mapSession(result.rows[0]);
@@ -1465,14 +1774,14 @@ export class DatabaseService {
 
   async getSessionByToken(token: string): Promise<Session | null> {
     const result = await this.pool.query(
-      'SELECT * FROM sessions WHERE token = $1 AND is_active = true AND expires_at > CURRENT_TIMESTAMP',
+      "SELECT * FROM sessions WHERE token = $1 AND is_active = true AND expires_at > CURRENT_TIMESTAMP",
       [token]
     );
 
     if (result.rows.length > 0) {
       // Update last activity
       await this.pool.query(
-        'UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = $1',
+        "UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = $1",
         [result.rows[0].id]
       );
       return this.mapSession(result.rows[0]);
@@ -1483,7 +1792,7 @@ export class DatabaseService {
 
   async invalidateSession(token: string): Promise<boolean> {
     const result = await this.pool.query(
-      'UPDATE sessions SET is_active = false WHERE token = $1',
+      "UPDATE sessions SET is_active = false WHERE token = $1",
       [token]
     );
 
@@ -1504,32 +1813,46 @@ export class DatabaseService {
 
   async invalidateUserSessions(userId: string): Promise<void> {
     await this.pool.query(
-      'UPDATE sessions SET is_active = false WHERE user_id = $1',
+      "UPDATE sessions SET is_active = false WHERE user_id = $1",
       [userId]
     );
   }
 
   async cleanupExpiredSessions(): Promise<number> {
     const result = await this.pool.query(
-      'DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP OR is_active = false'
+      "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP OR is_active = false"
     );
 
     return result.rowCount ?? 0;
   }
 
   // Changelog Methods
-  async createChangelogEntry(data: Omit<ChangelogEntry, 'id' | 'createdAt'>): Promise<ChangelogEntry> {
+  async createChangelogEntry(
+    data: Omit<ChangelogEntry, "id" | "createdAt">
+  ): Promise<ChangelogEntry> {
     const result = await this.pool.query(
       `INSERT INTO changelog (project_id, entity_type, entity_id, action, changes, performed_by, session_id, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [data.project_id, data.entity_type, data.entity_id, data.action, data.changes || {}, data.performed_by, data.session_id, data.timestamp || new Date().toISOString()]
+      [
+        data.project_id,
+        data.entity_type,
+        data.entity_id,
+        data.action,
+        data.changes || {},
+        data.performed_by,
+        data.session_id,
+        data.timestamp || new Date().toISOString(),
+      ]
     );
 
     return this.mapChangelogEntry(result.rows[0]);
   }
 
-  async getProjectChangelog(projectId: string, limit: number = 100): Promise<ChangelogEntry[]> {
+  async getProjectChangelog(
+    projectId: string,
+    limit: number = 100
+  ): Promise<ChangelogEntry[]> {
     const result = await this.pool.query(
       `SELECT c.*, au.username 
        FROM changelog c 
@@ -1540,38 +1863,39 @@ export class DatabaseService {
       [projectId, limit]
     );
 
-    return result.rows.map(row => this.mapChangelogEntry(row));
+    return result.rows.map((row) => this.mapChangelogEntry(row));
   }
 
-  async getChangelogEntries(filters: { 
-    project_id?: string; 
-    entity_type?: string; 
-    entity_id?: string; 
-    limit?: number 
+  async getChangelogEntries(filters: {
+    project_id?: string;
+    entity_type?: string;
+    entity_id?: string;
+    limit?: number;
   }): Promise<ChangelogEntry[]> {
     const { project_id, entity_type, entity_id, limit = 100 } = filters;
     const conditions: string[] = [];
     const values: unknown[] = [];
-    
+
     if (project_id) {
       conditions.push(`project_id = $${values.length + 1}`);
       values.push(project_id);
     }
-    
+
     if (entity_type) {
       conditions.push(`entity_type = $${values.length + 1}`);
       values.push(entity_type);
     }
-    
+
     if (entity_id) {
       conditions.push(`entity_id = $${values.length + 1}`);
       values.push(entity_id);
     }
-    
+
     values.push(limit);
-    
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
     const result = await this.pool.query(
       `SELECT c.*, au.username 
        FROM changelog c 
@@ -1582,28 +1906,39 @@ export class DatabaseService {
       values
     );
 
-    return result.rows.map(row => this.mapChangelogEntry(row));
+    return result.rows.map((row) => this.mapChangelogEntry(row));
   }
 
   // API Key Methods
   async createApiKey(data: {
     name: string;
-    type: 'master' | 'admin' | 'project';
+    type: "master" | "admin" | "project";
     owner_id: string;
     scopes: string[];
     project_ids?: string[];
     expires_at?: string;
   }): Promise<ApiKey> {
     await this.ensureReady();
-    const key = data.type === 'master' ? `mak_${uuidv4().replace(/-/g, '')}` :
-                data.type === 'admin' ? `ak_${uuidv4().replace(/-/g, '')}` :
-                `pk_${uuidv4().replace(/-/g, '')}`;
-    
+    const key =
+      data.type === "master"
+        ? `mak_${uuidv4().replace(/-/g, "")}`
+        : data.type === "admin"
+        ? `ak_${uuidv4().replace(/-/g, "")}`
+        : `pk_${uuidv4().replace(/-/g, "")}`;
+
     const result = await this.pool.query(
       `INSERT INTO api_keys (key, name, type, owner_id, scopes, project_ids, expires_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
-      [key, data.name, data.type, data.owner_id, data.scopes, data.project_ids, data.expires_at]
+      [
+        key,
+        data.name,
+        data.type,
+        data.owner_id,
+        data.scopes,
+        data.project_ids,
+        data.expires_at,
+      ]
     );
 
     return this.mapApiKey(result.rows[0]);
@@ -1612,7 +1947,7 @@ export class DatabaseService {
   async getApiKey(key: string): Promise<ApiKey | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM api_keys WHERE key = $1 AND is_active = true',
+      "SELECT * FROM api_keys WHERE key = $1 AND is_active = true",
       [key]
     );
 
@@ -1620,7 +1955,7 @@ export class DatabaseService {
 
     // Update last_used_at
     await this.pool.query(
-      'UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key = $1',
+      "UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key = $1",
       [key]
     );
 
@@ -1630,14 +1965,17 @@ export class DatabaseService {
   async getApiKeysByOwner(ownerId: string): Promise<ApiKey[]> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM api_keys WHERE owner_id = $1 ORDER BY created_at DESC',
+      "SELECT * FROM api_keys WHERE owner_id = $1 ORDER BY created_at DESC",
       [ownerId]
     );
 
-    return result.rows.map(row => this.mapApiKey(row));
+    return result.rows.map((row) => this.mapApiKey(row));
   }
 
-  async updateApiKey(id: string, data: Partial<ApiKey>): Promise<ApiKey | null> {
+  async updateApiKey(
+    id: string,
+    data: Partial<ApiKey>
+  ): Promise<ApiKey | null> {
     await this.ensureReady();
     const fields = [];
     const values = [];
@@ -1668,7 +2006,9 @@ export class DatabaseService {
 
     values.push(id);
     const result = await this.pool.query(
-      `UPDATE api_keys SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      `UPDATE api_keys SET ${fields.join(
+        ", "
+      )} WHERE id = $${paramCount} RETURNING *`,
       values
     );
 
@@ -1678,7 +2018,7 @@ export class DatabaseService {
   async deleteApiKey(id: string): Promise<boolean> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'UPDATE api_keys SET is_active = false WHERE id = $1',
+      "UPDATE api_keys SET is_active = false WHERE id = $1",
       [id]
     );
 
@@ -1688,7 +2028,7 @@ export class DatabaseService {
   async getApiKeyById(id: string): Promise<ApiKey | null> {
     await this.ensureReady();
     const result = await this.pool.query(
-      'SELECT * FROM api_keys WHERE id = $1',
+      "SELECT * FROM api_keys WHERE id = $1",
       [id]
     );
 
@@ -1709,7 +2049,7 @@ export class DatabaseService {
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       last_login: row.last_login as string | undefined,
-      api_key: row.api_key as string | undefined
+      api_key: row.api_key as string | undefined,
     };
   }
 
@@ -1723,7 +2063,7 @@ export class DatabaseService {
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       created_by: row.created_by as string,
-      settings: row.settings as ProjectSettings
+      settings: row.settings as ProjectSettings,
     };
   }
 
@@ -1742,7 +2082,7 @@ export class DatabaseService {
       updated_at: row.updated_at as string,
       last_login: row.last_login as string | undefined,
       email_verified_at: row.email_verified_at as string | undefined,
-      phone_verified_at: row.phone_verified_at as string | undefined
+      phone_verified_at: row.phone_verified_at as string | undefined,
     };
   }
 
@@ -1755,7 +2095,7 @@ export class DatabaseService {
       fields: (row.fields as CollectionField[]) || [],
       indexes: (row.indexes as CollectionIndex[]) || [],
       created_at: row.created_at as string,
-      updated_at: row.updated_at as string
+      updated_at: row.updated_at as string,
     };
   }
 
@@ -1763,13 +2103,12 @@ export class DatabaseService {
     return {
       id: row.id as string,
       project_id: row.project_id as string,
-      collection_id: row.collection_id as string, // Maps to collection_id in DB for now
-      collection_name: row.collection_name as string, // Maps to collection_name in DB for now
+      collection_id: row.collection_id as string,
       data: row.data as Record<string, unknown>,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       created_by: row.created_by as string | undefined,
-      updated_by: row.updated_by as string | undefined
+      updated_by: row.updated_by as string | undefined,
     };
   }
 
@@ -1783,7 +2122,7 @@ export class DatabaseService {
       size: parseInt(row.size as string),
       path: row.path as string,
       uploaded_by: row.created_by as string,
-      created_at: row.created_at as string
+      created_at: row.created_at as string,
     };
   }
 
@@ -1794,12 +2133,12 @@ export class DatabaseService {
       type: row.user_type as SessionType,
       user_id: row.user_id as string | undefined,
       project_id: row.project_id as string | undefined,
-      scopes: (row.scopes as string[]) || [],
+      scopes: (row.scopes as Scope[]) || [],
       metadata: (row.metadata as Record<string, unknown>) || {},
       expires_at: row.expires_at as string,
       created_at: row.created_at as string,
       last_activity: row.last_activity as string | undefined,
-      consumed: !(row.is_active as boolean)
+      consumed: !(row.is_active as boolean),
     };
   }
 
@@ -1813,7 +2152,7 @@ export class DatabaseService {
       changes: (row.changes as Record<string, unknown>) || {},
       performed_by: row.performed_by as string,
       session_id: row.session_id as string | undefined,
-      timestamp: row.created_at as string
+      timestamp: row.created_at as string,
     };
   }
 
@@ -1822,15 +2161,15 @@ export class DatabaseService {
       id: row.id as string,
       key: row.key as string,
       name: row.name as string,
-      type: row.type as 'master' | 'admin' | 'project',
+      type: row.type as "master" | "admin" | "project",
       owner_id: row.owner_id as string,
-      scopes: (row.scopes as string[]) || [],
+      scopes: (row.scopes as Scope[]) || [],
       project_ids: (row.project_ids as string[]) || null,
       metadata: (row.metadata as Record<string, unknown>) || {},
       expires_at: row.expires_at as string | undefined,
       last_used_at: row.last_used_at as string | undefined,
       created_at: row.created_at as string,
-      is_active: row.is_active as boolean
+      is_active: row.is_active as boolean,
     };
   }
 
