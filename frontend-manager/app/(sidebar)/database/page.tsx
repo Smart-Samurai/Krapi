@@ -228,11 +228,11 @@ export default function DatabasePage() {
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => router.push(`/database/${selectedProject}/${schema.name}`)}
                   >
-                    <FiEdit className="h-4 w-4" />
+                    Manage Fields
                   </Button>
                   <Button
                     variant="ghost"
@@ -264,11 +264,10 @@ export default function DatabasePage() {
                 </div>
               </div>
               <Button
-                variant="secondary"
-                className="w-full mt-4"
+                variant="outline"
+                size="sm"
                 onClick={() => router.push(`/database/${selectedProject}/${schema.name}/documents`)}
               >
-                <FiFile className="mr-2 h-4 w-4" />
                 View Documents
               </Button>
             </div>

@@ -311,9 +311,217 @@ export class DatabaseService {
           ['admin', 'admin@krapi.com', hashedPassword, 'master_admin', 'full']
         );
         console.log('Default master admin created');
+      } else {
+        // Ensure default admin has correct password
+        // This handles cases where the password was changed during development
+        const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+        
+        await this.pool.query(
+          `UPDATE admin_users 
+           SET password = $1, is_active = true 
+           WHERE username = $2`,
+          [hashedPassword, 'admin']
+        );
+        console.log('Default master admin password reset to default');
       }
+      
+      // Create a system check table to track initialization
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS system_checks (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          check_type VARCHAR(100) NOT NULL,
+          status VARCHAR(50) NOT NULL,
+          details JSONB DEFAULT '{}'::jsonb,
+          last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(check_type)
+        )
+      `);
+      
+      // Record successful initialization
+      await this.pool.query(`
+        INSERT INTO system_checks (check_type, status, details)
+        VALUES ('database_initialization', 'success', $1)
+        ON CONFLICT (check_type) 
+        DO UPDATE SET 
+          status = 'success',
+          details = $1,
+          last_checked = CURRENT_TIMESTAMP
+      `, [JSON.stringify({
+        version: '1.0.0',
+        initialized_at: new Date().toISOString(),
+        default_admin_created: result.rows.length === 0
+      })]);
+      
     } catch (error) {
       console.error('Error seeding default data:', error);
+      throw error; // Re-throw to ensure proper error handling
+    }
+  }
+
+  // Health check methods
+  async performHealthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy' | 'degraded';
+    checks: {
+      database: { status: boolean; message: string };
+      tables: { status: boolean; message: string; missing?: string[] };
+      defaultAdmin: { status: boolean; message: string };
+      initialization: { status: boolean; message: string; details?: any };
+    };
+    timestamp: string;
+  }> {
+    const checks = {
+      database: { status: false, message: 'Not checked' },
+      tables: { status: false, message: 'Not checked', missing: [] as string[] },
+      defaultAdmin: { status: false, message: 'Not checked' },
+      initialization: { status: false, message: 'Not checked', details: {} }
+    };
+    
+    try {
+      // Check database connection
+      try {
+        const result = await this.pool.query('SELECT 1');
+        checks.database = { status: true, message: 'Connected' };
+      } catch (error) {
+        checks.database = { status: false, message: `Connection failed: ${error}` };
+      }
+      
+      // Check required tables exist
+      const requiredTables = [
+        'admin_users', 'projects', 'project_users', 'table_schemas',
+        'documents', 'files', 'sessions', 'changelog', 'system_checks'
+      ];
+      
+      try {
+        const tableCheckResult = await this.pool.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = ANY($1)
+        `, [requiredTables]);
+        
+        const existingTables = tableCheckResult.rows.map(row => row.table_name);
+        const missingTables = requiredTables.filter(table => !existingTables.includes(table));
+        
+        if (missingTables.length === 0) {
+          checks.tables = { status: true, message: 'All required tables exist' };
+        } else {
+          checks.tables = { 
+            status: false, 
+            message: `Missing tables: ${missingTables.join(', ')}`,
+            missing: missingTables
+          };
+        }
+      } catch (error) {
+        checks.tables = { status: false, message: `Table check failed: ${error}` };
+      }
+      
+      // Check default admin exists and is active
+      try {
+        const adminResult = await this.pool.query(
+          'SELECT id, is_active FROM admin_users WHERE username = $1',
+          ['admin']
+        );
+        
+        if (adminResult.rows.length > 0 && adminResult.rows[0].is_active) {
+          checks.defaultAdmin = { status: true, message: 'Default admin exists and is active' };
+        } else if (adminResult.rows.length > 0) {
+          checks.defaultAdmin = { status: false, message: 'Default admin exists but is inactive' };
+        } else {
+          checks.defaultAdmin = { status: false, message: 'Default admin does not exist' };
+        }
+      } catch (error) {
+        checks.defaultAdmin = { status: false, message: `Admin check failed: ${error}` };
+      }
+      
+      // Check initialization status
+      try {
+        const initResult = await this.pool.query(
+          `SELECT status, details, last_checked 
+           FROM system_checks 
+           WHERE check_type = 'database_initialization'`
+        );
+        
+        if (initResult.rows.length > 0 && initResult.rows[0].status === 'success') {
+          checks.initialization = { 
+            status: true, 
+            message: 'Database properly initialized',
+            details: initResult.rows[0].details
+          };
+        } else {
+          checks.initialization = { 
+            status: false, 
+            message: 'Database not properly initialized' 
+          };
+        }
+      } catch (error) {
+        // Table might not exist yet
+        checks.initialization = { 
+          status: false, 
+          message: 'Initialization check not available' 
+        };
+      }
+      
+      // Determine overall status
+      const allHealthy = Object.values(checks).every(check => check.status);
+      const anyUnhealthy = Object.values(checks).some(check => !check.status);
+      
+      return {
+        status: allHealthy ? 'healthy' : anyUnhealthy ? 'unhealthy' : 'degraded',
+        checks,
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        checks,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+  
+  // Repair database issues found during health check
+  async repairDatabase(): Promise<{ success: boolean; actions: string[] }> {
+    const actions: string[] = [];
+    
+    try {
+      // Run health check first
+      const health = await this.performHealthCheck();
+      
+      // Fix missing tables
+      if (!health.checks.tables.status && health.checks.tables.missing) {
+        console.log('Repairing: Creating missing tables...');
+        await this.initializeTables();
+        actions.push('Created missing tables');
+      }
+      
+      // Fix default admin
+      if (!health.checks.defaultAdmin.status) {
+        console.log('Repairing: Fixing default admin...');
+        await this.seedDefaultData();
+        actions.push('Fixed default admin user');
+      }
+      
+      // Record repair action
+      await this.pool.query(`
+        INSERT INTO system_checks (check_type, status, details)
+        VALUES ('database_repair', 'success', $1)
+        ON CONFLICT (check_type) 
+        DO UPDATE SET 
+          status = 'success',
+          details = $1,
+          last_checked = CURRENT_TIMESTAMP
+      `, [JSON.stringify({
+        actions,
+        repaired_at: new Date().toISOString()
+      })]);
+      
+      return { success: true, actions };
+      
+    } catch (error) {
+      console.error('Database repair failed:', error);
+      return { success: false, actions };
     }
   }
 

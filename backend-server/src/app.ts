@@ -1,3 +1,48 @@
+/**
+ * KRAPI Backend Server
+ * 
+ * Database Initialization & Health Check System:
+ * 
+ * 1. DATABASE INITIALIZATION:
+ *    - On startup, the server attempts to connect to PostgreSQL
+ *    - Creates all required tables if they don't exist
+ *    - Ensures default admin user exists with credentials:
+ *      Username: admin
+ *      Password: admin123 (or value from DEFAULT_ADMIN_PASSWORD env var)
+ *    - If admin exists but password was changed during development,
+ *      it will be reset to the default on startup
+ * 
+ * 2. HEALTH CHECKS:
+ *    - GET /krapi/k1/health - Returns comprehensive health status
+ *    - POST /krapi/k1/health/repair - Attempts to fix database issues
+ *    - Health check includes:
+ *      - Database connection status
+ *      - Required tables existence check
+ *      - Default admin user check
+ *      - Initialization status
+ * 
+ * 3. AUTO-REPAIR:
+ *    - On startup, if health check fails, auto-repair is attempted
+ *    - Repair actions include:
+ *      - Creating missing tables
+ *      - Fixing default admin user
+ *      - Recording repair actions in system_checks table
+ * 
+ * 4. ENVIRONMENT VARIABLES:
+ *    - DB_HOST: PostgreSQL host (default: localhost)
+ *    - DB_PORT: PostgreSQL port (default: 5432)
+ *    - DB_NAME: Database name (default: krapi)
+ *    - DB_USER: Database user (default: postgres)
+ *    - DB_PASSWORD: Database password (default: postgres)
+ *    - DEFAULT_ADMIN_PASSWORD: Default admin password (default: admin123)
+ * 
+ * 5. TROUBLESHOOTING:
+ *    - Run npm run health-check to verify backend health
+ *    - Check logs for detailed error messages
+ *    - Ensure PostgreSQL is running and accessible
+ *    - Verify database credentials in environment variables
+ */
+
 import express, { Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -112,6 +157,42 @@ async function startServer() {
     console.log("⏳ Waiting for database connection...");
     await db.waitForReady();
     console.log("✅ Database connected successfully");
+    
+    // Perform health check and auto-repair if needed
+    console.log("🔍 Performing database health check...");
+    const healthCheck = await db.performHealthCheck();
+    
+    if (healthCheck.status !== 'healthy') {
+      console.log("⚠️  Database health issues detected:");
+      Object.entries(healthCheck.checks).forEach(([check, result]) => {
+        if (!result.status) {
+          console.log(`   ❌ ${check}: ${result.message}`);
+        }
+      });
+      
+      console.log("🔧 Attempting automatic repair...");
+      const repairResult = await db.repairDatabase();
+      
+      if (repairResult.success) {
+        console.log("✅ Database repair successful:");
+        repairResult.actions.forEach(action => {
+          console.log(`   ✓ ${action}`);
+        });
+        
+        // Verify health after repair
+        const postRepairHealth = await db.performHealthCheck();
+        if (postRepairHealth.status === 'healthy') {
+          console.log("✅ Database is now healthy");
+        } else {
+          console.log("⚠️  Some issues remain after repair. Manual intervention may be required.");
+        }
+      } else {
+        console.error("❌ Database repair failed. Manual intervention required.");
+        // Don't exit - let the app run with degraded functionality
+      }
+    } else {
+      console.log("✅ Database health check passed");
+    }
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
