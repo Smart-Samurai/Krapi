@@ -410,6 +410,264 @@ export class AdminController {
         return;
     }
   };
+
+  // Get user API keys
+  getUserApiKeys = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+
+      // Check if user exists
+      const user = await this.db.getAdminUserById(userId);
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Get API keys for the user
+      const apiKeys = await this.db.getUserApiKeys(userId);
+
+      // Remove the actual key values for security
+      const sanitizedKeys = apiKeys.map(key => ({
+        ...key,
+        key: key.key.substring(0, 10) + '...' // Show only first 10 chars
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: sanitizedKeys
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get user API keys error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch API keys'
+      } as ApiResponse);
+    }
+  };
+
+  // Create user API key
+  createUserApiKey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      const { userId } = req.params;
+      const { name, scopes, project_ids } = req.body;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Check if user exists
+      const user = await this.db.getAdminUserById(userId);
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Generate new API key
+      const apiKey = `krapi_admin_${require('uuid').v4().replace(/-/g, '')}`;
+
+      // Create API key entry
+      const newApiKey = await this.db.createUserApiKey({
+        user_id: userId,
+        name,
+        key: apiKey,
+        type: 'admin',
+        scopes: scopes || [],
+        project_ids: project_ids || null,
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+        last_used_at: null,
+        active: true
+      });
+
+      // Log the action
+      await this.db.createChangelogEntry({
+        entity_type: 'api_key',
+        entity_id: newApiKey.id,
+        action: ChangeAction.CREATED,
+        changes: { name, scopes, user_id: userId },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(201).json({
+        success: true,
+        data: newApiKey,
+        message: 'API key created successfully'
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Create user API key error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create API key'
+      } as ApiResponse);
+    }
+  };
+
+  // Delete API key
+  deleteApiKey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      const { keyId } = req.params;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Check if API key exists
+      const apiKey = await this.db.getApiKeyById(keyId);
+      if (!apiKey) {
+        res.status(404).json({
+          success: false,
+          error: 'API key not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Delete API key
+      const deleted = await this.db.deleteApiKey(keyId);
+
+      if (!deleted) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to delete API key'
+        } as ApiResponse);
+        return;
+      }
+
+      // Log the action
+      await this.db.createChangelogEntry({
+        entity_type: 'api_key',
+        entity_id: keyId,
+        action: ChangeAction.DELETED,
+        changes: { name: apiKey.name },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'API key deleted successfully'
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Delete API key error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete API key'
+      } as ApiResponse);
+    }
+  };
+
+  // Get system statistics
+  getSystemStats = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Get counts for various entities
+      const projects = await this.db.getAllProjects();
+      const users = await this.db.getAllAdminUsers();
+      const sessions = await this.db.getActiveSessions();
+      
+      // Calculate storage usage
+      let totalStorage = 0;
+      let totalDocuments = 0;
+      let totalCollections = 0;
+
+      for (const project of projects) {
+        const files = await this.db.getProjectFiles(project.id);
+        totalStorage += files.reduce((sum, file) => sum + file.size, 0);
+        
+        const collections = await this.db.getProjectTableSchemas(project.id);
+        totalCollections += collections.length;
+        
+        for (const collection of collections) {
+          const { total } = await this.db.getDocumentsByTable(collection.id);
+          totalDocuments += total;
+        }
+      }
+
+      const stats = {
+        projects: {
+          total: projects.length,
+          active: projects.filter(p => p.active).length
+        },
+        users: {
+          total: users.length,
+          active: users.filter(u => u.active).length
+        },
+        sessions: {
+          active: sessions.length
+        },
+        storage: {
+          used_bytes: totalStorage,
+          used_mb: Math.round(totalStorage / (1024 * 1024)),
+          used_gb: Math.round(totalStorage / (1024 * 1024 * 1024) * 100) / 100
+        },
+        database: {
+          collections: totalCollections,
+          documents: totalDocuments
+        }
+      };
+
+      res.status(200).json({
+        success: true,
+        data: stats
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get system stats error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch system statistics'
+      } as ApiResponse);
+    }
+  };
+
+  // Get activity logs
+  getActivityLogs = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { limit = 100, offset = 0, entity_type, action, user_id } = req.query;
+
+      // Build filter object
+      const filters: any = {};
+      if (entity_type) filters.entity_type = entity_type;
+      if (action) filters.action = action;
+      if (user_id) filters.performed_by = user_id;
+
+      // Get activity logs with filters
+      const logs = await this.db.getActivityLogs({
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+        filters
+      });
+
+      res.status(200).json({
+        success: true,
+        data: logs
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get activity logs error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch activity logs'
+      } as ApiResponse);
+    }
+  };
 }
 
 export default new AdminController();
