@@ -24,6 +24,7 @@ export class KrapiSDK {
   private client: AxiosInstance;
   private sessionToken?: string;
   private apiKey?: string;
+  private baseURL: string;
 
   constructor(config: { 
     baseUrl: string; 
@@ -32,6 +33,7 @@ export class KrapiSDK {
   }) {
     this.sessionToken = config.sessionToken;
     this.apiKey = config.apiKey;
+    this.baseURL = config.baseUrl;
     
     this.client = axios.create({
       baseURL: config.baseUrl,
