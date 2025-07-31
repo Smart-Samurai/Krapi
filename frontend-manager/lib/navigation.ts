@@ -1,54 +1,47 @@
 import { 
-  FiHome, 
-  FiFolder, 
-  FiUsers, 
-  FiDatabase,
-  FiHardDrive,
-  FiSettings,
-  FiLogOut,
-  FiChevronRight
-} from 'react-icons/fi';
+  LayoutDashboard, 
+  Database, 
+  HardDrive, 
+  Users, 
+  Settings,
+  KeyRound,
+  TestTube2
+} from 'lucide-react';
 
-export interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
-  children?: NavItem[];
-}
-
-export const mainNavigation: NavItem[] = [
+export const navigation = [
   {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: FiHome,
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboard,
   },
   {
-    name: "Projects",
-    href: "/projects",
-    icon: FiFolder,
+    name: 'Projects',
+    href: '/projects',
+    icon: Settings,
   },
   {
-    name: "Collections",
-    href: "/collections",
-    icon: FiDatabase,
+    name: 'Collections',
+    href: '/collections',
+    icon: Database,
   },
   {
-    name: "Storage",
-    href: "/storage",
-    icon: FiHardDrive,
+    name: 'Storage',
+    href: '/storage',
+    icon: HardDrive,
   },
   {
-    name: "Users",
-    href: "/users",
-    icon: FiUsers,
+    name: 'Admin Users',
+    href: '/admin-users',
+    icon: Users,
   },
-];
-
-export const bottomNavigation: NavItem[] = [
   {
-    name: "Settings",
-    href: "/settings",
-    icon: FiSettings,
+    name: 'API Keys',
+    href: '/api-keys',
+    icon: KeyRound,
+  },
+  {
+    name: 'Test Access',
+    href: '/test-access',
+    icon: TestTube2,
   },
 ];
