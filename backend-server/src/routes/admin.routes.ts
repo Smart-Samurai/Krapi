@@ -15,11 +15,11 @@ router.use(authenticate);
 // Admin user management
 router.get('/users', requireScopes({
   scopes: [Scope.ADMIN_READ]
-}), controller.getAdminUsers);
+}), controller.getAllAdminUsers);
 
 router.get('/users/:userId', requireScopes({
   scopes: [Scope.ADMIN_READ]
-}), controller.getAdminUser);
+}), controller.getAdminUserById);
 
 router.post('/users', requireScopes({
   scopes: [Scope.ADMIN_WRITE]
@@ -34,26 +34,29 @@ router.delete('/users/:userId', requireScopes({
 }), controller.deleteAdminUser);
 
 // API key management for admin users
-router.get('/users/:userId/api-keys', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getUserApiKeys);
+// TODO: Implement these methods in AdminController
+// router.get('/users/:userId/api-keys', requireScopes({
+//   scopes: [Scope.ADMIN_READ]
+// }), controller.getUserApiKeys);
 
-router.post('/users/:userId/api-keys', requireScopes({
-  scopes: [Scope.ADMIN_WRITE]
-}), controller.createUserApiKey);
+// router.post('/users/:userId/api-keys', requireScopes({
+//   scopes: [Scope.ADMIN_WRITE]
+// }), controller.createUserApiKey);
 
-router.delete('/api-keys/:keyId', requireScopes({
-  scopes: [Scope.ADMIN_WRITE]
-}), controller.deleteApiKey);
+// router.delete('/api-keys/:keyId', requireScopes({
+//   scopes: [Scope.ADMIN_WRITE]
+// }), controller.deleteApiKey);
 
 // System statistics
-router.get('/stats', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getSystemStats);
+// TODO: Implement getSystemStats in AdminController
+// router.get('/stats', requireScopes({
+//   scopes: [Scope.ADMIN_READ]
+// }), controller.getSystemStats);
 
 // Activity logs
-router.get('/activity', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getActivityLogs);
+// TODO: Implement getActivityLogs in AdminController
+// router.get('/activity', requireScopes({
+//   scopes: [Scope.ADMIN_READ]
+// }), controller.getActivityLogs);
 
 export default router;

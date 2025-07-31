@@ -8,7 +8,9 @@ import {
   Session, 
   SessionType,
   Scope,
-  ApiKey
+  ApiKey,
+  ChangeAction,
+  Project
 } from '@/types';
 
 export class AuthService {
@@ -92,7 +94,7 @@ export class AuthService {
           Scope.FUNCTIONS_DELETE
         ];
       
-      case AdminRole.DEVELOPER:
+      case AdminRole.PROJECT_ADMIN:
         return [
           Scope.PROJECTS_READ,
           Scope.COLLECTIONS_READ,
@@ -137,6 +139,7 @@ export class AuthService {
       type: SessionType.ADMIN,
       user_id: adminUser.id,
       scopes,
+      created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
       consumed: false
     });
@@ -148,8 +151,8 @@ export class AuthService {
    * Create project session with appropriate scopes
    */
   async createProjectSessionWithScopes(projectId: string, scopes?: Scope[]): Promise<Session> {
-    const project = await this.db.getProject(projectId);
-    if (!project || !project.is_active) {
+    const project = await this.db.getProjectById(projectId);
+    if (!project || !project.active) {
       throw new Error('Project not found or inactive');
     }
 
@@ -160,32 +163,9 @@ export class AuthService {
       type: SessionType.PROJECT,
       project_id: projectId,
       scopes: sessionScopes,
+      created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
       consumed: false
-    });
-
-    return session;
-  }
-
-  /**
-   * Validate session token and return session with scopes
-   */
-  async validateSessionToken(token: string): Promise<Session | null> {
-    const session = await this.db.getSessionByToken(token);
-    
-    if (!session || session.consumed) {
-      return null;
-    }
-
-    // Check if expired
-    if (new Date(session.expires_at) < new Date()) {
-      await this.db.updateSession(session.id, { consumed: true });
-      return null;
-    }
-
-    // Update last activity
-    await this.db.updateSession(session.id, { 
-      last_activity: new Date().toISOString() 
     });
 
     return session;
@@ -277,7 +257,7 @@ export class AuthService {
       project_id: projectId,
       entity_type: 'auth',
       entity_id: userId,
-      action: ChangeAction.CREATE,
+      action: ChangeAction.CREATED,
       changes: { action },
       performed_by: userId,
       session_id: sessionId,

@@ -1,4 +1,4 @@
-import { createKrapiClient, KrapiClient } from "@krapi/sdk";
+import { KrapiClient } from "@krapi/sdk";
 import type { AdminRole, AccessLevel } from "@krapi/sdk";
 
 /**
@@ -10,8 +10,8 @@ export function createDefaultKrapi(): KrapiClient {
   // Remove /krapi/k1 from the baseURL since SDK appends it
   const cleanBaseURL = baseURL.replace(/\/krapi\/k1\/?$/, '');
   
-  return createKrapiClient({
-    baseURL: cleanBaseURL,
+  return new KrapiClient({
+    baseUrl: cleanBaseURL,
   });
 }
 
@@ -23,7 +23,11 @@ export function createKrapi(config: {
   apiKey?: string;
   authToken?: string;
 }): KrapiClient {
-  return createKrapiClient(config);
+  return new KrapiClient({
+    baseUrl: config.baseURL,
+    apiKey: config.apiKey,
+    sessionToken: config.authToken
+  });
 }
 
 // Re-export types and client for convenience
