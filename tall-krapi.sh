@@ -3,11 +3,108 @@
 echo "Installing and Starting Krapi CMS..."
 echo ""
 
-# Function to check if PostgreSQL is running
-check_postgres() {
+# Function to check if PostgreSQL is accessible
+check_postgres_connection() {
     echo "Checking PostgreSQL connection..."
+    
+    # Try to connect using psql if available
+    if command -v psql >/dev/null 2>&1; then
+        if PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d krapi -c "SELECT 1;" >/dev/null 2>&1; then
+            echo "PostgreSQL is accessible via psql!"
+            return 0
+        fi
+    fi
+    
+    # Try using docker exec if container is running
+    if docker ps | grep -q "krapi-postgres"; then
+        if docker exec krapi-postgres pg_isready -U postgres >/dev/null 2>&1; then
+            echo "PostgreSQL container is running and ready!"
+            return 0
+        fi
+    fi
+    
+    # Try using netcat to check if port is open
+    if command -v nc >/dev/null 2>&1; then
+        if nc -z localhost 5432 2>/dev/null; then
+            echo "PostgreSQL port 5432 is open, but connection test failed"
+            return 1
+        fi
+    fi
+    
+    # Try using Node.js health check script
+    if command -v node >/dev/null 2>&1 && [ -f "scripts/db-health-check.js" ]; then
+        if node scripts/db-health-check.js >/dev/null 2>&1; then
+            echo "PostgreSQL is accessible via Node.js health check!"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Function to check if Docker is available
+check_docker() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "ERROR: Docker is not installed or not in PATH"
+        echo "Please install Docker and try again"
+        return 1
+    fi
+    
+    if ! docker info >/dev/null 2>&1; then
+        echo "ERROR: Docker is not running"
+        echo "Please start Docker and try again"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to check if docker-compose is available
+check_docker_compose() {
+    if ! command -v docker-compose >/dev/null 2>&1; then
+        echo "ERROR: docker-compose is not installed or not in PATH"
+        echo "Please install docker-compose and try again"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to start PostgreSQL with Docker
+start_postgres_docker() {
+    echo "Starting PostgreSQL with Docker..."
+    
+    if ! check_docker; then
+        return 1
+    fi
+    
+    if ! check_docker_compose; then
+        return 1
+    fi
+    
+    # Check if docker-compose.yml exists
+    if [ ! -f "docker-compose.yml" ]; then
+        echo "ERROR: docker-compose.yml not found in current directory"
+        return 1
+    fi
+    
+    # Start PostgreSQL container
+    docker-compose up -d postgres
+    
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to start PostgreSQL container"
+        return 1
+    fi
+    
+    echo "PostgreSQL container started successfully!"
+    return 0
+}
+
+# Function to wait for PostgreSQL to be ready
+wait_for_postgres() {
+    echo "Waiting for PostgreSQL to be ready..."
     for i in {1..30}; do
-        if docker-compose ps | grep -q "krapi-postgres" && docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+        if check_postgres_connection; then
             echo "PostgreSQL is ready!"
             return 0
         fi
@@ -18,17 +115,22 @@ check_postgres() {
     return 1
 }
 
-# Start PostgreSQL if not already running
-if ! docker-compose ps | grep -q "krapi-postgres"; then
-    echo "Starting PostgreSQL..."
-    docker-compose up -d postgres
-    sleep 5
-fi
-
-# Check if PostgreSQL is ready
-if ! check_postgres; then
-    echo "Failed to connect to PostgreSQL. Please check your Docker installation and try again."
-    exit 1
+# Check if PostgreSQL is already accessible
+if check_postgres_connection; then
+    echo "PostgreSQL is already accessible!"
+else
+    echo "PostgreSQL is not accessible. Attempting to start with Docker..."
+    
+    if ! start_postgres_docker; then
+        echo "Failed to start PostgreSQL with Docker. Please check your Docker installation and try again."
+        exit 1
+    fi
+    
+    # Wait for PostgreSQL to be ready
+    if ! wait_for_postgres; then
+        echo "Failed to connect to PostgreSQL. Please check your Docker installation and try again."
+        exit 1
+    fi
 fi
 
 echo ""
