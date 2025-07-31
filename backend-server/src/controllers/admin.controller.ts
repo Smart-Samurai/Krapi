@@ -124,7 +124,7 @@ export class AdminController {
       await this.db.createChangelogEntry({
         entity_type: 'admin_user',
         entity_id: newUser.id,
-        action: ChangeAction.CREATE,
+        action: ChangeAction.CREATED,
         changes: { email, username, role, access_level },
         performed_by: currentUser?.id || 'system',
         session_id: authReq.session?.id,
