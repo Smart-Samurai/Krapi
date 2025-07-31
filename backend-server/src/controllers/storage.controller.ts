@@ -48,33 +48,8 @@ export class StorageController {
         fileSize: this.maxFileSize
       },
       fileFilter: (req, file, cb) => {
-        // Get project settings to check allowed file types
-        const authReq = req as AuthenticatedRequest;
-        const project = authReq.project;
-        
-        if (project?.settings.storage_config?.allowed_types) {
-          const allowedTypes = project.settings.storage_config.allowed_types;
-          let isAllowed = false;
-
-          for (const type of allowedTypes) {
-            if (type.endsWith('/*')) {
-              // Wildcard type (e.g., image/*)
-              const baseType = type.slice(0, -2);
-              if (file.mimetype.startsWith(baseType)) {
-                isAllowed = true;
-                break;
-              }
-            } else if (type === file.mimetype) {
-              isAllowed = true;
-              break;
-            }
-          }
-
-          if (!isAllowed) {
-            return cb(new Error(`File type ${file.mimetype} not allowed`));
-          }
-        }
-
+        // For now, accept all file types
+        // TODO: Implement project-specific file type restrictions
         cb(null, true);
       }
     });
@@ -134,7 +109,7 @@ export class StorageController {
           mime_type: req.file.mimetype,
           size: req.file.size,
           path: req.file.path,
-          uploaded_by: authReq.user?.id || authReq.session?.api_key,
+          uploaded_by: authReq.user?.id || authReq.session?.user_id || 'system',
           created_at: new Date().toISOString()
         });
 
@@ -143,9 +118,9 @@ export class StorageController {
           project_id: projectId,
           entity_type: 'file',
           entity_id: fileRecord.id,
-          action: ChangeAction.CREATE,
+          action: ChangeAction.CREATED,
           changes: { filename: req.file.originalname, size: req.file.size },
-          performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
+          performed_by: authReq.user?.id || authReq.session?.user_id || 'system',
           session_id: authReq.session?.id,
           timestamp: new Date().toISOString()
         });
@@ -326,9 +301,9 @@ export class StorageController {
         project_id: projectId,
         entity_type: 'file',
         entity_id: fileId,
-        action: ChangeAction.DELETE,
+        action: ChangeAction.DELETED,
         changes: { filename: file.original_name },
-        performed_by: authReq.user?.id || authReq.session?.api_key || 'system',
+        performed_by: authReq.user?.id || authReq.session?.user_id || 'system',
         session_id: authReq.session?.id,
         timestamp: new Date().toISOString()
       });

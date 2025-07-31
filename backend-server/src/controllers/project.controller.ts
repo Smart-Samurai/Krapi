@@ -107,7 +107,7 @@ export class ProjectController {
         project_id: newProject.id,
         entity_type: 'project',
         entity_id: newProject.id,
-        action: ChangeAction.CREATE,
+        action: ChangeAction.CREATED,
         changes: { name, description },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
@@ -180,7 +180,7 @@ export class ProjectController {
           project_id: id,
           entity_type: 'project',
           entity_id: id,
-          action: ChangeAction.UPDATE,
+          action: ChangeAction.UPDATED,
           changes,
           performed_by: currentUser.id,
           session_id: authReq.session?.id,
@@ -244,7 +244,7 @@ export class ProjectController {
         project_id: id,
         entity_type: 'project',
         entity_id: id,
-        action: ChangeAction.DELETE,
+        action: ChangeAction.DELETED,
         changes: { name: existingProject.name },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
@@ -296,7 +296,7 @@ export class ProjectController {
       const stats = {
         tables: tables.length,
         documents: documentCount,
-        users: users.length,
+        users: users.total,
         files: files.length,
         storage_used: files.reduce((sum, file) => sum + file.size, 0)
       };
@@ -397,7 +397,7 @@ export class ProjectController {
         project_id: id,
         entity_type: 'project',
         entity_id: id,
-        action: ChangeAction.UPDATE,
+        action: ChangeAction.UPDATED,
         changes: { api_key: 'regenerated' },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
@@ -417,6 +417,271 @@ export class ProjectController {
         error: 'Failed to regenerate API key'
       } as ApiResponse);
         return;
+    }
+  };
+
+  // Get project settings
+  getProjectSettings = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+
+      const project = await this.db.getProjectById(projectId);
+
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found'
+        } as ApiResponse);
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: project.settings || {}
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get project settings error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch project settings'
+      } as ApiResponse);
+    }
+  };
+
+  // Update project settings
+  updateProjectSettings = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      const { projectId } = req.params;
+      const settings = req.body;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Check if project exists
+      const existingProject = await this.db.getProjectById(projectId);
+      if (!existingProject) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Update project settings
+      const updatedProject = await this.db.updateProject(projectId, { settings });
+
+      if (!updatedProject) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to update project settings'
+        } as ApiResponse);
+        return;
+      }
+
+      // Log the action
+      await this.db.createChangelogEntry({
+        project_id: projectId,
+        entity_type: 'project',
+        entity_id: projectId,
+        action: ChangeAction.UPDATED,
+        changes: { settings: { old: existingProject.settings, new: settings } },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(200).json({
+        success: true,
+        data: updatedProject.settings
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Update project settings error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update project settings'
+      } as ApiResponse);
+    }
+  };
+
+  // Create project API key
+  createProjectApiKey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      const { projectId } = req.params;
+      const { name, scopes } = req.body;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Check if project exists
+      const project = await this.db.getProjectById(projectId);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Generate new API key
+      const apiKey = `krapi_${require('uuid').v4().replace(/-/g, '')}`;
+
+      // Create API key entry
+      const newApiKey = await this.db.createProjectApiKey({
+        project_id: projectId,
+        name,
+        key: apiKey,
+        scopes: scopes || [],
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+        last_used_at: null,
+        active: true
+      });
+
+      // Log the action
+      await this.db.createChangelogEntry({
+        project_id: projectId,
+        entity_type: 'api_key',
+        entity_id: newApiKey.id,
+        action: ChangeAction.CREATED,
+        changes: { name, scopes },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(201).json({
+        success: true,
+        data: newApiKey,
+        message: 'API key created successfully'
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Create project API key error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create API key'
+      } as ApiResponse);
+    }
+  };
+
+  // Get project API keys
+  getProjectApiKeys = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+
+      // Check if project exists
+      const project = await this.db.getProjectById(projectId);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Get API keys for the project
+      const apiKeys = await this.db.getProjectApiKeys(projectId);
+
+      // Remove the actual key values for security
+      const sanitizedKeys = apiKeys.map(key => ({
+        ...key,
+        key: key.key.substring(0, 10) + '...' // Show only first 10 chars
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: sanitizedKeys
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get project API keys error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch API keys'
+      } as ApiResponse);
+    }
+  };
+
+  // Delete project API key
+  deleteProjectApiKey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      const { projectId, keyId } = req.params;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Check if project exists
+      const project = await this.db.getProjectById(projectId);
+      if (!project) {
+        res.status(404).json({
+          success: false,
+          error: 'Project not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Check if API key exists
+      const apiKey = await this.db.getProjectApiKeyById(keyId);
+      if (!apiKey || apiKey.owner_id !== projectId) {
+        res.status(404).json({
+          success: false,
+          error: 'API key not found'
+        } as ApiResponse);
+        return;
+      }
+
+      // Delete API key
+      const deleted = await this.db.deleteProjectApiKey(keyId);
+
+      if (!deleted) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to delete API key'
+        } as ApiResponse);
+        return;
+      }
+
+      // Log the action
+      await this.db.createChangelogEntry({
+        project_id: projectId,
+        entity_type: 'api_key',
+        entity_id: keyId,
+        action: ChangeAction.DELETED,
+        changes: { name: apiKey.name },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'API key deleted successfully'
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Delete project API key error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete API key'
+      } as ApiResponse);
     }
   };
 }
