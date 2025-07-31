@@ -205,7 +205,7 @@ export class AdminController {
         await this.db.createChangelogEntry({
           entity_type: 'admin_user',
           entity_id: id,
-          action: ChangeAction.UPDATE,
+          action: ChangeAction.UPDATED,
           changes,
           performed_by: currentUser?.id || 'system',
           session_id: authReq.session?.id,
@@ -285,7 +285,7 @@ export class AdminController {
       await this.db.createChangelogEntry({
         entity_type: 'admin_user',
         entity_id: id,
-        action: ChangeAction.DELETE,
+        action: ChangeAction.DELETED,
         changes: { email: existingUser.email, username: existingUser.username },
         performed_by: currentUser?.id || 'system',
         session_id: authReq.session?.id,
@@ -348,7 +348,7 @@ export class AdminController {
       await this.db.createChangelogEntry({
         entity_type: 'admin_user',
         entity_id: id,
-        action: ChangeAction.UPDATE,
+        action: ChangeAction.UPDATED,
         changes: { active: { old: existingUser.active, new: updatedUser.active } },
         performed_by: currentUser?.id || 'system',
         session_id: authReq.session?.id,
