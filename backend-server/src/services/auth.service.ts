@@ -146,6 +146,32 @@ export class AuthService {
     return { valid: true, session: consumedSession };
   }
 
+  // Validate Session Token (without consuming)
+  async validateSessionToken(token: string): Promise<{ valid: boolean, session?: Session }> {
+    const session = await this.db.getSessionByToken(token);
+    
+    if (!session) {
+      return { valid: false };
+    }
+
+    // Check if expired
+    if (new Date(session.expires_at) < new Date()) {
+      // Mark expired session as consumed and update last activity
+      await this.db.updateSession(token, { consumed: true, last_activity: true });
+      return { valid: false };
+    }
+
+    // Check if already consumed
+    if (session.consumed) {
+      return { valid: false };
+    }
+
+    // Update last activity for valid session
+    const updatedSession = await this.db.updateSession(token, { last_activity: true });
+    
+    return { valid: true, session: updatedSession || session };
+  }
+
   // Generate JWT Token (for after session validation)
   generateJWT(payload: { id: string, type: SessionType, projectId?: string, permissions?: string[] }): string {
     return jwt.sign(payload, this.jwtSecret, { expiresIn: this.jwtExpiresIn } as jwt.SignOptions);

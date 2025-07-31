@@ -885,6 +885,40 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
   }
 
+  async updateSession(token: string, updates: { consumed?: boolean; last_activity?: boolean }): Promise<Session | null> {
+    const setClauses: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (updates.consumed !== undefined) {
+      setClauses.push(`consumed = $${paramCount++}`);
+      values.push(updates.consumed);
+      if (updates.consumed) {
+        setClauses.push(`consumed_at = CURRENT_TIMESTAMP`);
+      }
+    }
+
+    if (updates.last_activity) {
+      setClauses.push(`last_activity = CURRENT_TIMESTAMP`);
+    }
+
+    if (setClauses.length === 0) {
+      // No updates requested
+      return this.getSessionByToken(token);
+    }
+
+    values.push(token);
+    const result = await this.pool.query(
+      `UPDATE sessions 
+       SET ${setClauses.join(', ')} 
+       WHERE token = $${paramCount}
+       RETURNING *`,
+      values
+    );
+
+    return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
+  }
+
   async invalidateUserSessions(userId: string): Promise<void> {
     await this.pool.query(
       'UPDATE sessions SET is_active = false WHERE user_id = $1',
