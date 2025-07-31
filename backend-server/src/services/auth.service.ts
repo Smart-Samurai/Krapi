@@ -189,7 +189,7 @@ export class AuthService {
     // Check if expired
     if (new Date(session.expires_at) < new Date()) {
       // Mark expired session as consumed and update last activity
-      await this.db.updateSession(token, { consumed: true, last_activity: true });
+      await this.db.updateSession(session.id, { consumed: true, last_activity: true });
       return { valid: false };
     }
 
@@ -199,7 +199,7 @@ export class AuthService {
     }
 
     // Update last activity for valid session
-    const updatedSession = await this.db.updateSession(token, { last_activity: true });
+    const updatedSession = await this.db.updateSession(session.id, { last_activity: true });
     
     return { valid: true, session: updatedSession || session };
   }
