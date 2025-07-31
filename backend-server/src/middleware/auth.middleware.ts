@@ -118,8 +118,12 @@ export const authenticate = async (
         return;
       }
 
+      // For project sessions, user_id might be null
+      // In such cases, use the session id as the user identifier
+      const userId = session.user_id || session.id;
+
       (req as AuthenticatedRequest).user = {
-        id: session.user_id!,
+        id: userId,
         type: session.type === "admin" ? "admin" : "project",
         project_id: session.project_id,
         scopes: session.scopes as Scope[],
