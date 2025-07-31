@@ -203,8 +203,3 @@ export interface QueryOptions {
   where?: Record<string, any>;
   search?: string;
 }
-
-// Legacy types (deprecated)
-export type TableSchema = Collection;
-export type TableField = CollectionField;
-export type TableIndex = CollectionIndex;

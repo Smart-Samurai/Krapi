@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthService } from '@/services/auth.service';
 import { DatabaseService } from '@/services/database.service';
 import { AuthenticatedRequest, ApiResponse, SessionType } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
 
 export class AuthController {
   private authService: AuthService;
@@ -311,6 +312,114 @@ export class AuthController {
         error: 'Failed to change password'
       } as ApiResponse);
         return;
+    }
+  };
+
+  // Admin login with API key
+  adminApiLogin = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { api_key } = req.body;
+
+      if (!api_key) {
+        res.status(400).json({
+          success: false,
+          error: 'API key is required'
+        } as ApiResponse);
+        return;
+      }
+
+      const user = await this.db.getAdminUserByApiKey(api_key);
+
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: 'Invalid API key'
+        } as ApiResponse);
+        return;
+      }
+
+      // Create session
+      const session = await this.db.createSession({
+        token: `tok_${uuidv4().replace(/-/g, '')}`,
+        type: SessionType.ADMIN,
+        user_id: user.id,
+        permissions: this.authService.getPermissionsForRole(user.role),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+        consumed: false
+      });
+
+      // Update last login
+      await this.db.updateAdminUser(user.id, { last_login: new Date().toISOString() });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            access_level: user.access_level,
+            permissions: user.permissions
+          },
+          token: session.token,
+          session_token: session.token,
+          expires_at: session.expires_at
+        }
+      } as ApiResponse);
+      return;
+    } catch (error) {
+      console.error('Admin API login error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to authenticate with API key'
+      } as ApiResponse);
+      return;
+    }
+  };
+
+  // Regenerate API key for current user
+  regenerateApiKey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      
+      if (!authReq.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Generate new API key
+      const newApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
+      
+      // Update user with new API key
+      const updated = await this.db.updateAdminUser(authReq.user.id, { api_key: newApiKey });
+
+      if (!updated) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to regenerate API key'
+        } as ApiResponse);
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          api_key: newApiKey,
+          message: 'API key regenerated successfully. Save this key securely - it will not be shown again!'
+        }
+      } as ApiResponse);
+      return;
+    } catch (error) {
+      console.error('Regenerate API key error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to regenerate API key'
+      } as ApiResponse);
+      return;
     }
   };
 }

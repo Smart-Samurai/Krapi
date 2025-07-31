@@ -9,10 +9,18 @@
  *    - Ensures default admin user exists with credentials:
  *      Username: admin
  *      Password: admin123 (or value from DEFAULT_ADMIN_PASSWORD env var)
+ *    - Generates a master API key for the default admin (shown once on first run)
  *    - If admin exists but password was changed during development,
  *      it will be reset to the default on startup
  * 
- * 2. HEALTH CHECKS:
+ * 2. AUTHENTICATION:
+ *    - Admin users can authenticate via:
+ *      a) Username/password: POST /krapi/k1/auth/admin/login
+ *      b) API key: POST /krapi/k1/auth/admin/api-login
+ *    - Master API key (mak_*) provides full admin access
+ *    - Project API keys (pk_*) provide project-specific access
+ * 
+ * 3. HEALTH CHECKS:
  *    - GET /krapi/k1/health - Returns comprehensive health status
  *    - POST /krapi/k1/health/repair - Attempts to fix database issues
  *    - Health check includes:
@@ -21,14 +29,25 @@
  *      - Default admin user check
  *      - Initialization status
  * 
- * 3. AUTO-REPAIR:
+ * 4. AUTO-REPAIR:
  *    - On startup, if health check fails, auto-repair is attempted
  *    - Repair actions include:
  *      - Creating missing tables
  *      - Fixing default admin user
  *      - Recording repair actions in system_checks table
  * 
- * 4. ENVIRONMENT VARIABLES:
+ * 5. ROUTE STRUCTURE:
+ *    Admin-level routes:
+ *    - /krapi/k1/auth/* - Authentication endpoints
+ *    - /krapi/k1/admin/* - Admin user management
+ *    - /krapi/k1/projects - Project CRUD operations
+ *    
+ *    Project-level routes (all under /projects/:projectId):
+ *    - /krapi/k1/projects/:projectId/collections/* - Data collections
+ *    - /krapi/k1/projects/:projectId/storage/* - File storage
+ *    - /krapi/k1/projects/:projectId/email/* - Email functionality (future)
+ * 
+ * 6. ENVIRONMENT VARIABLES:
  *    - DB_HOST: PostgreSQL host (default: localhost)
  *    - DB_PORT: PostgreSQL port (default: 5432)
  *    - DB_NAME: Database name (default: krapi)
@@ -36,11 +55,12 @@
  *    - DB_PASSWORD: Database password (default: postgres)
  *    - DEFAULT_ADMIN_PASSWORD: Default admin password (default: admin123)
  * 
- * 5. TROUBLESHOOTING:
+ * 7. TROUBLESHOOTING:
  *    - Run npm run health-check to verify backend health
  *    - Check logs for detailed error messages
  *    - Ensure PostgreSQL is running and accessible
  *    - Verify database credentials in environment variables
+ *    - Master API key is shown only once on first run - save it securely!
  */
 
 import express, { Express } from "express";

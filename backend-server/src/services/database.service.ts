@@ -144,7 +144,8 @@ export class DatabaseService {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           last_login TIMESTAMP,
-          login_count INTEGER DEFAULT 0
+          login_count INTEGER DEFAULT 0,
+          api_key VARCHAR(255) UNIQUE
         )
       `);
 
@@ -178,17 +179,19 @@ export class DatabaseService {
         )
       `);
 
-      // Table Schemas
+      // Collections Table (formerly table_schemas)
       await client.query(`
-        CREATE TABLE IF NOT EXISTS table_schemas (
+        CREATE TABLE IF NOT EXISTS collections (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          table_name VARCHAR(255) NOT NULL,
-          schema JSONB NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+          indexes JSONB DEFAULT '[]'::jsonb,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           created_by UUID REFERENCES admin_users(id),
-          UNIQUE(project_id, table_name)
+          UNIQUE(project_id, name)
         )
       `);
 
@@ -197,7 +200,8 @@ export class DatabaseService {
         CREATE TABLE IF NOT EXISTS documents (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          table_name VARCHAR(255) NOT NULL,
+          collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+          collection_name VARCHAR(255) NOT NULL,
           data JSONB NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -206,10 +210,15 @@ export class DatabaseService {
         )
       `);
 
-      // Create index for documents
+      // Create indexes for documents
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_documents_project_table 
-        ON documents(project_id, table_name)
+        CREATE INDEX IF NOT EXISTS idx_documents_project_collection 
+        ON documents(project_id, collection_name)
+      `);
+      
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_documents_collection_id 
+        ON documents(collection_id)
       `);
 
       // Files Table
@@ -263,6 +272,18 @@ export class DatabaseService {
         )
       `);
 
+      // System checks table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS system_checks (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          check_type VARCHAR(100) NOT NULL,
+          status VARCHAR(50) NOT NULL,
+          details JSONB DEFAULT '{}'::jsonb,
+          last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(check_type)
+        )
+      `);
+
       // Create updated_at trigger function
       await client.query(`
         CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -275,7 +296,7 @@ export class DatabaseService {
       `);
 
       // Create triggers for updated_at
-      const tablesWithUpdatedAt = ['admin_users', 'projects', 'table_schemas'];
+      const tablesWithUpdatedAt = ['admin_users', 'projects', 'collections', 'documents'];
       for (const table of tablesWithUpdatedAt) {
         await client.query(`
           DROP TRIGGER IF EXISTS update_${table}_updated_at ON ${table};
@@ -306,27 +327,49 @@ export class DatabaseService {
       );
 
       if (result.rows.length === 0) {
-        // Create default master admin
+        // Create default master admin with API key
         const hashedPassword = await bcrypt.hash('admin123', 10);
+        const masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
+        
         await this.pool.query(
-          `INSERT INTO admin_users (username, email, password, role, access_level) 
-           VALUES ($1, $2, $3, $4, $5)`,
-          ['admin', 'admin@krapi.com', hashedPassword, 'master_admin', 'full']
+          `INSERT INTO admin_users (username, email, password, role, access_level, api_key) 
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          ['admin', 'admin@krapi.com', hashedPassword, 'master_admin', 'full', masterApiKey]
         );
         console.log('Default master admin created');
+        console.log(`Master API Key: ${masterApiKey}`);
+        console.log('⚠️  Save this API key securely - it will not be shown again!');
       } else {
-        // Ensure default admin has correct password
-        // This handles cases where the password was changed during development
+        // Ensure default admin has correct password and generate API key if missing
         const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
         const hashedPassword = await bcrypt.hash(defaultPassword, 10);
         
-        await this.pool.query(
-          `UPDATE admin_users 
-           SET password = $1, is_active = true 
-           WHERE username = $2`,
-          [hashedPassword, 'admin']
+        // Check if admin has API key
+        const adminResult = await this.pool.query(
+          'SELECT api_key FROM admin_users WHERE username = $1',
+          ['admin']
         );
-        console.log('Default master admin password reset to default');
+        
+        if (!adminResult.rows[0].api_key) {
+          const masterApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
+          await this.pool.query(
+            `UPDATE admin_users 
+             SET password = $1, is_active = true, api_key = $2 
+             WHERE username = $3`,
+            [hashedPassword, masterApiKey, 'admin']
+          );
+          console.log('Default master admin password reset and API key generated');
+          console.log(`Master API Key: ${masterApiKey}`);
+          console.log('⚠️  Save this API key securely - it will not be shown again!');
+        } else {
+          await this.pool.query(
+            `UPDATE admin_users 
+             SET password = $1, is_active = true 
+             WHERE username = $2`,
+            [hashedPassword, 'admin']
+          );
+          console.log('Default master admin password reset to default');
+        }
       }
       
       // Create a system check table to track initialization
@@ -391,7 +434,7 @@ export class DatabaseService {
       
       // Check required tables exist
       const requiredTables = [
-        'admin_users', 'projects', 'project_users', 'table_schemas',
+        'admin_users', 'projects', 'project_users', 'collections',
         'documents', 'files', 'sessions', 'changelog', 'system_checks'
       ];
       
@@ -573,6 +616,16 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
   }
 
+  async getAdminUserByApiKey(apiKey: string): Promise<AdminUser | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT * FROM admin_users WHERE api_key = $1 AND is_active = true',
+      [apiKey]
+    );
+
+    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+  }
+
   async getAllAdminUsers(): Promise<AdminUser[]> {
     await this.ensureReady();
     const result = await this.pool.query(
@@ -604,10 +657,22 @@ export class DatabaseService {
       fields.push(`is_active = $${paramCount++}`);
       values.push(data.active);
     }
+    if (data.api_key !== undefined) {
+      fields.push(`api_key = $${paramCount++}`);
+      values.push(data.api_key);
+    }
+    if (data.last_login !== undefined) {
+      fields.push(`last_login = $${paramCount++}`);
+      values.push(data.last_login);
+    }
     if ('password' in data && typeof data.password === 'string') {
       const hashedPassword = await bcrypt.hash(data.password, 10);
       fields.push(`password = $${paramCount++}`);
       values.push(hashedPassword);
+    }
+    if (data.password_hash !== undefined) {
+      fields.push(`password = $${paramCount++}`);
+      values.push(data.password_hash);
     }
 
     if (fields.length === 0) return this.getAdminUserById(id);
@@ -832,10 +897,10 @@ export class DatabaseService {
   // Collection Methods (new terminology for tables/schemas)
   async createCollection(projectId: string, collectionName: string, schema: { description?: string; fields: CollectionField[]; indexes?: CollectionIndex[] }, createdBy: string): Promise<Collection> {
     const result = await this.pool.query(
-      `INSERT INTO table_schemas (project_id, table_name, schema, created_by) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [projectId, collectionName, schema, createdBy]
+      [projectId, collectionName, schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), createdBy]
     );
 
     return this.mapCollection(result.rows[0]);
@@ -843,7 +908,7 @@ export class DatabaseService {
 
   async getCollection(projectId: string, collectionName: string): Promise<Collection | null> {
     const result = await this.pool.query(
-      'SELECT * FROM table_schemas WHERE project_id = $1 AND table_name = $2',
+      'SELECT * FROM collections WHERE project_id = $1 AND name = $2',
       [projectId, collectionName]
     );
 
@@ -852,7 +917,7 @@ export class DatabaseService {
 
   async getProjectCollections(projectId: string): Promise<Collection[]> {
     const result = await this.pool.query(
-      'SELECT * FROM table_schemas WHERE project_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC',
       [projectId]
     );
 
@@ -861,11 +926,11 @@ export class DatabaseService {
 
   async updateCollection(projectId: string, collectionName: string, schema: { description?: string; fields?: CollectionField[]; indexes?: CollectionIndex[] }): Promise<Collection | null> {
     const result = await this.pool.query(
-      `UPDATE table_schemas 
-       SET schema = $1 
-       WHERE project_id = $2 AND table_name = $3 
+      `UPDATE collections 
+       SET description = $1, fields = $2, indexes = $3 
+       WHERE project_id = $4 AND name = $5 
        RETURNING *`,
-      [schema, projectId, collectionName]
+      [schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), projectId, collectionName]
     );
 
     return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
@@ -878,13 +943,13 @@ export class DatabaseService {
 
       // Delete all documents for this collection
       await client.query(
-        'DELETE FROM documents WHERE project_id = $1 AND table_name = $2',
+        'DELETE FROM documents WHERE project_id = $1 AND collection_name = $2',
         [projectId, collectionName]
       );
 
       // Delete the collection schema
       const result = await client.query(
-        'DELETE FROM table_schemas WHERE project_id = $1 AND table_name = $2',
+        'DELETE FROM collections WHERE project_id = $1 AND name = $2',
         [projectId, collectionName]
       );
 
@@ -901,7 +966,7 @@ export class DatabaseService {
   async getDocumentsByCollection(collectionId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
     // First get the collection to get project_id and collection_name
     const collectionResult = await this.pool.query(
-      'SELECT project_id, table_name FROM table_schemas WHERE id = $1',
+      'SELECT project_id, name FROM collections WHERE id = $1',
       [collectionId]
     );
     
@@ -909,50 +974,50 @@ export class DatabaseService {
       return { documents: [], total: 0 };
     }
     
-    const { project_id, table_name } = collectionResult.rows[0];
-    return this.getDocuments(project_id, table_name, options);
+    const { project_id, name } = collectionResult.rows[0];
+    return this.getDocuments(project_id, name, options);
   }
 
   // Table Schema Methods (keeping for backward compatibility)
-  async createTableSchema(projectId: string, tableName: string, schema: { description?: string; fields: TableField[]; indexes?: TableIndex[] }, createdBy: string): Promise<TableSchema> {
+  async createTableSchema(projectId: string, tableName: string, schema: { description?: string; fields: CollectionField[]; indexes?: CollectionIndex[] }, createdBy: string): Promise<Collection> {
     const result = await this.pool.query(
-      `INSERT INTO table_schemas (project_id, table_name, schema, created_by) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
-      [projectId, tableName, schema, createdBy]
+      [projectId, tableName, schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), createdBy]
     );
 
-    return this.mapTableSchema(result.rows[0]);
+    return this.mapCollection(result.rows[0]);
   }
 
-  async getTableSchema(projectId: string, tableName: string): Promise<TableSchema | null> {
+  async getTableSchema(projectId: string, tableName: string): Promise<Collection | null> {
     const result = await this.pool.query(
-      'SELECT * FROM table_schemas WHERE project_id = $1 AND table_name = $2',
+      'SELECT * FROM collections WHERE project_id = $1 AND name = $2',
       [projectId, tableName]
     );
 
-    return result.rows.length > 0 ? this.mapTableSchema(result.rows[0]) : null;
+    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
   }
 
-  async getProjectTableSchemas(projectId: string): Promise<TableSchema[]> {
+  async getProjectTableSchemas(projectId: string): Promise<Collection[]> {
     const result = await this.pool.query(
-      'SELECT * FROM table_schemas WHERE project_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC',
       [projectId]
     );
 
-    return result.rows.map(row => this.mapTableSchema(row));
+    return result.rows.map(row => this.mapCollection(row));
   }
 
-  async updateTableSchema(projectId: string, tableName: string, schema: { description?: string; fields?: TableField[]; indexes?: TableIndex[] }): Promise<TableSchema | null> {
+  async updateTableSchema(projectId: string, tableName: string, schema: { description?: string; fields?: CollectionField[]; indexes?: CollectionIndex[] }): Promise<Collection | null> {
     const result = await this.pool.query(
-      `UPDATE table_schemas 
-       SET schema = $1 
-       WHERE project_id = $2 AND table_name = $3 
+      `UPDATE collections 
+       SET description = $1, fields = $2, indexes = $3 
+       WHERE project_id = $4 AND name = $5 
        RETURNING *`,
-      [schema, projectId, tableName]
+      [schema.description, JSON.stringify(schema.fields), JSON.stringify(schema.indexes), projectId, tableName]
     );
 
-    return result.rows.length > 0 ? this.mapTableSchema(result.rows[0]) : null;
+    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
   }
 
   async deleteTableSchema(projectId: string, tableName: string): Promise<boolean> {
@@ -962,13 +1027,13 @@ export class DatabaseService {
 
       // Delete all documents for this table
       await client.query(
-        'DELETE FROM documents WHERE project_id = $1 AND table_name = $2',
+        'DELETE FROM documents WHERE project_id = $1 AND collection_name = $2',
         [projectId, tableName]
       );
 
       // Delete the schema
       const result = await client.query(
-        'DELETE FROM table_schemas WHERE project_id = $1 AND table_name = $2',
+        'DELETE FROM collections WHERE project_id = $1 AND name = $2',
         [projectId, tableName]
       );
 
@@ -983,21 +1048,21 @@ export class DatabaseService {
   }
 
   // Document Methods
-  async createDocument(projectId: string, tableName: string, data: Record<string, unknown>, createdBy?: string): Promise<Document> {
+  async createDocument(projectId: string, collectionName: string, data: Record<string, unknown>, createdBy?: string): Promise<Document> {
     const result = await this.pool.query(
-      `INSERT INTO documents (project_id, table_name, data, created_by, updated_by) 
+      `INSERT INTO documents (project_id, collection_name, data, created_by, updated_by) 
        VALUES ($1, $2, $3, $4, $4) 
        RETURNING *`,
-      [projectId, tableName, data, createdBy]
+      [projectId, collectionName, data, createdBy]
     );
 
     return this.mapDocument(result.rows[0]);
   }
 
-  async getDocument(projectId: string, tableName: string, documentId: string): Promise<Document | null> {
+  async getDocument(projectId: string, collectionName: string, documentId: string): Promise<Document | null> {
     const result = await this.pool.query(
-      'SELECT * FROM documents WHERE id = $1 AND project_id = $2 AND table_name = $3',
-      [documentId, projectId, tableName]
+      'SELECT * FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3',
+      [documentId, projectId, collectionName]
     );
 
     return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
@@ -1005,7 +1070,7 @@ export class DatabaseService {
 
   async getDocuments(
     projectId: string, 
-    tableName: string, 
+    collectionName: string, 
     options: { 
       limit?: number; 
       offset?: number; 
@@ -1016,8 +1081,8 @@ export class DatabaseService {
   ): Promise<{ documents: Document[]; total: number }> {
     const { limit = 100, offset = 0, orderBy = 'created_at', order = 'desc', where } = options;
 
-    let whereClause = 'WHERE project_id = $1 AND table_name = $2';
-    const params: unknown[] = [projectId, tableName];
+    let whereClause = 'WHERE project_id = $1 AND collection_name = $2';
+    const params: unknown[] = [projectId, collectionName];
 
     if (where && Object.keys(where).length > 0) {
       Object.entries(where).forEach(([key, value], _index) => {
@@ -1047,22 +1112,22 @@ export class DatabaseService {
     };
   }
 
-  async updateDocument(projectId: string, tableName: string, documentId: string, data: Record<string, unknown>, updatedBy?: string): Promise<Document | null> {
+  async updateDocument(projectId: string, collectionName: string, documentId: string, data: Record<string, unknown>, updatedBy?: string): Promise<Document | null> {
     const result = await this.pool.query(
       `UPDATE documents 
        SET data = $1, updated_by = $2 
-       WHERE id = $3 AND project_id = $4 AND table_name = $5 
+       WHERE id = $3 AND project_id = $4 AND collection_name = $5 
        RETURNING *`,
-      [data, updatedBy, documentId, projectId, tableName]
+      [data, updatedBy, documentId, projectId, collectionName]
     );
 
     return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
   }
 
-  async deleteDocument(projectId: string, tableName: string, documentId: string): Promise<boolean> {
+  async deleteDocument(projectId: string, collectionName: string, documentId: string): Promise<boolean> {
     const result = await this.pool.query(
-      'DELETE FROM documents WHERE id = $1 AND project_id = $2 AND table_name = $3',
-      [documentId, projectId, tableName]
+      'DELETE FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3',
+      [documentId, projectId, collectionName]
     );
 
     return (result.rowCount ?? 0) > 0;
@@ -1071,7 +1136,7 @@ export class DatabaseService {
   async getDocumentsByTable(tableId: string, options?: { limit?: number; offset?: number }): Promise<{ documents: Document[]; total: number }> {
     // First get the table schema to get project_id and table_name
     const tableResult = await this.pool.query(
-      'SELECT project_id, name FROM table_schemas WHERE id = $1',
+      'SELECT project_id, name FROM collections WHERE id = $1',
       [tableId]
     );
     
@@ -1276,7 +1341,8 @@ export class DatabaseService {
       active: row.is_active as boolean,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-      last_login: row.last_login as string | undefined
+      last_login: row.last_login as string | undefined,
+      api_key: row.api_key as string | undefined
     };
   }
 
@@ -1309,24 +1375,13 @@ export class DatabaseService {
     };
   }
 
-  private mapTableSchema(row: Record<string, unknown>): TableSchema {
-    return {
-      id: row.id as string,
-      project_id: row.project_id as string,
-      name: row.table_name as string,
-      fields: row.schema as TableField[],
-      indexes: (row.indexes as TableIndex[]) || [],
-      created_at: row.created_at as string,
-      updated_at: row.updated_at as string
-    };
-  }
-
   private mapCollection(row: Record<string, unknown>): Collection {
     return {
       id: row.id as string,
       project_id: row.project_id as string,
-      name: row.table_name as string,
-      fields: (row.schema as CollectionField[]) || [],
+      name: row.name as string,
+      description: row.description as string | undefined,
+      fields: (row.fields as CollectionField[]) || [],
       indexes: (row.indexes as CollectionIndex[]) || [],
       created_at: row.created_at as string,
       updated_at: row.updated_at as string
@@ -1337,7 +1392,8 @@ export class DatabaseService {
     return {
       id: row.id as string,
       project_id: row.project_id as string,
-      collection_id: row.table_id as string, // Maps to table_id in DB for now
+      collection_id: row.collection_id as string, // Maps to collection_id in DB for now
+      collection_name: row.collection_name as string, // Maps to collection_name in DB for now
       data: row.data as Record<string, unknown>,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,

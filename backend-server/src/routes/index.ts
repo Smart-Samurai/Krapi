@@ -8,6 +8,7 @@ import { DatabaseService } from '@/services/database.service';
 
 const router: RouterType = Router();
 
+// ===== System Routes =====
 // Health check
 router.get('/health', async (req, res) => {
   try {
@@ -62,12 +63,24 @@ router.get('/version', (req, res) => {
   });
 });
 
-// Mount route modules
+// ===== Admin-Level Routes =====
+// Authentication routes for admin users
 router.use('/auth', authRoutes);
+
+// Admin management routes (users, system settings)
 router.use('/admin', adminRoutes);
+
+// Project management routes (CRUD operations on projects)
 router.use('/projects', projectRoutes);
-router.use('/projects', collectionsRoutes); // Collections are under projects
-router.use('/projects', storageRoutes); // Storage is under projects
+
+// ===== Project-Level Routes =====
+// All project-specific resources are nested under /projects/:projectId
+router.use('/projects', collectionsRoutes); // /projects/:projectId/collections
+router.use('/projects', storageRoutes);     // /projects/:projectId/storage
+
+// Future project-level routes will follow the same pattern:
+// router.use('/projects', emailRoutes);    // /projects/:projectId/email
+// router.use('/projects', functionsRoutes); // /projects/:projectId/functions
 
 // 404 handler
 router.use('*', (req, res) => {

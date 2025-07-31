@@ -569,20 +569,6 @@ export class KrapiClient {
     },
   };
 
-  // Legacy database methods (deprecated - use collections instead)
-  database = {
-    getSchemas: async (projectId: string) => this.collections.getAll(projectId),
-    getSchema: async (projectId: string, tableName: string) => this.collections.get(projectId, tableName),
-    createSchema: async (projectId: string, schema: any) => this.collections.create(projectId, schema),
-    updateSchema: async (projectId: string, tableName: string, updates: any) => this.collections.update(projectId, tableName, updates),
-    deleteSchema: async (projectId: string, tableName: string) => this.collections.delete(projectId, tableName),
-    getDocuments: async (projectId: string, tableName: string, options?: QueryOptions) => this.documents.getAll(projectId, tableName, options),
-    getDocument: async (projectId: string, tableName: string, documentId: string) => this.documents.get(projectId, tableName, documentId),
-    createDocument: async (projectId: string, tableName: string, data: Record<string, unknown>) => this.documents.create(projectId, tableName, data),
-    updateDocument: async (projectId: string, tableName: string, documentId: string, data: Record<string, unknown>) => this.documents.update(projectId, tableName, documentId, data),
-    deleteDocument: async (projectId: string, tableName: string, documentId: string) => this.documents.delete(projectId, tableName, documentId),
-  };
-
   // Health check
   health = async (): Promise<
     ApiResponse<{

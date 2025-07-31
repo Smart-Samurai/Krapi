@@ -1,8 +1,8 @@
 // Admin User Types
 export interface AdminUser {
   id: string;
-  email: string;
   username: string;
+  email: string;
   password_hash: string;
   role: AdminRole;
   access_level: AccessLevel;
@@ -11,6 +11,7 @@ export interface AdminUser {
   created_at: string;
   updated_at: string;
   last_login?: string;
+  api_key?: string;
 }
 
 export enum AdminRole {
