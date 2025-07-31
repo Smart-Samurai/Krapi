@@ -4,15 +4,21 @@
  * A type-safe client SDK for interacting with the KRAPI backend
  */
 
-import axios, { AxiosInstance, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from "axios";
 import {
   ApiResponse,
   PaginatedResponse,
   AdminUser,
+  AdminPermission,
   Project,
+  ProjectSettings,
+  ProjectStats,
   Collection,
+  CollectionField,
+  CollectionIndex,
   Document,
   FileInfo,
+  StorageStats,
   Session,
   QueryOptions,
   ProjectUser,
@@ -482,7 +488,7 @@ export class KrapiSDK {
       };
 
       if (onProgress) {
-        config.onUploadProgress = (progressEvent) => {
+        config.onUploadProgress = (progressEvent: any) => {
           const progress = progressEvent.total
             ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
             : 0;
