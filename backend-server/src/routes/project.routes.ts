@@ -15,12 +15,12 @@ router.use(authenticate);
 // Project CRUD operations
 router.get('/', requireScopes({
   scopes: [Scope.PROJECTS_READ]
-}), controller.getProjects);
+}), controller.getAllProjects);
 
 router.get('/:projectId', requireScopes({
   scopes: [Scope.PROJECTS_READ],
   projectSpecific: true
-}), controller.getProject);
+}), controller.getProjectById);
 
 router.post('/', requireScopes({
   scopes: [Scope.PROJECTS_WRITE]
