@@ -636,6 +636,402 @@ export class CollectionsController {
     }
   };
 
+  // Batch create documents
+  batchCreateDocuments = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { projectId, collectionName } = req.params;
+      const { documents } = req.body;
+
+      if (!documents || !Array.isArray(documents)) {
+        res.status(400).json({
+          success: false,
+          error: "Documents array is required",
+        } as ApiResponse);
+        return;
+      }
+
+      if (documents.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: "Documents array cannot be empty",
+        } as ApiResponse);
+        return;
+      }
+
+      if (documents.length > 1000) {
+        res.status(400).json({
+          success: false,
+          error: "Maximum 1000 documents allowed per batch",
+        } as ApiResponse);
+        return;
+      }
+
+      // Verify collection exists
+      const collection = await this.db.getCollection(projectId, collectionName);
+      if (!collection) {
+        res.status(404).json({
+          success: false,
+          error: "Collection not found",
+        } as ApiResponse);
+        return;
+      }
+
+      // Validate all documents
+      const validationErrors: string[] = [];
+      documents.forEach((doc, index) => {
+        if (!doc || typeof doc !== "object") {
+          validationErrors.push(`Document at index ${index} is invalid`);
+          return;
+        }
+        const validation = this.validateDocument(doc, collection.fields);
+        if (!validation.valid) {
+          validationErrors.push(`Document at index ${index}: ${validation.error}`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          details: validationErrors,
+        } as ApiResponse);
+        return;
+      }
+
+      // Create all documents
+      const createdDocuments: Document[] = [];
+      const errors: { index: number; error: string }[] = [];
+
+      for (let i = 0; i < documents.length; i++) {
+        try {
+          const document = await this.db.createDocument(
+            projectId,
+            collectionName,
+            documents[i],
+            req.user?.id
+          );
+          createdDocuments.push(document);
+
+          // Log the action
+          await this.db.createChangelogEntry({
+            project_id: projectId,
+            entity_type: "document",
+            entity_id: document.id,
+            action: ChangeAction.CREATED,
+            changes: { collection: collectionName, batch: true },
+            performed_by: req.user?.id || "unknown",
+            session_id: req.session?.id,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (error) {
+          errors.push({
+            index: i,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        data: {
+          created: createdDocuments,
+          failed: errors,
+          summary: {
+            total: documents.length,
+            created: createdDocuments.length,
+            failed: errors.length,
+          },
+        },
+      } as ApiResponse);
+      return;
+    } catch (error) {
+      console.error("Batch create documents error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create documents",
+      } as ApiResponse);
+      return;
+    }
+  };
+
+  // Batch update documents
+  batchUpdateDocuments = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { projectId, collectionName } = req.params;
+      const { updates } = req.body;
+
+      if (!updates || !Array.isArray(updates)) {
+        res.status(400).json({
+          success: false,
+          error: "Updates array is required",
+        } as ApiResponse);
+        return;
+      }
+
+      if (updates.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: "Updates array cannot be empty",
+        } as ApiResponse);
+        return;
+      }
+
+      if (updates.length > 1000) {
+        res.status(400).json({
+          success: false,
+          error: "Maximum 1000 updates allowed per batch",
+        } as ApiResponse);
+        return;
+      }
+
+      // Verify collection exists
+      const collection = await this.db.getCollection(projectId, collectionName);
+      if (!collection) {
+        res.status(404).json({
+          success: false,
+          error: "Collection not found",
+        } as ApiResponse);
+        return;
+      }
+
+      // Validate all updates
+      const validationErrors: string[] = [];
+      updates.forEach((update, index) => {
+        if (!update || typeof update !== "object") {
+          validationErrors.push(`Update at index ${index} is invalid`);
+          return;
+        }
+        if (!update.id) {
+          validationErrors.push(`Update at index ${index}: Document ID is required`);
+          return;
+        }
+        if (!update.data || typeof update.data !== "object") {
+          validationErrors.push(`Update at index ${index}: Data object is required`);
+          return;
+        }
+        const validation = this.validateDocument(update.data, collection.fields);
+        if (!validation.valid) {
+          validationErrors.push(`Update at index ${index}: ${validation.error}`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          details: validationErrors,
+        } as ApiResponse);
+        return;
+      }
+
+      // Update all documents
+      const updatedDocuments: Document[] = [];
+      const errors: { index: number; id: string; error: string }[] = [];
+
+      for (let i = 0; i < updates.length; i++) {
+        try {
+          // Verify document exists
+          const existing = await this.db.getDocument(
+            projectId,
+            collectionName,
+            updates[i].id
+          );
+          if (!existing) {
+            errors.push({
+              index: i,
+              id: updates[i].id,
+              error: "Document not found",
+            });
+            continue;
+          }
+
+          const updated = await this.db.updateDocument(
+            projectId,
+            collectionName,
+            updates[i].id,
+            updates[i].data,
+            req.user?.id
+          );
+
+          if (updated) {
+            updatedDocuments.push(updated);
+
+            // Log the action
+            await this.db.createChangelogEntry({
+              project_id: projectId,
+              entity_type: "document",
+              entity_id: updates[i].id,
+              action: ChangeAction.UPDATED,
+              changes: { collection: collectionName, batch: true },
+              performed_by: req.user?.id || "unknown",
+              session_id: req.session?.id,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            errors.push({
+              index: i,
+              id: updates[i].id,
+              error: "Failed to update document",
+            });
+          }
+        } catch (error) {
+          errors.push({
+            index: i,
+            id: updates[i].id,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          updated: updatedDocuments,
+          failed: errors,
+          summary: {
+            total: updates.length,
+            updated: updatedDocuments.length,
+            failed: errors.length,
+          },
+        },
+      } as ApiResponse);
+      return;
+    } catch (error) {
+      console.error("Batch update documents error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to update documents",
+      } as ApiResponse);
+      return;
+    }
+  };
+
+  // Batch delete documents
+  batchDeleteDocuments = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { projectId, collectionName } = req.params;
+      const { documentIds } = req.body;
+
+      if (!documentIds || !Array.isArray(documentIds)) {
+        res.status(400).json({
+          success: false,
+          error: "Document IDs array is required",
+        } as ApiResponse);
+        return;
+      }
+
+      if (documentIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: "Document IDs array cannot be empty",
+        } as ApiResponse);
+        return;
+      }
+
+      if (documentIds.length > 1000) {
+        res.status(400).json({
+          success: false,
+          error: "Maximum 1000 documents allowed per batch",
+        } as ApiResponse);
+        return;
+      }
+
+      // Verify collection exists
+      const collection = await this.db.getCollection(projectId, collectionName);
+      if (!collection) {
+        res.status(404).json({
+          success: false,
+          error: "Collection not found",
+        } as ApiResponse);
+        return;
+      }
+
+      // Delete all documents
+      const deletedIds: string[] = [];
+      const errors: { id: string; error: string }[] = [];
+
+      for (const documentId of documentIds) {
+        try {
+          // Verify document exists
+          const existing = await this.db.getDocument(
+            projectId,
+            collectionName,
+            documentId
+          );
+          if (!existing) {
+            errors.push({
+              id: documentId,
+              error: "Document not found",
+            });
+            continue;
+          }
+
+          const deleted = await this.db.deleteDocument(
+            projectId,
+            collectionName,
+            documentId
+          );
+
+          if (deleted) {
+            deletedIds.push(documentId);
+
+            // Log the action
+            await this.db.createChangelogEntry({
+              project_id: projectId,
+              entity_type: "document",
+              entity_id: documentId,
+              action: ChangeAction.DELETED,
+              changes: { collection: collectionName, batch: true },
+              performed_by: req.user?.id || "unknown",
+              session_id: req.session?.id,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            errors.push({
+              id: documentId,
+              error: "Failed to delete document",
+            });
+          }
+        } catch (error) {
+          errors.push({
+            id: documentId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          deleted: deletedIds,
+          failed: errors,
+          summary: {
+            total: documentIds.length,
+            deleted: deletedIds.length,
+            failed: errors.length,
+          },
+        },
+      } as ApiResponse);
+      return;
+    } catch (error) {
+      console.error("Batch delete documents error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete documents",
+      } as ApiResponse);
+      return;
+    }
+  };
+
   // Helper methods
   private isValidCollectionName(name: string): boolean {
     return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
