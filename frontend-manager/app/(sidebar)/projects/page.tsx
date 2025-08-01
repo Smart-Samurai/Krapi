@@ -13,12 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScopeGuard } from "@/components/scope-guard";
+import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
 import { toast } from "sonner";
-import {
-  Plus,
-  ArrowRight,
-} from "lucide-react";
+import { Plus, ArrowRight, Settings } from "lucide-react";
 import { Project, Scope } from "@/lib/krapi";
 import {
   Dialog,
@@ -163,10 +160,6 @@ export default function ProjectsPage() {
     }
   };
 
-
-
-
-
   if (loading) {
     return (
       <div className="p-6 space-y-6">
@@ -255,8 +248,8 @@ export default function ProjectsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={(e) => {
                       e.stopPropagation();

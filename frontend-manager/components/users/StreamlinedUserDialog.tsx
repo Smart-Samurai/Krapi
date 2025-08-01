@@ -1,11 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FiInfo } from "react-icons/fi";
@@ -30,12 +43,14 @@ interface AccountTypeInfo {
 const ACCOUNT_TYPES: Record<AccountType, AccountTypeInfo> = {
   master_admin: {
     title: "Master Admin",
-    description: "Full access to everything in Krapi, including all projects, system settings, and user management",
+    description:
+      "Full access to everything in Krapi, including all projects, system settings, and user management",
     scopes: [Scope.MASTER],
   },
   project_admin: {
     title: "Project Admin",
-    description: "Full access to selected projects, including all data, settings, and project-specific users",
+    description:
+      "Full access to selected projects, including all data, settings, and project-specific users",
     scopes: [
       Scope.PROJECTS_READ,
       Scope.PROJECTS_WRITE,
@@ -114,7 +129,7 @@ export function StreamlinedUserDialog({
   const krapi = useKrapi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Form state
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -123,7 +138,7 @@ export function StreamlinedUserDialog({
   const [accountType, setAccountType] = useState<AccountType>("limited_admin");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedScopes, setSelectedScopes] = useState<Scope[]>([]);
-  
+
   // Projects list
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -138,7 +153,7 @@ export function StreamlinedUserDialog({
     if (editUser) {
       setUsername(editUser.username || "");
       setEmail(editUser.email || "");
-      
+
       // Determine account type from scopes
       if (editUser.scopes?.includes(Scope.MASTER)) {
         setAccountType("master_admin");
@@ -227,7 +242,7 @@ export function StreamlinedUserDialog({
       if (response.success) {
         onOpenChange(false);
         onSuccess?.();
-        
+
         // Reset form
         setUsername("");
         setEmail("");
@@ -248,10 +263,8 @@ export function StreamlinedUserDialog({
   };
 
   const handleScopeToggle = (scope: Scope) => {
-    setSelectedScopes(prev =>
-      prev.includes(scope)
-        ? prev.filter(s => s !== scope)
-        : [...prev, scope]
+    setSelectedScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
     );
   };
 
@@ -320,7 +333,10 @@ export function StreamlinedUserDialog({
           {/* Account Type */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Account Type</h3>
-            <Select value={accountType} onValueChange={(value) => setAccountType(value as AccountType)}>
+            <Select
+              value={accountType}
+              onValueChange={(value) => setAccountType(value as AccountType)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -329,7 +345,9 @@ export function StreamlinedUserDialog({
                   <SelectItem key={key} value={key}>
                     <div>
                       <p className="font-medium">{info.title}</p>
-                      <p className="text-xs text-muted-foreground">{info.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {info.description}
+                      </p>
                     </div>
                   </SelectItem>
                 ))}
@@ -348,23 +366,36 @@ export function StreamlinedUserDialog({
                 </AlertDescription>
               </Alert>
               {loadingProjects ? (
-                <p className="text-sm text-muted-foreground">Loading projects...</p>
+                <p className="text-sm text-muted-foreground">
+                  Loading projects...
+                </p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
                   {projects.map((project) => (
-                    <div key={project.id} className="flex items-center space-x-2">
+                    <div
+                      key={project.id}
+                      className="flex items-center space-x-2"
+                    >
                       <Checkbox
                         id={project.id}
                         checked={selectedProjects.includes(project.id)}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedProjects([...selectedProjects, project.id]);
+                            setSelectedProjects([
+                              ...selectedProjects,
+                              project.id,
+                            ]);
                           } else {
-                            setSelectedProjects(selectedProjects.filter(id => id !== project.id));
+                            setSelectedProjects(
+                              selectedProjects.filter((id) => id !== project.id)
+                            );
                           }
                         }}
                       />
-                      <Label htmlFor={project.id} className="flex-1 cursor-pointer">
+                      <Label
+                        htmlFor={project.id}
+                        className="flex-1 cursor-pointer"
+                      >
                         {project.name}
                         {project.description && (
                           <span className="text-xs text-muted-foreground ml-2">
@@ -396,14 +427,22 @@ export function StreamlinedUserDialog({
                       {group.label}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {group.permissions.map((perm) => (
-                        <div key={perm.scope} className="flex items-center space-x-2">
+                      {group.permissions.map((perm, id) => (
+                        <div
+                          key={`${perm.scope}-${id}`}
+                          className="flex items-center space-x-2"
+                        >
                           <Checkbox
                             id={perm.scope}
                             checked={selectedScopes.includes(perm.scope)}
-                            onCheckedChange={() => handleScopeToggle(perm.scope)}
+                            onCheckedChange={() =>
+                              handleScopeToggle(perm.scope)
+                            }
                           />
-                          <Label htmlFor={perm.scope} className="text-sm cursor-pointer">
+                          <Label
+                            htmlFor={perm.scope}
+                            className="text-sm cursor-pointer"
+                          >
                             {perm.label}
                           </Label>
                         </div>
