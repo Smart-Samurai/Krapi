@@ -3,7 +3,7 @@ import { createBackendClient, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -16,7 +16,8 @@ export async function GET(
     }
 
     const client = createBackendClient(authToken);
-    const response = await client.collections.getAll(params.projectId);
+    const resolvedParams = await params;
+    const response = await client.collections.getAll(resolvedParams.projectId);
 
     return NextResponse.json(response);
   } catch (error) {
@@ -33,7 +34,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -47,7 +48,8 @@ export async function POST(
 
     const body = await request.json();
     const client = createBackendClient(authToken);
-    const response = await client.collections.create(params.projectId, body);
+    const resolvedParams = await params;
+    const response = await client.collections.create(resolvedParams.projectId, body);
 
     if (response.success) {
       return NextResponse.json(response, { status: 201 });

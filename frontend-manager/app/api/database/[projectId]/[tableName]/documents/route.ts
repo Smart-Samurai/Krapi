@@ -3,7 +3,7 @@ import { createBackendClient, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string; tableName: string } }
+  { params }: { params: Promise<{ projectId: string; tableName: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -38,9 +38,10 @@ export async function GET(
     if (search) options.search = search;
 
     const client = createBackendClient(authToken);
+    const resolvedParams = await params;
     const response = await client.documents.getAll(
-      params.projectId,
-      params.tableName,
+      resolvedParams.projectId,
+      resolvedParams.tableName,
       options
     );
 
@@ -59,7 +60,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string; tableName: string } }
+  { params }: { params: Promise<{ projectId: string; tableName: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -73,9 +74,10 @@ export async function POST(
 
     const body = await request.json();
     const client = createBackendClient(authToken);
+    const resolvedParams = await params;
     const response = await client.documents.create(
-      params.projectId,
-      params.tableName,
+      resolvedParams.projectId,
+      resolvedParams.tableName,
       body.data
     );
 

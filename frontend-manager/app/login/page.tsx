@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,10 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await login(username, password);
+      const success = await login(username, password);
+      if (success) {
+        // Login successful, redirect will be handled by the auth context
+      }
     } catch (error) {
       // Error is handled in the auth context
     } finally {
@@ -36,7 +39,10 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await loginWithApiKey(apiKey);
+      const success = await loginWithApiKey(apiKey);
+      if (success) {
+        // Login successful, redirect will be handled by the auth context
+      }
     } catch (error) {
       // Error is handled in the auth context
     } finally {

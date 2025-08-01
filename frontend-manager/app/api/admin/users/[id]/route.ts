@@ -3,7 +3,7 @@ import { createBackendClient, getAuthToken } from '@/app/api/lib/sdk-client';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -16,7 +16,8 @@ export async function GET(
     }
 
     const client = createBackendClient(authToken);
-    const response = await client.admin.getUserById(params.id);
+    const resolvedParams = await params;
+    const response = await client.admin.getUserById(resolvedParams.id);
 
     if (response.success) {
       return NextResponse.json(response);
@@ -37,7 +38,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -51,7 +52,8 @@ export async function PUT(
 
     const body = await request.json();
     const client = createBackendClient(authToken);
-    const response = await client.admin.updateUser(params.id, body);
+    const resolvedParams = await params;
+    const response = await client.admin.updateUser(resolvedParams.id, body);
 
     if (response.success) {
       return NextResponse.json(response);
@@ -72,7 +74,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -85,7 +87,8 @@ export async function DELETE(
     }
 
     const client = createBackendClient(authToken);
-    const response = await client.admin.deleteUser(params.id);
+    const resolvedParams = await params;
+    const response = await client.admin.deleteUser(resolvedParams.id);
 
     if (response.success) {
       return NextResponse.json(response);
