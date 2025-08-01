@@ -35,9 +35,10 @@ export class KrapiSDK {
   constructor(config: { 
     baseUrl: string; 
     sessionToken?: string;
+    authToken?: string;  // Alternative name for sessionToken
     apiKey?: string;
   }) {
-    this.sessionToken = config.sessionToken;
+    this.sessionToken = config.sessionToken || config.authToken;
     this.apiKey = config.apiKey;
     this.baseURL = config.baseUrl;
     
