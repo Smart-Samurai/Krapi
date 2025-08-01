@@ -18,6 +18,7 @@ import projectRoutes from './project.routes';
 import collectionsRoutes from './collections.routes';
 import storageRoutes from './storage.routes';
 import usersRoutes from './users.routes';
+import testingRoutes from './testing.routes';
 import { DatabaseService } from '@/services/database.service';
 
 const router: RouterType = Router();
@@ -94,6 +95,11 @@ router.use('/admin', adminRoutes);
 
 // Project management routes (CRUD operations on projects)
 router.use('/projects', projectRoutes);
+
+// Testing routes (only in development mode)
+if (process.env.NODE_ENV !== 'production') {
+  router.use('/testing', testingRoutes);
+}
 
 // ===== Project-Level Routes =====
 // All project-specific resources are nested under /projects/:projectId

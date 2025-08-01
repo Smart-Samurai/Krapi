@@ -102,6 +102,15 @@ router.post(
   controller.repairDatabase
 );
 
+// System diagnostics
+router.post(
+  "/system/diagnostics",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.runDiagnostics
+);
+
 // Activity logs
 router.get(
   "/activity",

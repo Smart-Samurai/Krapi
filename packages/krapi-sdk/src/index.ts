@@ -753,22 +753,164 @@ export class KrapiSDK {
     },
   };
 
-  // Health check
-  health = async (): Promise<
-    ApiResponse<{
+  /**
+   * System health and diagnostics
+   */
+  public health = {
+    /**
+     * Check overall system health
+     * @returns Health status including database connectivity
+     */
+    check: async (): Promise<ApiResponse<{
+      status: 'healthy' | 'unhealthy';
+      timestamp: string;
+      uptime: number;
+      database: {
+        healthy: boolean;
+        message: string;
+        details?: any;
+      };
+      version: string;
+    }>> => {
+      try {
+        const response = await this.client.get('/../../health');
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    },
+
+    /**
+     * Check database health (requires admin read scope)
+     * @returns Detailed database health information
+     */
+    checkDatabase: async (): Promise<ApiResponse<{
+      healthy: boolean;
+      message: string;
+      details?: any;
+    }>> => {
+      try {
+        const response = await this.client.get('/admin/system/db-health');
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    },
+
+    /**
+     * Repair database issues (requires master admin scope)
+     * @returns Repair results
+     */
+    repairDatabase: async (): Promise<ApiResponse<{
       success: boolean;
       message: string;
-      version: string;
-      timestamp: string;
-      database?: {
-        status: string;
-        checks: Record<string, any>;
-        timestamp: string;
+      repairs?: string[];
+    }>> => {
+      try {
+        const response = await this.client.post('/admin/system/db-repair');
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    },
+
+    /**
+     * Run system diagnostics and tests
+     * @returns Diagnostic results
+     */
+    runDiagnostics: async (): Promise<ApiResponse<{
+      tests: {
+        name: string;
+        passed: boolean;
+        message: string;
+        duration: number;
+      }[];
+      summary: {
+        total: number;
+        passed: number;
+        failed: number;
       };
-    }>
-  > => {
-    const response = await this.client.get("/health");
-    return response.data;
+    }>> => {
+      try {
+        const response = await this.client.post('/admin/system/diagnostics');
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    }
+  };
+
+  /**
+   * Testing utilities for development
+   */
+  public testing = {
+    /**
+     * Create test project with sample data
+     * @param options Test project options
+     * @returns Created test project
+     */
+    createTestProject: async (options?: {
+      name?: string;
+      withCollections?: boolean;
+      withDocuments?: boolean;
+      documentCount?: number;
+    }): Promise<ApiResponse<Project>> => {
+      try {
+        const response = await this.client.post('/testing/create-project', options);
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    },
+
+    /**
+     * Clean up test data
+     * @param projectId Optional project ID to clean up, or all test data if not provided
+     * @returns Cleanup results
+     */
+    cleanup: async (projectId?: string): Promise<ApiResponse<{
+      deleted: {
+        projects: number;
+        collections: number;
+        documents: number;
+      };
+    }>> => {
+      try {
+        const response = await this.client.post('/testing/cleanup', { projectId });
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    },
+
+    /**
+     * Run integration tests
+     * @returns Test results
+     */
+    runIntegrationTests: async (): Promise<ApiResponse<{
+      results: {
+        suite: string;
+        tests: {
+          name: string;
+          passed: boolean;
+          error?: string;
+          duration: number;
+        }[];
+      }[];
+      summary: {
+        total: number;
+        passed: number;
+        failed: number;
+        duration: number;
+      };
+    }>> => {
+      try {
+        const response = await this.client.post('/testing/integration-tests');
+        return response.data;
+      } catch (error) {
+        return this.handleError(error);
+      }
+    }
   };
 }
 

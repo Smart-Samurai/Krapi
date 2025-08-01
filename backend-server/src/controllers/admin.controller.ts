@@ -737,6 +737,151 @@ export class AdminController {
       } as ApiResponse);
     }
   };
+
+  // Run system diagnostics
+  runDiagnostics = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      const tests: { name: string; passed: boolean; message: string; duration: number }[] = [];
+      const startTime = Date.now();
+
+      // Test 1: Database connectivity
+      const dbTestStart = Date.now();
+      try {
+        const dbHealth = await this.db.checkHealth();
+        tests.push({
+          name: 'Database Connectivity',
+          passed: dbHealth.healthy,
+          message: dbHealth.message,
+          duration: Date.now() - dbTestStart
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Database Connectivity',
+          passed: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - dbTestStart
+        });
+      }
+
+      // Test 2: Authentication system
+      const authTestStart = Date.now();
+      try {
+        const testToken = await this.authService.generateToken(currentUser);
+        const verified = await this.authService.verifyToken(testToken);
+        tests.push({
+          name: 'Authentication System',
+          passed: verified !== null,
+          message: verified ? 'Token generation and verification working' : 'Token verification failed',
+          duration: Date.now() - authTestStart
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Authentication System',
+          passed: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - authTestStart
+        });
+      }
+
+      // Test 3: Project operations
+      const projectTestStart = Date.now();
+      try {
+        const projects = await this.db.getAllProjects();
+        tests.push({
+          name: 'Project Operations',
+          passed: true,
+          message: `Successfully retrieved ${projects.length} projects`,
+          duration: Date.now() - projectTestStart
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Project Operations',
+          passed: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - projectTestStart
+        });
+      }
+
+      // Test 4: Admin user operations
+      const adminTestStart = Date.now();
+      try {
+        const admins = await this.db.getAllAdminUsers();
+        tests.push({
+          name: 'Admin User Operations',
+          passed: true,
+          message: `Successfully retrieved ${admins.length} admin users`,
+          duration: Date.now() - adminTestStart
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Admin User Operations',
+          passed: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - adminTestStart
+        });
+      }
+
+      // Test 5: Session management
+      const sessionTestStart = Date.now();
+      try {
+        if (authReq.session) {
+          const session = await this.db.getSessionById(authReq.session.id);
+          tests.push({
+            name: 'Session Management',
+            passed: session !== null,
+            message: session ? 'Current session is valid' : 'Session not found',
+            duration: Date.now() - sessionTestStart
+          });
+        } else {
+          tests.push({
+            name: 'Session Management',
+            passed: true,
+            message: 'API key authentication (no session)',
+            duration: Date.now() - sessionTestStart
+          });
+        }
+      } catch (error) {
+        tests.push({
+          name: 'Session Management',
+          passed: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - sessionTestStart
+        });
+      }
+
+      const summary = {
+        total: tests.length,
+        passed: tests.filter(t => t.passed).length,
+        failed: tests.filter(t => !t.passed).length,
+        duration: Date.now() - startTime
+      };
+
+      res.status(200).json({
+        success: true,
+        data: {
+          tests,
+          summary
+        }
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Run diagnostics error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to run diagnostics'
+      } as ApiResponse);
+    }
+  };
 }
 
 export default new AdminController();
