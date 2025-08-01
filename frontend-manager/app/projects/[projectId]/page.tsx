@@ -77,22 +77,11 @@ export default function ProjectDetailPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-text">{project.name}</h1>
-          <p className="text-text/60 mt-1">
-            {project.description || "No description"}
-          </p>
-        </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="secondary"
-            onClick={() => router.push(`/projects/${projectId}/settings`)}
-          >
-            <FiSettings className="mr-2 h-4 w-4" />
-            Settings
-          </Button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-text">Project Dashboard</h1>
+        <p className="text-text/60 mt-1">
+          {project.name} - {project.description || "No description"}
+        </p>
       </div>
 
       {/* Project Stats */}

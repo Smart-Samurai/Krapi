@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import {
   Card,
@@ -12,20 +13,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
+import { ScopeGuard } from "@/components/scope-guard";
 import { toast } from "sonner";
 import {
   Plus,
-  Settings,
-  Trash2,
-  Activity,
-  Key,
-  Users,
-  RefreshCw,
-  Edit,
+  ArrowRight,
 } from "lucide-react";
 import { Project, Scope } from "@/lib/krapi";
-import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +58,7 @@ type CreateProjectFormData = z.infer<typeof createProjectSchema>;
 type EditProjectFormData = z.infer<typeof editProjectSchema>;
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const { krapi, hasScope } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,58 +163,9 @@ export default function ProjectsPage() {
     }
   };
 
-  const deleteProject = async (projectId: string) => {
-    if (!krapi || !hasScope(Scope.PROJECTS_DELETE)) {
-      toast.error("You don't have permission to delete projects");
-      return;
-    }
 
-    if (
-      !confirm(
-        "Are you sure you want to delete this project? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
 
-    try {
-      const response = await krapi.projects.delete(projectId);
-      if (response.success) {
-        setProjects(projects.filter((p) => p.id !== projectId));
-        toast.success("Project deleted successfully");
-      }
-    } catch (error) {
-      console.error("Failed to delete project:", error);
-      toast.error("Failed to delete project");
-    }
-  };
 
-  const regenerateApiKey = async (projectId: string) => {
-    if (!krapi || !hasScope(Scope.PROJECTS_WRITE)) {
-      toast.error("You don't have permission to regenerate API keys");
-      return;
-    }
-
-    if (
-      !confirm(
-        "Are you sure you want to regenerate the API key? The old key will stop working immediately."
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const response = await krapi.projects.regenerateApiKey(projectId);
-      if (response.success && response.data) {
-        // Reload projects to get the new API key
-        await loadProjects();
-        toast.success("API key regenerated successfully");
-      }
-    } catch (error) {
-      console.error("Failed to regenerate API key:", error);
-      toast.error("Failed to regenerate API key");
-    }
-  };
 
   if (loading) {
     return (
@@ -292,7 +238,8 @@ export default function ProjectsPage() {
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="hover:shadow-lg transition-shadow"
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => router.push(`/projects/${project.id}`)}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -307,77 +254,18 @@ export default function ProjectsPage() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">API Key</span>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-muted px-2 py-1 rounded">
-                        {project.api_key.substring(0, 8)}...
-                      </code>
-                      <ScopeGuard
-                        scopes={Scope.PROJECTS_WRITE}
-                        showRequirements={false}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => regenerateApiKey(project.id)}
-                          title="Regenerate API Key"
-                        >
-                          <RefreshCw className="h-3 w-3" />
-                        </Button>
-                      </ScopeGuard>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => router.push(`/projects/${project.id}`)}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      Enter Project
-                    </Button>
-                    <Link
-                      href={`/collections?project=${project.id}`}
-                      className="flex-1"
-                    >
-                      <Button variant="outline" size="sm" className="w-full">
-                        Manage Data
-                      </Button>
-                    </Link>
-                    <ScopeGuard
-                      scopes={Scope.PROJECTS_WRITE}
-                      showRequirements={false}
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setIsEditDialogOpen(true);
-                        }}
-                        title="Edit Project"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </ScopeGuard>
-                    <ScopeGuard
-                      scopes={Scope.PROJECTS_DELETE}
-                      showRequirements={false}
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteProject(project.id)}
-                        title="Delete Project"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </ScopeGuard>
-                  </div>
+                <CardContent>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/projects/${project.id}`);
+                    }}
+                  >
+                    <ArrowRight className="mr-2 h-4 w-4" />
+                    Enter Project
+                  </Button>
                 </CardContent>
               </Card>
             ))}
