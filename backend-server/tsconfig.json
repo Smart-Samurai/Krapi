@@ -17,17 +17,14 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@controllers/*": ["controllers/*"],
-      "@services/*": ["services/*"],
-      "@models/*": ["models/*"],
-      "@routes/*": ["routes/*"],
-      "@middleware/*": ["middleware/*"],
-      "@utils/*": ["utils/*"],
-      "@types/*": ["types/*"],
-      "@sdk/*": ["sdk/*"]
+      "@/*": ["src/*"],
+      "@controllers/*": ["src/controllers/*"],
+      "@services/*": ["src/services/*"],
+      "@routes/*": ["src/routes/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@types/*": ["src/types/*"]
     }
   },
   "include": ["src/**/*"],
