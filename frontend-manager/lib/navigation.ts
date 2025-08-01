@@ -6,6 +6,7 @@ import {
   Settings,
   KeyRound,
   TestTube2,
+  User,
 } from "lucide-react";
 
 export const categories = {
@@ -49,6 +50,12 @@ export const navigation = [
     name: "API Keys",
     href: "/api-keys",
     icon: KeyRound,
+    category: "admin",
+  },
+  {
+    name: "Profile",
+    href: "/profile",
+    icon: User,
     category: "admin",
   },
   {
