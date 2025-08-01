@@ -1,16 +1,22 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/auth-context';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ScopeGuard, ScopeIndicator } from '@/components/scope-guard';
-import { toast } from 'sonner';
-import { Plus, Settings, Trash2, Activity, Key, Users } from 'lucide-react';
-import { Project, Scope } from '@/lib/krapi-client';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
+import { toast } from "sonner";
+import { Plus, Settings, Trash2, Activity, Key, Users } from "lucide-react";
+import { Project, Scope } from "@/lib/krapi";
+import Link from "next/link";
 
 export default function ProjectsPage() {
   const { krapi, hasScope } = useAuth();
@@ -33,8 +39,8 @@ export default function ProjectsPage() {
         setProjects(response.data);
       }
     } catch (error) {
-      console.error('Failed to load projects:', error);
-      toast.error('Failed to load projects');
+      console.error("Failed to load projects:", error);
+      toast.error("Failed to load projects");
     } finally {
       setLoading(false);
     }
@@ -42,19 +48,19 @@ export default function ProjectsPage() {
 
   const deleteProject = async (projectId: string) => {
     if (!krapi || !hasScope(Scope.PROJECTS_DELETE)) {
-      toast.error('You don\'t have permission to delete projects');
+      toast.error("You don't have permission to delete projects");
       return;
     }
 
     try {
       const response = await krapi.projects.delete(projectId);
       if (response.success) {
-        setProjects(projects.filter(p => p.id !== projectId));
-        toast.success('Project deleted successfully');
+        setProjects(projects.filter((p) => p.id !== projectId));
+        toast.success("Project deleted successfully");
       }
     } catch (error) {
-      console.error('Failed to delete project:', error);
-      toast.error('Failed to delete project');
+      console.error("Failed to delete project:", error);
+      toast.error("Failed to delete project");
     }
   };
 
@@ -84,14 +90,14 @@ export default function ProjectsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Projects</h1>
-          <p className="text-muted-foreground">
-            Manage your KRAPI projects
-          </p>
+          <p className="text-muted-foreground">Manage your KRAPI projects</p>
         </div>
         <div className="flex items-center gap-4">
-          <ScopeIndicator scopes={[Scope.PROJECTS_READ, Scope.PROJECTS_WRITE]} />
-          <ScopeGuard 
-            scopes={Scope.PROJECTS_WRITE} 
+          <ScopeIndicator
+            scopes={[Scope.PROJECTS_READ, Scope.PROJECTS_WRITE]}
+          />
+          <ScopeGuard
+            scopes={Scope.PROJECTS_WRITE}
             fallback={
               <Button disabled>
                 <Plus className="mr-2 h-4 w-4" />
@@ -127,17 +133,20 @@ export default function ProjectsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={project.id}
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle>{project.name}</CardTitle>
                       <CardDescription>
-                        {project.description || 'No description'}
+                        {project.description || "No description"}
                       </CardDescription>
                     </div>
-                    <Badge variant={project.is_active ? 'default' : 'secondary'}>
-                      {project.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={project.active ? "default" : "secondary"}>
+                      {project.active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -148,29 +157,27 @@ export default function ProjectsPage() {
                       {project.api_key.substring(0, 8)}...
                     </code>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">API Calls</span>
-                    <div className="flex items-center gap-1">
-                      <Activity className="h-3 w-3" />
-                      {project.api_calls_count || 0}
-                    </div>
-                  </div>
 
                   <div className="flex gap-2">
-                    <Link href={`/projects/${project.id}/users`} className="flex-1">
+                    <Link
+                      href={`/projects/${project.id}/users`}
+                      className="flex-1"
+                    >
                       <Button variant="outline" size="sm" className="w-full">
                         <Users className="mr-2 h-4 w-4" />
                         Users
                       </Button>
                     </Link>
-                    <Link href={`/collections?project=${project.id}`} className="flex-1">
+                    <Link
+                      href={`/collections?project=${project.id}`}
+                      className="flex-1"
+                    >
                       <Button variant="outline" size="sm" className="w-full">
                         Manage Data
                       </Button>
                     </Link>
-                    <ScopeGuard 
-                      scopes={Scope.PROJECTS_DELETE} 
+                    <ScopeGuard
+                      scopes={Scope.PROJECTS_DELETE}
                       showRequirements={false}
                     >
                       <Button

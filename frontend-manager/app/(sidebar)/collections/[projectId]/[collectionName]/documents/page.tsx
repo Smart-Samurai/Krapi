@@ -33,13 +33,13 @@ import {
   FiEye,
   FiCopy,
 } from "react-icons/fi";
-import { useKrapi } from "@/contexts/krapi-context";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Collection, Document } from "@/lib/krapi";
 
-export default function DocumentsPage() {
-  const params = useParams();
+export default function CollectionDocumentsPage() {
   const router = useRouter();
-  const { krapi } = useKrapi();
+  const krapi = useKrapi();
+  const params = useParams();
   const projectId = params.projectId as string;
   const collectionName = params.collectionName as string;
 
@@ -47,12 +47,14 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Document management state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(
+    null
+  );
   const [documentForm, setDocumentForm] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -64,15 +66,18 @@ export default function DocumentsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch collection first
-      const collectionResponse = await krapi.collections.get(projectId, collectionName);
-      if (collectionResponse.success) {
+      const collectionResponse = await krapi.collections.get(
+        projectId,
+        collectionName
+      );
+      if (collectionResponse.success && collectionResponse.data) {
         setCollection(collectionResponse.data);
-        
+
         // Initialize form with default values
         const defaultForm: Record<string, any> = {};
-        collectionResponse.data.fields.forEach((field) => {
+        collectionResponse.data.fields.forEach((field: any) => {
           if (field.default !== undefined) {
             defaultForm[field.name] = field.default;
           } else if (field.type === "boolean") {
@@ -89,10 +94,13 @@ export default function DocumentsPage() {
         });
         setDocumentForm(defaultForm);
       }
-      
+
       // Fetch documents
-      const docsResponse = await krapi.documents.getAll(projectId, collectionName);
-      if (docsResponse.success) {
+      const docsResponse = await krapi.documents.getAll(
+        projectId,
+        collectionName
+      );
+      if (docsResponse.success && docsResponse.data) {
         setDocuments(docsResponse.data);
       }
     } catch (err) {
@@ -110,7 +118,7 @@ export default function DocumentsPage() {
         collectionName,
         documentForm
       );
-      
+
       if (response.success) {
         setIsCreateOpen(false);
         fetchData();
@@ -126,7 +134,7 @@ export default function DocumentsPage() {
 
   const handleUpdateDocument = async () => {
     if (!selectedDocument) return;
-    
+
     try {
       const response = await krapi.documents.update(
         projectId,
@@ -134,7 +142,7 @@ export default function DocumentsPage() {
         selectedDocument.id,
         documentForm
       );
-      
+
       if (response.success) {
         setIsEditOpen(false);
         fetchData();
@@ -150,14 +158,14 @@ export default function DocumentsPage() {
 
   const handleDeleteDocument = async (documentId: string) => {
     if (!confirm("Are you sure you want to delete this document?")) return;
-    
+
     try {
       const response = await krapi.documents.delete(
         projectId,
         collectionName,
         documentId
       );
-      
+
       if (response.success) {
         fetchData();
       } else {
@@ -210,7 +218,7 @@ export default function DocumentsPage() {
 
   const renderFieldInput = (field: any) => {
     const value = documentForm[field.name];
-    
+
     switch (field.type) {
       case "boolean":
         return (
@@ -232,7 +240,7 @@ export default function DocumentsPage() {
             </Label>
           </div>
         );
-      
+
       case "number":
         return (
           <Input
@@ -246,7 +254,7 @@ export default function DocumentsPage() {
             }
           />
         );
-      
+
       case "date":
         return (
           <Input
@@ -260,7 +268,7 @@ export default function DocumentsPage() {
             }
           />
         );
-      
+
       case "array":
       case "object":
         return (
@@ -281,7 +289,7 @@ export default function DocumentsPage() {
             placeholder={`Enter valid JSON for ${field.type}`}
           />
         );
-      
+
       default: // string
         return (
           <Input
@@ -311,7 +319,9 @@ export default function DocumentsPage() {
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <div className="text-center">
           <FiFile className="h-12 w-12 text-text/40 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text mb-2">Collection not found</h3>
+          <h3 className="text-lg font-medium text-text mb-2">
+            Collection not found
+          </h3>
           <Button onClick={() => router.push("/collections")}>
             Back to Collections
           </Button>
@@ -324,7 +334,9 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-text">{collection.name} Documents</h1>
+        <h1 className="text-3xl font-bold text-text">
+          {collection.name} Documents
+        </h1>
         <p className="text-text/60 mt-1">
           Manage documents in the {collection.name} collection
         </p>
@@ -344,7 +356,9 @@ export default function DocumentsPage() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => router.push(`/collections/${projectId}/${collectionName}`)}
+          onClick={() =>
+            router.push(`/collections/${projectId}/${collectionName}`)
+          }
         >
           Back to Collection
         </Button>
@@ -466,7 +480,9 @@ export default function DocumentsPage() {
                   )}
                 </Label>
                 {field.description && (
-                  <p className="text-sm text-text/60 mb-1">{field.description}</p>
+                  <p className="text-sm text-text/60 mb-1">
+                    {field.description}
+                  </p>
                 )}
                 {renderFieldInput(field)}
               </div>
@@ -483,7 +499,9 @@ export default function DocumentsPage() {
             >
               Cancel
             </Button>
-            <Button onClick={isEditOpen ? handleUpdateDocument : handleCreateDocument}>
+            <Button
+              onClick={isEditOpen ? handleUpdateDocument : handleCreateDocument}
+            >
               {isEditOpen ? "Update" : "Create"}
             </Button>
           </DialogFooter>
@@ -495,9 +513,7 @@ export default function DocumentsPage() {
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Document Details</DialogTitle>
-            <DialogDescription>
-              ID: {selectedDocument?.id}
-            </DialogDescription>
+            <DialogDescription>ID: {selectedDocument?.id}</DialogDescription>
           </DialogHeader>
           {selectedDocument && (
             <div className="space-y-4">

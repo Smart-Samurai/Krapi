@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 interface FormFieldProps {
   name: string;
   label?: string;
+  description?: string;
   type?:
     | "text"
     | "email"
@@ -40,6 +41,7 @@ interface FormFieldProps {
 export const FormField: React.FC<FormFieldProps> = ({
   name,
   label,
+  description,
   type = "text",
   placeholder,
   required = false,
@@ -127,6 +129,10 @@ export const FormField: React.FC<FormFieldProps> = ({
         <Label htmlFor={name} required={required}>
           {label}
         </Label>
+      )}
+
+      {description && (
+        <p className="text-sm text-muted-foreground">{description}</p>
       )}
 
       {renderInput()}

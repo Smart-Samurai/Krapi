@@ -1,23 +1,29 @@
-'use client';
+"use client";
 
-import { useAuth } from '@/contexts/auth-context';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Activity, 
-  Database, 
-  HardDrive, 
-  Users, 
+import { useAuth } from "@/contexts/auth-context";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Activity,
+  Database,
+  HardDrive,
+  Users,
   Shield,
   KeyRound,
   AlertCircle,
-  CheckCircle2
-} from 'lucide-react';
-import Link from 'next/link';
-import { Scope } from '@/lib/krapi-client';
+  CheckCircle2,
+} from "lucide-react";
+import Link from "next/link";
+import { Scope } from "@/lib/krapi";
 
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope, hasMasterAccess } = useAuth();
@@ -64,7 +70,11 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm font-medium mb-1">Role</p>
-              <Badge variant={user?.role === 'master_admin' ? 'default' : 'secondary'}>
+              <Badge
+                variant={
+                  user?.role === "master_admin" ? "default" : "secondary"
+                }
+              >
                 {user?.role}
               </Badge>
             </div>
@@ -90,7 +100,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-medium mb-2">Available Scopes</p>
               <div className="flex flex-wrap gap-2">
-                {scopes.map(scope => (
+                {scopes.map((scope) => (
                   <Badge key={scope} variant="secondary" className="text-xs">
                     {scope}
                   </Badge>
@@ -119,7 +129,9 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Projects
+            </CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -217,9 +229,7 @@ export default function DashboardPage() {
             <Activity className="h-5 w-5" />
             Recent Activity
           </CardTitle>
-          <CardDescription>
-            Your recent actions in the system
-          </CardDescription>
+          <CardDescription>Your recent actions in the system</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">

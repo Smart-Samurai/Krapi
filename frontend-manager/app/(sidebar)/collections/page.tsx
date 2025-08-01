@@ -33,12 +33,12 @@ import {
   FiHash,
   FiCalendar,
 } from "react-icons/fi";
-import { useKrapi } from "@/contexts/krapi-context";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project, Collection } from "@/lib/krapi";
 
 export default function CollectionsPage() {
   const router = useRouter();
-  const { krapi } = useKrapi();
+  const krapi = useKrapi();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("");
@@ -65,7 +65,7 @@ export default function CollectionsPage() {
     try {
       setLoading(true);
       const response = await krapi.projects.getAll();
-      if (response.success) {
+      if (response.success && response.data) {
         setProjects(response.data);
         if (response.data.length > 0 && !selectedProject) {
           setSelectedProject(response.data[0].id);
@@ -83,7 +83,7 @@ export default function CollectionsPage() {
     try {
       setLoading(true);
       const response = await krapi.collections.getAll(selectedProject);
-      if (response.success) {
+      if (response.success && response.data) {
         setCollections(response.data);
       }
     } catch (err) {
@@ -142,12 +142,20 @@ export default function CollectionsPage() {
   };
 
   const handleDeleteCollection = async (collectionName: string) => {
-    if (!selectedProject || !confirm(`Are you sure you want to delete the "${collectionName}" collection?`)) {
+    if (
+      !selectedProject ||
+      !confirm(
+        `Are you sure you want to delete the "${collectionName}" collection?`
+      )
+    ) {
       return;
     }
 
     try {
-      const response = await krapi.collections.delete(selectedProject, collectionName);
+      const response = await krapi.collections.delete(
+        selectedProject,
+        collectionName
+      );
       if (response.success) {
         fetchCollections();
       } else {
@@ -211,7 +219,9 @@ export default function CollectionsPage() {
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FiDatabase className="h-12 w-12 text-text/40 mb-4" />
-            <h3 className="text-lg font-medium text-text mb-2">No collections yet</h3>
+            <h3 className="text-lg font-medium text-text mb-2">
+              No collections yet
+            </h3>
             <p className="text-text/60 text-center mb-4">
               Create your first collection to start storing data
             </p>
@@ -238,7 +248,11 @@ export default function CollectionsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(`/collections/${selectedProject}/${collection.name}`)}
+                      onClick={() =>
+                        router.push(
+                          `/collections/${selectedProject}/${collection.name}`
+                        )
+                      }
                     >
                       Manage Fields
                     </Button>
@@ -260,12 +274,16 @@ export default function CollectionsPage() {
                   <div className="flex items-center gap-2">
                     <FiFile className="h-4 w-4 text-text/40" />
                     <span className="text-text/60">Fields:</span>
-                    <span className="font-medium">{collection.fields.length}</span>
+                    <span className="font-medium">
+                      {collection.fields.length}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <FiHash className="h-4 w-4 text-text/40" />
                     <span className="text-text/60">Indexes:</span>
-                    <span className="font-medium">{collection.indexes?.length || 0}</span>
+                    <span className="font-medium">
+                      {collection.indexes?.length || 0}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 col-span-2">
                     <FiCalendar className="h-4 w-4 text-text/40" />
@@ -279,7 +297,11 @@ export default function CollectionsPage() {
                   variant="outline"
                   size="sm"
                   className="w-full mt-4"
-                  onClick={() => router.push(`/collections/${selectedProject}/${collection.name}/documents`)}
+                  onClick={() =>
+                    router.push(
+                      `/collections/${selectedProject}/${collection.name}/documents`
+                    )
+                  }
                 >
                   View Documents
                 </Button>
@@ -290,7 +312,10 @@ export default function CollectionsPage() {
       )}
 
       {/* Create Collection Dialog */}
-      <Dialog open={isCreateCollectionOpen} onOpenChange={setIsCreateCollectionOpen}>
+      <Dialog
+        open={isCreateCollectionOpen}
+        onOpenChange={setIsCreateCollectionOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Collection</DialogTitle>
@@ -309,7 +334,9 @@ export default function CollectionsPage() {
               />
             </div>
             <div>
-              <Label htmlFor="collection-description">Description (optional)</Label>
+              <Label htmlFor="collection-description">
+                Description (optional)
+              </Label>
               <Textarea
                 id="collection-description"
                 value={newCollectionDescription}

@@ -16,7 +16,7 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Project } from "@/lib/krapi/types";
+import { Project } from "@/lib/krapi";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -185,12 +185,10 @@ export default function ProjectDetailPage() {
                   <span className="text-sm">Status</span>
                   <span
                     className={`text-sm font-medium ${
-                      project.status === "active"
-                        ? "text-green-600"
-                        : "text-yellow-600"
+                      project.active ? "text-green-600" : "text-yellow-600"
                     }`}
                   >
-                    {project.status}
+                    {project.active ? "Active" : "Inactive"}
                   </span>
                 </div>
                 <div className="flex justify-between">

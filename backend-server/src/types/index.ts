@@ -16,23 +16,38 @@ export interface AdminUser {
 }
 
 export enum AdminRole {
-  MASTER_ADMIN = 'master_admin',
-  ADMIN = 'admin',
-  PROJECT_ADMIN = 'project_admin',
-  LIMITED_ADMIN = 'limited_admin'
+  MASTER_ADMIN = "master_admin",
+  ADMIN = "admin",
+  PROJECT_ADMIN = "project_admin",
+  LIMITED_ADMIN = "limited_admin",
 }
 
 export enum AccessLevel {
-  FULL = 'full',
-  PROJECTS_ONLY = 'projects_only',
-  READ_ONLY = 'read_only',
-  CUSTOM = 'custom'
+  FULL = "full",
+  PROJECTS_ONLY = "projects_only",
+  READ_ONLY = "read_only",
+  CUSTOM = "custom",
 }
 
-export interface AdminPermission {
-  resource: string;
-  actions: string[];
-}
+// Align with SDK AdminPermission type
+export type AdminPermission =
+  | "users.create"
+  | "users.read"
+  | "users.update"
+  | "users.delete"
+  | "projects.create"
+  | "projects.read"
+  | "projects.update"
+  | "projects.delete"
+  | "collections.create"
+  | "collections.read"
+  | "collections.write"
+  | "collections.delete"
+  | "storage.upload"
+  | "storage.read"
+  | "storage.delete"
+  | "settings.read"
+  | "settings.update";
 
 // Project Types
 export interface Project {
@@ -104,22 +119,28 @@ export interface CollectionField {
   validation?: FieldValidation;
 }
 
-export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+export type FieldType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "date"
+  | "array"
+  | "object";
 
 export interface FieldValidation {
   // String validations
   minLength?: number;
   maxLength?: number;
   pattern?: string;
-  
+
   // Number validations
   min?: number;
   max?: number;
-  
+
   // Array validations
   minItems?: number;
   maxItems?: number;
-  
+
   // General validations
   enum?: Array<string | number | boolean>;
   custom?: string;
@@ -179,25 +200,25 @@ export interface ProjectUser {
 // Project-level scopes (for project users)
 export enum ProjectScope {
   // User management (for project admins)
-  USERS_READ = 'users:read',
-  USERS_WRITE = 'users:write',
-  USERS_DELETE = 'users:delete',
-  
+  USERS_READ = "users:read",
+  USERS_WRITE = "users:write",
+  USERS_DELETE = "users:delete",
+
   // Data access
-  DATA_READ = 'data:read',
-  DATA_WRITE = 'data:write',
-  DATA_DELETE = 'data:delete',
-  
+  DATA_READ = "data:read",
+  DATA_WRITE = "data:write",
+  DATA_DELETE = "data:delete",
+
   // File access
-  FILES_READ = 'files:read',
-  FILES_WRITE = 'files:write',
-  FILES_DELETE = 'files:delete',
-  
+  FILES_READ = "files:read",
+  FILES_WRITE = "files:write",
+  FILES_DELETE = "files:delete",
+
   // Function execution
-  FUNCTIONS_EXECUTE = 'functions:execute',
-  
+  FUNCTIONS_EXECUTE = "functions:execute",
+
   // Email sending
-  EMAIL_SEND = 'email:send',
+  EMAIL_SEND = "email:send",
 }
 
 // Session Types
@@ -216,8 +237,8 @@ export interface Session {
 }
 
 export enum SessionType {
-  ADMIN = 'admin',
-  PROJECT = 'project'
+  ADMIN = "admin",
+  PROJECT = "project",
 }
 
 // Changelog Types
@@ -234,9 +255,9 @@ export interface ChangelogEntry {
 }
 
 export enum ChangeAction {
-  CREATED = 'created',
-  UPDATED = 'updated',
-  DELETED = 'deleted'
+  CREATED = "created",
+  UPDATED = "updated",
+  DELETED = "deleted",
 }
 
 // API Response Types
@@ -260,12 +281,12 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 }
 
 // Request Types
-import { Request } from 'express';
+import { Request } from "express";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
-    type: 'admin' | 'project';
+    type: "admin" | "project";
     role?: AdminRole;
     project_id?: string;
     scopes: Scope[];
@@ -279,7 +300,7 @@ export interface QueryOptions {
   page?: number;
   limit?: number;
   sort?: string;
-  order?: 'asc' | 'desc';
+  order?: "asc" | "desc";
   filter?: Record<string, unknown>;
   search?: string;
   fields?: string[];
@@ -288,41 +309,41 @@ export interface QueryOptions {
 // Access Scopes
 export enum Scope {
   // Master scope - full access to everything
-  MASTER = 'master',
-  
+  MASTER = "master",
+
   // Admin scopes
-  ADMIN_READ = 'admin:read',
-  ADMIN_WRITE = 'admin:write',
-  ADMIN_DELETE = 'admin:delete',
-  
+  ADMIN_READ = "admin:read",
+  ADMIN_WRITE = "admin:write",
+  ADMIN_DELETE = "admin:delete",
+
   // Project scopes
-  PROJECTS_READ = 'projects:read',
-  PROJECTS_WRITE = 'projects:write',
-  PROJECTS_DELETE = 'projects:delete',
-  
+  PROJECTS_READ = "projects:read",
+  PROJECTS_WRITE = "projects:write",
+  PROJECTS_DELETE = "projects:delete",
+
   // Collection scopes (per project)
-  COLLECTIONS_READ = 'collections:read',
-  COLLECTIONS_WRITE = 'collections:write',
-  COLLECTIONS_DELETE = 'collections:delete',
-  
+  COLLECTIONS_READ = "collections:read",
+  COLLECTIONS_WRITE = "collections:write",
+  COLLECTIONS_DELETE = "collections:delete",
+
   // Document scopes (per project)
-  DOCUMENTS_READ = 'documents:read',
-  DOCUMENTS_WRITE = 'documents:write',
-  DOCUMENTS_DELETE = 'documents:delete',
-  
+  DOCUMENTS_READ = "documents:read",
+  DOCUMENTS_WRITE = "documents:write",
+  DOCUMENTS_DELETE = "documents:delete",
+
   // Storage scopes (per project)
-  STORAGE_READ = 'storage:read',
-  STORAGE_WRITE = 'storage:write',
-  STORAGE_DELETE = 'storage:delete',
-  
+  STORAGE_READ = "storage:read",
+  STORAGE_WRITE = "storage:write",
+  STORAGE_DELETE = "storage:delete",
+
   // Email scopes (per project)
-  EMAIL_SEND = 'email:send',
-  EMAIL_READ = 'email:read',
-  
+  EMAIL_SEND = "email:send",
+  EMAIL_READ = "email:read",
+
   // Function scopes (per project)
-  FUNCTIONS_EXECUTE = 'functions:execute',
-  FUNCTIONS_WRITE = 'functions:write',
-  FUNCTIONS_DELETE = 'functions:delete',
+  FUNCTIONS_EXECUTE = "functions:execute",
+  FUNCTIONS_WRITE = "functions:write",
+  FUNCTIONS_DELETE = "functions:delete",
 }
 
 // API Key Types
@@ -330,7 +351,7 @@ export interface ApiKey {
   id: string;
   key: string;
   name: string;
-  type: 'master' | 'admin' | 'project';
+  type: "master" | "admin" | "project";
   owner_id: string; // admin_user_id or project_id
   scopes: Scope[];
   project_ids?: string[]; // For admin keys with limited project access

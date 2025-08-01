@@ -236,7 +236,7 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
 
   if (href) {
     return (
-      <Link href={href} className="block">
+      <Link href={href as any} className="block">
         {content}
       </Link>
     );

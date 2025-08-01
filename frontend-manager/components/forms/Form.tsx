@@ -26,10 +26,8 @@ export function Form<T extends z.ZodSchema>({
   formProps,
 }: FormProps<T>) {
   const methods = useForm<z.infer<T>>({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      resolver: zodResolver(schema) as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      defaultValues: defaultValues as any,
+    resolver: zodResolver(schema as any),
+    defaultValues: defaultValues as any,
     ...formProps,
   });
 

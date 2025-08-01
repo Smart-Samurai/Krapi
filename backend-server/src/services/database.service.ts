@@ -392,53 +392,59 @@ export class DatabaseService {
       await this.seedDefaultData();
     } catch (error) {
       await client.query("ROLLBACK");
-      
+
       // Log more detailed error information
       console.error("Error during table initialization:", error);
-      
+
       // Check if it's a specific PostgreSQL error
-      if (error instanceof Error && 'code' in error) {
+      if (error instanceof Error && "code" in error) {
         const pgError = error as any;
-        
+
         // If it's a "column does not exist" error, it might mean tables are partially created
-        if (pgError.code === '42703') {
-          console.log("Tables might be partially created. Attempting to drop and recreate...");
-          
+        if (pgError.code === "42703") {
+          console.log(
+            "Tables might be partially created. Attempting to drop and recreate..."
+          );
+
           try {
             // Start a new transaction to clean up
             await client.query("BEGIN");
-            
+
             // Drop tables in reverse order of dependencies
             const tablesToDrop = [
-              'audit_logs',
-              'system_checks',
-              'sessions',
-              'documents',
-              'collections',
-              'project_admins',
-              'project_users',
-              'projects',
-              'api_keys',
-              'admin_users'
+              "audit_logs",
+              "system_checks",
+              "sessions",
+              "documents",
+              "collections",
+              "project_admins",
+              "project_users",
+              "projects",
+              "api_keys",
+              "admin_users",
             ];
-            
+
             for (const table of tablesToDrop) {
               await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
             }
-            
+
             // Drop the trigger function
-            await client.query(`DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE`);
-            
+            await client.query(
+              `DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE`
+            );
+
             await client.query("COMMIT");
-            
-            console.log("Cleaned up existing tables. Please restart the application.");
+
+            console.log(
+              "Cleaned up existing tables. Please restart the application."
+            );
           } catch (cleanupError) {
             await client.query("ROLLBACK");
             console.error("Failed to clean up tables:", cleanupError);
           }
         }
       }
-      
+
       throw error;
     } finally {
       client.release();
@@ -881,8 +887,8 @@ export class DatabaseService {
     data: Partial<AdminUser>
   ): Promise<AdminUser | null> {
     await this.ensureReady();
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     let paramCount = 1;
 
     if (data.email !== undefined) {
@@ -1031,8 +1037,8 @@ export class DatabaseService {
     id: string,
     data: Partial<Project>
   ): Promise<Project | null> {
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     let paramCount = 1;
 
     if (data.name !== undefined) {
@@ -1089,8 +1095,8 @@ export class DatabaseService {
     storageChange: number = 0,
     apiCall: boolean = false
   ): Promise<void> {
-    const updates = [];
-    const values = [];
+    const updates: string[] = [];
+    const values: any[] = [];
     let paramCount = 1;
 
     if (storageChange !== 0) {
@@ -1238,8 +1244,8 @@ export class DatabaseService {
     updates: Partial<ProjectUser>
   ): Promise<ProjectUser | null> {
     await this.ensureReady();
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     let paramCount = 1;
 
     if (updates.username !== undefined) {
@@ -1862,7 +1868,10 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
   }
 
-  async updateSession(token: string, updates: { consumed?: boolean; last_activity?: boolean }): Promise<Session | null> {
+  async updateSession(
+    token: string,
+    updates: { consumed?: boolean; last_activity?: boolean }
+  ): Promise<Session | null> {
     const setClauses: string[] = [];
     const values: any[] = [];
     let paramCount = 1;
@@ -1887,7 +1896,7 @@ export class DatabaseService {
     values.push(token);
     const result = await this.pool.query(
       `UPDATE sessions 
-       SET ${setClauses.join(', ')} 
+       SET ${setClauses.join(", ")} 
        WHERE token = $${paramCount}
        RETURNING *`,
       values
@@ -2062,8 +2071,8 @@ export class DatabaseService {
     data: Partial<ApiKey>
   ): Promise<ApiKey | null> {
     await this.ensureReady();
-    const fields = [];
-    const values = [];
+    const fields: string[] = [];
+    const values: any[] = [];
     let paramCount = 1;
 
     if (data.name !== undefined) {
@@ -2132,7 +2141,7 @@ export class DatabaseService {
     active: boolean;
   }): Promise<ApiKey> {
     await this.ensureReady();
-    
+
     const query = `
       INSERT INTO api_keys (
         id, key, name, type, owner_id, scopes, 
@@ -2140,19 +2149,19 @@ export class DatabaseService {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
-    
+
     const values = [
       uuidv4(),
       apiKey.key,
       apiKey.name,
-      'project',
+      "project",
       apiKey.project_id,
       apiKey.scopes,
       apiKey.created_at,
       apiKey.last_used_at,
-      apiKey.active
+      apiKey.active,
     ];
-    
+
     const result = await this.pool.query(query, values);
     return this.mapApiKey(result.rows[0]);
   }
@@ -2160,46 +2169,46 @@ export class DatabaseService {
   // Get project API keys
   async getProjectApiKeys(projectId: string): Promise<ApiKey[]> {
     await this.ensureReady();
-    
+
     const query = `
       SELECT * FROM api_keys 
       WHERE owner_id = $1 AND type = 'project' AND is_active = true
       ORDER BY created_at DESC
     `;
-    
+
     const result = await this.pool.query(query, [projectId]);
-    return result.rows.map(row => this.mapApiKey(row));
+    return result.rows.map((row) => this.mapApiKey(row));
   }
 
   // Get project API key by ID
   async getProjectApiKeyById(keyId: string): Promise<ApiKey | null> {
     await this.ensureReady();
-    
+
     const query = `
       SELECT * FROM api_keys 
       WHERE id = $1 AND type = 'project'
     `;
-    
+
     const result = await this.pool.query(query, [keyId]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
-    
+
     return this.mapApiKey(result.rows[0]);
   }
 
   // Delete project API key
   async deleteProjectApiKey(keyId: string): Promise<boolean> {
     await this.ensureReady();
-    
+
     const query = `
       UPDATE api_keys 
       SET is_active = false 
       WHERE id = $1 AND type = 'project'
       RETURNING id
     `;
-    
+
     const result = await this.pool.query(query, [keyId]);
     return result.rows.length > 0;
   }
@@ -2207,15 +2216,15 @@ export class DatabaseService {
   // Get user API keys
   async getUserApiKeys(userId: string): Promise<ApiKey[]> {
     await this.ensureReady();
-    
+
     const query = `
       SELECT * FROM api_keys 
       WHERE owner_id = $1 AND type = 'admin' AND is_active = true
       ORDER BY created_at DESC
     `;
-    
+
     const result = await this.pool.query(query, [userId]);
-    return result.rows.map(row => this.mapApiKey(row));
+    return result.rows.map((row) => this.mapApiKey(row));
   }
 
   // Create user API key
@@ -2232,7 +2241,7 @@ export class DatabaseService {
     active: boolean;
   }): Promise<ApiKey> {
     await this.ensureReady();
-    
+
     const query = `
       INSERT INTO api_keys (
         id, key, name, type, owner_id, scopes, project_ids,
@@ -2240,7 +2249,7 @@ export class DatabaseService {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
-    
+
     const values = [
       uuidv4(),
       apiKey.key,
@@ -2251,9 +2260,9 @@ export class DatabaseService {
       apiKey.project_ids,
       apiKey.created_at,
       apiKey.last_used_at,
-      apiKey.active
+      apiKey.active,
     ];
-    
+
     const result = await this.pool.query(query, values);
     return this.mapApiKey(result.rows[0]);
   }
@@ -2261,15 +2270,15 @@ export class DatabaseService {
   // Get active sessions
   async getActiveSessions(): Promise<Session[]> {
     await this.ensureReady();
-    
+
     const query = `
       SELECT * FROM sessions 
       WHERE expires_at > NOW() AND revoked_at IS NULL
       ORDER BY created_at DESC
     `;
-    
+
     const result = await this.pool.query(query);
-    return result.rows.map(row => this.mapSession(row));
+    return result.rows.map((row) => this.mapSession(row));
   }
 
   // Get activity logs
@@ -2283,7 +2292,7 @@ export class DatabaseService {
     };
   }): Promise<ChangelogEntry[]> {
     await this.ensureReady();
-    
+
     let query = `SELECT * FROM changelog WHERE 1=1`;
     const values: any[] = [];
     let paramCount = 0;
@@ -2315,9 +2324,9 @@ export class DatabaseService {
     paramCount++;
     query += ` OFFSET $${paramCount}`;
     values.push(options.offset);
-    
+
     const result = await this.pool.query(query, values);
-    return result.rows.map(row => this.mapChangelogEntry(row));
+    return result.rows.map((row) => this.mapChangelogEntry(row));
   }
 
   // Mapping functions

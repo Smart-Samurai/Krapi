@@ -38,7 +38,7 @@ import {
   FiToggleLeft,
   FiList,
 } from "react-icons/fi";
-import { useKrapi } from "@/contexts/krapi-context";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Collection, CollectionField } from "@/lib/krapi";
 
 // Field type icons mapping
@@ -52,19 +52,21 @@ const fieldTypeIcons: Record<string, React.ReactNode> = {
 };
 
 export default function CollectionDetailPage() {
-  const params = useParams();
   const router = useRouter();
-  const { krapi } = useKrapi();
+  const krapi = useKrapi();
+  const params = useParams();
   const projectId = params.projectId as string;
   const collectionName = params.collectionName as string;
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Field management state
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
-  const [editingField, setEditingField] = useState<CollectionField | null>(null);
+  const [editingField, setEditingField] = useState<CollectionField | null>(
+    null
+  );
   const [fieldForm, setFieldForm] = useState({
     name: "",
     type: "string",
@@ -85,10 +87,10 @@ export default function CollectionDetailPage() {
     try {
       setLoading(true);
       const response = await krapi.collections.get(projectId, collectionName);
-      if (response.success) {
+      if (response.success && response.data) {
         setCollection(response.data);
       } else {
-        setError(response.error || "Failed to fetch collection");
+        setError("Collection not found");
       }
     } catch (err) {
       console.error("Error fetching collection:", err);
@@ -113,12 +115,16 @@ export default function CollectionDetailPage() {
       };
 
       const updatedFields = [...(collection.fields || []), newField];
-      
-      const response = await krapi.collections.update(projectId, collectionName, {
-        fields: updatedFields,
-      });
 
-      if (response.success) {
+      const response = await krapi.collections.update(
+        projectId,
+        collectionName,
+        {
+          fields: updatedFields,
+        }
+      );
+
+      if (response.success && response.data) {
         setCollection(response.data);
         setIsAddFieldOpen(false);
         resetFieldForm();
@@ -149,11 +155,15 @@ export default function CollectionDetailPage() {
           : field
       );
 
-      const response = await krapi.collections.update(projectId, collectionName, {
-        fields: updatedFields,
-      });
+      const response = await krapi.collections.update(
+        projectId,
+        collectionName,
+        {
+          fields: updatedFields,
+        }
+      );
 
-      if (response.success) {
+      if (response.success && response.data) {
         setCollection(response.data);
         setEditingField(null);
         resetFieldForm();
@@ -167,18 +177,27 @@ export default function CollectionDetailPage() {
   };
 
   const handleDeleteField = async (fieldName: string) => {
-    if (!collection || !confirm(`Are you sure you want to delete the "${fieldName}" field?`)) {
+    if (
+      !collection ||
+      !confirm(`Are you sure you want to delete the "${fieldName}" field?`)
+    ) {
       return;
     }
 
     try {
-      const updatedFields = collection.fields.filter((field) => field.name !== fieldName);
-      
-      const response = await krapi.collections.update(projectId, collectionName, {
-        fields: updatedFields,
-      });
+      const updatedFields = collection.fields.filter(
+        (field) => field.name !== fieldName
+      );
 
-      if (response.success) {
+      const response = await krapi.collections.update(
+        projectId,
+        collectionName,
+        {
+          fields: updatedFields,
+        }
+      );
+
+      if (response.success && response.data) {
         setCollection(response.data);
       } else {
         setError(response.error || "Failed to delete field");
@@ -235,7 +254,9 @@ export default function CollectionDetailPage() {
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <div className="text-center">
           <FiDatabase className="h-12 w-12 text-text/40 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text mb-2">Collection not found</h3>
+          <h3 className="text-lg font-medium text-text mb-2">
+            Collection not found
+          </h3>
           <Button onClick={() => router.push("/collections")}>
             Back to Collections
           </Button>
@@ -268,7 +289,9 @@ export default function CollectionDetailPage() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => router.push(`/collections/${projectId}/${collectionName}/documents`)}
+          onClick={() =>
+            router.push(`/collections/${projectId}/${collectionName}/documents`)
+          }
         >
           <FiFile className="mr-2 h-4 w-4" />
           View Documents
@@ -298,7 +321,9 @@ export default function CollectionDetailPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="text-text/60">
-                      {fieldTypeIcons[field.type] || <FiType className="h-4 w-4" />}
+                      {fieldTypeIcons[field.type] || (
+                        <FiType className="h-4 w-4" />
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -324,7 +349,9 @@ export default function CollectionDetailPage() {
                         )}
                       </div>
                       {field.description && (
-                        <p className="text-sm text-text/60 mt-1">{field.description}</p>
+                        <p className="text-sm text-text/60 mt-1">
+                          {field.description}
+                        </p>
                       )}
                     </div>
                   </div>

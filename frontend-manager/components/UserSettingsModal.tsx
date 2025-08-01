@@ -66,10 +66,10 @@ export default function UserSettingsModal({
 
     setIsChangingPassword(true);
     try {
-      const response = await krapi.auth.changePassword(
-        passwordForm.currentPassword,
-        passwordForm.newPassword
-      );
+      const response = await krapi.auth.changePassword({
+        current_password: passwordForm.currentPassword,
+        new_password: passwordForm.newPassword,
+      });
 
       if (response.success) {
         showSuccess("Password changed successfully");
@@ -124,10 +124,13 @@ export default function UserSettingsModal({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="text-lg font-semibold">{user?.username || user?.email}</h3>
+                <h3 className="text-lg font-semibold">
+                  {user?.username || user?.email}
+                </h3>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
                 <p className="text-sm text-muted-foreground">
-                  Role: {user?.role === 'master_admin' ? 'Master Admin' : 'Admin'}
+                  Role:{" "}
+                  {user?.role === "master_admin" ? "Master Admin" : "Admin"}
                 </p>
               </div>
             </div>
@@ -147,17 +150,21 @@ export default function UserSettingsModal({
                 </div>
                 <div>
                   <Label>Account Status</Label>
-                  <Input 
-                    value={user?.is_active ? "Active" : "Inactive"} 
-                    disabled 
-                    className={user?.is_active ? "text-green-600" : "text-red-600"}
+                  <Input
+                    value={user?.active ? "Active" : "Inactive"}
+                    disabled
+                    className={user?.active ? "text-green-600" : "text-red-600"}
                   />
                 </div>
                 <div>
                   <Label>Member Since</Label>
-                  <Input 
-                    value={user?.created_at ? new Date(user.created_at).toLocaleDateString() : ""} 
-                    disabled 
+                  <Input
+                    value={
+                      user?.created_at
+                        ? new Date(user.created_at).toLocaleDateString()
+                        : ""
+                    }
+                    disabled
                   />
                 </div>
               </div>

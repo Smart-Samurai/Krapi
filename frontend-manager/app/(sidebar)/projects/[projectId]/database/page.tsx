@@ -4,12 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { createDefaultKrapi } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import {
-  Button,
-  IconButton,
-  InfoBlock,
-  Input,
-} from "@/components/styled";
+import type { Collection } from "@/lib/krapi";
+import { Button, IconButton, InfoBlock, Input } from "@/components/styled";
 import {
   FiDatabase,
   FiPlus,
@@ -21,24 +17,11 @@ import {
   FiSettings,
 } from "react-icons/fi";
 
-interface Collection {
-  id: string;
-  project_id: string;
-  name: string;
-  description?: string;
-  schema: Record<string, unknown>;
-  indexes: string[];
-  permissions: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-  document_count: number;
-}
-
 export default function ProjectDatabasePage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
-  
+
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,11 +34,11 @@ export default function ProjectDatabasePage() {
   const fetchCollections = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // When using admin auth, we need to pass projectId explicitly
-              const result = await krapi.database.getSchemas(projectId);
-      
+      const result = await krapi.collections.getAll(projectId);
+
       if (result.success && result.data) {
         setCollections(result.data);
       } else {
@@ -67,6 +50,16 @@ export default function ProjectDatabasePage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditCollection = (collection: Collection) => {
+    // TODO: Implement edit collection functionality
+    console.log("Edit collection:", collection);
+  };
+
+  const handleDeleteCollection = (collectionName: string) => {
+    // TODO: Implement delete collection functionality
+    console.log("Delete collection:", collectionName);
   };
 
   const filteredCollections = collections.filter((collection) =>
@@ -130,9 +123,14 @@ export default function ProjectDatabasePage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Total Documents</p>
+              <p className="text-sm font-medium text-text/60">
+                Total Documents
+              </p>
               <p className="text-2xl font-bold text-text mt-1">
-                {collections.reduce((sum, col) => sum + col.document_count, 0)}
+                {collections.reduce(
+                  (sum, col) => sum + (col.fields?.length || 0),
+                  0
+                )}
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
@@ -143,12 +141,16 @@ export default function ProjectDatabasePage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Avg Documents/Collection</p>
+              <p className="text-sm font-medium text-text/60">
+                Avg Documents/Collection
+              </p>
               <p className="text-2xl font-bold text-text mt-1">
                 {collections.length > 0
                   ? Math.round(
-                      collections.reduce((sum, col) => sum + col.document_count, 0) /
-                        collections.length
+                      collections.reduce(
+                        (sum, col) => sum + (col.fields?.length || 0),
+                        0
+                      ) / collections.length
                     )
                   : 0}
               </p>
@@ -200,16 +202,26 @@ export default function ProjectDatabasePage() {
                       <FiDatabase className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-medium text-text">{collection.name}</h3>
+                      <h3 className="font-medium text-text">
+                        {collection.name}
+                      </h3>
                       {collection.description && (
                         <p className="text-sm text-text/60 mt-1">
                           {collection.description}
                         </p>
                       )}
                       <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                        <span>{collection.document_count} documents</span>
-                        <span>Created: {new Date(collection.created_at).toLocaleDateString()}</span>
-                        <span>Updated: {new Date(collection.updated_at).toLocaleDateString()}</span>
+                        <p className="text-sm text-text/60">
+                          {collection.fields?.length || 0} fields
+                        </p>
+                        <span>
+                          Created:{" "}
+                          {new Date(collection.created_at).toLocaleDateString()}
+                        </span>
+                        <span>
+                          Updated:{" "}
+                          {new Date(collection.updated_at).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -222,7 +234,7 @@ export default function ProjectDatabasePage() {
                       Edit Schema
                     </Button>
                     <Button
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteCollection(collection.name)}
                     >

@@ -32,7 +32,7 @@ import {
   FiMusic,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project, FileInfo } from "@/lib/types";
+import type { Project, FileInfo, StorageStats } from "@/lib/krapi";
 
 export default function StoragePage() {
   const krapi = useKrapi();
@@ -44,11 +44,7 @@ export default function StoragePage() {
   const [error, setError] = useState<string | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [storageStats, setStorageStats] = useState<{
-    used: number;
-    limit: number;
-    count: number;
-  } | null>(null);
+  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -252,22 +248,24 @@ export default function StoragePage() {
             <div className="flex justify-between items-center">
               <span className="text-text/60">Used Space</span>
               <span className="font-medium text-text">
-                {formatFileSize(storageStats.used)} /{" "}
-                {formatFileSize(storageStats.limit)}
+                {formatFileSize(storageStats.total_size)} /{" "}
+                {formatFileSize(storageStats.storage_limit)}
               </span>
             </div>
             <div className="w-full bg-secondary rounded-full h-2">
               <div
                 className="bg-primary h-2 rounded-full transition-all"
                 style={{
-                  width: `${(storageStats.used / storageStats.limit) * 100}%`,
+                  width: `${
+                    (storageStats.total_size / storageStats.storage_limit) * 100
+                  }%`,
                 }}
               />
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-text/60">Total Files</span>
               <span className="font-medium text-text">
-                {storageStats.count}
+                {storageStats.file_count}
               </span>
             </div>
           </div>
@@ -310,14 +308,18 @@ export default function StoragePage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDownloadFile(file.id, file.name)}
+                      onClick={() =>
+                        handleDownloadFile(file.id, file.original_name)
+                      }
                     >
                       <FiDownload className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteFile(file.id, file.name)}
+                      onClick={() =>
+                        handleDeleteFile(file.id, file.original_name)
+                      }
                     >
                       <FiTrash2 className="h-4 w-4 text-red-500" />
                     </Button>
@@ -325,13 +327,13 @@ export default function StoragePage() {
                 </div>
                 <h4
                   className="font-medium text-text truncate mb-1"
-                  title={file.name}
+                  title={file.original_name}
                 >
-                  {file.name}
+                  {file.original_name}
                 </h4>
                 <div className="space-y-1 text-sm text-text/60">
                   <p>{formatFileSize(file.size)}</p>
-                  <p>{new Date(file.uploaded_at).toLocaleDateString()}</p>
+                  <p>{new Date(file.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
             );

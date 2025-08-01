@@ -60,7 +60,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-2">
           {navigationItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive =
+              pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
 
             if (collapsed) {
@@ -68,7 +69,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 <Tooltip key={item.name}>
                   <TooltipTrigger asChild>
                     <Link
-                      href={item.href}
+                      href={item.href as any}
                       className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-background-200",
                         isActive
@@ -89,7 +90,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={item.href as any}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-background-200",
                   isActive

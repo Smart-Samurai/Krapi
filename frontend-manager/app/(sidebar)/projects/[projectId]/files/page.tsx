@@ -2,14 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { createDefaultKrapi } from "@/lib/krapi";
+import { createDefaultKrapi, FileInfo } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import {
-  Button,
-  IconButton,
-  InfoBlock,
-  Input,
-} from "@/components/styled";
+import { Button, IconButton, InfoBlock, Input } from "@/components/styled";
 import {
   FiFile,
   FiFileText,
@@ -27,24 +22,12 @@ import {
   FiFolder,
 } from "react-icons/fi";
 
-interface FileItem {
-  id: string;
-  name: string;
-  filename: string;
-  mime_type: string;
-  size: number;
-  path: string;
-  created_at: string;
-  updated_at: string;
-  created_by: string;
-}
-
 export default function ProjectFilesPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
-  
-  const [files, setFiles] = useState<FileItem[]>([]);
+
+  const [files, setFiles] = useState<FileInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +39,10 @@ export default function ProjectFilesPage() {
   const fetchFiles = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-              const result = await krapi.storage.getFiles(projectId);
-      
+      const result = await krapi.storage.getFiles(projectId);
+
       if (result.success && result.data) {
         setFiles(result.data);
       } else {
@@ -77,8 +60,10 @@ export default function ProjectFilesPage() {
     if (mime_type.startsWith("image/")) return <FiImage className="h-5 w-5" />;
     if (mime_type.startsWith("video/")) return <FiVideo className="h-5 w-5" />;
     if (mime_type.startsWith("audio/")) return <FiMusic className="h-5 w-5" />;
-    if (mime_type.includes("zip") || mime_type.includes("archive")) return <FiArchive className="h-5 w-5" />;
-    if (mime_type.includes("text") || mime_type.includes("document")) return <FiFileText className="h-5 w-5" />;
+    if (mime_type.includes("zip") || mime_type.includes("archive"))
+      return <FiArchive className="h-5 w-5" />;
+    if (mime_type.includes("text") || mime_type.includes("document"))
+      return <FiFileText className="h-5 w-5" />;
     return <FiFile className="h-5 w-5" />;
   };
 
@@ -91,7 +76,7 @@ export default function ProjectFilesPage() {
   };
 
   const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchTerm.toLowerCase())
+    file.original_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -153,7 +138,9 @@ export default function ProjectFilesPage() {
             <div>
               <p className="text-sm font-medium text-text/60">Total Size</p>
               <p className="text-2xl font-bold text-text mt-1">
-                {formatFileSize(files.reduce((sum, file) => sum + file.size, 0))}
+                {formatFileSize(
+                  files.reduce((sum, file) => sum + file.size, 0)
+                )}
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
@@ -168,7 +155,8 @@ export default function ProjectFilesPage() {
               <p className="text-2xl font-bold text-text mt-1">
                 {files.length > 0
                   ? formatFileSize(
-                      files.reduce((sum, file) => sum + file.size, 0) / files.length
+                      files.reduce((sum, file) => sum + file.size, 0) /
+                        files.length
                     )
                   : "0 Bytes"}
               </p>
@@ -220,11 +208,16 @@ export default function ProjectFilesPage() {
                       {getFileIcon(file.mime_type)}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-medium text-text">{file.name}</h3>
+                      <h3 className="font-medium text-text">
+                        {file.original_name}
+                      </h3>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
                         <span>{formatFileSize(file.size)}</span>
                         <span>{file.mime_type}</span>
-                        <span>Uploaded: {new Date(file.created_at).toLocaleDateString()}</span>
+                        <span>
+                          Uploaded:{" "}
+                          {new Date(file.created_at).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -235,7 +228,10 @@ export default function ProjectFilesPage() {
                       size="sm"
                       title="Preview File"
                       onClick={() => {
-                        const url = krapi.storage.getFileUrl(projectId, file.id);
+                        const url = krapi.storage.getFileUrl(
+                          projectId,
+                          file.id
+                        );
                         window.open(url, "_blank");
                       }}
                     />
@@ -278,7 +274,8 @@ export default function ProjectFilesPage() {
           </p>
           <p>
             <strong>Supported file types:</strong> Images (JPG, PNG, GIF, WebP),
-            Documents (PDF, DOC, TXT), Videos (MP4, WebM), Audio (MP3, WAV), and more.
+            Documents (PDF, DOC, TXT), Videos (MP4, WebM), Audio (MP3, WAV), and
+            more.
           </p>
           <p>
             <strong>File size limit:</strong> 100MB per file

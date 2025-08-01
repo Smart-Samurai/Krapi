@@ -14,7 +14,7 @@ import type { AdminUser } from "@krapi/sdk";
 import config from "@/lib/config";
 
 interface AuthContextType {
-  user: Omit<AdminUser, 'password_hash'> | null;
+  user: Omit<AdminUser, "password_hash"> | null;
   token: string | null;
   isLoading: boolean;
   isHydrated: boolean;
@@ -31,34 +31,39 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Omit<AdminUser, 'password_hash'> | null>(null);
+  const [user, setUser] = useState<Omit<AdminUser, "password_hash"> | null>(
+    null
+  );
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loginInProgress, setLoginInProgress] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  
+
   // Keep a ref to the krapi client
-  const krapiClientRef = useRef<KrapiClient>();
+  const krapiClientRef = useRef<KrapiClient | null>(null);
 
   const isAuthenticated = !!token;
 
   // Create or update krapi client instance
-  const getKrapiClient = useCallback((authToken?: string) => {
-    // Remove /krapi/k1 from the baseURL since SDK appends it
-    const baseURL = config.api.baseUrl.replace(/\/krapi\/k1\/?$/, '');
-    
-    if (!krapiClientRef.current) {
-      krapiClientRef.current = new KrapiClient({
-        baseUrl: baseURL,
-        authToken: authToken || token || undefined,
-      });
-    } else {
-      // Update the auth token on the existing client
-      krapiClientRef.current.setSessionToken(authToken || token || '');
-    }
-    
-    return krapiClientRef.current;
-  }, [token]);
+  const getKrapiClient = useCallback(
+    (authToken?: string) => {
+      // Remove /krapi/k1 from the baseURL since SDK appends it
+      const baseURL = config.api.baseUrl.replace(/\/krapi\/k1\/?$/, "");
+
+      if (!krapiClientRef.current) {
+        krapiClientRef.current = new KrapiClient({
+          baseUrl: baseURL,
+          sessionToken: authToken || token || undefined,
+        });
+      } else {
+        // Update the auth token on the existing client
+        krapiClientRef.current.setSessionToken(authToken || token || "");
+      }
+
+      return krapiClientRef.current;
+    },
+    [token]
+  );
 
   const verifyToken = useCallback(async () => {
     try {
@@ -113,50 +118,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyToken();
   }, [token, loginInProgress, verifyToken]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    setLoginInProgress(true);
-    setIsLoading(true);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      setLoginInProgress(true);
+      setIsLoading(true);
 
-    try {
-      const krapi = getKrapiClient();
-      const response = await krapi.auth.adminLogin(email, password);
+      try {
+        const krapi = getKrapiClient();
+        const response = await krapi.auth.adminLogin({
+          username: email,
+          password,
+        });
 
-      if (response.success && response.data) {
-        const { token: authToken, user: userData } = response.data;
-        
-        // Store token
-        localStorage.setItem("auth_token", authToken);
-        setToken(authToken);
-        setUser(userData);
-        
-        // Update the krapi client with the new token
-        getKrapiClient(authToken);
+        if (response.success && response.data) {
+          const { session_token: authToken, user: userData } = response.data;
 
-        return true;
-      } else {
-        throw new Error(response.error || "Login failed");
+          // Store token
+          localStorage.setItem("auth_token", authToken);
+          setToken(authToken);
+          setUser(userData);
+
+          // Update the krapi client with the new token
+          getKrapiClient(authToken);
+
+          return true;
+        } else {
+          throw new Error(response.error || "Login failed");
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        throw error;
+      } finally {
+        setLoginInProgress(false);
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    } finally {
-      setLoginInProgress(false);
-      setIsLoading(false);
-    }
-  }, [getKrapiClient]);
+    },
+    [getKrapiClient]
+  );
 
   const logout = useCallback(() => {
     const krapi = getKrapiClient(token || undefined);
     // Call logout endpoint
     krapi.auth.logout().catch(console.error);
-    
+
     // Clear local state
     localStorage.removeItem("auth_token");
     setToken(null);
     setUser(null);
-    
+
     // Clear the auth token from the client
-    krapi.setAuthToken('');
+    krapi.clearAuth();
   }, [getKrapiClient]);
 
   const refreshUser = useCallback(async () => {

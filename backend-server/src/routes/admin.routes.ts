@@ -1,59 +1,96 @@
-import { Router } from 'express';
-import { AdminController } from '@/controllers/admin.controller';
-import { 
-  authenticate, 
-  requireScopes
-} from '@/middleware/auth.middleware';
-import { Scope } from '@/types';
+import { Router, IRouter } from "express";
+import { AdminController } from "@/controllers/admin.controller";
+import { authenticate, requireScopes } from "@/middleware/auth.middleware";
+import { Scope } from "@/types";
 
-const router = Router();
+const router: IRouter = Router();
 const controller = new AdminController();
 
 // All routes require authentication
 router.use(authenticate);
 
 // Admin user management
-router.get('/users', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getAllAdminUsers);
+router.get(
+  "/users",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getAllAdminUsers
+);
 
-router.get('/users/:userId', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getAdminUserById);
+router.get(
+  "/users/:userId",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getAdminUserById
+);
 
-router.post('/users', requireScopes({
-  scopes: [Scope.ADMIN_WRITE]
-}), controller.createAdminUser);
+router.post(
+  "/users",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  controller.createAdminUser
+);
 
-router.put('/users/:userId', requireScopes({
-  scopes: [Scope.ADMIN_WRITE]
-}), controller.updateAdminUser);
+router.put(
+  "/users/:userId",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  controller.updateAdminUser
+);
 
-router.delete('/users/:userId', requireScopes({
-  scopes: [Scope.ADMIN_DELETE]
-}), controller.deleteAdminUser);
+router.delete(
+  "/users/:userId",
+  requireScopes({
+    scopes: [Scope.ADMIN_DELETE],
+  }),
+  controller.deleteAdminUser
+);
 
 // User API key management
-router.get('/users/:userId/api-keys', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getUserApiKeys);
+router.get(
+  "/users/:userId/api-keys",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getUserApiKeys
+);
 
-router.post('/users/:userId/api-keys', requireScopes({
-  scopes: [Scope.ADMIN_WRITE]
-}), controller.createUserApiKey);
+router.post(
+  "/users/:userId/api-keys",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  controller.createUserApiKey
+);
 
-router.delete('/api-keys/:keyId', requireScopes({
-  scopes: [Scope.ADMIN_WRITE]
-}), controller.deleteApiKey);
+router.delete(
+  "/api-keys/:keyId",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  controller.deleteApiKey
+);
 
 // System management
-router.get('/system/stats', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getSystemStats);
+router.get(
+  "/system/stats",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getSystemStats
+);
 
 // Activity logs
-router.get('/activity', requireScopes({
-  scopes: [Scope.ADMIN_READ]
-}), controller.getActivityLogs);
+router.get(
+  "/activity",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getActivityLogs
+);
 
 export default router;
