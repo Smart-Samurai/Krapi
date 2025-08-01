@@ -33,6 +33,8 @@ export class DatabaseService {
   private readyPromise: Promise<void>;
   private readyResolve!: () => void;
   private readyReject!: (error: Error) => void;
+  private lastHealthCheck: Date | null = null;
+  private healthCheckInterval: number = 60000; // 1 minute
 
   private constructor() {
     // Create the ready promise
@@ -89,10 +91,130 @@ export class DatabaseService {
     return this.isConnected;
   }
 
+  // Health check method
+  async checkHealth(): Promise<{ healthy: boolean; message: string; details?: any }> {
+    try {
+      // Check connection
+      const client = await this.pool.connect();
+      await client.query("SELECT 1");
+      client.release();
+
+      // Check critical tables
+      const criticalTables = [
+        'admin_users', 'projects', 'collections', 'documents', 
+        'sessions', 'api_keys', 'changelog', 'migrations'
+      ];
+
+      const missingTables = [];
+      for (const table of criticalTables) {
+        const result = await this.pool.query(
+          "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)",
+          [table]
+        );
+        if (!result.rows[0].exists) {
+          missingTables.push(table);
+        }
+      }
+
+      if (missingTables.length > 0) {
+        return {
+          healthy: false,
+          message: "Missing critical tables",
+          details: { missingTables }
+        };
+      }
+
+      this.lastHealthCheck = new Date();
+      return {
+        healthy: true,
+        message: "Database is healthy",
+        details: {
+          lastCheck: this.lastHealthCheck,
+          connectionPool: {
+            totalCount: this.pool.totalCount,
+            idleCount: this.pool.idleCount,
+            waitingCount: this.pool.waitingCount
+          }
+        }
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        message: "Database health check failed",
+        details: { error: error instanceof Error ? error.message : String(error) }
+      };
+    }
+  }
+
+  // Auto-repair database
+  async autoRepair(): Promise<{ success: boolean; message: string; repairs?: string[] }> {
+    const repairs: string[] = [];
+    
+    try {
+      console.log("Starting database auto-repair...");
+      
+      // Check health first
+      const health = await this.checkHealth();
+      if (health.healthy) {
+        return {
+          success: true,
+          message: "Database is healthy, no repairs needed"
+        };
+      }
+
+      // Re-initialize tables if needed
+      if (health.details?.missingTables?.length > 0) {
+        console.log("Re-initializing missing tables...");
+        await this.initializeTables();
+        repairs.push("Re-initialized missing tables");
+      }
+
+      // Run migrations
+      console.log("Running migrations...");
+      await this.migrationService.runMigrations();
+      repairs.push("Ran database migrations");
+
+      // Fix schema
+      console.log("Checking and fixing schema...");
+      await this.migrationService.checkAndFixSchema();
+      repairs.push("Fixed database schema");
+
+      // Create default admin if none exists
+      const adminCount = await this.pool.query("SELECT COUNT(*) FROM admin_users");
+      if (parseInt(adminCount.rows[0].count) === 0) {
+        await this.createDefaultAdmin();
+        repairs.push("Created default admin user");
+      }
+
+      return {
+        success: true,
+        message: "Database repaired successfully",
+        repairs
+      };
+    } catch (error) {
+      console.error("Auto-repair failed:", error);
+      return {
+        success: false,
+        message: "Failed to repair database",
+        repairs
+      };
+    }
+  }
+
   // Ensure database is ready before operations
   private async ensureReady(): Promise<void> {
     if (!this.isConnected) {
       await this.waitForReady();
+    }
+    
+    // Periodic health check
+    if (!this.lastHealthCheck || 
+        Date.now() - this.lastHealthCheck.getTime() > this.healthCheckInterval) {
+      const health = await this.checkHealth();
+      if (!health.healthy) {
+        console.warn("Database health check failed, attempting auto-repair...");
+        await this.autoRepair();
+      }
     }
   }
 
@@ -1007,34 +1129,47 @@ export class DatabaseService {
       | "lastApiCall"
     >
   ): Promise<Project> {
-    await this.ensureReady();
-    const apiKey = `pk_${uuidv4().replace(/-/g, "")}`;
+    try {
+      const apiKey = data.api_key || `pk_${uuidv4().replace(/-/g, "")}`;
 
-    const result = await this.pool.query(
-      `INSERT INTO projects (name, description, api_key, is_active, created_by, settings) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING *`,
-      [
-        data.name,
-        data.description,
-        apiKey,
-        data.active ?? true,
-        data.created_by,
-        data.settings || {},
-      ]
-    );
+      const rows = await this.queryWithRetry<any>(
+        `INSERT INTO projects (name, description, api_key, is_active, created_by, settings) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING *`,
+        [
+          data.name,
+          data.description,
+          apiKey,
+          data.active ?? true,
+          data.created_by,
+          JSON.stringify(data.settings || {}),
+        ]
+      );
 
-    return this.mapProject(result.rows[0]);
+      return this.mapProject(rows[0]);
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      // Check if it's a schema issue
+      if (error instanceof Error && error.message.includes('column')) {
+        await this.autoRepair();
+        // Retry after repair
+        return this.createProject(data);
+      }
+      throw error;
+    }
   }
 
   async getProjectById(id: string): Promise<Project | null> {
-    await this.ensureReady();
-    const result = await this.pool.query(
-      "SELECT * FROM projects WHERE id = $1",
-      [id]
-    );
-
-    return result.rows.length > 0 ? this.mapProject(result.rows[0]) : null;
+    try {
+      const rows = await this.queryWithRetry<Project>(
+        `SELECT * FROM projects WHERE id = $1`,
+        [id]
+      );
+      return rows.length > 0 ? this.mapProject(rows[0]) : null;
+    } catch (error) {
+      console.error("Failed to get project by ID:", error);
+      throw error;
+    }
   }
 
   async getProjectByApiKey(apiKey: string): Promise<Project | null> {
@@ -1048,49 +1183,96 @@ export class DatabaseService {
   }
 
   async getAllProjects(): Promise<Project[]> {
-    const result = await this.pool.query(
-      "SELECT * FROM projects ORDER BY created_at DESC"
-    );
-
-    return result.rows.map((row) => this.mapProject(row));
+    try {
+      const rows = await this.queryWithRetry<Project>(
+        `SELECT * FROM projects ORDER BY created_at DESC`
+      );
+      return rows;
+    } catch (error) {
+      console.error("Failed to get all projects:", error);
+      // Attempt to fix the issue
+      await this.autoRepair();
+      // Retry once after repair
+      const rows = await this.queryWithRetry<Project>(
+        `SELECT * FROM projects ORDER BY created_at DESC`
+      );
+      return rows;
+    }
   }
 
   async updateProject(
     id: string,
     data: Partial<Project>
   ): Promise<Project | null> {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let paramCount = 1;
+    try {
+      const updateFields = [];
+      const values = [];
+      let paramCount = 1;
 
-    if (data.name !== undefined) {
-      fields.push(`name = $${paramCount++}`);
-      values.push(data.name);
-    }
-    if (data.description !== undefined) {
-      fields.push(`description = $${paramCount++}`);
-      values.push(data.description);
-    }
-    if (data.active !== undefined) {
-      fields.push(`is_active = $${paramCount++}`);
-      values.push(data.active);
-    }
-    if (data.settings !== undefined) {
-      fields.push(`settings = $${paramCount++}`);
-      values.push(data.settings);
-    }
+      if (data.name !== undefined) {
+        updateFields.push(`name = $${paramCount++}`);
+        values.push(data.name);
+      }
+      if (data.description !== undefined) {
+        updateFields.push(`description = $${paramCount++}`);
+        values.push(data.description);
+      }
+      if (data.settings !== undefined) {
+        updateFields.push(`settings = $${paramCount++}`);
+        values.push(JSON.stringify(data.settings));
+      }
+      if (data.active !== undefined) {
+        updateFields.push(`active = $${paramCount++}`);
+        values.push(data.active);
+      }
+      if (data.api_key !== undefined) {
+        updateFields.push(`api_key = $${paramCount++}`);
+        values.push(data.api_key);
+      }
 
-    if (fields.length === 0) return this.getProjectById(id);
+      updateFields.push(`updated_at = $${paramCount++}`);
+      values.push(new Date().toISOString());
 
-    values.push(id);
-    const result = await this.pool.query(
-      `UPDATE projects SET ${fields.join(
-        ", "
-      )} WHERE id = $${paramCount} RETURNING *`,
-      values
-    );
+      values.push(id);
 
-    return result.rows.length > 0 ? this.mapProject(result.rows[0]) : null;
+      const rows = await this.queryWithRetry<Project>(
+        `UPDATE projects SET ${updateFields.join(", ")} 
+         WHERE id = $${paramCount} RETURNING *`,
+        values
+      );
+
+      return rows[0] || null;
+    } catch (error) {
+      console.error("Failed to update project:", error);
+      throw error;
+    }
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Delete related data in correct order
+      await client.query("DELETE FROM documents WHERE collection_id IN (SELECT id FROM collections WHERE project_id = $1)", [id]);
+      await client.query("DELETE FROM collections WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM project_users WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM files WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM changelog WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM api_keys WHERE owner_id = $1", [id]);
+      
+      // Finally delete the project
+      const result = await client.query("DELETE FROM projects WHERE id = $1", [id]);
+
+      await client.query("COMMIT");
+      return result.rowCount > 0;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Failed to delete project:", error);
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async regenerateProjectApiKey(id: string): Promise<string | null> {
@@ -1102,14 +1284,6 @@ export class DatabaseService {
     );
 
     return result.rows.length > 0 ? result.rows[0].api_key : null;
-  }
-
-  async deleteProject(id: string): Promise<boolean> {
-    const result = await this.pool.query("DELETE FROM projects WHERE id = $1", [
-      id,
-    ]);
-
-    return (result.rowCount ?? 0) > 0;
   }
 
   async updateProjectStats(
@@ -2375,7 +2549,7 @@ export class DatabaseService {
       name: row.name as string,
       description: row.description as string | undefined,
       api_key: row.api_key as string,
-      active: row.is_active as boolean,
+      active: (row.active !== undefined ? row.active : row.is_active) as boolean,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       created_by: row.created_by as string,
@@ -2492,5 +2666,40 @@ export class DatabaseService {
   // Close connection pool
   async close(): Promise<void> {
     await this.pool.end();
+  }
+
+  // Enhanced query method with retry logic
+  private async queryWithRetry<T = any>(
+    queryText: string,
+    values?: any[],
+    retries: number = 3
+  ): Promise<T[]> {
+    let lastError: Error | null = null;
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        await this.ensureReady();
+        const result = await this.pool.query(queryText, values);
+        return result.rows;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Query attempt ${i + 1} failed:`, error);
+        
+        // Check if it's a connection error
+        if (error instanceof Error && 
+            (error.message.includes('connection') || 
+             error.message.includes('ECONNREFUSED'))) {
+          this.isConnected = false;
+          await this.initializeWithRetry();
+        }
+        
+        // Wait before retry with exponential backoff
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+        }
+      }
+    }
+    
+    throw lastError || new Error("Query failed after retries");
   }
 }

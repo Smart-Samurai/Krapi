@@ -123,6 +123,42 @@ export class MigrationService {
           }
         },
       },
+      {
+        version: 6,
+        name: "fix_projects_table_columns",
+        up: async (client) => {
+          // Fix is_active vs active column naming
+          const hasIsActive = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'projects' AND column_name = 'is_active'
+          `);
+          
+          const hasActive = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'projects' AND column_name = 'active'
+          `);
+          
+          // If we have is_active but not active, rename it
+          if (hasIsActive.rows.length > 0 && hasActive.rows.length === 0) {
+            await client.query(`
+              ALTER TABLE projects 
+              RENAME COLUMN is_active TO active
+            `);
+            console.log("Renamed 'is_active' to 'active' in projects table");
+          }
+          
+          // If we have neither, add active column
+          if (hasIsActive.rows.length === 0 && hasActive.rows.length === 0) {
+            await client.query(`
+              ALTER TABLE projects 
+              ADD COLUMN active BOOLEAN DEFAULT true
+            `);
+            console.log("Added 'active' column to projects table");
+          }
+        },
+      },
     ];
   }
 
@@ -212,17 +248,25 @@ export class MigrationService {
       ];
 
       for (const { table, column, fix } of fixes) {
-        const result = await client.query(`
-          SELECT column_name 
-          FROM information_schema.columns 
-          WHERE table_name = $1 AND column_name = $2
-        `, [table, column]);
+        try {
+          const result = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = $1 AND column_name = $2
+          `, [table, column]);
 
-        if (result.rows.length === 0) {
-          console.log(`Fixing missing column: ${table}.${column}`);
-          await client.query(fix);
+          if (result.rows.length === 0) {
+            console.log(`Fixing missing column: ${table}.${column}`);
+            await client.query(fix);
+          }
+        } catch (error) {
+          console.error(`Failed to fix ${table}.${column}:`, error);
+          // Continue with other fixes
         }
       }
+
+      // Fix column type mismatches
+      await this.fixColumnTypes(client);
 
       // Check for missing indexes
       const indexes = [
@@ -241,18 +285,33 @@ export class MigrationService {
           table: "sessions",
           definition: "CREATE INDEX idx_sessions_token ON sessions(token)",
         },
+        {
+          name: "idx_projects_active",
+          table: "projects",
+          definition: "CREATE INDEX idx_projects_active ON projects(active)",
+        },
+        {
+          name: "idx_api_keys_key",
+          table: "api_keys",
+          definition: "CREATE INDEX idx_api_keys_key ON api_keys(key)",
+        },
       ];
 
       for (const { name, table, definition } of indexes) {
-        const result = await client.query(`
-          SELECT indexname 
-          FROM pg_indexes 
-          WHERE tablename = $1 AND indexname = $2
-        `, [table, name]);
+        try {
+          const result = await client.query(`
+            SELECT indexname 
+            FROM pg_indexes 
+            WHERE tablename = $1 AND indexname = $2
+          `, [table, name]);
 
-        if (result.rows.length === 0) {
-          console.log(`Creating missing index: ${name}`);
-          await client.query(definition);
+          if (result.rows.length === 0) {
+            console.log(`Creating missing index: ${name}`);
+            await client.query(definition);
+          }
+        } catch (error) {
+          console.error(`Failed to create index ${name}:`, error);
+          // Continue with other indexes
         }
       }
 
@@ -262,6 +321,44 @@ export class MigrationService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async fixColumnTypes(client: any) {
+    try {
+      // Fix settings column type if it's not JSONB
+      const settingsType = await client.query(`
+        SELECT data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'projects' AND column_name = 'settings'
+      `);
+
+      if (settingsType.rows.length > 0 && settingsType.rows[0].data_type !== 'jsonb') {
+        console.log("Fixing projects.settings column type");
+        await client.query(`
+          ALTER TABLE projects 
+          ALTER COLUMN settings TYPE JSONB 
+          USING settings::jsonb
+        `);
+      }
+
+      // Fix indexes column type if it's not JSONB
+      const indexesType = await client.query(`
+        SELECT data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'collections' AND column_name = 'indexes'
+      `);
+
+      if (indexesType.rows.length > 0 && indexesType.rows[0].data_type !== 'jsonb') {
+        console.log("Fixing collections.indexes column type");
+        await client.query(`
+          ALTER TABLE collections 
+          ALTER COLUMN indexes TYPE JSONB 
+          USING indexes::jsonb
+        `);
+      }
+    } catch (error) {
+      console.error("Error fixing column types:", error);
     }
   }
 }

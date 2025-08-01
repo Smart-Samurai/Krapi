@@ -54,3 +54,5 @@ Use these colors for shadcn:
 
 SDK is the most important part of the app. It describes all functionality. It exposes all functionality. When building anything new, we mock it up in the SDK first, then implement it in the backend, and only at the very end we import it into the frontend.
 Frontend needs to align to SDK and backend. Never change the SDK and backend to fit the frontend.
+
+Avoid creating standalone scripts for testing or fixes; instead, build these capabilities directly into the SDK and backend as proper methods and endpoints. This ensures functionality remains discoverable, maintainable, and evolves with the architecture.

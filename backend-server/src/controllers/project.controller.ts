@@ -57,9 +57,14 @@ export class ProjectController {
       } as PaginatedResponse<Project>);
     } catch (error) {
       console.error('Get all projects error:', error);
-      res.status(500).json({
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isDbError = errorMessage.includes('connection') || errorMessage.includes('ECONNREFUSED');
+      
+      res.status(isDbError ? 503 : 500).json({
         success: false,
-        error: 'Failed to fetch projects'
+        error: 'Failed to fetch projects',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        code: isDbError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR'
       } as ApiResponse);
         return;
     }
@@ -78,12 +83,22 @@ export class ProjectController {
     try {
       const { id } = req.params;
 
+      if (!id || typeof id !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid project ID',
+          code: 'INVALID_ID'
+        } as ApiResponse);
+        return;
+      }
+
       const project = await this.db.getProjectById(id);
 
       if (!project) {
         res.status(404).json({
           success: false,
-          error: 'Project not found'
+          error: 'Project not found',
+          code: 'PROJECT_NOT_FOUND'
         } as ApiResponse);
         return;
       }
@@ -95,9 +110,14 @@ export class ProjectController {
         return;
     } catch (error) {
       console.error('Get project by ID error:', error);
-      res.status(500).json({
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isDbError = errorMessage.includes('connection') || errorMessage.includes('ECONNREFUSED');
+      
+      res.status(isDbError ? 503 : 500).json({
         success: false,
-        error: 'Failed to fetch project'
+        error: 'Failed to fetch project',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        code: isDbError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR'
       } as ApiResponse);
         return;
     }
@@ -113,15 +133,26 @@ export class ProjectController {
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: 'Unauthorized',
+          code: 'UNAUTHORIZED'
+        } as ApiResponse);
+        return;
+      }
+
+      // Validate input
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Project name is required',
+          code: 'INVALID_INPUT'
         } as ApiResponse);
         return;
       }
 
       // Create project
       const newProject = await this.db.createProject({
-        name,
-        description,
+        name: name.trim(),
+        description: description?.trim() || null,
         settings,
         created_by: currentUser.id,
         active: true,
@@ -150,9 +181,15 @@ export class ProjectController {
         return;
     } catch (error) {
       console.error('Create project error:', error);
-      res.status(500).json({
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isDbError = errorMessage.includes('connection') || errorMessage.includes('ECONNREFUSED');
+      const isDuplicateError = errorMessage.includes('duplicate') || errorMessage.includes('unique');
+      
+      res.status(isDuplicateError ? 409 : (isDbError ? 503 : 500)).json({
         success: false,
-        error: 'Failed to create project'
+        error: isDuplicateError ? 'Project name already exists' : 'Failed to create project',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        code: isDuplicateError ? 'DUPLICATE_NAME' : (isDbError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR')
       } as ApiResponse);
         return;
     }
