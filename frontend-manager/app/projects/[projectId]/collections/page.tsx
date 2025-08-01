@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Collection } from "@krapi/sdk";
+import { ExtendedCollection } from "@/lib/types/extended";
 import { FiPlus, FiDatabase, FiTrash2, FiEdit } from "react-icons/fi";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,7 +20,7 @@ export default function ProjectCollectionsPage() {
   const krapi = useKrapi();
   const projectId = params.projectId as string;
 
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collections, setCollections] = useState<ExtendedCollection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -216,7 +217,7 @@ export default function ProjectCollectionsPage() {
                 <CardContent>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-text/60">Documents</span>
-                    <Badge variant="secondary">{(collection as any).document_count || 0}</Badge>
+                    <Badge variant="secondary">{collection.document_count || 0}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm mt-2">
                     <span className="text-text/60">Fields</span>

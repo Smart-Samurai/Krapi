@@ -45,6 +45,7 @@ import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
+import { DatabaseAdminUser, ExtendedAdminUser } from "@/lib/types/extended";
 
 // Permission types
 interface AdminPermissions {
@@ -73,7 +74,7 @@ interface AdminPermissions {
   isMasterAdmin: boolean;
 }
 
-interface AdminUser {
+interface LocalAdminUser {
   id: string;
   email: string;
   firstName: string;
@@ -123,12 +124,12 @@ type AdminUserFormData = z.infer<typeof adminUserSchema>;
 export default function ServerAdministrationPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<LocalAdminUser | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const krapi = useKrapi();
   const { hasScope } = useAuth();
 
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsers, setAdminUsers] = useState<LocalAdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch admin users from the database
@@ -142,7 +143,7 @@ export default function ServerAdministrationPage() {
 
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
-          const transformedUsers: AdminUser[] = response.data.map((user) => ({
+          const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
             id: user.id.toString(),
             email: user.email,
             firstName: user.username?.split(" ")[0] || "",
@@ -219,58 +220,7 @@ export default function ServerAdministrationPage() {
     );
   }
 
-  const handleCreateAdmin = async (data: AdminUserFormData) => {
-    if (!hasScope(Scope.ADMIN_WRITE)) {
-      toast.error("You don't have permission to create admin users");
-      return;
-    }
 
-    try {
-      setIsLoading(true);
-      const response = await krapi.admin.createUser({
-        email: data.email,
-        username: data.firstName.toLowerCase() + data.lastName.toLowerCase(),
-        password: data.password || "TempPassword123!", // You should generate or require a password
-        role: data.role as string,
-        access_level: data.accessLevel as string,
-        permissions: Object.entries(data.permissions)
-          .filter(([_, value]) => value)
-          .map(([key]) => key as any),
-      });
-
-      if (response.success) {
-        // Refresh the admin users list
-        const usersResponse = await krapi.admin.getUsers();
-        if (usersResponse.success && usersResponse.data) {
-          setAdminUsers(
-            usersResponse.data.map((user: any) => ({
-              id: user.id,
-              firstName: user.username.split(" ")[0] || user.username,
-              lastName: user.username.split(" ")[1] || "",
-              email: user.email,
-              role: user.role,
-              accessLevel: user.access_level,
-              status: user.active ? "active" : "inactive",
-              permissions: user.permissions.reduce((acc: any, perm: string) => {
-                acc[perm] = true;
-                return acc;
-              }, {}),
-              lastLogin: user.last_login || new Date().toISOString(),
-              lastActive:
-                user.last_login || user.updated_at || new Date().toISOString(),
-              createdAt: user.created_at,
-            }))
-          );
-        }
-        setIsCreateDialogOpen(false);
-      }
-    } catch (error) {
-      console.error("Error creating admin user:", error);
-      alert("Failed to create admin user");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleEditAdmin = async (data: AdminUserFormData) => {
     if (!selectedUser) return;
@@ -979,7 +929,7 @@ export default function ServerAdministrationPage() {
 
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
-                const transformedUsers: AdminUser[] = response.data.map((user) => ({
+                const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
                   id: user.id.toString(),
                   email: user.email,
                   firstName: user.username?.split(" ")[0] || "",
@@ -1051,7 +1001,18 @@ export default function ServerAdministrationPage() {
       <StreamlinedUserDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
-        editUser={selectedUser}
+        editUser={selectedUser ? {
+          id: selectedUser.id,
+          email: selectedUser.email,
+          username: `${selectedUser.firstName} ${selectedUser.lastName}`,
+          role: selectedUser.role as AdminRole,
+          access_level: 'full' as AccessLevel,
+          permissions: [],
+          active: selectedUser.status === 'active',
+          created_at: selectedUser.createdAt,
+          updated_at: selectedUser.lastActive,
+          last_login: selectedUser.lastLogin,
+        } as ExtendedAdminUser : undefined}
         onSuccess={() => {
           const fetchAdminUsers = async () => {
             if (!krapi) return;
@@ -1062,7 +1023,7 @@ export default function ServerAdministrationPage() {
 
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
-                const transformedUsers: AdminUser[] = response.data.map((user) => ({
+                const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
                   id: user.id.toString(),
                   email: user.email,
                   firstName: user.username?.split(" ")[0] || "",

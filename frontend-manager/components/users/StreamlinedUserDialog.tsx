@@ -23,13 +23,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FiInfo } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Project, Scope } from "@krapi/sdk";
+import { Project, Scope, AdminUser, AdminRole, AccessLevel } from "@krapi/sdk";
+import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 interface StreamlinedUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  editUser?: any; // Replace with proper type
+  editUser?: AdminUser | ExtendedAdminUser;
 }
 
 type AccountType = "master_admin" | "project_admin" | "limited_admin";
@@ -155,14 +156,17 @@ export function StreamlinedUserDialog({
       setEmail(editUser.email || "");
 
       // Determine account type from scopes
-      if (editUser.scopes?.includes(Scope.MASTER)) {
+      const extendedUser = editUser as ExtendedAdminUser;
+      if (extendedUser.scopes && Array.isArray(extendedUser.scopes) && extendedUser.scopes.includes(Scope.MASTER)) {
         setAccountType("master_admin");
-      } else if (editUser.project_ids?.length > 0) {
+      } else if (extendedUser.project_ids && extendedUser.project_ids.length > 0) {
         setAccountType("project_admin");
-        setSelectedProjects(editUser.project_ids);
+        setSelectedProjects(extendedUser.project_ids);
       } else {
         setAccountType("limited_admin");
-        setSelectedScopes(editUser.scopes || []);
+        if (extendedUser.scopes && Array.isArray(extendedUser.scopes)) {
+          setSelectedScopes(extendedUser.scopes as Scope[]);
+        }
       }
     }
   }, [editUser]);
@@ -222,7 +226,7 @@ export function StreamlinedUserDialog({
         finalScopes = selectedScopes;
       }
 
-      const userData: any = {
+      const userData: UserFormData = {
         username,
         email,
         password: editUser ? undefined : password,
@@ -234,9 +238,26 @@ export function StreamlinedUserDialog({
 
       let response;
       if (editUser) {
-        response = await krapi.admin.updateUser(editUser.id, userData);
+        // For update, we need to send the data in the format the API expects
+        const updateData: Partial<AdminUser> = {
+          email: userData.email,
+          username: userData.username,
+          role: userData.role as AdminRole,
+          access_level: userData.access_level as AccessLevel,
+          permissions: [], // Will be derived from scopes on backend
+        };
+        response = await krapi.admin.updateUser(editUser.id, updateData);
       } else {
-        response = await krapi.admin.createUser(userData);
+        // For create, the API expects a different structure
+        const createData = {
+          email: userData.email,
+          username: userData.username,
+          password: userData.password!,
+          role: userData.role,
+          access_level: userData.access_level,
+          permissions: [], // Will be derived from scopes on backend
+        };
+        response = await krapi.admin.createUser(createData);
       }
 
       if (response.success) {

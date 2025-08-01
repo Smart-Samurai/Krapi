@@ -14,10 +14,12 @@ import { Separator } from "@/components/ui/separator";
 import { FiUser, FiLock, FiKey, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
 import { toast } from "sonner";
 import { Scope } from "@krapi/sdk";
+import { ExtendedAdminUser } from "@/lib/types/extended";
 
 export default function ProfilePage() {
   const { user, scopes } = useAuth();
   const krapi = useKrapi();
+  const extendedUser = user as ExtendedAdminUser;
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -239,7 +241,7 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <Label>Login Count</Label>
-                    <Input value={(user as any)?.login_count?.toString() || "0"} disabled />
+                    <Input value={extendedUser?.login_count?.toString() || "0"} disabled />
                   </div>
                 </div>
               </CardContent>
@@ -403,11 +405,11 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {(user as any)?.project_ids && (user as any).project_ids.length > 0 && (
+                    {extendedUser?.project_ids && extendedUser.project_ids.length > 0 && (
                       <div>
                         <h4 className="font-medium mb-2">Project Access</h4>
                         <p className="text-sm text-muted-foreground">
-                          You have access to {(user as any).project_ids.length} project(s)
+                          You have access to {extendedUser.project_ids.length} project(s)
                         </p>
                       </div>
                     )}
@@ -427,7 +429,7 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(user as any)?.api_key ? (
+                {extendedUser?.api_key ? (
                   <>
                     <div>
                       <Label>API Key</Label>
@@ -435,8 +437,8 @@ export default function ProfilePage() {
                         <Input
                           value={
                             showApiKey
-                              ? (user as any).api_key
-                              : (user as any).api_key.substring(0, 8) + "..." + (user as any).api_key.substring((user as any).api_key.length - 4)
+                              ? extendedUser.api_key
+                              : extendedUser.api_key.substring(0, 8) + "..." + extendedUser.api_key.substring(extendedUser.api_key.length - 4)
                           }
                           readOnly
                           className="font-mono text-sm"
