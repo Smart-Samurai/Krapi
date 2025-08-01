@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedToken = localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
     const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/krapi/k1";
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
 
     const client = new KrapiClient({
       baseUrl,
