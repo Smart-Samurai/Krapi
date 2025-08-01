@@ -239,7 +239,7 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <Label>Login Count</Label>
-                    <Input value={user?.login_count?.toString() || "0"} disabled />
+                    <Input value={(user as any)?.login_count?.toString() || "0"} disabled />
                   </div>
                 </div>
               </CardContent>
@@ -403,11 +403,11 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {user?.project_ids && user.project_ids.length > 0 && (
+                    {(user as any)?.project_ids && (user as any).project_ids.length > 0 && (
                       <div>
                         <h4 className="font-medium mb-2">Project Access</h4>
                         <p className="text-sm text-muted-foreground">
-                          You have access to {user.project_ids.length} project(s)
+                          You have access to {(user as any).project_ids.length} project(s)
                         </p>
                       </div>
                     )}
@@ -427,7 +427,7 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {user?.api_key ? (
+                {(user as any)?.api_key ? (
                   <>
                     <div>
                       <Label>API Key</Label>
@@ -435,8 +435,8 @@ export default function ProfilePage() {
                         <Input
                           value={
                             showApiKey
-                              ? user.api_key
-                              : user.api_key.substring(0, 8) + "..." + user.api_key.substring(user.api_key.length - 4)
+                              ? (user as any).api_key
+                              : (user as any).api_key.substring(0, 8) + "..." + (user as any).api_key.substring((user as any).api_key.length - 4)
                           }
                           readOnly
                           className="font-mono text-sm"

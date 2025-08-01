@@ -970,6 +970,78 @@ export default function ServerAdministrationPage() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onSuccess={() => {
+          const fetchAdminUsers = async () => {
+            if (!krapi) return;
+
+            try {
+              setIsLoading(true);
+              const response = await krapi.admin.getUsers({});
+
+              if (response.success && response.data) {
+                // Transform the database users to match our AdminUser interface
+                const transformedUsers: AdminUser[] = response.data.map((user) => ({
+                  id: user.id.toString(),
+                  email: user.email,
+                  firstName: user.username?.split(" ")[0] || "",
+                  lastName: user.username?.split(" ")[1] || "",
+                  role: user.role as
+                    | "master_admin"
+                    | "admin"
+                    | "project_admin"
+                    | "limited_admin",
+                  status: user.active ? "active" : "inactive",
+                  permissions: {
+                    canManageUsers:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "users.create" ||
+                          p === "users.update" ||
+                          p === "users.delete"
+                      ) || false,
+                    canCreateProjects:
+                      user.permissions?.some((p) => p === "projects.create") || false,
+                    canDeleteProjects:
+                      user.permissions?.some((p) => p === "projects.delete") || false,
+                    canManageSystemSettings:
+                      user.permissions?.some((p) => p === "settings.update") || false,
+                    canViewSystemLogs: false, // Not available in current permission system
+                    canManageBackups: false, // Not available in current permission system
+                    canAccessAllProjects:
+                      user.permissions?.some((p) => p === "projects.read") || false,
+                    restrictedProjectIds: [],
+                    canManageDatabase:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "collections.create" ||
+                          p === "collections.write" ||
+                          p === "collections.delete"
+                      ) || false,
+                    canManageAPI: false, // Not available in current permission system
+                    canManageFiles:
+                      user.permissions?.some(
+                        (p) => p === "storage.upload" || p === "storage.delete"
+                      ) || false,
+                    canManageAuth: false, // Not available in current permission system
+                    canCreateAdminAccounts: false, // Not available in current permission system
+                    canModifyOtherAdmins: false, // Not available in current permission system
+                    isMasterAdmin: user.role === "master_admin",
+                  },
+                  lastActive: user.last_login || user.updated_at,
+                  createdAt: user.created_at,
+                  lastLogin: user.last_login || "",
+                }));
+                setAdminUsers(transformedUsers);
+              } else {
+                console.error("Failed to fetch admin users:", response.error);
+                setAdminUsers([]);
+              }
+            } catch (error) {
+              console.error("Error fetching admin users:", error);
+              setAdminUsers([]);
+            } finally {
+              setIsLoading(false);
+            }
+          };
           fetchAdminUsers();
           toast.success("Admin user created successfully");
         }}
@@ -981,6 +1053,78 @@ export default function ServerAdministrationPage() {
         onOpenChange={setIsEditDialogOpen}
         editUser={selectedUser}
         onSuccess={() => {
+          const fetchAdminUsers = async () => {
+            if (!krapi) return;
+
+            try {
+              setIsLoading(true);
+              const response = await krapi.admin.getUsers({});
+
+              if (response.success && response.data) {
+                // Transform the database users to match our AdminUser interface
+                const transformedUsers: AdminUser[] = response.data.map((user) => ({
+                  id: user.id.toString(),
+                  email: user.email,
+                  firstName: user.username?.split(" ")[0] || "",
+                  lastName: user.username?.split(" ")[1] || "",
+                  role: user.role as
+                    | "master_admin"
+                    | "admin"
+                    | "project_admin"
+                    | "limited_admin",
+                  status: user.active ? "active" : "inactive",
+                  permissions: {
+                    canManageUsers:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "users.create" ||
+                          p === "users.update" ||
+                          p === "users.delete"
+                      ) || false,
+                    canCreateProjects:
+                      user.permissions?.some((p) => p === "projects.create") || false,
+                    canDeleteProjects:
+                      user.permissions?.some((p) => p === "projects.delete") || false,
+                    canManageSystemSettings:
+                      user.permissions?.some((p) => p === "settings.update") || false,
+                    canViewSystemLogs: false, // Not available in current permission system
+                    canManageBackups: false, // Not available in current permission system
+                    canAccessAllProjects:
+                      user.permissions?.some((p) => p === "projects.read") || false,
+                    restrictedProjectIds: [],
+                    canManageDatabase:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "collections.create" ||
+                          p === "collections.write" ||
+                          p === "collections.delete"
+                      ) || false,
+                    canManageAPI: false, // Not available in current permission system
+                    canManageFiles:
+                      user.permissions?.some(
+                        (p) => p === "storage.upload" || p === "storage.delete"
+                      ) || false,
+                    canManageAuth: false, // Not available in current permission system
+                    canCreateAdminAccounts: false, // Not available in current permission system
+                    canModifyOtherAdmins: false, // Not available in current permission system
+                    isMasterAdmin: user.role === "master_admin",
+                  },
+                  lastActive: user.last_login || user.updated_at,
+                  createdAt: user.created_at,
+                  lastLogin: user.last_login || "",
+                }));
+                setAdminUsers(transformedUsers);
+              } else {
+                console.error("Failed to fetch admin users:", response.error);
+                setAdminUsers([]);
+              }
+            } catch (error) {
+              console.error("Error fetching admin users:", error);
+              setAdminUsers([]);
+            } finally {
+              setIsLoading(false);
+            }
+          };
           fetchAdminUsers();
           toast.success("Admin user updated successfully");
         }}

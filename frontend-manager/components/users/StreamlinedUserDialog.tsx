@@ -63,8 +63,8 @@ const ACCOUNT_TYPES: Record<AccountType, AccountTypeInfo> = {
       Scope.STORAGE_READ,
       Scope.STORAGE_WRITE,
       Scope.STORAGE_DELETE,
-      Scope.USERS_READ,
-      Scope.USERS_WRITE,
+      Scope.ADMIN_READ,
+      Scope.ADMIN_WRITE,
     ],
   },
   limited_admin: {
@@ -105,9 +105,9 @@ const PERMISSION_GROUPS = {
   users: {
     label: "User Management",
     permissions: [
-      { scope: Scope.USERS_READ, label: "View Users" },
-      { scope: Scope.USERS_WRITE, label: "Create/Edit Users" },
-      { scope: Scope.USERS_DELETE, label: "Delete Users" },
+      { scope: Scope.ADMIN_READ, label: "View Admin Users" },
+      { scope: Scope.ADMIN_WRITE, label: "Create/Edit Admin Users" },
+      { scope: Scope.ADMIN_DELETE, label: "Delete Admin Users" },
     ],
   },
   admin: {
@@ -222,7 +222,7 @@ export function StreamlinedUserDialog({
         finalScopes = selectedScopes;
       }
 
-      const userData = {
+      const userData: any = {
         username,
         email,
         password: editUser ? undefined : password,

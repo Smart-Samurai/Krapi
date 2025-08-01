@@ -35,7 +35,7 @@ export default function ProjectCollectionsPage() {
   const fetchCollections = async () => {
     try {
       setLoading(true);
-      const response = await krapi.collections.getAll(projectId);
+      const response = await krapi!.collections.getAll(projectId);
       if (response.success && response.data) {
         setCollections(response.data);
       } else {
@@ -53,7 +53,7 @@ export default function ProjectCollectionsPage() {
     if (!newCollectionName) return;
 
     try {
-      const response = await krapi.collections.create(projectId, {
+      const response = await krapi!.collections.create(projectId, {
         name: newCollectionName,
         description: newCollectionDescription,
         fields: [
@@ -103,7 +103,7 @@ export default function ProjectCollectionsPage() {
     }
 
     try {
-      const response = await krapi.collections.delete(projectId, collectionName);
+      const response = await krapi!.collections.delete(projectId, collectionName);
       if (response.success) {
         fetchCollections();
       } else {
@@ -216,7 +216,7 @@ export default function ProjectCollectionsPage() {
                 <CardContent>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-text/60">Documents</span>
-                    <Badge variant="secondary">{collection.document_count || 0}</Badge>
+                    <Badge variant="secondary">{(collection as any).document_count || 0}</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm mt-2">
                     <span className="text-text/60">Fields</span>

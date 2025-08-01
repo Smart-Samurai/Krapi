@@ -37,7 +37,7 @@ export default function ProjectSettingsPage() {
   const fetchProject = async () => {
     try {
       setLoading(true);
-      const response = await krapi.projects.getById(projectId);
+      const response = await krapi!.projects.getById(projectId);
       if (response.success && response.data) {
         setProject(response.data);
         setName(response.data.name);
@@ -62,7 +62,7 @@ export default function ProjectSettingsPage() {
       setError(null);
       setSuccess(null);
 
-      const response = await krapi.projects.update(projectId, {
+      const response = await krapi!.projects.update(projectId, {
         name,
         description,
         active: isActive,
