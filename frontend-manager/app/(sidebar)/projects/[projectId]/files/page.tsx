@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { createDefaultKrapi, FileInfo } from "@/lib/krapi";
+import { createDefaultKrapi, FileInfo, Scope } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
+import { useAuth } from "@/contexts/auth-context";
 import { Button, IconButton, InfoBlock, Input } from "@/components/styled";
 import {
   FiFile,
@@ -21,16 +22,21 @@ import {
   FiUpload,
   FiFolder,
 } from "react-icons/fi";
+import { toast } from "sonner";
 
 export default function ProjectFilesPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
+  const { hasScope } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     if (krapi) {
@@ -65,6 +71,92 @@ export default function ProjectFilesPage() {
       console.error("Error fetching files:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!hasScope(Scope.STORAGE_WRITE)) {
+      toast.error("You don't have permission to upload files");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const result = await krapi.storage.uploadFile(
+        projectId, 
+        file,
+        (progress) => setUploadProgress(progress)
+      );
+
+      if (result.success) {
+        toast.success("File uploaded successfully");
+        await fetchFiles(); // Refresh the file list
+      } else {
+        toast.error(result.error || "Failed to upload file");
+      }
+    } catch (err) {
+      console.error("Error uploading file:", err);
+      toast.error("An error occurred while uploading the file");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleFileDelete = async (fileId: string, fileName: string) => {
+    if (!hasScope(Scope.STORAGE_DELETE)) {
+      toast.error("You don't have permission to delete files");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const result = await krapi.storage.deleteFile(projectId, fileId);
+
+      if (result.success) {
+        toast.success("File deleted successfully");
+        setFiles(files.filter(f => f.id !== fileId));
+      } else {
+        toast.error(result.error || "Failed to delete file");
+      }
+    } catch (err) {
+      console.error("Error deleting file:", err);
+      toast.error("An error occurred while deleting the file");
+    }
+  };
+
+  const handleFileDownload = async (fileId: string, fileName: string) => {
+    try {
+      const result = await krapi.storage.downloadFile(projectId, fileId);
+      
+      if (result.success && result.data) {
+        // Create a blob URL and trigger download
+        const url = window.URL.createObjectURL(result.data as Blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success("File downloaded successfully");
+      } else {
+        toast.error("Failed to download file");
+      }
+    } catch (err) {
+      console.error("Error downloading file:", err);
+      toast.error("An error occurred while downloading the file");
     }
   };
 
@@ -114,6 +206,14 @@ export default function ProjectFilesPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -123,9 +223,15 @@ export default function ProjectFilesPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button variant="default" size="lg">
+          <Button 
+            variant="default" 
+            size="lg"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading || !hasScope(Scope.STORAGE_WRITE)}
+            title={!hasScope(Scope.STORAGE_WRITE) ? "You don't have permission to upload files" : undefined}
+          >
             <FiUpload className="mr-2 h-4 w-4" />
-            Upload Files
+            {isUploading ? `Uploading... ${uploadProgress}%` : "Upload Files"}
           </Button>
         </div>
       </div>
@@ -151,149 +257,123 @@ export default function ProjectFilesPage() {
               <p className="text-sm font-medium text-text/60">Total Size</p>
               <p className="text-2xl font-bold text-text mt-1">
                 {formatFileSize(
-                  files.reduce((sum, file) => sum + file.size, 0)
+                  files.reduce((acc, file) => acc + file.size, 0)
                 )}
               </p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <FiFolder className="h-6 w-6 text-blue-600" />
+            <div className="p-3 bg-primary/10 rounded-lg">
+              <FiFolder className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Avg File Size</p>
+              <p className="text-sm font-medium text-text/60">
+                Average File Size
+              </p>
               <p className="text-2xl font-bold text-text mt-1">
                 {files.length > 0
                   ? formatFileSize(
-                      files.reduce((sum, file) => sum + file.size, 0) /
+                      files.reduce((acc, file) => acc + file.size, 0) /
                         files.length
                     )
                   : "0 Bytes"}
               </p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <FiArchive className="h-6 w-6 text-green-600" />
+            <div className="p-3 bg-primary/10 rounded-lg">
+              <FiFile className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
+        <Input
+          placeholder="Search files..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
       {/* Files List */}
-      <div className="bg-background border border-secondary rounded-lg">
-        <div className="p-6 border-b border-secondary">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-text">Files</h2>
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search files..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-secondary rounded-lg bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-          </div>
+      {filteredFiles.length === 0 ? (
+        <div className="text-center py-12 bg-background border border-secondary rounded-lg">
+          <FiFolder className="h-12 w-12 text-text/20 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-text/60 mb-2">
+            {searchTerm ? "No files found" : "No files uploaded yet"}
+          </h3>
+          <p className="text-sm text-text/40 mb-6">
+            {searchTerm
+              ? "Try adjusting your search criteria"
+              : "Upload your first file to get started"}
+          </p>
+          {!searchTerm && (
+            <Button 
+              variant="default" 
+              size="md"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              <FiUpload className="mr-2 h-4 w-4" />
+              Upload Files
+            </Button>
+          )}
         </div>
-
-        {filteredFiles.length === 0 ? (
-          <div className="p-12 text-center">
-            <FiFile className="h-12 w-12 text-text/20 mx-auto mb-4" />
-            <p className="text-text/60">
-              {searchTerm
-                ? "No files found matching your search"
-                : "No files yet. Upload your first file to get started."}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-secondary/50">
-            {filteredFiles.map((file) => (
-              <div
-                key={file.id}
-                className="p-6 hover:bg-secondary/5 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                      {getFileIcon(file.mime_type)}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-text">
-                        {file.original_name}
-                      </h3>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
-                        <span>{formatFileSize(file.size)}</span>
-                        <span>{file.mime_type}</span>
-                        <span>
-                          Uploaded:{" "}
-                          {new Date(file.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredFiles.map((file) => (
+            <div
+              key={file.id}
+              className="bg-background border border-secondary rounded-lg p-4 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    {getFileIcon(file.mime_type)}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <IconButton
-                      icon={FiEye}
-                      variant="secondary"
-                      size="sm"
-                      title="Preview File"
-                      onClick={() => {
-                        const url = krapi.storage.getFileUrl(
-                          projectId,
-                          file.id
-                        );
-                        window.open(url, "_blank");
-                      }}
-                    />
-                    <IconButton
-                      icon={FiDownload}
-                      variant="secondary"
-                      size="sm"
-                      title="Download File"
-                    />
-                    <IconButton
-                      icon={FiTrash2}
-                      variant="secondary"
-                      size="sm"
-                      title="Delete File"
-                    />
-                    <IconButton
-                      icon={FiMoreVertical}
-                      variant="secondary"
-                      size="sm"
-                      title="More Options"
-                    />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text truncate">
+                      {file.original_name}
+                    </p>
+                    <p className="text-xs text-text/60">
+                      {formatFileSize(file.size)}
+                    </p>
                   </div>
                 </div>
+                <div className="flex items-center space-x-1">
+                  <IconButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFileDownload(file.id, file.original_name)}
+                    title="Download"
+                  >
+                    <FiDownload className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleFileDelete(file.id, file.original_name)}
+                    title={!hasScope(Scope.STORAGE_DELETE) ? "No permission to delete" : "Delete"}
+                    disabled={!hasScope(Scope.STORAGE_DELETE)}
+                  >
+                    <FiTrash2 className="h-4 w-4" />
+                  </IconButton>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Info Block */}
-      <InfoBlock
-        title="File Storage"
-        variant="info"
-        className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-      >
-        <div className="text-sm space-y-2">
-          <p>
-            Upload and manage files for your project. Files are automatically
-            optimized and served through a CDN for fast delivery.
-          </p>
-          <p>
-            <strong>Supported file types:</strong> Images (JPG, PNG, GIF, WebP),
-            Documents (PDF, DOC, TXT), Videos (MP4, WebM), Audio (MP3, WAV), and
-            more.
-          </p>
-          <p>
-            <strong>File size limit:</strong> 100MB per file
-          </p>
+              <div className="space-y-1 text-xs text-text/60">
+                <p>Type: {file.mime_type}</p>
+                <p>
+                  Uploaded: {new Date(file.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
-      </InfoBlock>
+      )}
     </div>
   );
 }
