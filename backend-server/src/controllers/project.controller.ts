@@ -2,6 +2,17 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '@/services/database.service';
 import { AuthenticatedRequest, ApiResponse, PaginatedResponse, Project, ChangeAction } from '@/types';
 
+/**
+ * Project Controller
+ * 
+ * Manages all project-related operations including:
+ * - Project CRUD operations
+ * - Project statistics
+ * - API key regeneration
+ * - Project settings management
+ * 
+ * All methods require authentication and proper scopes.
+ */
 export class ProjectController {
   private db: DatabaseService;
 
@@ -9,7 +20,16 @@ export class ProjectController {
     this.db = DatabaseService.getInstance();
   }
 
-  // Get all projects
+  /**
+   * Get all projects with pagination
+   * GET /krapi/k1/projects
+   * 
+   * Requires: projects:read scope
+   * Query params: page (default: 1), limit (default: 50)
+   * 
+   * @param req - Request with pagination params
+   * @param res - Response with paginated projects
+   */
   getAllProjects = async (req: Request, res: Response): Promise<void> => {
     try {
       const { page = 1, limit = 50 } = req.query;
@@ -45,7 +65,15 @@ export class ProjectController {
     }
   };
 
-  // Get project by ID
+  /**
+   * Get project by ID
+   * GET /krapi/k1/projects/:id
+   * 
+   * Requires: projects:read scope
+   * 
+   * @param req - Request with project ID in params
+   * @param res - Response with project data
+   */
   getProjectById = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;

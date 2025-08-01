@@ -26,18 +26,54 @@ import {
 
 export * from "./types";
 
+/**
+ * KRAPI SDK Client
+ * 
+ * Main SDK class for interacting with the KRAPI backend API.
+ * Supports both session-based and API key authentication.
+ * 
+ * @example
+ * ```typescript
+ * // Initialize with session token
+ * const sdk = new KrapiSDK({
+ *   baseUrl: 'http://localhost:3468/krapi/k1',
+ *   sessionToken: 'your-session-token'
+ * });
+ * 
+ * // Initialize with API key
+ * const sdk = new KrapiSDK({
+ *   baseUrl: 'http://localhost:3468/krapi/k1',
+ *   apiKey: 'your-api-key'
+ * });
+ * ```
+ */
 export class KrapiSDK {
   private client: AxiosInstance;
   private sessionToken?: string;
   private apiKey?: string;
   private baseURL: string;
 
+  /**
+   * Creates a new instance of the KRAPI SDK
+   * 
+   * @param config - SDK configuration object
+   * @param config.baseUrl - The base URL of the KRAPI backend (e.g., 'http://localhost:3468/krapi/k1')
+   * @param config.sessionToken - Optional session token for authentication
+   * @param config.authToken - Alternative name for sessionToken (for backward compatibility)
+   * @param config.apiKey - Optional API key for authentication
+   * 
+   * @throws Will throw an error if the baseUrl is not provided
+   */
   constructor(config: { 
     baseUrl: string; 
     sessionToken?: string;
     authToken?: string;  // Alternative name for sessionToken
     apiKey?: string;
   }) {
+    if (!config.baseUrl) {
+      throw new Error('baseUrl is required for SDK initialization');
+    }
+    
     this.sessionToken = config.sessionToken || config.authToken;
     this.apiKey = config.apiKey;
     this.baseURL = config.baseUrl;
@@ -62,13 +98,47 @@ export class KrapiSDK {
     // Response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // Clear tokens on authentication failure
-          this.sessionToken = undefined;
-          this.apiKey = undefined;
+      (error: AxiosError<ApiResponse>) => {
+        // Enhanced error handling with detailed information
+        if (error.response) {
+          // Server responded with error status
+          const { status, data } = error.response;
+          
+          if (status === 401) {
+            // Clear tokens on authentication failure
+            this.sessionToken = undefined;
+            this.apiKey = undefined;
+          }
+          
+          // Enhance error with API response details
+          const enhancedError = {
+            ...error,
+            message: data?.error || data?.message || error.message,
+            status,
+            isApiError: true,
+            originalError: error
+          };
+          
+          return Promise.reject(enhancedError);
+        } else if (error.request) {
+          // Request made but no response received
+          const networkError = {
+            ...error,
+            message: 'Network error: No response from server',
+            isNetworkError: true,
+            originalError: error
+          };
+          return Promise.reject(networkError);
+        } else {
+          // Error in request configuration
+          const configError = {
+            ...error,
+            message: error.message || 'Request configuration error',
+            isConfigError: true,
+            originalError: error
+          };
+          return Promise.reject(configError);
         }
-        return Promise.reject(error);
       }
     );
   }
@@ -88,8 +158,26 @@ export class KrapiSDK {
   }
 
   // Auth methods
+  /**
+   * Authentication methods for admin and project-level access
+   */
   auth = {
-    // Admin login with username/password
+    /**
+     * Admin login with username and password
+     * 
+     * @param credentials - Admin login credentials
+     * @param credentials.username - Admin username
+     * @param credentials.password - Admin password
+     * @returns Promise with user data, token, and session information
+     * 
+     * @example
+     * ```typescript
+     * const result = await sdk.auth.adminLogin({
+     *   username: 'admin',
+     *   password: 'password123'
+     * });
+     * ```
+     */
     adminLogin: async (credentials: {
       username: string;
       password: string;
@@ -108,7 +196,17 @@ export class KrapiSDK {
       return response.data;
     },
 
-    // Admin login with API key
+    /**
+     * Admin login using API key
+     * 
+     * @param apiKey - Admin API key for authentication
+     * @returns Promise with user data, token, and session information
+     * 
+     * @example
+     * ```typescript
+     * const result = await sdk.auth.adminApiLogin('your-admin-api-key');
+     * ```
+     */
     adminApiLogin: async (apiKey: string): Promise<
       ApiResponse<{
         user: AdminUser & { scopes: string[] };
@@ -541,7 +639,7 @@ export class KrapiSDK {
 
     // Get file URL
     getFileUrl: (projectId: string, fileId: string): string => {
-      return `${this.baseURL}/krapi/k1/projects/${projectId}/storage/files/${fileId}/download`;
+      return `${this.baseURL}/projects/${projectId}/storage/files/${fileId}/download`;
     },
   };
 

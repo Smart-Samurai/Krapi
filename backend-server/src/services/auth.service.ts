@@ -13,6 +13,19 @@ import {
   Project
 } from '@/types';
 
+/**
+ * Authentication Service
+ * 
+ * Singleton service that handles all authentication and authorization logic:
+ * - Password hashing and verification
+ * - JWT token generation and validation
+ * - Session management
+ * - Scope-based permissions
+ * - API key generation
+ * - Authentication logging
+ * 
+ * Uses bcrypt for password hashing and jsonwebtoken for JWT operations.
+ */
 export class AuthService {
   private static instance: AuthService;
   private db: DatabaseService;
@@ -27,6 +40,10 @@ export class AuthService {
     this.sessionExpiresIn = this.parseSessionDuration(process.env.SESSION_EXPIRES_IN || '1h');
   }
 
+  /**
+   * Get singleton instance of AuthService
+   * @returns AuthService instance
+   */
   static getInstance(): AuthService {
     if (!AuthService.instance) {
       AuthService.instance = new AuthService();
@@ -34,6 +51,13 @@ export class AuthService {
     return AuthService.instance;
   }
 
+  /**
+   * Parse session duration string to milliseconds
+   * Supports formats: 1h (hours), 1d (days), 30m (minutes)
+   * 
+   * @param duration - Duration string (e.g., '1h', '7d', '30m')
+   * @returns Duration in milliseconds
+   */
   private parseSessionDuration(duration: string): number {
     const match = duration.match(/^(\d+)([hmd])$/);
     if (!match) return 3600000; // Default 1 hour
