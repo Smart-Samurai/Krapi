@@ -244,9 +244,13 @@ export class DatabaseService {
 
       // Create indexes for project users
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id);
-        CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email);
-        CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username);
+        CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id)
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email)
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username)
       `);
 
       // Collections Table (formerly table_schemas)
@@ -388,6 +392,53 @@ export class DatabaseService {
       await this.seedDefaultData();
     } catch (error) {
       await client.query("ROLLBACK");
+      
+      // Log more detailed error information
+      console.error("Error during table initialization:", error);
+      
+      // Check if it's a specific PostgreSQL error
+      if (error instanceof Error && 'code' in error) {
+        const pgError = error as any;
+        
+        // If it's a "column does not exist" error, it might mean tables are partially created
+        if (pgError.code === '42703') {
+          console.log("Tables might be partially created. Attempting to drop and recreate...");
+          
+          try {
+            // Start a new transaction to clean up
+            await client.query("BEGIN");
+            
+            // Drop tables in reverse order of dependencies
+            const tablesToDrop = [
+              'audit_logs',
+              'system_checks',
+              'sessions',
+              'documents',
+              'collections',
+              'project_admins',
+              'project_users',
+              'projects',
+              'api_keys',
+              'admin_users'
+            ];
+            
+            for (const table of tablesToDrop) {
+              await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+            }
+            
+            // Drop the trigger function
+            await client.query(`DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE`);
+            
+            await client.query("COMMIT");
+            
+            console.log("Cleaned up existing tables. Please restart the application.");
+          } catch (cleanupError) {
+            await client.query("ROLLBACK");
+            console.error("Failed to clean up tables:", cleanupError);
+          }
+        }
+      }
+      
       throw error;
     } finally {
       client.release();

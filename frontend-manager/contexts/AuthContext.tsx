@@ -49,12 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (!krapiClientRef.current) {
       krapiClientRef.current = new KrapiClient({
-        baseURL,
+        baseUrl: baseURL,
         authToken: authToken || token || undefined,
       });
     } else {
       // Update the auth token on the existing client
-      krapiClientRef.current.setAuthToken(authToken || token || '');
+      krapiClientRef.current.setSessionToken(authToken || token || '');
     }
     
     return krapiClientRef.current;
