@@ -32,9 +32,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [scopes, setScopes] = useState<string[]>([]);
   const router = useRouter();
 
+  // Helper function to set cookie
+  const setCookie = (name: string, value: string, days: number = 7) => {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+  };
+
+  // Helper function to remove cookie
+  const removeCookie = (name: string) => {
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+  };
+
+  // Helper function to get cookie
+  const getCookie = (name: string): string | null => {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  };
+
   // Initialize client
   useEffect(() => {
-    const storedToken = localStorage.getItem("session_token");
+    const storedToken = getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
@@ -55,6 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       validateApiKey(client, storedApiKey);
     } else {
       setLoading(false);
+      // If we're not on the login page and not authenticated, redirect
+      if (window.location.pathname !== '/login') {
+        router.push('/login');
+      }
     }
   }, []);
 
@@ -93,7 +121,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.data.user);
         setScopes(response.data.user.scopes || []);
         setSessionToken(response.data.session_token);
+        
+        // Store in both localStorage and cookies
         localStorage.setItem("session_token", response.data.session_token);
+        setCookie("session_token", response.data.session_token);
         localStorage.setItem(
           "user_scopes",
           JSON.stringify(response.data.user.scopes || [])
@@ -122,14 +153,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.data.user);
         setScopes(response.data.user.scopes || []);
         setSessionToken(response.data.session_token);
+        
+        // Store in both localStorage and cookies
         localStorage.setItem("session_token", response.data.session_token);
+        setCookie("session_token", response.data.session_token);
         localStorage.setItem(
           "user_scopes",
           JSON.stringify(response.data.user.scopes || [])
         );
+        
         krapi.setSessionToken(response.data.session_token);
         toast.success("Login successful");
-        router.push("/dashboard");
+        
+        // Check if there's a redirect URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const from = urlParams.get('from') || '/dashboard';
+        router.push(from);
       } else {
         throw new Error("Login failed");
       }
@@ -150,15 +189,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setScopes(response.data.user.scopes || []);
         setSessionToken(response.data.session_token);
         setApiKey(apiKey);
+        
+        // Store in both localStorage and cookies
         localStorage.setItem("session_token", response.data.session_token);
+        setCookie("session_token", response.data.session_token);
         localStorage.setItem("api_key", apiKey);
         localStorage.setItem(
           "user_scopes",
           JSON.stringify(response.data.user.scopes || [])
         );
+        
         krapi.setSessionToken(response.data.session_token);
         toast.success("API key login successful");
-        router.push("/dashboard");
+        
+        // Check if there's a redirect URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const from = urlParams.get('from') || '/dashboard';
+        router.push(from);
       } else {
         throw new Error("API key login failed");
       }
@@ -180,9 +227,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setScopes([]);
       setSessionToken(null);
       setApiKey(null);
+      
+      // Clear from both localStorage and cookies
       localStorage.removeItem("session_token");
+      removeCookie("session_token");
       localStorage.removeItem("api_key");
       localStorage.removeItem("user_scopes");
+      
       if (krapi) {
         krapi.clearAuth();
       }
@@ -192,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasScope = (scope: string | string[]): boolean => {
     // Master scope has access to everything
-    if (scopes.includes("MASTER")) return true;
+    if (scopes.includes("master")) return true;
 
     if (Array.isArray(scope)) {
       // Check if user has any of the required scopes
@@ -203,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasMasterAccess = (): boolean => {
-    return scopes.includes("MASTER");
+    return scopes.includes("master");
   };
 
   return (
