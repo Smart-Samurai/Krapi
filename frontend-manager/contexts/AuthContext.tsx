@@ -1,5 +1,19 @@
 "use client";
 
+/**
+ * Authentication Context Provider
+ * 
+ * Manages authentication state and provides auth-related functionality throughout the app.
+ * Handles login/logout, token persistence, and automatic token validation.
+ * 
+ * Features:
+ * - Automatic token validation on mount
+ * - Token persistence in localStorage
+ * - Automatic SDK client configuration with auth token
+ * - User state management
+ * - Loading and hydration states
+ */
+
 import React, {
   createContext,
   useContext,
@@ -13,16 +27,29 @@ import { createDefaultKrapi, KrapiClient } from "@/lib/krapi";
 import type { AdminUser } from "@krapi/sdk";
 import config from "@/lib/config";
 
+/**
+ * Authentication context type definition
+ */
 interface AuthContextType {
+  /** Current authenticated user (without password_hash) */
   user: Omit<AdminUser, "password_hash"> | null;
+  /** Current authentication token */
   token: string | null;
+  /** Whether authentication state is being loaded */
   isLoading: boolean;
+  /** Whether the context has been hydrated from localStorage */
   isHydrated: boolean;
+  /** Whether a login operation is in progress */
   loginInProgress: boolean;
+  /** Login function - returns true on success */
   login: (email: string, password: string) => Promise<boolean>;
+  /** Logout function - clears auth state */
   logout: () => void;
+  /** Refresh current user data from API */
   refreshUser: () => Promise<void>;
+  /** Whether user is currently authenticated */
   isAuthenticated: boolean;
+  /** Configured Krapi SDK client instance */
   krapiClient: KrapiClient;
 }
 
@@ -30,6 +57,18 @@ export const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
 
+/**
+ * Authentication Provider Component
+ * 
+ * Wrap your app with this provider to enable authentication functionality.
+ * 
+ * @example
+ * ```tsx
+ * <AuthProvider>
+ *   <App />
+ * </AuthProvider>
+ * ```
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Omit<AdminUser, "password_hash"> | null>(
     null
@@ -47,8 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Create or update krapi client instance
   const getKrapiClient = useCallback(
     (authToken?: string) => {
-      // Remove /krapi/k1 from the baseURL since SDK appends it
-      const baseURL = config.api.baseUrl.replace(/\/krapi\/k1\/?$/, "");
+      const baseURL = config.api.baseUrl;
 
       if (!krapiClientRef.current) {
         krapiClientRef.current = new KrapiClient({

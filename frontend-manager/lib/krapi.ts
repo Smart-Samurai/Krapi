@@ -3,21 +3,29 @@ import type { AdminRole, AccessLevel } from "@krapi/sdk";
 
 /**
  * Create a default Krapi client instance
- * This will use the configuration from environment variables
+ * 
+ * Uses the API URL from environment variables or defaults to localhost.
+ * The SDK expects the full API base URL including /krapi/k1.
+ * 
+ * @returns Configured KrapiClient instance
  */
 export function createDefaultKrapi(): KrapiClient {
   const baseURL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
-  // Remove /krapi/k1 from the baseURL since SDK appends it
-  const cleanBaseURL = baseURL.replace(/\/krapi\/k1\/?$/, "");
 
   return new KrapiClient({
-    baseUrl: cleanBaseURL,
+    baseUrl: baseURL,
   });
 }
 
 /**
  * Create a Krapi client with custom configuration
+ * 
+ * @param config - Configuration object
+ * @param config.baseURL - Full API base URL including /krapi/k1
+ * @param config.apiKey - Optional API key for authentication
+ * @param config.authToken - Optional session token for authentication
+ * @returns Configured KrapiClient instance
  */
 export function createKrapi(config: {
   baseURL: string;

@@ -4,6 +4,16 @@ import { DatabaseService } from '@/services/database.service';
 import { AuthenticatedRequest, ApiResponse, SessionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Authentication Controller
+ * 
+ * Handles all authentication-related operations including:
+ * - Admin and project session creation
+ * - User login/logout
+ * - Password management
+ * - API key regeneration
+ * - Session validation
+ */
 export class AuthController {
   private authService: AuthService;
   private db: DatabaseService;
@@ -13,7 +23,16 @@ export class AuthController {
     this.db = DatabaseService.getInstance();
   }
 
-  // Create admin session
+  /**
+   * Create admin session using API key
+   * POST /krapi/k1/auth/admin/session
+   * 
+   * Creates a new admin session token from a valid admin or master API key.
+   * The session inherits the scopes from the API key.
+   * 
+   * @param req - Request with api_key in body
+   * @param res - Response with session token and expiration
+   */
   createAdminSession = async (req: Request, res: Response): Promise<void> => {
     try {
       const { api_key } = req.body;
