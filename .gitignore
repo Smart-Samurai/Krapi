@@ -31,3 +31,20 @@ dist/
 build/
 .next/
 out/ 
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Documentation build
+docs/_build/
+docs/.vitepress/dist/ 
