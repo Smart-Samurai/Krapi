@@ -14,7 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
 import { toast } from "sonner";
-import { Plus, Settings, Trash2, Activity, Key, Users, RefreshCw, Edit } from "lucide-react";
+import {
+  Plus,
+  Settings,
+  Trash2,
+  Activity,
+  Key,
+  Users,
+  RefreshCw,
+  Edit,
+} from "lucide-react";
 import { Project, Scope } from "@/lib/krapi";
 import Link from "next/link";
 import {
@@ -119,7 +128,7 @@ export default function ProjectsPage() {
     try {
       const response = await krapi.projects.create(data);
       if (response.success && response.data) {
-        setProjects([...projects, response.data]);
+        setProjects([...projects, response.data!]);
         toast.success("Project created successfully");
         setIsCreateDialogOpen(false);
         createForm.reset();
@@ -142,7 +151,11 @@ export default function ProjectsPage() {
     try {
       const response = await krapi.projects.update(selectedProject.id, data);
       if (response.success && response.data) {
-        setProjects(projects.map(p => p.id === selectedProject.id ? response.data : p));
+        setProjects(
+          projects.map((p) =>
+            p.id === selectedProject.id ? response.data! : p
+          )
+        );
         toast.success("Project updated successfully");
         setIsEditDialogOpen(false);
         setSelectedProject(null);
@@ -161,7 +174,11 @@ export default function ProjectsPage() {
       return;
     }
 
-    if (!confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this project? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -183,7 +200,11 @@ export default function ProjectsPage() {
       return;
     }
 
-    if (!confirm("Are you sure you want to regenerate the API key? The old key will stop working immediately.")) {
+    if (
+      !confirm(
+        "Are you sure you want to regenerate the API key? The old key will stop working immediately."
+      )
+    ) {
       return;
     }
 
@@ -293,7 +314,10 @@ export default function ProjectsPage() {
                       <code className="text-xs bg-muted px-2 py-1 rounded">
                         {project.api_key.substring(0, 8)}...
                       </code>
-                      <ScopeGuard scopes={Scope.PROJECTS_WRITE} showRequirements={false}>
+                      <ScopeGuard
+                        scopes={Scope.PROJECTS_WRITE}
+                        showRequirements={false}
+                      >
                         <Button
                           variant="ghost"
                           size="sm"
@@ -324,7 +348,10 @@ export default function ProjectsPage() {
                         Manage Data
                       </Button>
                     </Link>
-                    <ScopeGuard scopes={Scope.PROJECTS_WRITE} showRequirements={false}>
+                    <ScopeGuard
+                      scopes={Scope.PROJECTS_WRITE}
+                      showRequirements={false}
+                    >
                       <Button
                         variant="outline"
                         size="sm"
@@ -368,7 +395,10 @@ export default function ProjectsPage() {
             </DialogDescription>
           </DialogHeader>
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(createProject)} className="space-y-4">
+            <form
+              onSubmit={createForm.handleSubmit(createProject)}
+              className="space-y-4"
+            >
               <FormField
                 control={createForm.control}
                 name="name"
@@ -423,12 +453,13 @@ export default function ProjectsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>
-              Update project details
-            </DialogDescription>
+            <DialogDescription>Update project details</DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(updateProject)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(updateProject)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"

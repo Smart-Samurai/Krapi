@@ -1,0 +1,278 @@
+{
+  "user": {
+    "username": "admin",
+    "role": "master_admin",
+    "scopes": ["master"]
+  },
+  "testResults": [
+    {
+      "endpoint": "/admin/users",
+      "method": "GET",
+      "requiredScopes": ["admin:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:48.850Z",
+      "response": {
+        "success": true,
+        "data": [
+          {
+            "id": "6b94d013-a697-42ea-847b-e83903fb162c",
+            "username": "admin",
+            "email": "admin@krapi.com",
+            "role": "master_admin",
+            "access_level": "full",
+            "permissions": [],
+            "active": true,
+            "created_at": "2025-08-01T05:56:09.666Z",
+            "updated_at": "2025-08-01T07:44:11.815Z",
+            "last_login": "2025-08-01T06:56:33.025Z",
+            "api_key": "mak_594dfdd6804c4e0daf19874ec7d77daf"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 50,
+          "total": 1,
+          "totalPages": 1,
+          "hasNext": false,
+          "hasPrev": false
+        }
+      }
+    },
+    {
+      "endpoint": "/admin/users",
+      "method": "POST",
+      "requiredScopes": ["admin:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:48.996Z",
+      "response": {
+        "success": false,
+        "error": "Failed to create admin user"
+      },
+      "error": "Failed to create admin user"
+    },
+    {
+      "endpoint": "/admin/users/123",
+      "method": "PUT",
+      "requiredScopes": ["admin:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.148Z",
+      "response": {
+        "success": false,
+        "error": "Admin user not found"
+      },
+      "error": "Admin user not found"
+    },
+    {
+      "endpoint": "/admin/users/123",
+      "method": "DELETE",
+      "requiredScopes": ["admin:delete"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.268Z",
+      "response": {
+        "success": false,
+        "error": "Admin user not found"
+      },
+      "error": "Admin user not found"
+    },
+    {
+      "endpoint": "/projects",
+      "method": "GET",
+      "requiredScopes": ["projects:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.388Z",
+      "response": {
+        "success": true,
+        "data": [],
+        "pagination": {
+          "page": 1,
+          "limit": 50,
+          "total": 0,
+          "totalPages": 0,
+          "hasNext": false,
+          "hasPrev": false
+        }
+      }
+    },
+    {
+      "endpoint": "/projects",
+      "method": "POST",
+      "requiredScopes": ["projects:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.502Z",
+      "response": {
+        "success": false,
+        "error": "Failed to create project"
+      },
+      "error": "Failed to create project"
+    },
+    {
+      "endpoint": "/projects/123",
+      "method": "GET",
+      "requiredScopes": ["projects:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.626Z",
+      "response": {
+        "success": false,
+        "error": "Project not found"
+      },
+      "error": "Project not found"
+    },
+    {
+      "endpoint": "/projects/123",
+      "method": "PUT",
+      "requiredScopes": ["projects:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.761Z",
+      "response": {
+        "success": false,
+        "error": "Project not found"
+      },
+      "error": "Project not found"
+    },
+    {
+      "endpoint": "/projects/123",
+      "method": "DELETE",
+      "requiredScopes": ["projects:delete"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:49.881Z",
+      "response": {
+        "success": false,
+        "error": "Project not found"
+      },
+      "error": "Project not found"
+    },
+    {
+      "endpoint": "/projects/123/collections",
+      "method": "GET",
+      "requiredScopes": ["collections:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.001Z",
+      "response": {
+        "success": false,
+        "error": "Failed to fetch collections"
+      },
+      "error": "Failed to fetch collections"
+    },
+    {
+      "endpoint": "/projects/123/collections",
+      "method": "POST",
+      "requiredScopes": ["collections:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.135Z",
+      "response": {
+        "success": false,
+        "error": "Failed to create collection"
+      },
+      "error": "Failed to create collection"
+    },
+    {
+      "endpoint": "/projects/123/collections/users",
+      "method": "PUT",
+      "requiredScopes": ["collections:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.308Z",
+      "response": {
+        "success": false,
+        "error": "Failed to update collection"
+      },
+      "error": "Failed to update collection"
+    },
+    {
+      "endpoint": "/projects/123/collections/users",
+      "method": "DELETE",
+      "requiredScopes": ["collections:delete"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.468Z",
+      "response": {
+        "success": false,
+        "error": "Failed to delete collection"
+      },
+      "error": "Failed to delete collection"
+    },
+    {
+      "endpoint": "/projects/123/collections/users/documents",
+      "method": "GET",
+      "requiredScopes": ["documents:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.610Z",
+      "response": {
+        "success": false,
+        "error": "Failed to fetch documents"
+      },
+      "error": "Failed to fetch documents"
+    },
+    {
+      "endpoint": "/projects/123/collections/users/documents",
+      "method": "POST",
+      "requiredScopes": ["documents:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.748Z",
+      "response": {
+        "success": false,
+        "error": "Document data is required"
+      },
+      "error": "Document data is required"
+    },
+    {
+      "endpoint": "/projects/123/collections/users/documents/456",
+      "method": "PUT",
+      "requiredScopes": ["documents:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.882Z",
+      "response": {
+        "success": false,
+        "error": "Document data is required"
+      },
+      "error": "Document data is required"
+    },
+    {
+      "endpoint": "/projects/123/collections/users/documents/456",
+      "method": "DELETE",
+      "requiredScopes": ["documents:delete"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:50.998Z",
+      "response": {
+        "success": false,
+        "error": "Failed to delete document"
+      },
+      "error": "Failed to delete document"
+    },
+    {
+      "endpoint": "/projects/123/storage/files",
+      "method": "GET",
+      "requiredScopes": ["storage:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:51.123Z",
+      "response": {
+        "success": false,
+        "error": "Failed to fetch files"
+      },
+      "error": "Failed to fetch files"
+    },
+    {
+      "endpoint": "/projects/123/storage/upload",
+      "method": "POST",
+      "requiredScopes": ["storage:write"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:51.277Z",
+      "error": "Failed to fetch"
+    },
+    {
+      "endpoint": "/projects/123/storage/files/789",
+      "method": "GET",
+      "requiredScopes": ["storage:read"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:53.722Z",
+      "error": "Failed to fetch"
+    },
+    {
+      "endpoint": "/projects/123/storage/files/789",
+      "method": "DELETE",
+      "requiredScopes": ["storage:delete"],
+      "hasAccess": true,
+      "timestamp": "2025-08-01T09:46:53.990Z",
+      "error": "Failed to fetch"
+    }
+  ],
+  "timestamp": "2025-08-01T09:46:57.406Z"
+}

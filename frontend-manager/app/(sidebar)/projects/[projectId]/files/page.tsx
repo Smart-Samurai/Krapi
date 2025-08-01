@@ -74,7 +74,9 @@ export default function ProjectFilesPage() {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -88,7 +90,7 @@ export default function ProjectFilesPage() {
 
     try {
       const result = await krapi.storage.uploadFile(
-        projectId, 
+        projectId,
         file,
         (progress) => setUploadProgress(progress)
       );
@@ -106,7 +108,7 @@ export default function ProjectFilesPage() {
       setIsUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -117,7 +119,11 @@ export default function ProjectFilesPage() {
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${fileName}"? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -126,7 +132,7 @@ export default function ProjectFilesPage() {
 
       if (result.success) {
         toast.success("File deleted successfully");
-        setFiles(files.filter(f => f.id !== fileId));
+        setFiles(files.filter((f) => f.id !== fileId));
       } else {
         toast.error(result.error || "Failed to delete file");
       }
@@ -139,11 +145,11 @@ export default function ProjectFilesPage() {
   const handleFileDownload = async (fileId: string, fileName: string) => {
     try {
       const result = await krapi.storage.downloadFile(projectId, fileId);
-      
+
       if (result.success && result.data) {
         // Create a blob URL and trigger download
         const url = window.URL.createObjectURL(result.data as Blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
         a.download = fileName;
         document.body.appendChild(a);
@@ -223,12 +229,16 @@ export default function ProjectFilesPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button 
-            variant="default" 
+          <Button
+            variant="default"
             size="lg"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || !hasScope(Scope.STORAGE_WRITE)}
-            title={!hasScope(Scope.STORAGE_WRITE) ? "You don't have permission to upload files" : undefined}
+            title={
+              !hasScope(Scope.STORAGE_WRITE)
+                ? "You don't have permission to upload files"
+                : undefined
+            }
           >
             <FiUpload className="mr-2 h-4 w-4" />
             {isUploading ? `Uploading... ${uploadProgress}%` : "Upload Files"}
@@ -312,8 +322,8 @@ export default function ProjectFilesPage() {
               : "Upload your first file to get started"}
           </p>
           {!searchTerm && (
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               size="md"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
@@ -346,22 +356,28 @@ export default function ProjectFilesPage() {
                 </div>
                 <div className="flex items-center space-x-1">
                   <IconButton
+                    icon={FiDownload}
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleFileDownload(file.id, file.original_name)}
+                    onClick={() =>
+                      handleFileDownload(file.id, file.original_name)
+                    }
                     title="Download"
-                  >
-                    <FiDownload className="h-4 w-4" />
-                  </IconButton>
+                  />
                   <IconButton
+                    icon={FiTrash2}
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleFileDelete(file.id, file.original_name)}
-                    title={!hasScope(Scope.STORAGE_DELETE) ? "No permission to delete" : "Delete"}
+                    onClick={() =>
+                      handleFileDelete(file.id, file.original_name)
+                    }
+                    title={
+                      !hasScope(Scope.STORAGE_DELETE)
+                        ? "No permission to delete"
+                        : "Delete"
+                    }
                     disabled={!hasScope(Scope.STORAGE_DELETE)}
-                  >
-                    <FiTrash2 className="h-4 w-4" />
-                  </IconButton>
+                  />
                 </div>
               </div>
               <div className="space-y-1 text-xs text-text/60">

@@ -93,6 +93,7 @@ const adminUserSchema = z
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
     role: z.enum(["master_admin", "admin", "project_admin", "limited_admin"]),
+    accessLevel: z.enum(["full", "read_write", "read_only"]),
     permissions: z.object({
       canManageUsers: z.boolean(),
       canCreateProjects: z.boolean(),
@@ -133,7 +134,7 @@ export default function ServerAdministrationPage() {
   useEffect(() => {
     const fetchAdminUsers = async () => {
       if (!krapi) return;
-      
+
       try {
         setIsLoading(true);
         const response = await krapi.admin.getUsers({});
@@ -222,7 +223,7 @@ export default function ServerAdministrationPage() {
       toast.error("You don't have permission to create admin users");
       return;
     }
-    
+
     try {
       setIsLoading(true);
       const response = await krapi.admin.createUser({
@@ -235,26 +236,30 @@ export default function ServerAdministrationPage() {
           .filter(([_, value]) => value)
           .map(([key]) => key as any),
       });
-      
+
       if (response.success) {
         // Refresh the admin users list
         const usersResponse = await krapi.admin.getUsers();
         if (usersResponse.success && usersResponse.data) {
-          setAdminUsers(usersResponse.data.map((user: any) => ({
-            id: user.id,
-            firstName: user.username.split(' ')[0] || user.username,
-            lastName: user.username.split(' ')[1] || '',
-            email: user.email,
-            role: user.role,
-            accessLevel: user.access_level,
-            status: user.active ? "active" : "inactive",
-            permissions: user.permissions.reduce((acc: any, perm: string) => {
-              acc[perm] = true;
-              return acc;
-            }, {}),
-            lastLogin: user.last_login || new Date().toISOString(),
-            createdAt: user.created_at,
-          })));
+          setAdminUsers(
+            usersResponse.data.map((user: any) => ({
+              id: user.id,
+              firstName: user.username.split(" ")[0] || user.username,
+              lastName: user.username.split(" ")[1] || "",
+              email: user.email,
+              role: user.role,
+              accessLevel: user.access_level,
+              status: user.active ? "active" : "inactive",
+              permissions: user.permissions.reduce((acc: any, perm: string) => {
+                acc[perm] = true;
+                return acc;
+              }, {}),
+              lastLogin: user.last_login || new Date().toISOString(),
+              lastActive:
+                user.last_login || user.updated_at || new Date().toISOString(),
+              createdAt: user.created_at,
+            }))
+          );
         }
         setIsCreateDialogOpen(false);
       }
@@ -268,12 +273,12 @@ export default function ServerAdministrationPage() {
 
   const handleEditAdmin = async (data: AdminUserFormData) => {
     if (!selectedUser) return;
-    
+
     if (!hasScope(Scope.ADMIN_WRITE)) {
       toast.error("You don't have permission to update admin users");
       return;
     }
-    
+
     try {
       setIsLoading(true);
       const response = await krapi.admin.updateUser(selectedUser.id, {
@@ -284,28 +289,32 @@ export default function ServerAdministrationPage() {
         permissions: Object.entries(data.permissions)
           .filter(([_, value]) => value)
           .map(([key]) => key as any),
-        active: data.status === "active",
+        active: selectedUser.status === "active",
       });
-      
+
       if (response.success) {
         // Refresh the admin users list
         const usersResponse = await krapi.admin.getUsers();
         if (usersResponse.success && usersResponse.data) {
-          setAdminUsers(usersResponse.data.map((user: any) => ({
-            id: user.id,
-            firstName: user.username.split(' ')[0] || user.username,
-            lastName: user.username.split(' ')[1] || '',
-            email: user.email,
-            role: user.role,
-            accessLevel: user.access_level,
-            status: user.active ? "active" : "inactive",
-            permissions: user.permissions.reduce((acc: any, perm: string) => {
-              acc[perm] = true;
-              return acc;
-            }, {}),
-            lastLogin: user.last_login || new Date().toISOString(),
-            createdAt: user.created_at,
-          })));
+          setAdminUsers(
+            usersResponse.data.map((user: any) => ({
+              id: user.id,
+              firstName: user.username.split(" ")[0] || user.username,
+              lastName: user.username.split(" ")[1] || "",
+              email: user.email,
+              role: user.role,
+              accessLevel: user.access_level,
+              status: user.active ? "active" : "inactive",
+              permissions: user.permissions.reduce((acc: any, perm: string) => {
+                acc[perm] = true;
+                return acc;
+              }, {}),
+              lastLogin: user.last_login || new Date().toISOString(),
+              lastActive:
+                user.last_login || user.updated_at || new Date().toISOString(),
+              createdAt: user.created_at,
+            }))
+          );
         }
         setIsEditDialogOpen(false);
         setSelectedUser(null);
@@ -323,15 +332,15 @@ export default function ServerAdministrationPage() {
       toast.error("You don't have permission to delete admin users");
       return;
     }
-    
+
     if (confirm("Are you sure you want to delete this admin user?")) {
       try {
         setIsLoading(true);
         const response = await krapi.admin.deleteUser(userId);
-        
+
         if (response.success) {
           // Remove the user from the local state
-          setAdminUsers(adminUsers.filter(user => user.id !== userId));
+          setAdminUsers(adminUsers.filter((user) => user.id !== userId));
         }
       } catch (error) {
         console.error("Error deleting admin user:", error);
@@ -351,12 +360,14 @@ export default function ServerAdministrationPage() {
       const response = await krapi.admin.updateUser(userId, {
         active: newStatus === "active",
       });
-      
+
       if (response.success) {
         // Update the local state
-        setAdminUsers(adminUsers.map(user => 
-          user.id === userId ? { ...user, status: newStatus } : user
-        ));
+        setAdminUsers(
+          adminUsers.map((user) =>
+            user.id === userId ? { ...user, status: newStatus } : user
+          )
+        );
       }
     } catch (error) {
       console.error("Error updating admin user status:", error);
@@ -440,11 +451,15 @@ export default function ServerAdministrationPage() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               size="lg"
               disabled={!hasScope(Scope.ADMIN_WRITE)}
-              title={!hasScope(Scope.ADMIN_WRITE) ? "You don't have permission to create admin users" : undefined}
+              title={
+                !hasScope(Scope.ADMIN_WRITE)
+                  ? "You don't have permission to create admin users"
+                  : undefined
+              }
             >
               <FiPlus className="mr-2 h-4 w-4" />
               Add Admin User
@@ -511,6 +526,17 @@ export default function ServerAdministrationPage() {
                   { value: "admin", label: "System Administrator" },
                   { value: "project_admin", label: "Project Administrator" },
                   { value: "limited_admin", label: "Limited Administrator" },
+                ]}
+              />
+              <FormField
+                name="accessLevel"
+                label="Access Level"
+                type="select"
+                required
+                options={[
+                  { value: "full", label: "Full Access" },
+                  { value: "read_write", label: "Read & Write" },
+                  { value: "read_only", label: "Read Only" },
                 ]}
               />
 
@@ -833,7 +859,11 @@ export default function ServerAdministrationPage() {
                       icon={FiEdit}
                       variant="secondary"
                       size="sm"
-                      title={!hasScope(Scope.ADMIN_WRITE) ? "No permission to edit" : "Edit User"}
+                      title={
+                        !hasScope(Scope.ADMIN_WRITE)
+                          ? "No permission to edit"
+                          : "Edit User"
+                      }
                       disabled={!hasScope(Scope.ADMIN_WRITE)}
                       onClick={() => {
                         setSelectedUser(user);
@@ -845,9 +875,11 @@ export default function ServerAdministrationPage() {
                       variant="secondary"
                       size="sm"
                       title={
-                        !hasScope(Scope.ADMIN_WRITE) 
-                          ? "No permission to change status" 
-                          : user.status === "active" ? "Deactivate" : "Activate"
+                        !hasScope(Scope.ADMIN_WRITE)
+                          ? "No permission to change status"
+                          : user.status === "active"
+                          ? "Deactivate"
+                          : "Activate"
                       }
                       disabled={!hasScope(Scope.ADMIN_WRITE)}
                       onClick={() =>
@@ -862,7 +894,11 @@ export default function ServerAdministrationPage() {
                         icon={FiTrash2}
                         variant="secondary"
                         size="sm"
-                        title={!hasScope(Scope.ADMIN_DELETE) ? "No permission to delete" : "Delete User"}
+                        title={
+                          !hasScope(Scope.ADMIN_DELETE)
+                            ? "No permission to delete"
+                            : "Delete User"
+                        }
                         disabled={!hasScope(Scope.ADMIN_DELETE)}
                         onClick={() => handleDeleteAdmin(user.id)}
                       />
@@ -893,6 +929,7 @@ export default function ServerAdministrationPage() {
                 firstName: selectedUser.firstName,
                 lastName: selectedUser.lastName,
                 role: selectedUser.role,
+                accessLevel: "full", // Default access level
                 permissions: selectedUser.permissions,
                 password: "",
                 confirmPassword: "",
@@ -946,6 +983,17 @@ export default function ServerAdministrationPage() {
                   { value: "admin", label: "System Administrator" },
                   { value: "project_admin", label: "Project Administrator" },
                   { value: "limited_admin", label: "Limited Administrator" },
+                ]}
+              />
+              <FormField
+                name="accessLevel"
+                label="Access Level"
+                type="select"
+                required
+                options={[
+                  { value: "full", label: "Full Access" },
+                  { value: "read_write", label: "Read & Write" },
+                  { value: "read_only", label: "Read Only" },
                 ]}
               />
 

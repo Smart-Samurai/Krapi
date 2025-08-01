@@ -3,10 +3,10 @@ import type { AdminRole, AccessLevel } from "@krapi/sdk";
 
 /**
  * Create a default Krapi client instance
- * 
+ *
  * Uses the API URL from environment variables or defaults to localhost.
  * The SDK expects the full API base URL including /krapi/k1.
- * 
+ *
  * @returns Configured KrapiClient instance
  */
 export function createDefaultKrapi(): KrapiClient {
@@ -20,7 +20,7 @@ export function createDefaultKrapi(): KrapiClient {
 
 /**
  * Create a Krapi client with custom configuration
- * 
+ *
  * @param config - Configuration object
  * @param config.baseURL - Full API base URL including /krapi/k1
  * @param config.apiKey - Optional API key for authentication
@@ -54,12 +54,12 @@ export type {
   StorageStats,
   ProjectUser,
   QueryOptions,
-  AdminRole,
-  AccessLevel,
   Collection,
   CollectionField,
   CollectionIndex,
   ApiKey,
 } from "@krapi/sdk";
+
+export { AdminRole, AccessLevel } from "@krapi/sdk";
 
 export { Scope, ProjectScope } from "@krapi/sdk";

@@ -11,10 +11,10 @@ interface ProtectedRouteProps {
   fallbackUrl?: string;
 }
 
-export function ProtectedRoute({ 
-  children, 
+export function ProtectedRoute({
+  children,
   requiredScopes,
-  fallbackUrl = "/login" 
+  fallbackUrl = "/login",
 }: ProtectedRouteProps) {
   const { user, loading, hasScope } = useAuth();
   const router = useRouter();
@@ -24,7 +24,9 @@ export function ProtectedRoute({
       // If user is not authenticated, redirect to login
       if (!user) {
         const currentPath = window.location.pathname;
-        router.push(`${fallbackUrl}?from=${encodeURIComponent(currentPath)}`);
+        window.location.href = `${fallbackUrl}?from=${encodeURIComponent(
+          currentPath
+        )}`;
         return;
       }
 
