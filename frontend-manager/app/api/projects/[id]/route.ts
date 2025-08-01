@@ -3,7 +3,7 @@ import { createBackendClient, getAuthToken } from '@/app/api/lib/sdk-client';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -15,8 +15,9 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
     const client = createBackendClient(authToken);
-    const response = await client.projects.getById(params.id);
+    const response = await client.projects.getById(id);
 
     if (response.success) {
       return NextResponse.json(response);
@@ -37,7 +38,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -49,9 +50,10 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
     const body = await request.json();
     const client = createBackendClient(authToken);
-    const response = await client.projects.update(params.id, body);
+    const response = await client.projects.update(id, body);
 
     if (response.success) {
       return NextResponse.json(response);
@@ -72,7 +74,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -84,8 +86,9 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
     const client = createBackendClient(authToken);
-    const response = await client.projects.delete(params.id);
+    const response = await client.projects.delete(id);
 
     if (response.success) {
       return NextResponse.json(response);

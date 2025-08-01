@@ -6,7 +6,7 @@ import { Button, Input, InfoBlock, IconButton } from "@/components/styled";
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import { FiMail, FiLock, FiEye, FiEyeOff, FiShield } from "react-icons/fi";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-context";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -28,17 +28,13 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const success = await login(data.email, data.password);
-
-      if (success) {
-        // Store remember me preference
-        if (data.rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-        }
-
-        // Redirect to dashboard after successful login
-        router.push("/dashboard");
+      // Store remember me preference before login
+      if (data.rememberMe) {
+        localStorage.setItem("rememberMe", "true");
       }
+
+      // The login function handles redirect internally
+      await login(data.email, data.password);
     } catch (err) {
       console.error("Login error:", err);
       if (err instanceof Error) {

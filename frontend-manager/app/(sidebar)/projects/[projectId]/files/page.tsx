@@ -33,8 +33,20 @@ export default function ProjectFilesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchFiles();
-  }, [projectId]);
+    if (krapi) {
+      fetchFiles();
+    }
+  }, [projectId, krapi]);
+
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const fetchFiles = async () => {
     setIsLoading(true);

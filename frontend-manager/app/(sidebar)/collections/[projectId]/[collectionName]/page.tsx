@@ -83,7 +83,19 @@ export default function CollectionDetailPage() {
     }
   }, [krapi, projectId, collectionName]);
 
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   const fetchCollection = async () => {
+    if (!krapi) return;
+    
     try {
       setLoading(true);
       const response = await krapi.collections.get(projectId, collectionName);
@@ -101,7 +113,7 @@ export default function CollectionDetailPage() {
   };
 
   const handleAddField = async () => {
-    if (!collection || !fieldForm.name) return;
+    if (!collection || !fieldForm.name || !krapi) return;
 
     try {
       const newField: CollectionField = {

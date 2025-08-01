@@ -63,7 +63,19 @@ export default function CollectionDocumentsPage() {
     }
   }, [krapi, projectId, collectionName]);
 
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   const fetchData = async () => {
+    if (!krapi) return;
+    
     try {
       setLoading(true);
 
@@ -112,6 +124,8 @@ export default function CollectionDocumentsPage() {
   };
 
   const handleCreateDocument = async () => {
+    if (!krapi) return;
+    
     try {
       const response = await krapi.documents.create(
         projectId,
@@ -133,7 +147,7 @@ export default function CollectionDocumentsPage() {
   };
 
   const handleUpdateDocument = async () => {
-    if (!selectedDocument) return;
+    if (!selectedDocument || !krapi) return;
 
     try {
       const response = await krapi.documents.update(
@@ -158,6 +172,7 @@ export default function CollectionDocumentsPage() {
 
   const handleDeleteDocument = async (documentId: string) => {
     if (!confirm("Are you sure you want to delete this document?")) return;
+    if (!krapi) return;
 
     try {
       const response = await krapi.documents.delete(
