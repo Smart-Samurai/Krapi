@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+---
+
+Use SHADCN for all styles in the project's frontend.
+Use these colors for shadcn:
+"@layer base {
+:root {
+--background: 90 40% 98%;
+--foreground: 93 36% 5%;
+--card: 90 40% 98%;
+--card-foreground: 93 36% 5%;
+--popover: 90 40% 98%;
+--popover-foreground: 93 36% 5%;
+--primary: 93 66% 14%;
+--primary-foreground: 90 40% 98%;
+--secondary: 172 36% 66%;
+--secondary-foreground: 93 36% 5%;
+--muted: 90 39% 20%;
+--muted-foreground: 93 36% 70%;
+--accent: 200 36% 48%;
+--accent-foreground: 93 36% 5%;
+--destructive: 0 85% 60%;
+--destructive-foreground: 93 36% 5%;
+--border: 90 39% 20%;
+--input: 90 39% 20%;
+--ring: 200 36% 40%;
+--radius: 0.5rem;
+}
+
+    .dark {
+      --background: 90 40% 2%;
+      --foreground: 93 36% 95%;
+      --card: 90 40% 2%;
+      --card-foreground: 93 36% 95%;
+      --popover: 90 40% 2%;
+      --popover-foreground: 93 36% 95%;
+      --primary: 93 66% 86%;
+      --primary-foreground: 90 40% 2%;
+      --secondary: 173 36% 34%;
+      --secondary-foreground: 93 36% 95%;
+      --muted: 90 39% 80%;
+      --muted-foreground: 93 36% 95%;
+      --accent: 200 36% 52%;
+      --accent-foreground: 90 40% 2%;
+      --destructive: 0 62% 30%;
+      --destructive-foreground: 92 37% 10%;
+      --border: 90 40% 60%;
+      --input: 90 39% 80%;
+      --ring: 200 36% 60%;
+    }
+
+}"
+
+SDK is the most important part of the app. It describes all functionality. It exposes all functionality. When building anything new, we mock it up in the SDK first, then implement it in the backend, and only at the very end we import it into the frontend.
+Frontend needs to align to SDK and backend. Never change the SDK and backend to fit the frontend.
