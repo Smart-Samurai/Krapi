@@ -331,15 +331,15 @@ export default function ProjectsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Link
-                      href={`/projects/${project.id}/users`}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
                       className="flex-1"
+                      onClick={() => router.push(`/projects/${project.id}`)}
                     >
-                      <Button variant="outline" size="sm" className="w-full">
-                        <Users className="mr-2 h-4 w-4" />
-                        Users
-                      </Button>
-                    </Link>
+                      <Users className="mr-2 h-4 w-4" />
+                      Enter Project
+                    </Button>
                     <Link
                       href={`/collections?project=${project.id}`}
                       className="flex-1"

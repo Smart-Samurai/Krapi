@@ -103,7 +103,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowSettings(true)}>
+              <DropdownMenuItem onClick={() => router.push("/profile")}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>

@@ -44,6 +44,7 @@ import type { AdminUser as AdminUserType } from "@/lib/krapi";
 import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
 
 // Permission types
 interface AdminPermissions {
@@ -449,219 +450,20 @@ export default function ServerAdministrationPage() {
             Manage administrative users and their access rights
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="default"
-              size="lg"
-              disabled={!hasScope(Scope.ADMIN_WRITE)}
-              title={
-                !hasScope(Scope.ADMIN_WRITE)
-                  ? "You don't have permission to create admin users"
-                  : undefined
-              }
-            >
-              <FiPlus className="mr-2 h-4 w-4" />
-              Add Admin User
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Admin User</DialogTitle>
-              <DialogDescription>
-                Create a new administrative user with specific permissions
-              </DialogDescription>
-            </DialogHeader>
-            <Form
-              schema={adminUserSchema}
-              onSubmit={handleCreateAdmin}
-              className="space-y-4"
-            >
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="firstName"
-                  label="First Name"
-                  type="text"
-                  placeholder="Enter first name"
-                  required
-                />
-                <FormField
-                  name="lastName"
-                  label="Last Name"
-                  type="text"
-                  placeholder="Enter last name"
-                  required
-                />
-              </div>
-              <FormField
-                name="email"
-                label="Email Address"
-                type="email"
-                placeholder="Enter email address"
-                required
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="password"
-                  label="Password"
-                  type="password"
-                  placeholder="Enter password"
-                  required
-                />
-                <FormField
-                  name="confirmPassword"
-                  label="Confirm Password"
-                  type="password"
-                  placeholder="Confirm password"
-                  required
-                />
-              </div>
-              <FormField
-                name="role"
-                label="Role"
-                type="select"
-                required
-                options={[
-                  { value: "master_admin", label: "Master Administrator" },
-                  { value: "admin", label: "System Administrator" },
-                  { value: "project_admin", label: "Project Administrator" },
-                  { value: "limited_admin", label: "Limited Administrator" },
-                ]}
-              />
-              <FormField
-                name="accessLevel"
-                label="Access Level"
-                type="select"
-                required
-                options={[
-                  { value: "full", label: "Full Access" },
-                  { value: "read_write", label: "Read & Write" },
-                  { value: "read_only", label: "Read Only" },
-                ]}
-              />
-
-              {/* Permissions Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Permissions</h3>
-
-                {/* System Permissions */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-text/80">
-                    System Permissions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      name="permissions.canManageUsers"
-                      label="Manage Users"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canCreateProjects"
-                      label="Create Projects"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canDeleteProjects"
-                      label="Delete Projects"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageSystemSettings"
-                      label="System Settings"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canViewSystemLogs"
-                      label="View System Logs"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageBackups"
-                      label="Manage Backups"
-                      type="checkbox"
-                    />
-                  </div>
-                </div>
-
-                {/* Feature Permissions */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-text/80">
-                    Feature Permissions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      name="permissions.canAccessAllProjects"
-                      label="Access All Projects"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageDatabase"
-                      label="Manage Database"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageAPI"
-                      label="Manage API"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageFiles"
-                      label="Manage Files"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageEmail"
-                      label="Manage Email"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageAuth"
-                      label="Manage Authentication"
-                      type="checkbox"
-                    />
-                  </div>
-                </div>
-
-                {/* Administrative Permissions */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-text/80">
-                    Administrative Permissions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      name="permissions.canCreateAdminAccounts"
-                      label="Create Admin Accounts"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canModifyOtherAdmins"
-                      label="Modify Other Admins"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.isMasterAdmin"
-                      label="Master Administrator"
-                      type="checkbox"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="default">
-                  Create Admin User
-                </Button>
-              </DialogFooter>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          variant="default"
+          size="lg"
+          onClick={() => setIsCreateDialogOpen(true)}
+          disabled={!hasScope(Scope.ADMIN_WRITE)}
+          title={
+            !hasScope(Scope.ADMIN_WRITE)
+              ? "You don't have permission to create admin users"
+              : undefined
+          }
+        >
+          <FiPlus className="mr-2 h-4 w-4" />
+          Add Admin User
+        </Button>
       </div>
 
       {/* Stats */}
@@ -1162,6 +964,27 @@ export default function ServerAdministrationPage() {
           </p>
         </div>
       </InfoBlock>
+
+      {/* Streamlined User Dialog */}
+      <StreamlinedUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSuccess={() => {
+          fetchAdminUsers();
+          toast.success("Admin user created successfully");
+        }}
+      />
+
+      {/* Edit Dialog */}
+      <StreamlinedUserDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        editUser={selectedUser}
+        onSuccess={() => {
+          fetchAdminUsers();
+          toast.success("Admin user updated successfully");
+        }}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
   ApiKey,
   Scope,
 } from "@/types";
+import { MigrationService } from "./migration.service";
 
 export class DatabaseService {
   private pool: Pool;
@@ -28,6 +29,7 @@ export class DatabaseService {
   private isConnected: boolean = false;
   private connectionAttempts: number = 0;
   private maxConnectionAttempts: number = 10;
+  private migrationService: MigrationService;
   private readyPromise: Promise<void>;
   private readyResolve!: () => void;
   private readyReject!: (error: Error) => void;
@@ -75,6 +77,13 @@ export class DatabaseService {
     return this.readyPromise;
   }
 
+  async runSchemaFixes(): Promise<void> {
+    if (!this.migrationService) {
+      throw new Error("Migration service not initialized");
+    }
+    await this.migrationService.checkAndFixSchema();
+  }
+
   // Check if database is ready (non-blocking)
   isReady(): boolean {
     return this.isConnected;
@@ -106,8 +115,17 @@ export class DatabaseService {
         this.isConnected = true;
         console.log("Successfully connected to PostgreSQL");
 
+        // Initialize migration service
+        this.migrationService = new MigrationService(this.pool);
+        
+        // Run migrations first
+        await this.migrationService.runMigrations();
+
         // Initialize tables after successful connection
         await this.initializeTables();
+        
+        // Check and fix schema integrity
+        await this.migrationService.checkAndFixSchema();
 
         // Resolve the ready promise on successful initialization
         this.readyResolve();

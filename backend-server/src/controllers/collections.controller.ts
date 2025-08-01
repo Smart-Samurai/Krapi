@@ -89,6 +89,8 @@ export class CollectionsController {
     try {
       const { projectId } = req.params;
       const { name, description, fields = [], indexes = [] } = req.body;
+      
+      console.log("Creating collection:", { projectId, name, user: req.user });
 
       // Verify project exists
       const project = await this.db.getProjectById(projectId);

@@ -107,6 +107,12 @@ export default function CollectionsPage() {
   const handleCreateCollection = async () => {
     if (!selectedProject || !newCollectionName) return;
 
+    console.log("Creating collection with:", {
+      projectId: selectedProject,
+      name: newCollectionName,
+      description: newCollectionDescription,
+    });
+
     try {
       const response = await krapi.collections.create(selectedProject, {
         name: newCollectionName,
@@ -147,7 +153,8 @@ export default function CollectionsPage() {
       }
     } catch (err) {
       console.error("Error creating collection:", err);
-      setError("Failed to create collection");
+      const errorMessage = err instanceof Error ? err.message : "Failed to create collection";
+      setError(errorMessage);
     }
   };
 
