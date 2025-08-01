@@ -33,7 +33,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
-  const { krapi } = useAuth();
+  const { krapi, user, loading } = useAuth();
 
   // Check if we're on the login page
   const isLoginPage = pathname === "/login";
@@ -215,6 +215,21 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   // For login page, don't render the sidebar at all
   if (isLoginPage) {
     return <>{children}</>;
+  }
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user && !isLoginPage) {
+    router.push("/login");
+    return null;
   }
 
   return (
