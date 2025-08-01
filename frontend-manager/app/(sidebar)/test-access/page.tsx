@@ -232,7 +232,7 @@ export default function TestAccessPage() {
     try {
       // Simulate API call - in real implementation, make actual requests
       const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/krapi/k1";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
       const response = await fetch(`${baseUrl}${endpoint}`, {
         method,
         headers: {
