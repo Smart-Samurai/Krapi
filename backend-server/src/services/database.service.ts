@@ -338,11 +338,12 @@ export class DatabaseService {
         CREATE TABLE IF NOT EXISTS changelog (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-          user_id UUID REFERENCES admin_users(id),
+          entity_type VARCHAR(50) NOT NULL,
+          entity_id VARCHAR(255) NOT NULL,
           action VARCHAR(50) NOT NULL,
-          resource_type VARCHAR(50) NOT NULL,
-          resource_id VARCHAR(255),
-          details JSONB DEFAULT '{}'::jsonb,
+          changes JSONB DEFAULT '{}'::jsonb,
+          performed_by UUID REFERENCES admin_users(id),
+          session_id VARCHAR(255),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
@@ -387,6 +388,9 @@ export class DatabaseService {
       }
 
       await client.query("COMMIT");
+
+      // Repair database structure if needed
+      await this.repairDatabase();
 
       // Seed default data after tables are created
       await this.seedDefaultData();
@@ -1936,7 +1940,7 @@ export class DatabaseService {
         data.changes || {},
         data.performed_by,
         data.session_id,
-        data.timestamp || new Date().toISOString(),
+        new Date().toISOString(),
       ]
     );
 
@@ -1950,7 +1954,7 @@ export class DatabaseService {
     const result = await this.pool.query(
       `SELECT c.*, au.username 
        FROM changelog c 
-       LEFT JOIN admin_users au ON c.user_id = au.id 
+       LEFT JOIN admin_users au ON c.performed_by = au.id 
        WHERE c.project_id = $1 
        ORDER BY c.created_at DESC 
        LIMIT $2`,
@@ -2315,7 +2319,7 @@ export class DatabaseService {
       values.push(options.filters.performed_by);
     }
 
-    query += ` ORDER BY timestamp DESC`;
+    query += ` ORDER BY created_at DESC`;
 
     paramCount++;
     query += ` LIMIT $${paramCount}`;
