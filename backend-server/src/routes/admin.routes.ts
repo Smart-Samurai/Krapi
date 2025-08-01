@@ -84,6 +84,24 @@ router.get(
   controller.getSystemStats
 );
 
+// Database health check
+router.get(
+  "/system/db-health",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getDatabaseHealth
+);
+
+// Database repair (master admin only)
+router.post(
+  "/system/db-repair",
+  requireScopes({
+    scopes: [Scope.MASTER],
+  }),
+  controller.repairDatabase
+);
+
 // Activity logs
 router.get(
   "/activity",

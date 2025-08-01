@@ -93,7 +93,7 @@
  *    - Use appropriate scopes when creating API keys for limited access
  */
 
-import express, { Express } from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -103,6 +103,8 @@ import rateLimit from "express-rate-limit";
 import routes from "./routes";
 import { DatabaseService } from "./services/database.service";
 import { AuthService } from "./services/auth.service";
+import { AdminRole } from "./types/admin";
+import { AuthenticatedRequest } from "./types/auth";
 
 // Load environment variables
 dotenv.config();
@@ -152,6 +154,33 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/krapi/k1", limiter);
+
+// Mount routes
+app.use("/krapi/k1", routes);
+
+// Health check endpoint (no auth required)
+app.get("/health", async (req: Request, res: Response) => {
+  try {
+    const db = DatabaseService.getInstance();
+    const dbHealth = await db.checkHealth();
+    
+    const health = {
+      status: dbHealth.healthy ? "healthy" : "unhealthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: dbHealth,
+      version: process.env.npm_package_version || "1.0.0"
+    };
+
+    res.status(dbHealth.healthy ? 200 : 503).json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: "unhealthy",
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
 
 // Mount routes
 app.use("/krapi/k1", routes);

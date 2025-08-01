@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DatabaseService } from '@/services/database.service';
 import { AuthService } from '@/services/auth.service';
 import { AuthenticatedRequest, ApiResponse, PaginatedResponse, AdminUser, ChangeAction } from '@/types';
+import { AdminRole } from '@/types/admin';
 
 export class AdminController {
   private db: DatabaseService;
@@ -665,6 +666,74 @@ export class AdminController {
       res.status(500).json({
         success: false,
         error: 'Failed to fetch activity logs'
+      } as ApiResponse);
+    }
+  };
+
+  // Get database health
+  getDatabaseHealth = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const health = await this.db.checkHealth();
+      
+      res.status(health.healthy ? 200 : 503).json({
+        success: health.healthy,
+        data: health
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Get database health error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to check database health'
+      } as ApiResponse);
+    }
+  };
+
+  // Repair database
+  repairDatabase = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: 'Unauthorized'
+        } as ApiResponse);
+        return;
+      }
+
+      // Double-check master admin role
+      if (currentUser.role !== AdminRole.MASTER_ADMIN) {
+        res.status(403).json({
+          success: false,
+          error: 'Only master admins can repair the database'
+        } as ApiResponse);
+        return;
+      }
+
+      const result = await this.db.autoRepair();
+
+      // Log the repair action
+      await this.db.createChangelogEntry({
+        project_id: null,
+        entity_type: 'system',
+        entity_id: 'database',
+        action: ChangeAction.UPDATED,
+        changes: { action: 'repair', repairs: result.repairs },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(result.success ? 200 : 500).json({
+        success: result.success,
+        data: result
+      } as ApiResponse);
+    } catch (error) {
+      console.error('Repair database error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to repair database'
       } as ApiResponse);
     }
   };
