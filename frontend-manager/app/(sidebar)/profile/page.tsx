@@ -1,122 +1,85 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
-import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { FiUser, FiLock, FiKey, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
 import { toast } from "sonner";
-import { 
-  User, 
-  Key, 
-  Lock, 
-  LogOut, 
-  Shield, 
-  Mail, 
-  Calendar,
-  RefreshCw,
-  Copy,
-  Eye,
-  EyeOff,
-  AlertCircle
-} from "lucide-react";
-import { AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
-
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+import { Scope } from "@krapi/sdk";
+import { ExtendedAdminUser } from "@/lib/types/extended";
 
 export default function ProfilePage() {
-  const { user, krapi, logout, sessionToken, apiKey } = useAuth();
-  const router = useRouter();
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
-  const [currentApiKey, setCurrentApiKey] = useState<string | null>(null);
+  const { user, scopes } = useAuth();
+  const krapi = useKrapi();
+  const extendedUser = user as ExtendedAdminUser;
 
-  const changePasswordForm = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(changePasswordSchema),
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    },
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
   });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  useEffect(() => {
-    // If user has an API key stored, use it
-    if (apiKey) {
-      setCurrentApiKey(apiKey);
-    }
-  }, [apiKey]);
+  // API Key state
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("Failed to logout");
+  const getInitials = () => {
+    if (!user) return "U";
+    if (user.username) {
+      return user.username.substring(0, 2).toUpperCase();
     }
+    if (user.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return "U";
   };
 
-  const handleChangePassword = async (data: ChangePasswordFormData) => {
-    if (!krapi) return;
+  const handlePasswordChange = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+
+    if (!krapi) {
+      toast.error("Authentication not initialized");
+      return;
+    }
 
     setIsChangingPassword(true);
     try {
       const response = await krapi.auth.changePassword({
-        current_password: data.currentPassword,
-        new_password: data.newPassword,
+        current_password: currentPassword,
+        new_password: newPassword,
       });
 
       if (response.success) {
         toast.success("Password changed successfully");
-        setShowChangePasswordDialog(false);
-        changePasswordForm.reset();
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(response.error || "Failed to change password");
       }
-    } catch (error: any) {
-      console.error("Failed to change password:", error);
-      toast.error(error.response?.data?.error || "Failed to change password");
+    } catch (error) {
+      toast.error("Failed to change password");
     } finally {
       setIsChangingPassword(false);
     }
@@ -132,342 +95,397 @@ export default function ProfilePage() {
     setIsRegeneratingKey(true);
     try {
       const response = await krapi.auth.regenerateApiKey();
-
       if (response.success && response.data) {
-        setCurrentApiKey(response.data.api_key);
         toast.success("API key regenerated successfully");
+        // The user object should be updated automatically
+      } else {
+        toast.error(response.error || "Failed to regenerate API key");
       }
-    } catch (error: any) {
-      console.error("Failed to regenerate API key:", error);
-      toast.error(error.response?.data?.error || "Failed to regenerate API key");
+    } catch (error) {
+      toast.error("Failed to regenerate API key");
     } finally {
       setIsRegeneratingKey(false);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
-  };
-
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case AdminRole.MASTER_ADMIN:
-        return "destructive";
-      case AdminRole.ADMIN:
-        return "default";
-      case AdminRole.DEVELOPER:
-        return "secondary";
+  const getRoleDisplay = () => {
+    if (!user) return "Unknown";
+    switch (user.role) {
+      case "master_admin":
+        return "Master Administrator";
+      case "admin":
+        return "Administrator";
+      case "developer":
+        return "Developer";
       default:
-        return "outline";
+        return user.role;
     }
   };
 
-  const getAccessLevelBadgeVariant = (level: string) => {
-    switch (level) {
-      case AccessLevel.FULL:
-        return "default";
-      case AccessLevel.READ_WRITE:
-        return "secondary";
-      case AccessLevel.READ_ONLY:
-        return "outline";
+  const getAccessLevelDisplay = () => {
+    if (!user) return "Unknown";
+    switch (user.access_level) {
+      case "full":
+        return "Full Access";
+      case "read_write":
+        return "Read & Write";
+      case "read_only":
+        return "Read Only";
       default:
-        return "outline";
+        return user.access_level;
     }
   };
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-96">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Not authenticated</p>
-              <Button className="mt-4" onClick={() => router.push("/login")}>
-                Go to Login
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground">Manage your account settings and preferences</p>
-      </div>
+    <div className="p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-text">My Profile</h1>
+          <p className="text-text/60 mt-2">
+            Manage your account settings and preferences
+          </p>
+        </div>
 
-      <div className="space-y-6">
-        {/* User Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              User Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.username}`} />
-                <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+        {/* Profile Card */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-6">
+              <Avatar className="h-24 w-24">
+                <AvatarFallback className="text-2xl">
+                  {getInitials()}
+                </AvatarFallback>
               </Avatar>
-              <div>
-                <h2 className="text-2xl font-semibold">{user.username}</h2>
-                <p className="text-muted-foreground">{user.email}</p>
+              <div className="flex-1">
+                <h2 className="text-2xl font-semibold">{user?.username || "User"}</h2>
+                <p className="text-text/60">{user?.email}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <Badge variant="outline">{getRoleDisplay()}</Badge>
+                  <Badge variant="outline">{getAccessLevelDisplay()}</Badge>
+                  {user?.active ? (
+                    <Badge variant="default">Active</Badge>
+                  ) : (
+                    <Badge variant="destructive">Inactive</Badge>
+                  )}
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <Separator />
+        {/* Tabs */}
+        <Tabs defaultValue="general" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="general">
+              <FiUser className="mr-2 h-4 w-4" />
+              General
+            </TabsTrigger>
+            <TabsTrigger value="security">
+              <FiLock className="mr-2 h-4 w-4" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="permissions">
+              <FiShield className="mr-2 h-4 w-4" />
+              Permissions
+            </TabsTrigger>
+            <TabsTrigger value="api">
+              <FiKey className="mr-2 h-4 w-4" />
+              API Access
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label className="text-muted-foreground">User ID</Label>
-                <p className="font-mono text-sm">{user.id}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Email</Label>
-                <p className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  {user.email}
-                </p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Role</Label>
-                <Badge variant={getRoleBadgeVariant(user.role)} className="mt-1">
-                  {user.role.replace('_', ' ').toUpperCase()}
-                </Badge>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Access Level</Label>
-                <Badge variant={getAccessLevelBadgeVariant(user.access_level)} className="mt-1">
-                  {user.access_level.replace('_', ' ').toUpperCase()}
-                </Badge>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Account Created</Label>
-                <p className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  {new Date(user.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Last Login</Label>
-                <p className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                </p>
-              </div>
-            </div>
-
-            {/* Permissions */}
-            {user.permissions && user.permissions.length > 0 && (
-              <>
-                <Separator />
-                <div>
-                  <Label className="text-muted-foreground mb-2 flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    Permissions
-                  </Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {user.permissions.map((permission) => (
-                      <Badge key={permission} variant="secondary" className="text-xs">
-                        {permission}
-                      </Badge>
-                    ))}
+          {/* General Tab */}
+          <TabsContent value="general">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Information</CardTitle>
+                <CardDescription>
+                  Your basic account details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Username</Label>
+                    <Input value={user?.username || ""} disabled />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input value={user?.email || ""} disabled />
+                  </div>
+                  <div>
+                    <Label>Account ID</Label>
+                    <Input value={user?.id || ""} disabled className="font-mono text-sm" />
+                  </div>
+                  <div>
+                    <Label>Member Since</Label>
+                    <Input
+                      value={
+                        user?.created_at
+                          ? new Date(user.created_at).toLocaleDateString()
+                          : ""
+                      }
+                      disabled
+                    />
+                  </div>
+                  <div>
+                    <Label>Last Login</Label>
+                    <Input
+                      value={
+                        user?.last_login
+                          ? new Date(user.last_login).toLocaleString()
+                          : "Never"
+                      }
+                      disabled
+                    />
+                  </div>
+                  <div>
+                    <Label>Login Count</Label>
+                    <Input value={extendedUser?.login_count?.toString() || "0"} disabled />
                   </div>
                 </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Authentication Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Authentication
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Session Token */}
-            <div>
-              <Label className="text-muted-foreground">Session Token</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <Input
-                  type="text"
-                  value={sessionToken ? `${sessionToken.substring(0, 20)}...` : "No active session"}
-                  readOnly
-                  className="font-mono text-sm"
-                />
-                {sessionToken && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(sessionToken)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+          {/* Security Tab */}
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Password</CardTitle>
+                <CardDescription>
+                  Update your account password
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="current-password">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showPasswords.current ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter current password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                      onClick={() =>
+                        setShowPasswords({
+                          ...showPasswords,
+                          current: !showPasswords.current,
+                        })
+                      }
+                    >
+                      {showPasswords.current ? (
+                        <FiEyeOff className="h-4 w-4" />
+                      ) : (
+                        <FiEye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="new-password">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showPasswords.new ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                      onClick={() =>
+                        setShowPasswords({
+                          ...showPasswords,
+                          new: !showPasswords.new,
+                        })
+                      }
+                    >
+                      {showPasswords.new ? (
+                        <FiEyeOff className="h-4 w-4" />
+                      ) : (
+                        <FiEye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Must be at least 8 characters long
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="confirm-password">Confirm New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showPasswords.confirm ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                      onClick={() =>
+                        setShowPasswords({
+                          ...showPasswords,
+                          confirm: !showPasswords.confirm,
+                        })
+                      }
+                    >
+                      {showPasswords.confirm ? (
+                        <FiEyeOff className="h-4 w-4" />
+                      ) : (
+                        <FiEye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={
+                    isChangingPassword ||
+                    !currentPassword ||
+                    !newPassword ||
+                    !confirmPassword
+                  }
+                >
+                  {isChangingPassword ? "Changing Password..." : "Change Password"}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Permissions Tab */}
+          <TabsContent value="permissions">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Permissions</CardTitle>
+                <CardDescription>
+                  Scopes and access levels assigned to your account
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {scopes.includes(Scope.MASTER) ? (
+                  <div className="p-4 bg-primary/10 rounded-lg">
+                    <p className="font-medium">Master Administrator</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      You have full access to all features and resources in Krapi
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Active Scopes</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {scopes.length > 0 ? (
+                          scopes.map((scope) => (
+                            <Badge key={scope} variant="secondary">
+                              {scope}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No specific scopes assigned
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {extendedUser?.project_ids && extendedUser.project_ids.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-2">Project Access</h4>
+                        <p className="text-sm text-muted-foreground">
+                          You have access to {extendedUser.project_ids.length} project(s)
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {/* API Key */}
-            <div>
-              <Label className="text-muted-foreground">API Key</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <Input
-                  type={showApiKey ? "text" : "password"}
-                  value={currentApiKey || "No API key generated"}
-                  readOnly
-                  className="font-mono text-sm"
-                />
-                {currentApiKey && (
+          {/* API Tab */}
+          <TabsContent value="api">
+            <Card>
+              <CardHeader>
+                <CardTitle>API Key</CardTitle>
+                <CardDescription>
+                  Your personal API key for programmatic access
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {extendedUser?.api_key ? (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copyToClipboard(currentApiKey)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
+                    <div>
+                      <Label>API Key</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={
+                            showApiKey
+                              ? extendedUser.api_key
+                              : extendedUser.api_key.substring(0, 8) + "..." + extendedUser.api_key.substring(extendedUser.api_key.length - 4)
+                          }
+                          readOnly
+                          className="font-mono text-sm"
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                        >
+                          {showApiKey ? (
+                            <FiEyeOff className="h-4 w-4" />
+                          ) : (
+                            <FiEye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Use this key to authenticate API requests
+                      </p>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h4 className="font-medium mb-2">Regenerate API Key</h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Generate a new API key. The current key will stop working immediately.
+                      </p>
+                      <Button
+                        variant="destructive"
+                        onClick={handleRegenerateApiKey}
+                        disabled={isRegeneratingKey}
+                      >
+                        {isRegeneratingKey ? "Regenerating..." : "Regenerate API Key"}
+                      </Button>
+                    </div>
                   </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No API key available for your account
+                  </p>
                 )}
-                <Button
-                  size="sm"
-                  onClick={handleRegenerateApiKey}
-                  disabled={isRegeneratingKey}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isRegeneratingKey ? 'animate-spin' : ''}`} />
-                  {isRegeneratingKey ? "Regenerating..." : "Regenerate"}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Use this API key to authenticate requests to the KRAPI backend
-              </p>
-            </div>
-
-            <Separator />
-
-            {/* Password Change */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Password</Label>
-                <p className="text-sm text-muted-foreground">Change your account password</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowChangePasswordDialog(true)}
-              >
-                <Lock className="h-4 w-4 mr-2" />
-                Change Password
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Actions Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="destructive"
-              onClick={handleLogout}
-              className="w-full sm:w-auto"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Change Password Dialog */}
-      <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
-            <DialogDescription>
-              Enter your current password and choose a new password
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...changePasswordForm}>
-            <form onSubmit={changePasswordForm.handleSubmit(handleChangePassword)} className="space-y-4">
-              <FormField
-                control={changePasswordForm.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={changePasswordForm.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Must be at least 8 characters long
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={changePasswordForm.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm New Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowChangePasswordDialog(false);
-                    changePasswordForm.reset();
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isChangingPassword}>
-                  {isChangingPassword ? "Changing..." : "Change Password"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

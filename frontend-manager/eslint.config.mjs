@@ -33,7 +33,7 @@ const eslintConfig = [
           varsIgnorePattern: "^_",
         },
       ],
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off", // Allow any types for now
       "@typescript-eslint/no-unused-expressions": "warn",
       "@typescript-eslint/no-inferrable-types": "off",
       "@typescript-eslint/no-empty-object-type": "off",
@@ -54,7 +54,7 @@ const eslintConfig = [
       "import/no-named-as-default": "off",
 
       // General rules
-      "no-console": "warn",
+      "no-console": "off", // Allow console statements for debugging
       "prefer-const": "warn",
       "no-var": "error",
       "no-unused-vars": "off", // Disable in favor of TypeScript version

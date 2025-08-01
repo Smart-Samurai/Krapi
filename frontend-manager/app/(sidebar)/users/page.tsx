@@ -44,6 +44,8 @@ import type { AdminUser as AdminUserType } from "@/lib/krapi";
 import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
+import { DatabaseAdminUser, ExtendedAdminUser } from "@/lib/types/extended";
 
 // Permission types
 interface AdminPermissions {
@@ -72,7 +74,7 @@ interface AdminPermissions {
   isMasterAdmin: boolean;
 }
 
-interface AdminUser {
+interface LocalAdminUser {
   id: string;
   email: string;
   firstName: string;
@@ -122,12 +124,12 @@ type AdminUserFormData = z.infer<typeof adminUserSchema>;
 export default function ServerAdministrationPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<LocalAdminUser | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const krapi = useKrapi();
   const { hasScope } = useAuth();
 
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsers, setAdminUsers] = useState<LocalAdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch admin users from the database
@@ -141,7 +143,7 @@ export default function ServerAdministrationPage() {
 
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
-          const transformedUsers: AdminUser[] = response.data.map((user) => ({
+          const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
             id: user.id.toString(),
             email: user.email,
             firstName: user.username?.split(" ")[0] || "",
@@ -218,58 +220,7 @@ export default function ServerAdministrationPage() {
     );
   }
 
-  const handleCreateAdmin = async (data: AdminUserFormData) => {
-    if (!hasScope(Scope.ADMIN_WRITE)) {
-      toast.error("You don't have permission to create admin users");
-      return;
-    }
 
-    try {
-      setIsLoading(true);
-      const response = await krapi.admin.createUser({
-        email: data.email,
-        username: data.firstName.toLowerCase() + data.lastName.toLowerCase(),
-        password: data.password || "TempPassword123!", // You should generate or require a password
-        role: data.role as string,
-        access_level: data.accessLevel as string,
-        permissions: Object.entries(data.permissions)
-          .filter(([_, value]) => value)
-          .map(([key]) => key as any),
-      });
-
-      if (response.success) {
-        // Refresh the admin users list
-        const usersResponse = await krapi.admin.getUsers();
-        if (usersResponse.success && usersResponse.data) {
-          setAdminUsers(
-            usersResponse.data.map((user: any) => ({
-              id: user.id,
-              firstName: user.username.split(" ")[0] || user.username,
-              lastName: user.username.split(" ")[1] || "",
-              email: user.email,
-              role: user.role,
-              accessLevel: user.access_level,
-              status: user.active ? "active" : "inactive",
-              permissions: user.permissions.reduce((acc: any, perm: string) => {
-                acc[perm] = true;
-                return acc;
-              }, {}),
-              lastLogin: user.last_login || new Date().toISOString(),
-              lastActive:
-                user.last_login || user.updated_at || new Date().toISOString(),
-              createdAt: user.created_at,
-            }))
-          );
-        }
-        setIsCreateDialogOpen(false);
-      }
-    } catch (error) {
-      console.error("Error creating admin user:", error);
-      alert("Failed to create admin user");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleEditAdmin = async (data: AdminUserFormData) => {
     if (!selectedUser) return;
@@ -449,219 +400,20 @@ export default function ServerAdministrationPage() {
             Manage administrative users and their access rights
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="default"
-              size="lg"
-              disabled={!hasScope(Scope.ADMIN_WRITE)}
-              title={
-                !hasScope(Scope.ADMIN_WRITE)
-                  ? "You don't have permission to create admin users"
-                  : undefined
-              }
-            >
-              <FiPlus className="mr-2 h-4 w-4" />
-              Add Admin User
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Admin User</DialogTitle>
-              <DialogDescription>
-                Create a new administrative user with specific permissions
-              </DialogDescription>
-            </DialogHeader>
-            <Form
-              schema={adminUserSchema}
-              onSubmit={handleCreateAdmin}
-              className="space-y-4"
-            >
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="firstName"
-                  label="First Name"
-                  type="text"
-                  placeholder="Enter first name"
-                  required
-                />
-                <FormField
-                  name="lastName"
-                  label="Last Name"
-                  type="text"
-                  placeholder="Enter last name"
-                  required
-                />
-              </div>
-              <FormField
-                name="email"
-                label="Email Address"
-                type="email"
-                placeholder="Enter email address"
-                required
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="password"
-                  label="Password"
-                  type="password"
-                  placeholder="Enter password"
-                  required
-                />
-                <FormField
-                  name="confirmPassword"
-                  label="Confirm Password"
-                  type="password"
-                  placeholder="Confirm password"
-                  required
-                />
-              </div>
-              <FormField
-                name="role"
-                label="Role"
-                type="select"
-                required
-                options={[
-                  { value: "master_admin", label: "Master Administrator" },
-                  { value: "admin", label: "System Administrator" },
-                  { value: "project_admin", label: "Project Administrator" },
-                  { value: "limited_admin", label: "Limited Administrator" },
-                ]}
-              />
-              <FormField
-                name="accessLevel"
-                label="Access Level"
-                type="select"
-                required
-                options={[
-                  { value: "full", label: "Full Access" },
-                  { value: "read_write", label: "Read & Write" },
-                  { value: "read_only", label: "Read Only" },
-                ]}
-              />
-
-              {/* Permissions Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Permissions</h3>
-
-                {/* System Permissions */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-text/80">
-                    System Permissions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      name="permissions.canManageUsers"
-                      label="Manage Users"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canCreateProjects"
-                      label="Create Projects"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canDeleteProjects"
-                      label="Delete Projects"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageSystemSettings"
-                      label="System Settings"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canViewSystemLogs"
-                      label="View System Logs"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageBackups"
-                      label="Manage Backups"
-                      type="checkbox"
-                    />
-                  </div>
-                </div>
-
-                {/* Feature Permissions */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-text/80">
-                    Feature Permissions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      name="permissions.canAccessAllProjects"
-                      label="Access All Projects"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageDatabase"
-                      label="Manage Database"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageAPI"
-                      label="Manage API"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageFiles"
-                      label="Manage Files"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageEmail"
-                      label="Manage Email"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canManageAuth"
-                      label="Manage Authentication"
-                      type="checkbox"
-                    />
-                  </div>
-                </div>
-
-                {/* Administrative Permissions */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-text/80">
-                    Administrative Permissions
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      name="permissions.canCreateAdminAccounts"
-                      label="Create Admin Accounts"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.canModifyOtherAdmins"
-                      label="Modify Other Admins"
-                      type="checkbox"
-                    />
-                    <FormField
-                      name="permissions.isMasterAdmin"
-                      label="Master Administrator"
-                      type="checkbox"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="default">
-                  Create Admin User
-                </Button>
-              </DialogFooter>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          variant="default"
+          size="lg"
+          onClick={() => setIsCreateDialogOpen(true)}
+          disabled={!hasScope(Scope.ADMIN_WRITE)}
+          title={
+            !hasScope(Scope.ADMIN_WRITE)
+              ? "You don't have permission to create admin users"
+              : undefined
+          }
+        >
+          <FiPlus className="mr-2 h-4 w-4" />
+          Add Admin User
+        </Button>
       </div>
 
       {/* Stats */}
@@ -1162,6 +914,182 @@ export default function ServerAdministrationPage() {
           </p>
         </div>
       </InfoBlock>
+
+      {/* Streamlined User Dialog */}
+      <StreamlinedUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSuccess={() => {
+          const fetchAdminUsers = async () => {
+            if (!krapi) return;
+
+            try {
+              setIsLoading(true);
+              const response = await krapi.admin.getUsers({});
+
+              if (response.success && response.data) {
+                // Transform the database users to match our AdminUser interface
+                const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
+                  id: user.id.toString(),
+                  email: user.email,
+                  firstName: user.username?.split(" ")[0] || "",
+                  lastName: user.username?.split(" ")[1] || "",
+                  role: user.role as
+                    | "master_admin"
+                    | "admin"
+                    | "project_admin"
+                    | "limited_admin",
+                  status: user.active ? "active" : "inactive",
+                  permissions: {
+                    canManageUsers:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "users.create" ||
+                          p === "users.update" ||
+                          p === "users.delete"
+                      ) || false,
+                    canCreateProjects:
+                      user.permissions?.some((p) => p === "projects.create") || false,
+                    canDeleteProjects:
+                      user.permissions?.some((p) => p === "projects.delete") || false,
+                    canManageSystemSettings:
+                      user.permissions?.some((p) => p === "settings.update") || false,
+                    canViewSystemLogs: false, // Not available in current permission system
+                    canManageBackups: false, // Not available in current permission system
+                    canAccessAllProjects:
+                      user.permissions?.some((p) => p === "projects.read") || false,
+                    restrictedProjectIds: [],
+                    canManageDatabase:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "collections.create" ||
+                          p === "collections.write" ||
+                          p === "collections.delete"
+                      ) || false,
+                    canManageAPI: false, // Not available in current permission system
+                    canManageFiles:
+                      user.permissions?.some(
+                        (p) => p === "storage.upload" || p === "storage.delete"
+                      ) || false,
+                    canManageAuth: false, // Not available in current permission system
+                    canCreateAdminAccounts: false, // Not available in current permission system
+                    canModifyOtherAdmins: false, // Not available in current permission system
+                    isMasterAdmin: user.role === "master_admin",
+                  },
+                  lastActive: user.last_login || user.updated_at,
+                  createdAt: user.created_at,
+                  lastLogin: user.last_login || "",
+                }));
+                setAdminUsers(transformedUsers);
+              } else {
+                console.error("Failed to fetch admin users:", response.error);
+                setAdminUsers([]);
+              }
+            } catch (error) {
+              console.error("Error fetching admin users:", error);
+              setAdminUsers([]);
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          fetchAdminUsers();
+          toast.success("Admin user created successfully");
+        }}
+      />
+
+      {/* Edit Dialog */}
+      <StreamlinedUserDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        editUser={selectedUser ? {
+          id: selectedUser.id,
+          email: selectedUser.email,
+          username: `${selectedUser.firstName} ${selectedUser.lastName}`,
+          role: selectedUser.role as AdminRole,
+          access_level: 'full' as AccessLevel,
+          permissions: [],
+          active: selectedUser.status === 'active',
+          created_at: selectedUser.createdAt,
+          updated_at: selectedUser.lastActive,
+          last_login: selectedUser.lastLogin,
+        } as ExtendedAdminUser : undefined}
+        onSuccess={() => {
+          const fetchAdminUsers = async () => {
+            if (!krapi) return;
+
+            try {
+              setIsLoading(true);
+              const response = await krapi.admin.getUsers({});
+
+              if (response.success && response.data) {
+                // Transform the database users to match our AdminUser interface
+                const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
+                  id: user.id.toString(),
+                  email: user.email,
+                  firstName: user.username?.split(" ")[0] || "",
+                  lastName: user.username?.split(" ")[1] || "",
+                  role: user.role as
+                    | "master_admin"
+                    | "admin"
+                    | "project_admin"
+                    | "limited_admin",
+                  status: user.active ? "active" : "inactive",
+                  permissions: {
+                    canManageUsers:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "users.create" ||
+                          p === "users.update" ||
+                          p === "users.delete"
+                      ) || false,
+                    canCreateProjects:
+                      user.permissions?.some((p) => p === "projects.create") || false,
+                    canDeleteProjects:
+                      user.permissions?.some((p) => p === "projects.delete") || false,
+                    canManageSystemSettings:
+                      user.permissions?.some((p) => p === "settings.update") || false,
+                    canViewSystemLogs: false, // Not available in current permission system
+                    canManageBackups: false, // Not available in current permission system
+                    canAccessAllProjects:
+                      user.permissions?.some((p) => p === "projects.read") || false,
+                    restrictedProjectIds: [],
+                    canManageDatabase:
+                      user.permissions?.some(
+                        (p) =>
+                          p === "collections.create" ||
+                          p === "collections.write" ||
+                          p === "collections.delete"
+                      ) || false,
+                    canManageAPI: false, // Not available in current permission system
+                    canManageFiles:
+                      user.permissions?.some(
+                        (p) => p === "storage.upload" || p === "storage.delete"
+                      ) || false,
+                    canManageAuth: false, // Not available in current permission system
+                    canCreateAdminAccounts: false, // Not available in current permission system
+                    canModifyOtherAdmins: false, // Not available in current permission system
+                    isMasterAdmin: user.role === "master_admin",
+                  },
+                  lastActive: user.last_login || user.updated_at,
+                  createdAt: user.created_at,
+                  lastLogin: user.last_login || "",
+                }));
+                setAdminUsers(transformedUsers);
+              } else {
+                console.error("Failed to fetch admin users:", response.error);
+                setAdminUsers([]);
+              }
+            } catch (error) {
+              console.error("Error fetching admin users:", error);
+              setAdminUsers([]);
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          fetchAdminUsers();
+          toast.success("Admin user updated successfully");
+        }}
+      />
     </div>
   );
 }

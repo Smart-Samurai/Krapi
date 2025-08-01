@@ -332,7 +332,7 @@ export const navigationItems = {
   },
   users: {
     icon: <FiUsers className="h-4 w-4" />,
-    label: "Users",
+    label: "Admin Users",
     href: "/users",
   },
   database: {
