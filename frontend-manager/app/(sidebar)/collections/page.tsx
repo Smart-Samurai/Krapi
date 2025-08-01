@@ -61,6 +61,16 @@ export default function CollectionsPage() {
     }
   }, [selectedProject]);
 
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   const fetchProjects = async () => {
     try {
       setLoading(true);

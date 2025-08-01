@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-context";
 import { useNotification } from "@/hooks/useNotification";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
@@ -34,7 +34,7 @@ export default function UserSettingsModal({
   isOpen,
   onClose,
 }: UserSettingsModalProps) {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { showSuccess, showError } = useNotification();
   const krapi = useKrapi();
 
@@ -61,6 +61,11 @@ export default function UserSettingsModal({
 
     if (passwordForm.newPassword.length < 8) {
       showError("Password must be at least 8 characters long");
+      return;
+    }
+
+    if (!krapi) {
+      showError("Authentication not initialized");
       return;
     }
 

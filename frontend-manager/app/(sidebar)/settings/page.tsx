@@ -32,7 +32,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-context";
 
 // Settings schema
 const generalSettingsSchema = z.object({

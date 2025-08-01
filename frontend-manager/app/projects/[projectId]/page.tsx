@@ -29,10 +29,20 @@ export default function ProjectDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
-    if (projectId) {
+    if (projectId && krapi) {
       fetchProjectDetails();
     }
-  }, [projectId]);
+  }, [projectId, krapi]);
+
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const fetchProjectDetails = async () => {
     try {

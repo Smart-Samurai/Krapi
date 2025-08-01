@@ -2,21 +2,21 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
+    if (!loading) {
+      if (user) {
         router.push("/dashboard");
       } else {
         router.push("/login");
       }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [user, loading, router]);
 
   // Show loading spinner while determining auth status
   return (

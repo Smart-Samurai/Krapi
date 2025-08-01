@@ -3,7 +3,7 @@ import { createBackendClient, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string; tableName: string } }
+  { params }: { params: Promise<{ projectId: string; tableName: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -15,6 +15,7 @@ export async function GET(
       );
     }
 
+    const { projectId, tableName } = await params;
     const searchParams = request.nextUrl.searchParams;
     const options: {
       page?: number;
@@ -39,8 +40,8 @@ export async function GET(
 
     const client = createBackendClient(authToken);
     const response = await client.documents.getAll(
-      params.projectId,
-      params.tableName,
+      projectId,
+      tableName,
       options
     );
 
@@ -59,7 +60,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string; tableName: string } }
+  { params }: { params: Promise<{ projectId: string; tableName: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -71,11 +72,12 @@ export async function POST(
       );
     }
 
+    const { projectId, tableName } = await params;
     const body = await request.json();
     const client = createBackendClient(authToken);
     const response = await client.documents.create(
-      params.projectId,
-      params.tableName,
+      projectId,
+      tableName,
       body.data
     );
 

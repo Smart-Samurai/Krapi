@@ -129,6 +129,8 @@ export default function ServerAdministrationPage() {
   // Fetch admin users from the database
   useEffect(() => {
     const fetchAdminUsers = async () => {
+      if (!krapi) return;
+      
       try {
         setIsLoading(true);
         const response = await krapi.admin.getUsers({});
@@ -201,6 +203,16 @@ export default function ServerAdministrationPage() {
 
     fetchAdminUsers();
   }, [krapi]);
+
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreateAdmin = async (data: AdminUserFormData) => {
     console.log("Creating admin user:", data);

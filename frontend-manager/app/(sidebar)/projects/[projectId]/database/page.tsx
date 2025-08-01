@@ -28,8 +28,20 @@ export default function ProjectDatabasePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCollections();
-  }, [projectId]);
+    if (krapi) {
+      fetchCollections();
+    }
+  }, [projectId, krapi]);
+
+  if (!krapi) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const fetchCollections = async () => {
     setIsLoading(true);

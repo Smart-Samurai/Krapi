@@ -3,7 +3,7 @@ import { createBackendClient, getAuthToken } from '@/app/api/lib/sdk-client';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authToken = getAuthToken(request.headers);
@@ -15,8 +15,9 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
     const client = createBackendClient(authToken);
-    const response = await client.projects.getStats(params.id);
+    const response = await client.projects.getStats(id);
 
     if (response.success) {
       return NextResponse.json(response);
