@@ -26,20 +26,21 @@ import {
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import {
-  FiSettings,
-  FiShield,
-  FiGlobe,
-  FiMail,
-  FiDatabase,
-  FiServer,
-  FiUser,
-  FiBell,
-  FiKey,
-  FiSave,
-  FiRefreshCw,
-  FiCheck,
-  FiX,
-} from "react-icons/fi";
+  Settings,
+  Shield,
+  Globe,
+  Mail,
+  Database,
+  Server,
+  User,
+  Bell,
+  Key,
+  Save,
+  RefreshCw,
+  Check,
+  X,
+} from "lucide-react";
+import { InfoBlock } from "@/components/styled/InfoBlock";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -104,10 +105,10 @@ export default function SettingsPage() {
   const { user } = useAuth();
 
   const tabs = [
-    { id: "general", label: "General", icon: FiSettings },
-    { id: "security", label: "Security", icon: FiShield },
-    { id: "email", label: "Email", icon: FiMail },
-    { id: "database", label: "Database", icon: FiDatabase },
+      { id: "general", label: "General", icon: Settings },
+  { id: "security", label: "Security", icon: Shield },
+  { id: "email", label: "Email", icon: Mail },
+  { id: "database", label: "Database", icon: Database },
   ];
 
   // Fetch settings from backend
@@ -257,7 +258,7 @@ export default function SettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <FiRefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -375,7 +376,7 @@ export default function SettingsPage() {
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSaving}>
-                    <FiSave className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
@@ -456,7 +457,7 @@ export default function SettingsPage() {
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSaving}>
-                    <FiSave className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
@@ -542,12 +543,12 @@ export default function SettingsPage() {
                     variant="secondary"
                     onClick={() => setTestEmailDialog(true)}
                   >
-                    <FiMail className="h-4 w-4 mr-2" />
+                    <Mail className="h-4 w-4 mr-2" />
                     Send Test Email
                   </Button>
                   
                   <Button type="submit" disabled={isSaving}>
-                    <FiSave className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
@@ -620,7 +621,7 @@ export default function SettingsPage() {
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSaving}>
-                    <FiSave className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
@@ -666,7 +667,7 @@ export default function SettingsPage() {
               Cancel
             </Button>
             <Button onClick={handleTestEmail}>
-              <FiMail className="h-4 w-4 mr-2" />
+              <Mail className="h-4 w-4 mr-2" />
               Send Test Email
             </Button>
           </DialogFooter>

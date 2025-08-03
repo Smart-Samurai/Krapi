@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthProvider } from "@/contexts/auth-context";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ThemeProvider } from "next-themes";
 import { useEffect } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -28,7 +28,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
       <AuthProvider>{children}</AuthProvider>
     </ThemeProvider>
   );

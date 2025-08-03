@@ -10,21 +10,22 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  FiFile,
-  FiFileText,
-  FiImage,
-  FiVideo,
-  FiMusic,
-  FiArchive,
-  FiPlus,
-  FiDownload,
-  FiTrash2,
-  FiSearch,
-  FiEye,
-  FiMoreVertical,
-  FiUpload,
-  FiFolder,
-} from "react-icons/fi";
+  File,
+  FileText,
+  Image,
+  Video,
+  Music,
+  Archive,
+  Plus,
+  Download,
+  Trash2,
+  Search,
+  Eye,
+  MoreVertical,
+  Upload,
+  Folder,
+} from "lucide-react";
+import { InfoBlock } from "@/components/styled/InfoBlock";
 import { toast } from "sonner";
 
 export default function ProjectFilesPage() {
@@ -170,14 +171,14 @@ export default function ProjectFilesPage() {
   };
 
   const getFileIcon = (mime_type: string) => {
-    if (mime_type.startsWith("image/")) return <FiImage className="h-5 w-5" />;
-    if (mime_type.startsWith("video/")) return <FiVideo className="h-5 w-5" />;
-    if (mime_type.startsWith("audio/")) return <FiMusic className="h-5 w-5" />;
+    if (mime_type.startsWith("image/")) return <Image className="h-5 w-5" />;
+    if (mime_type.startsWith("video/")) return <Video className="h-5 w-5" />;
+    if (mime_type.startsWith("audio/")) return <Music className="h-5 w-5" />;
     if (mime_type.includes("zip") || mime_type.includes("archive"))
-      return <FiArchive className="h-5 w-5" />;
+      return <Archive className="h-5 w-5" />;
     if (mime_type.includes("text") || mime_type.includes("document"))
-      return <FiFileText className="h-5 w-5" />;
-    return <FiFile className="h-5 w-5" />;
+      return <FileText className="h-5 w-5" />;
+    return <File className="h-5 w-5" />;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -243,7 +244,7 @@ export default function ProjectFilesPage() {
                 : undefined
             }
           >
-            <FiUpload className="mr-2 h-4 w-4" />
+            <Upload className="mr-2 h-4 w-4" />
             {isUploading ? `Uploading... ${uploadProgress}%` : "Upload Files"}
           </Button>
         </div>
@@ -260,7 +261,7 @@ export default function ProjectFilesPage() {
               </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiFile className="h-6 w-6 text-primary" />
+              <File className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -275,7 +276,7 @@ export default function ProjectFilesPage() {
               </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiFolder className="h-6 w-6 text-primary" />
+              <Folder className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -295,7 +296,7 @@ export default function ProjectFilesPage() {
               </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiFile className="h-6 w-6 text-primary" />
+              <File className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -303,7 +304,7 @@ export default function ProjectFilesPage() {
 
       {/* Search */}
       <div className="relative">
-        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
         <Input
           placeholder="Search files..."
           value={searchTerm}
@@ -315,7 +316,7 @@ export default function ProjectFilesPage() {
       {/* Files List */}
       {filteredFiles.length === 0 ? (
         <div className="text-center py-12 bg-background border border-secondary rounded-lg">
-          <FiFolder className="h-12 w-12 text-text/20 mx-auto mb-4" />
+          <Folder className="h-12 w-12 text-text/20 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-text/60 mb-2">
             {searchTerm ? "No files found" : "No files uploaded yet"}
           </h3>
@@ -327,11 +328,11 @@ export default function ProjectFilesPage() {
           {!searchTerm && (
             <Button
               variant="default"
-              size="md"
+              size="default"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
             >
-              <FiUpload className="mr-2 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" />
               Upload Files
             </Button>
           )}
@@ -358,17 +359,17 @@ export default function ProjectFilesPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <IconButton
-                    icon={FiDownload}
+                  <Button
                     variant="ghost"
                     size="sm"
                     onClick={() =>
                       handleFileDownload(file.id, file.original_name)
                     }
                     title="Download"
-                  />
-                  <IconButton
-                    icon={FiTrash2}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="sm"
                     onClick={() =>
@@ -380,7 +381,9 @@ export default function ProjectFilesPage() {
                         : "Delete"
                     }
                     disabled={!hasScope(Scope.STORAGE_DELETE)}
-                  />
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               <div className="space-y-1 text-xs text-text/60">

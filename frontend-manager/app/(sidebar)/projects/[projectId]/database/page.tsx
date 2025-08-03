@@ -25,6 +25,7 @@ import {
   MoreVertical,
   Settings,
 } from "lucide-react";
+import { InfoBlock } from "@/components/styled/InfoBlock";
 
 export default function ProjectDatabasePage() {
   const params = useParams();
@@ -120,7 +121,7 @@ export default function ProjectDatabasePage() {
         </div>
         <div className="flex items-center space-x-3">
           <Button variant="default" size="lg">
-            <FiPlus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4" />
             Create Collection
           </Button>
         </div>
@@ -137,7 +138,7 @@ export default function ProjectDatabasePage() {
               </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiDatabase className="h-6 w-6 text-primary" />
+              <Database className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -155,7 +156,7 @@ export default function ProjectDatabasePage() {
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <FiFile className="h-6 w-6 text-blue-600" />
+              <File className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </div>
@@ -177,7 +178,7 @@ export default function ProjectDatabasePage() {
               </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <FiSettings className="h-6 w-6 text-green-600" />
+              <Settings className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
@@ -189,7 +190,7 @@ export default function ProjectDatabasePage() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-text">Collections</h2>
             <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-4 w-4" />
               <Input
                 type="text"
                 placeholder="Search collections..."
@@ -203,7 +204,7 @@ export default function ProjectDatabasePage() {
 
         {filteredCollections.length === 0 ? (
           <div className="p-12 text-center">
-            <FiDatabase className="h-12 w-12 text-text/20 mx-auto mb-4" />
+            <Database className="h-12 w-12 text-text/20 mx-auto mb-4" />
             <p className="text-text/60">
               {searchTerm
                 ? "No collections found matching your search"
@@ -220,7 +221,7 @@ export default function ProjectDatabasePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="p-2 bg-primary/10 rounded-lg">
-                      <FiDatabase className="h-5 w-5 text-primary" />
+                      <Database className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-medium text-text">

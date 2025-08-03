@@ -28,16 +28,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  FiFile,
-  FiUpload,
-  FiDownload,
-  FiTrash2,
-  FiFolder,
-  FiImage,
-  FiFileText,
-  FiFilm,
-  FiMusic,
-} from "react-icons/fi";
+  File,
+  Upload,
+  Download,
+  Trash2,
+  Folder,
+  Image,
+  FileText,
+  Video,
+  Music,
+} from "lucide-react";
+import { InfoBlock } from "@/components/styled/InfoBlock";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project, FileInfo, StorageStats } from "@/lib/krapi";
 
@@ -199,12 +200,12 @@ export default function StoragePage() {
   };
 
   const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith("image/")) return FiImage;
-    if (mimeType.startsWith("video/")) return FiFilm;
-    if (mimeType.startsWith("audio/")) return FiMusic;
+    if (mimeType.startsWith("image/")) return Image;
+    if (mimeType.startsWith("video/")) return Video;
+    if (mimeType.startsWith("audio/")) return Music;
     if (mimeType.includes("pdf") || mimeType.includes("document"))
-      return FiFileText;
-    return FiFile;
+      return FileText;
+    return File;
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -243,7 +244,7 @@ export default function StoragePage() {
             onClick={() => setIsUploadOpen(true)}
             disabled={!selectedProject}
           >
-            <FiUpload className="mr-2 h-4 w-4" />
+            <Upload className="mr-2 h-4 w-4" />
             Upload File
           </Button>
         </div>
@@ -296,7 +297,7 @@ export default function StoragePage() {
         </div>
       ) : files.length === 0 ? (
         <div className="text-center py-16 bg-background border border-secondary rounded-lg">
-          <FiFolder className="h-12 w-12 text-text/40 mx-auto mb-4" />
+          <Folder className="h-12 w-12 text-text/40 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-text mb-2">No files yet</h3>
           <p className="text-text/60 mb-4">
             Upload your first file to get started
@@ -306,7 +307,7 @@ export default function StoragePage() {
             onClick={() => setIsUploadOpen(true)}
             disabled={!selectedProject}
           >
-            <FiUpload className="mr-2 h-4 w-4" />
+            <Upload className="mr-2 h-4 w-4" />
             Upload File
           </Button>
         </div>
@@ -329,7 +330,7 @@ export default function StoragePage() {
                         handleDownloadFile(file.id, file.original_name)
                       }
                     >
-                      <FiDownload className="h-4 w-4" />
+                      <Download className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -338,7 +339,7 @@ export default function StoragePage() {
                         handleDeleteFile(file.id, file.original_name)
                       }
                     >
-                      <FiTrash2 className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
                 </div>

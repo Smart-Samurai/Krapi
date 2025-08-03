@@ -88,7 +88,7 @@ export const ExampleForm: React.FC<ExampleFormProps> = ({
             />
 
             <div className="flex justify-end">
-              <Button type="submit" variant="accent">
+              <Button type="submit" variant="default">
                 Register
               </Button>
             </div>
@@ -124,7 +124,7 @@ export const ExampleForm: React.FC<ExampleFormProps> = ({
             <FormField name="rememberMe" label="Remember me" type="checkbox" />
 
             <div className="flex justify-end">
-              <Button type="submit" variant="accent">
+              <Button type="submit" variant="default">
                 Login
               </Button>
             </div>
@@ -171,7 +171,7 @@ export const ExampleForm: React.FC<ExampleFormProps> = ({
             />
 
             <div className="flex justify-end">
-              <Button type="submit" variant="accent">
+              <Button type="submit" variant="default">
                 Create Project
               </Button>
             </div>

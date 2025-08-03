@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { z } from "zod";
@@ -86,7 +92,9 @@ export default function LoginPage() {
         <Card>
           <CardHeader>
             <CardTitle>Sign In</CardTitle>
-            <CardDescription>Enter your credentials to access your account</CardDescription>
+            <CardDescription>
+              Enter your credentials to access your account
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -96,7 +104,10 @@ export default function LoginPage() {
             )}
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-6">
+              <form
+                onSubmit={form.handleSubmit(handleLogin)}
+                className="space-y-6"
+              >
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
@@ -183,18 +194,14 @@ export default function LoginPage() {
                     type="button"
                     variant="link"
                     className="px-0"
-                    onClick={() => router.push("/forgot-password")}
+                    onClick={() => router.push("/forgot-password" as any)}
                     disabled={isLoading}
                   >
                     Forgot password?
                   </Button>
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading}
-                >
+                <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Signing in..." : "Sign in"}
                 </Button>
               </form>
@@ -206,7 +213,7 @@ export default function LoginPage() {
                 <Button
                   variant="link"
                   className="px-0"
-                  onClick={() => router.push("/register")}
+                  onClick={() => router.push("/register" as any)}
                   disabled={isLoading}
                 >
                   Sign up

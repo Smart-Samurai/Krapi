@@ -24,25 +24,27 @@ import {
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import {
-  FiPlus,
-  FiUsers,
-  FiEdit,
-  FiTrash2,
-  FiEye,
-  FiSearch,
-  FiMail,
-  FiShield,
-  FiUserCheck,
-  FiUserX,
-  FiMoreVertical,
-  FiSettings,
-  FiLock,
-  FiUnlock,
-  FiDatabase,
-  FiCode,
-  FiFileText,
-  FiGlobe,
-} from "react-icons/fi";
+  Plus,
+  Users,
+  Edit,
+  Trash2,
+  Eye,
+  Search,
+  Mail,
+  Shield,
+  UserCheck,
+  UserX,
+  MoreVertical,
+  Settings,
+  Lock,
+  Unlock,
+  Database,
+  Code,
+  FileText,
+  Globe,
+} from "lucide-react";
+import { InfoBlock } from "@/components/styled/InfoBlock";
+import { IconButton } from "@/components/styled/IconButton";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { AdminUser as AdminUserType } from "@/lib/krapi";
 import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
@@ -371,24 +373,24 @@ export default function ServerAdministrationPage() {
   const getPermissionIcon = (permission: keyof AdminPermissions) => {
     switch (permission) {
       case "canManageUsers":
-        return <FiUsers className="h-4 w-4" />;
+        return <Users className="h-4 w-4" />;
       case "canCreateProjects":
-        return <FiPlus className="h-4 w-4" />;
+        return <Plus className="h-4 w-4" />;
       case "canManageDatabase":
-        return <FiDatabase className="h-4 w-4" />;
+        return <Database className="h-4 w-4" />;
       case "canManageAPI":
-        return <FiCode className="h-4 w-4" />;
+        return <Code className="h-4 w-4" />;
       case "canManageFiles":
-        return <FiFileText className="h-4 w-4" />;
+        return <FileText className="h-4 w-4" />;
 
       case "canManageAuth":
-        return <FiLock className="h-4 w-4" />;
+        return <Lock className="h-4 w-4" />;
       case "canManageSystemSettings":
-        return <FiSettings className="h-4 w-4" />;
+        return <Settings className="h-4 w-4" />;
       case "canAccessAllProjects":
-        return <FiGlobe className="h-4 w-4" />;
+        return <Globe className="h-4 w-4" />;
       default:
-        return <FiShield className="h-4 w-4" />;
+        return <Shield className="h-4 w-4" />;
     }
   };
 
@@ -415,7 +417,7 @@ export default function ServerAdministrationPage() {
               : undefined
           }
         >
-          <FiPlus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-4 w-4" />
           Add Admin User
         </Button>
       </div>
@@ -431,7 +433,7 @@ export default function ServerAdministrationPage() {
               </p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiShield className="h-6 w-6 text-primary" />
+              <Shield className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -446,7 +448,7 @@ export default function ServerAdministrationPage() {
               </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <FiUserCheck className="h-6 w-6 text-green-600" />
+              <UserCheck className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
@@ -461,7 +463,7 @@ export default function ServerAdministrationPage() {
               </p>
             </div>
             <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
-              <FiShield className="h-6 w-6 text-red-600" />
+              <Shield className="h-6 w-6 text-red-600" />
             </div>
           </div>
         </div>
@@ -478,7 +480,7 @@ export default function ServerAdministrationPage() {
               </p>
             </div>
             <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-              <FiUserX className="h-6 w-6 text-yellow-600" />
+              <UserX className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -487,7 +489,7 @@ export default function ServerAdministrationPage() {
       {/* Search */}
       <div className="flex items-center space-x-4">
         <div className="relative flex-1 max-w-md">
-          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
           <Input
             type="text"
             placeholder="Search admin users..."
@@ -513,7 +515,7 @@ export default function ServerAdministrationPage() {
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="p-12 text-center">
-              <FiShield className="h-12 w-12 text-text/20 mx-auto mb-4" />
+              <Shield className="h-12 w-12 text-text/20 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text mb-2">
                 No Admin Users Found
               </h3>
@@ -533,7 +535,7 @@ export default function ServerAdministrationPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <FiShield className="h-6 w-6 text-primary" />
+                      <Shield className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
@@ -602,7 +604,7 @@ export default function ServerAdministrationPage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <IconButton
-                      icon={FiEye}
+                      icon={Eye}
                       variant="secondary"
                       size="sm"
                       title="View Details"
@@ -612,7 +614,7 @@ export default function ServerAdministrationPage() {
                       }}
                     />
                     <IconButton
-                      icon={FiEdit}
+                      icon={Edit}
                       variant="secondary"
                       size="sm"
                       title={
@@ -627,7 +629,7 @@ export default function ServerAdministrationPage() {
                       }}
                     />
                     <IconButton
-                      icon={user.status === "active" ? FiUserX : FiUserCheck}
+                      icon={user.status === "active" ? UserX : UserCheck}
                       variant="secondary"
                       size="sm"
                       title={
@@ -647,7 +649,7 @@ export default function ServerAdministrationPage() {
                     />
                     {user.role !== "master_admin" && (
                       <IconButton
-                        icon={FiTrash2}
+                        icon={Trash2}
                         variant="secondary"
                         size="sm"
                         title={
