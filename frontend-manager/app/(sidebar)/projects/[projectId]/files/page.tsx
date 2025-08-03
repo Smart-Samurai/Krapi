@@ -96,7 +96,7 @@ export default function ProjectFilesPage() {
       const result = await krapi.storage.uploadFile(
         projectId,
         file,
-        (progress) => setUploadProgress(progress)
+        (progress: any) => setUploadProgress(progress)
       );
 
       if (result.success) {

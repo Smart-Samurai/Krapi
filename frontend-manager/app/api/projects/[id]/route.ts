@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createBackendClient, getAuthToken } from "@/app/api/lib/sdk-client";
+import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.projects.getById(id);
 
     if (response.success) {
@@ -78,7 +78,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.projects.update(id, body);
 
     if (response.success) {
@@ -113,7 +113,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.projects.delete(id);
 
     if (response.success) {

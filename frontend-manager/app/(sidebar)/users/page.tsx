@@ -149,7 +149,7 @@ export default function ServerAdministrationPage() {
 
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
-          const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
+          const transformedUsers: LocalAdminUser[] = response.data.map((user: any) => ({
             id: user.id.toString(),
             email: user.email,
             firstName: user.username?.split(" ")[0] || "",
@@ -163,25 +163,25 @@ export default function ServerAdministrationPage() {
             permissions: {
               canManageUsers:
                 user.permissions?.some(
-                  (p) =>
+                  (p: any) =>
                     p === "users.create" ||
                     p === "users.update" ||
                     p === "users.delete"
                 ) || false,
               canCreateProjects:
-                user.permissions?.some((p) => p === "projects.create") || false,
+                user.permissions?.some((p: any) => p === "projects.create") || false,
               canDeleteProjects:
-                user.permissions?.some((p) => p === "projects.delete") || false,
+                user.permissions?.some((p: any) => p === "projects.delete") || false,
               canManageSystemSettings:
-                user.permissions?.some((p) => p === "settings.update") || false,
+                user.permissions?.some((p: any) => p === "settings.update") || false,
               canViewSystemLogs: false, // Not available in current permission system
               canManageBackups: false, // Not available in current permission system
               canAccessAllProjects:
-                user.permissions?.some((p) => p === "projects.read") || false,
+                user.permissions?.some((p: any) => p === "projects.read") || false,
               restrictedProjectIds: [],
               canManageDatabase:
                 user.permissions?.some(
-                  (p) =>
+                  (p: any) =>
                     p === "collections.create" ||
                     p === "collections.write" ||
                     p === "collections.delete"
@@ -189,7 +189,7 @@ export default function ServerAdministrationPage() {
               canManageAPI: false, // Not available in current permission system
               canManageFiles:
                 user.permissions?.some(
-                  (p) => p === "storage.upload" || p === "storage.delete"
+                  (p: any) => p === "storage.upload" || p === "storage.delete"
                 ) || false,
               canManageAuth: false, // Not available in current permission system
               canCreateAdminAccounts: false, // Not available in current permission system
@@ -935,7 +935,7 @@ export default function ServerAdministrationPage() {
 
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
-                const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
+                const transformedUsers: LocalAdminUser[] = response.data.map((user: any) => ({
                   id: user.id.toString(),
                   email: user.email,
                   firstName: user.username?.split(" ")[0] || "",
@@ -949,25 +949,25 @@ export default function ServerAdministrationPage() {
                   permissions: {
                     canManageUsers:
                       user.permissions?.some(
-                        (p) =>
+                        (p: any) =>
                           p === "users.create" ||
                           p === "users.update" ||
                           p === "users.delete"
                       ) || false,
                     canCreateProjects:
-                      user.permissions?.some((p) => p === "projects.create") || false,
+                      user.permissions?.some((p: any) => p === "projects.create") || false,
                     canDeleteProjects:
-                      user.permissions?.some((p) => p === "projects.delete") || false,
+                      user.permissions?.some((p: any) => p === "projects.delete") || false,
                     canManageSystemSettings:
-                      user.permissions?.some((p) => p === "settings.update") || false,
+                      user.permissions?.some((p: any) => p === "settings.update") || false,
                     canViewSystemLogs: false, // Not available in current permission system
                     canManageBackups: false, // Not available in current permission system
                     canAccessAllProjects:
-                      user.permissions?.some((p) => p === "projects.read") || false,
+                      user.permissions?.some((p: any) => p === "projects.read") || false,
                     restrictedProjectIds: [],
                     canManageDatabase:
                       user.permissions?.some(
-                        (p) =>
+                        (p: any) =>
                           p === "collections.create" ||
                           p === "collections.write" ||
                           p === "collections.delete"
@@ -975,7 +975,7 @@ export default function ServerAdministrationPage() {
                     canManageAPI: false, // Not available in current permission system
                     canManageFiles:
                       user.permissions?.some(
-                        (p) => p === "storage.upload" || p === "storage.delete"
+                        (p: any) => p === "storage.upload" || p === "storage.delete"
                       ) || false,
                     canManageAuth: false, // Not available in current permission system
                     canCreateAdminAccounts: false, // Not available in current permission system
@@ -1029,7 +1029,7 @@ export default function ServerAdministrationPage() {
 
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
-                const transformedUsers: LocalAdminUser[] = response.data.map((user) => ({
+                const transformedUsers: LocalAdminUser[] = response.data.map((user: any) => ({
                   id: user.id.toString(),
                   email: user.email,
                   firstName: user.username?.split(" ")[0] || "",
@@ -1043,25 +1043,25 @@ export default function ServerAdministrationPage() {
                   permissions: {
                     canManageUsers:
                       user.permissions?.some(
-                        (p) =>
+                        (p: any) =>
                           p === "users.create" ||
                           p === "users.update" ||
                           p === "users.delete"
                       ) || false,
                     canCreateProjects:
-                      user.permissions?.some((p) => p === "projects.create") || false,
+                      user.permissions?.some((p: any) => p === "projects.create") || false,
                     canDeleteProjects:
-                      user.permissions?.some((p) => p === "projects.delete") || false,
+                      user.permissions?.some((p: any) => p === "projects.delete") || false,
                     canManageSystemSettings:
-                      user.permissions?.some((p) => p === "settings.update") || false,
+                      user.permissions?.some((p: any) => p === "settings.update") || false,
                     canViewSystemLogs: false, // Not available in current permission system
                     canManageBackups: false, // Not available in current permission system
                     canAccessAllProjects:
-                      user.permissions?.some((p) => p === "projects.read") || false,
+                      user.permissions?.some((p: any) => p === "projects.read") || false,
                     restrictedProjectIds: [],
                     canManageDatabase:
                       user.permissions?.some(
-                        (p) =>
+                        (p: any) =>
                           p === "collections.create" ||
                           p === "collections.write" ||
                           p === "collections.delete"
@@ -1069,7 +1069,7 @@ export default function ServerAdministrationPage() {
                     canManageAPI: false, // Not available in current permission system
                     canManageFiles:
                       user.permissions?.some(
-                        (p) => p === "storage.upload" || p === "storage.delete"
+                        (p: any) => p === "storage.upload" || p === "storage.delete"
                       ) || false,
                     canManageAuth: false, // Not available in current permission system
                     canCreateAdminAccounts: false, // Not available in current permission system

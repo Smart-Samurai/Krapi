@@ -195,7 +195,7 @@ export default function CollectionDocumentsPage() {
   const resetForm = () => {
     if (collection) {
       const defaultForm: Record<string, any> = {};
-      collection.fields.forEach((field) => {
+      collection.fields.forEach((field: any) => {
         if (field.default !== undefined) {
           defaultForm[field.name] = field.default;
         } else if (field.type === "boolean") {
@@ -398,7 +398,7 @@ export default function CollectionDocumentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  {collection.fields.slice(0, 3).map((field) => (
+                  {collection.fields.slice(0, 3).map((field: any) => (
                     <TableHead key={field.name}>{field.name}</TableHead>
                   ))}
                   <TableHead>Created</TableHead>
@@ -420,7 +420,7 @@ export default function CollectionDocumentsPage() {
                         </Button>
                       </div>
                     </TableCell>
-                    {collection.fields.slice(0, 3).map((field) => (
+                    {collection.fields.slice(0, 3).map((field: any) => (
                       <TableCell key={field.name}>
                         {typeof doc.data[field.name] === "object"
                           ? JSON.stringify(doc.data[field.name])
@@ -486,7 +486,7 @@ export default function CollectionDocumentsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {collection.fields.map((field) => (
+            {collection.fields.map((field: any) => (
               <div key={field.name}>
                 <Label htmlFor={field.name}>
                   {field.name}

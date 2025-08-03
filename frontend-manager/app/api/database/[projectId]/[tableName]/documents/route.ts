@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createBackendClient, getAuthToken } from "@/app/api/lib/sdk-client";
+import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +38,7 @@ export async function GET(
     if (order) options.order = order as "asc" | "desc";
     if (search) options.search = search;
 
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.documents.getAll(
       projectId,
       tableName,
@@ -74,7 +74,7 @@ export async function POST(
 
     const { projectId, tableName } = await params;
     const body = await request.json();
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.documents.create(
       projectId,
       tableName,
