@@ -30,7 +30,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
@@ -47,7 +47,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Welcome back, {user?.username}!</h1>
         <p className="text-muted-foreground">
