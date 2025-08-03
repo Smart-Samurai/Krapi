@@ -1,8 +1,14 @@
-import { Request, Response } from 'express';
-import { DatabaseService } from '@/services/database.service';
-import { AuthService } from '@/services/auth.service';
-import { AuthenticatedRequest, ApiResponse, PaginatedResponse, AdminUser, ChangeAction } from '@/types';
-import { AdminRole } from '@/types/admin';
+import { Request, Response } from "express";
+import { DatabaseService } from "@/services/database.service";
+import { AuthService } from "@/services/auth.service";
+import {
+  AuthenticatedRequest,
+  ApiResponse,
+  PaginatedResponse,
+  AdminUser,
+  ChangeAction,
+  AdminRole,
+} from "@/types";
 
 export class AdminController {
   private db: DatabaseService;
@@ -21,14 +27,14 @@ export class AdminController {
       const limitNum = parseInt(limit as string);
 
       const users = await this.db.getAllAdminUsers();
-      
+
       // Simple pagination
       const startIndex = (pageNum - 1) * limitNum;
       const endIndex = startIndex + limitNum;
       const paginatedUsers = users.slice(startIndex, endIndex);
 
       // Remove password hashes from response
-      const sanitizedUsers = paginatedUsers.map(user => {
+      const sanitizedUsers = paginatedUsers.map((user) => {
         const { password_hash: _password_hash, ...userWithoutPassword } = user;
         return userWithoutPassword;
       });
@@ -42,16 +48,16 @@ export class AdminController {
           total: users.length,
           totalPages: Math.ceil(users.length / limitNum),
           hasNext: pageNum < Math.ceil(users.length / limitNum),
-          hasPrev: pageNum > 1
-        }
-      } as PaginatedResponse<Omit<AdminUser, 'password_hash'>>);
+          hasPrev: pageNum > 1,
+        },
+      } as PaginatedResponse<Omit<AdminUser, "password_hash">>);
     } catch (error) {
-      console.error('Get all admin users error:', error);
+      console.error("Get all admin users error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch admin users'
+        error: "Failed to fetch admin users",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -65,7 +71,7 @@ export class AdminController {
       if (!user) {
         res.status(404).json({
           success: false,
-          error: 'Admin user not found'
+          error: "Admin user not found",
         } as ApiResponse);
         return;
       }
@@ -75,16 +81,16 @@ export class AdminController {
 
       res.status(200).json({
         success: true,
-        data: userWithoutPassword
-      } as ApiResponse<Omit<AdminUser, 'password_hash'>>);
-        return;
+        data: userWithoutPassword,
+      } as ApiResponse<Omit<AdminUser, "password_hash">>);
+      return;
     } catch (error) {
-      console.error('Get admin user by ID error:', error);
+      console.error("Get admin user by ID error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch admin user'
+        error: "Failed to fetch admin user",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -93,14 +99,21 @@ export class AdminController {
     try {
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
-      const { email, username, password, role, access_level, permissions = [] } = req.body;
+      const {
+        email,
+        username,
+        password,
+        role,
+        access_level,
+        permissions = [],
+      } = req.body;
 
       // Check if email already exists
       const existingUser = await this.db.getAdminUserByEmail(email);
       if (existingUser) {
         res.status(400).json({
           success: false,
-          error: 'Email already exists'
+          error: "Email already exists",
         } as ApiResponse);
         return;
       }
@@ -118,18 +131,18 @@ export class AdminController {
         permissions,
         active: true,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       });
 
       // Log the action
       await this.db.createChangelogEntry({
-        entity_type: 'admin_user',
+        entity_type: "admin_user",
         entity_id: newUser.id,
         action: ChangeAction.CREATED,
         changes: { email, username, role, access_level },
-        performed_by: currentUser?.id || 'system',
+        performed_by: currentUser?.id || "system",
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       // Remove password hash from response
@@ -137,16 +150,16 @@ export class AdminController {
 
       res.status(201).json({
         success: true,
-        data: userWithoutPassword
-      } as ApiResponse<Omit<AdminUser, 'password_hash'>>);
-        return;
+        data: userWithoutPassword,
+      } as ApiResponse<Omit<AdminUser, "password_hash">>);
+      return;
     } catch (error) {
-      console.error('Create admin user error:', error);
+      console.error("Create admin user error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create admin user'
+        error: "Failed to create admin user",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -163,23 +176,30 @@ export class AdminController {
       if (!existingUser) {
         res.status(404).json({
           success: false,
-          error: 'Admin user not found'
+          error: "Admin user not found",
         } as ApiResponse);
         return;
       }
 
       // Prevent users from modifying their own role (unless master admin)
-      if (currentUser?.id === id && updates.role && 'role' in currentUser && currentUser.role !== 'master_admin') {
+      if (
+        currentUser?.id === id &&
+        updates.role &&
+        "role" in currentUser &&
+        currentUser.role !== "master_admin"
+      ) {
         res.status(403).json({
           success: false,
-          error: 'Cannot modify your own role'
+          error: "Cannot modify your own role",
         } as ApiResponse);
         return;
       }
 
       // If password is being updated, hash it
       if (updates.password) {
-        updates.password_hash = await this.authService.hashPassword(updates.password);
+        updates.password_hash = await this.authService.hashPassword(
+          updates.password
+        );
         delete updates.password;
       }
 
@@ -189,46 +209,53 @@ export class AdminController {
       if (!updatedUser) {
         res.status(500).json({
           success: false,
-          error: 'Failed to update admin user'
+          error: "Failed to update admin user",
         } as ApiResponse);
         return;
       }
 
       // Log the action
       const changes: Record<string, { old: unknown; new: unknown }> = {};
-      Object.keys(updates).forEach(key => {
-        if (key !== 'password_hash' && updates[key] !== existingUser[key as keyof AdminUser]) {
-          changes[key] = { old: existingUser[key as keyof AdminUser], new: updates[key] };
+      Object.keys(updates).forEach((key) => {
+        if (
+          key !== "password_hash" &&
+          updates[key] !== existingUser[key as keyof AdminUser]
+        ) {
+          changes[key] = {
+            old: existingUser[key as keyof AdminUser],
+            new: updates[key],
+          };
         }
       });
 
       if (Object.keys(changes).length > 0) {
         await this.db.createChangelogEntry({
-          entity_type: 'admin_user',
+          entity_type: "admin_user",
           entity_id: id,
           action: ChangeAction.UPDATED,
           changes,
-          performed_by: currentUser?.id || 'system',
+          performed_by: currentUser?.id || "system",
           session_id: authReq.session?.id,
-          timestamp: new Date().toISOString()
+          created_at: new Date().toISOString(),
         });
       }
 
       // Remove password hash from response
-      const { password_hash: _password_hash, ...userWithoutPassword } = updatedUser;
+      const { password_hash: _password_hash, ...userWithoutPassword } =
+        updatedUser;
 
       res.status(200).json({
         success: true,
-        data: userWithoutPassword
-      } as ApiResponse<Omit<AdminUser, 'password_hash'>>);
-        return;
+        data: userWithoutPassword,
+      } as ApiResponse<Omit<AdminUser, "password_hash">>);
+      return;
     } catch (error) {
-      console.error('Update admin user error:', error);
+      console.error("Update admin user error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to update admin user'
+        error: "Failed to update admin user",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -244,7 +271,7 @@ export class AdminController {
       if (!existingUser) {
         res.status(404).json({
           success: false,
-          error: 'Admin user not found'
+          error: "Admin user not found",
         } as ApiResponse);
         return;
       }
@@ -253,21 +280,23 @@ export class AdminController {
       if (currentUser?.id === id) {
         res.status(403).json({
           success: false,
-          error: 'Cannot delete your own account'
+          error: "Cannot delete your own account",
         } as ApiResponse);
         return;
       }
 
       // Prevent deleting the last master admin
-      if (existingUser.role === 'master_admin') {
+      if (existingUser.role === "master_admin") {
         const allAdmins = await this.db.getAllAdminUsers();
-        const masterAdmins = allAdmins.filter(u => u.role === 'master_admin' && u.active);
+        const masterAdmins = allAdmins.filter(
+          (u) => u.role === "master_admin" && u.active
+        );
         if (masterAdmins.length <= 1) {
           res.status(403).json({
             success: false,
-            error: 'Cannot delete the last master admin'
+            error: "Cannot delete the last master admin",
           } as ApiResponse);
-        return;
+          return;
         }
       }
 
@@ -277,39 +306,42 @@ export class AdminController {
       if (!deleted) {
         res.status(500).json({
           success: false,
-          error: 'Failed to delete admin user'
+          error: "Failed to delete admin user",
         } as ApiResponse);
         return;
       }
 
       // Log the action
       await this.db.createChangelogEntry({
-        entity_type: 'admin_user',
+        entity_type: "admin_user",
         entity_id: id,
         action: ChangeAction.DELETED,
         changes: { email: existingUser.email, username: existingUser.username },
-        performed_by: currentUser?.id || 'system',
+        performed_by: currentUser?.id || "system",
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
         success: true,
-        message: 'Admin user deleted successfully'
+        message: "Admin user deleted successfully",
       } as ApiResponse);
-        return;
+      return;
     } catch (error) {
-      console.error('Delete admin user error:', error);
+      console.error("Delete admin user error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to delete admin user'
+        error: "Failed to delete admin user",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
   // Toggle admin user active status
-  toggleAdminUserStatus = async (req: Request, res: Response): Promise<void> => {
+  toggleAdminUserStatus = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -320,7 +352,7 @@ export class AdminController {
       if (!existingUser) {
         res.status(404).json({
           success: false,
-          error: 'Admin user not found'
+          error: "Admin user not found",
         } as ApiResponse);
         return;
       }
@@ -329,48 +361,53 @@ export class AdminController {
       if (currentUser?.id === id) {
         res.status(403).json({
           success: false,
-          error: 'Cannot deactivate your own account'
+          error: "Cannot deactivate your own account",
         } as ApiResponse);
         return;
       }
 
       // Toggle active status
-      const updatedUser = await this.db.updateAdminUser(id, { active: !existingUser.active });
+      const updatedUser = await this.db.updateAdminUser(id, {
+        active: !existingUser.active,
+      });
 
       if (!updatedUser) {
         res.status(500).json({
           success: false,
-          error: 'Failed to update admin user status'
+          error: "Failed to update admin user status",
         } as ApiResponse);
         return;
       }
 
       // Log the action
       await this.db.createChangelogEntry({
-        entity_type: 'admin_user',
+        entity_type: "admin_user",
         entity_id: id,
         action: ChangeAction.UPDATED,
-        changes: { active: { old: existingUser.active, new: updatedUser.active } },
-        performed_by: currentUser?.id || 'system',
+        changes: {
+          active: { old: existingUser.active, new: updatedUser.active },
+        },
+        performed_by: currentUser?.id || "system",
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       // Remove password hash from response
-      const { password_hash: _password_hash, ...userWithoutPassword } = updatedUser;
+      const { password_hash: _password_hash, ...userWithoutPassword } =
+        updatedUser;
 
       res.status(200).json({
         success: true,
-        data: userWithoutPassword
-      } as ApiResponse<Omit<AdminUser, 'password_hash'>>);
-        return;
+        data: userWithoutPassword,
+      } as ApiResponse<Omit<AdminUser, "password_hash">>);
+      return;
     } catch (error) {
-      console.error('Toggle admin user status error:', error);
+      console.error("Toggle admin user status error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to update admin user status'
+        error: "Failed to update admin user status",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -385,30 +422,30 @@ export class AdminController {
       if (!user) {
         res.status(404).json({
           success: false,
-          error: 'Admin user not found'
+          error: "Admin user not found",
         } as ApiResponse);
         return;
       }
 
       // Get changelog entries for this user
       const activities = await this.db.getChangelogEntries({
-        entity_type: 'admin_user',
+        entity_type: "admin_user",
         entity_id: id,
-        limit: parseInt(limit as string)
+        limit: parseInt(limit as string),
       });
 
       res.status(200).json({
         success: true,
-        data: activities
+        data: activities,
       } as ApiResponse);
-        return;
+      return;
     } catch (error) {
-      console.error('Get admin user activity error:', error);
+      console.error("Get admin user activity error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch admin user activity'
+        error: "Failed to fetch admin user activity",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -422,7 +459,7 @@ export class AdminController {
       if (!user) {
         res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: "User not found",
         } as ApiResponse);
         return;
       }
@@ -431,20 +468,20 @@ export class AdminController {
       const apiKeys = await this.db.getUserApiKeys(userId);
 
       // Remove the actual key values for security
-      const sanitizedKeys = apiKeys.map(key => ({
+      const sanitizedKeys = apiKeys.map((key) => ({
         ...key,
-        key: key.key.substring(0, 10) + '...' // Show only first 10 chars
+        key: key.key.substring(0, 10) + "...", // Show only first 10 chars
       }));
 
       res.status(200).json({
         success: true,
-        data: sanitizedKeys
+        data: sanitizedKeys,
       } as ApiResponse);
     } catch (error) {
-      console.error('Get user API keys error:', error);
+      console.error("Get user API keys error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch API keys'
+        error: "Failed to fetch API keys",
       } as ApiResponse);
     }
   };
@@ -460,7 +497,7 @@ export class AdminController {
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
@@ -470,49 +507,49 @@ export class AdminController {
       if (!user) {
         res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: "User not found",
         } as ApiResponse);
         return;
       }
 
       // Generate new API key
-      const apiKey = `krapi_admin_${require('uuid').v4().replace(/-/g, '')}`;
+      const apiKey = `krapi_admin_${require("uuid").v4().replace(/-/g, "")}`;
 
       // Create API key entry
       const newApiKey = await this.db.createUserApiKey({
         user_id: userId,
         name,
         key: apiKey,
-        type: 'admin',
+        type: "admin",
         scopes: scopes || [],
         project_ids: project_ids || null,
         created_by: currentUser.id,
         created_at: new Date().toISOString(),
         last_used_at: null,
-        active: true
+        active: true,
       });
 
       // Log the action
       await this.db.createChangelogEntry({
-        entity_type: 'api_key',
+        entity_type: "api_key",
         entity_id: newApiKey.id,
         action: ChangeAction.CREATED,
         changes: { name, scopes, user_id: userId },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       res.status(201).json({
         success: true,
         data: newApiKey,
-        message: 'API key created successfully'
+        message: "API key created successfully",
       } as ApiResponse);
     } catch (error) {
-      console.error('Create user API key error:', error);
+      console.error("Create user API key error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create API key'
+        error: "Failed to create API key",
       } as ApiResponse);
     }
   };
@@ -527,7 +564,7 @@ export class AdminController {
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
@@ -537,7 +574,7 @@ export class AdminController {
       if (!apiKey) {
         res.status(404).json({
           success: false,
-          error: 'API key not found'
+          error: "API key not found",
         } as ApiResponse);
         return;
       }
@@ -548,31 +585,31 @@ export class AdminController {
       if (!deleted) {
         res.status(500).json({
           success: false,
-          error: 'Failed to delete API key'
+          error: "Failed to delete API key",
         } as ApiResponse);
         return;
       }
 
       // Log the action
       await this.db.createChangelogEntry({
-        entity_type: 'api_key',
+        entity_type: "api_key",
         entity_id: keyId,
         action: ChangeAction.DELETED,
         changes: { name: apiKey.name },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
         success: true,
-        message: 'API key deleted successfully'
+        message: "API key deleted successfully",
       } as ApiResponse);
     } catch (error) {
-      console.error('Delete API key error:', error);
+      console.error("Delete API key error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to delete API key'
+        error: "Failed to delete API key",
       } as ApiResponse);
     }
   };
@@ -584,7 +621,7 @@ export class AdminController {
       const projects = await this.db.getAllProjects();
       const users = await this.db.getAllAdminUsers();
       const sessions = await this.db.getActiveSessions();
-      
+
       // Calculate storage usage
       let totalStorage = 0;
       let totalDocuments = 0;
@@ -593,10 +630,10 @@ export class AdminController {
       for (const project of projects) {
         const files = await this.db.getProjectFiles(project.id);
         totalStorage += files.reduce((sum, file) => sum + file.size, 0);
-        
+
         const collections = await this.db.getProjectTableSchemas(project.id);
         totalCollections += collections.length;
-        
+
         for (const collection of collections) {
           const { total } = await this.db.getDocumentsByTable(collection.id);
           totalDocuments += total;
@@ -606,35 +643,36 @@ export class AdminController {
       const stats = {
         projects: {
           total: projects.length,
-          active: projects.filter(p => p.active).length
+          active: projects.filter((p) => p.active).length,
         },
         users: {
           total: users.length,
-          active: users.filter(u => u.active).length
+          active: users.filter((u) => u.active).length,
         },
         sessions: {
-          active: sessions.length
+          active: sessions.length,
         },
         storage: {
           used_bytes: totalStorage,
           used_mb: Math.round(totalStorage / (1024 * 1024)),
-          used_gb: Math.round(totalStorage / (1024 * 1024 * 1024) * 100) / 100
+          used_gb:
+            Math.round((totalStorage / (1024 * 1024 * 1024)) * 100) / 100,
         },
         database: {
           collections: totalCollections,
-          documents: totalDocuments
-        }
+          documents: totalDocuments,
+        },
       };
 
       res.status(200).json({
         success: true,
-        data: stats
+        data: stats,
       } as ApiResponse);
     } catch (error) {
-      console.error('Get system stats error:', error);
+      console.error("Get system stats error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch system statistics'
+        error: "Failed to fetch system statistics",
       } as ApiResponse);
     }
   };
@@ -642,7 +680,13 @@ export class AdminController {
   // Get activity logs
   getActivityLogs = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { limit = 100, offset = 0, entity_type, action, user_id } = req.query;
+      const {
+        limit = 100,
+        offset = 0,
+        entity_type,
+        action,
+        user_id,
+      } = req.query;
 
       // Build filter object
       const filters: any = {};
@@ -654,18 +698,18 @@ export class AdminController {
       const logs = await this.db.getActivityLogs({
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
-        filters
+        filters,
       });
 
       res.status(200).json({
         success: true,
-        data: logs
+        data: logs,
       } as ApiResponse);
     } catch (error) {
-      console.error('Get activity logs error:', error);
+      console.error("Get activity logs error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch activity logs'
+        error: "Failed to fetch activity logs",
       } as ApiResponse);
     }
   };
@@ -674,16 +718,16 @@ export class AdminController {
   getDatabaseHealth = async (req: Request, res: Response): Promise<void> => {
     try {
       const health = await this.db.checkHealth();
-      
+
       res.status(health.healthy ? 200 : 503).json({
         success: health.healthy,
-        data: health
+        data: health,
       } as ApiResponse);
     } catch (error) {
-      console.error('Get database health error:', error);
+      console.error("Get database health error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to check database health'
+        error: "Failed to check database health",
       } as ApiResponse);
     }
   };
@@ -697,7 +741,7 @@ export class AdminController {
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
@@ -706,7 +750,7 @@ export class AdminController {
       if (currentUser.role !== AdminRole.MASTER_ADMIN) {
         res.status(403).json({
           success: false,
-          error: 'Only master admins can repair the database'
+          error: "Only master admins can repair the database",
         } as ApiResponse);
         return;
       }
@@ -716,24 +760,24 @@ export class AdminController {
       // Log the repair action
       await this.db.createChangelogEntry({
         project_id: null,
-        entity_type: 'system',
-        entity_id: 'database',
+        entity_type: "system",
+        entity_id: "database",
         action: ChangeAction.UPDATED,
-        changes: { action: 'repair', repairs: result.repairs },
+        changes: { action: "repair", repairs: result.repairs },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       res.status(result.success ? 200 : 500).json({
         success: result.success,
-        data: result
+        data: result,
       } as ApiResponse);
     } catch (error) {
-      console.error('Repair database error:', error);
+      console.error("Repair database error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to repair database'
+        error: "Failed to repair database",
       } as ApiResponse);
     }
   };
@@ -747,12 +791,17 @@ export class AdminController {
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
 
-      const tests: { name: string; passed: boolean; message: string; duration: number }[] = [];
+      const tests: {
+        name: string;
+        passed: boolean;
+        message: string;
+        duration: number;
+      }[] = [];
       const startTime = Date.now();
 
       // Test 1: Database connectivity
@@ -760,37 +809,43 @@ export class AdminController {
       try {
         const dbHealth = await this.db.checkHealth();
         tests.push({
-          name: 'Database Connectivity',
+          name: "Database Connectivity",
           passed: dbHealth.healthy,
           message: dbHealth.message,
-          duration: Date.now() - dbTestStart
+          duration: Date.now() - dbTestStart,
         });
       } catch (error) {
         tests.push({
-          name: 'Database Connectivity',
+          name: "Database Connectivity",
           passed: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration: Date.now() - dbTestStart
+          message: error instanceof Error ? error.message : "Unknown error",
+          duration: Date.now() - dbTestStart,
         });
       }
 
       // Test 2: Authentication system
       const authTestStart = Date.now();
       try {
-        const testToken = await this.authService.generateToken(currentUser);
-        const verified = await this.authService.verifyToken(testToken);
+        const testToken = this.authService.generateJWT({
+          id: currentUser.id,
+          type: "admin" as any,
+          permissions: currentUser.scopes,
+        });
+        const verified = this.authService.verifyJWT(testToken);
         tests.push({
-          name: 'Authentication System',
+          name: "Authentication System",
           passed: verified !== null,
-          message: verified ? 'Token generation and verification working' : 'Token verification failed',
-          duration: Date.now() - authTestStart
+          message: verified
+            ? "Token generation and verification working"
+            : "Token verification failed",
+          duration: Date.now() - authTestStart,
         });
       } catch (error) {
         tests.push({
-          name: 'Authentication System',
+          name: "Authentication System",
           passed: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration: Date.now() - authTestStart
+          message: error instanceof Error ? error.message : "Unknown error",
+          duration: Date.now() - authTestStart,
         });
       }
 
@@ -799,17 +854,17 @@ export class AdminController {
       try {
         const projects = await this.db.getAllProjects();
         tests.push({
-          name: 'Project Operations',
+          name: "Project Operations",
           passed: true,
           message: `Successfully retrieved ${projects.length} projects`,
-          duration: Date.now() - projectTestStart
+          duration: Date.now() - projectTestStart,
         });
       } catch (error) {
         tests.push({
-          name: 'Project Operations',
+          name: "Project Operations",
           passed: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration: Date.now() - projectTestStart
+          message: error instanceof Error ? error.message : "Unknown error",
+          duration: Date.now() - projectTestStart,
         });
       }
 
@@ -818,17 +873,17 @@ export class AdminController {
       try {
         const admins = await this.db.getAllAdminUsers();
         tests.push({
-          name: 'Admin User Operations',
+          name: "Admin User Operations",
           passed: true,
           message: `Successfully retrieved ${admins.length} admin users`,
-          duration: Date.now() - adminTestStart
+          duration: Date.now() - adminTestStart,
         });
       } catch (error) {
         tests.push({
-          name: 'Admin User Operations',
+          name: "Admin User Operations",
           passed: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration: Date.now() - adminTestStart
+          message: error instanceof Error ? error.message : "Unknown error",
+          duration: Date.now() - adminTestStart,
         });
       }
 
@@ -838,47 +893,47 @@ export class AdminController {
         if (authReq.session) {
           const session = await this.db.getSessionById(authReq.session.id);
           tests.push({
-            name: 'Session Management',
+            name: "Session Management",
             passed: session !== null,
-            message: session ? 'Current session is valid' : 'Session not found',
-            duration: Date.now() - sessionTestStart
+            message: session ? "Current session is valid" : "Session not found",
+            duration: Date.now() - sessionTestStart,
           });
         } else {
           tests.push({
-            name: 'Session Management',
+            name: "Session Management",
             passed: true,
-            message: 'API key authentication (no session)',
-            duration: Date.now() - sessionTestStart
+            message: "API key authentication (no session)",
+            duration: Date.now() - sessionTestStart,
           });
         }
       } catch (error) {
         tests.push({
-          name: 'Session Management',
+          name: "Session Management",
           passed: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration: Date.now() - sessionTestStart
+          message: error instanceof Error ? error.message : "Unknown error",
+          duration: Date.now() - sessionTestStart,
         });
       }
 
       const summary = {
         total: tests.length,
-        passed: tests.filter(t => t.passed).length,
-        failed: tests.filter(t => !t.passed).length,
-        duration: Date.now() - startTime
+        passed: tests.filter((t) => t.passed).length,
+        failed: tests.filter((t) => !t.passed).length,
+        duration: Date.now() - startTime,
       };
 
       res.status(200).json({
         success: true,
         data: {
           tests,
-          summary
-        }
+          summary,
+        },
       } as ApiResponse);
     } catch (error) {
-      console.error('Run diagnostics error:', error);
+      console.error("Run diagnostics error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to run diagnostics'
+        error: "Failed to run diagnostics",
       } as ApiResponse);
     }
   };

@@ -139,7 +139,7 @@ export class CollectionsController {
         changes: { name, fields: fields.length },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
 
       res.status(201).json({
@@ -227,7 +227,7 @@ export class CollectionsController {
           changes,
           performed_by: req.user?.id || "unknown",
           session_id: req.session?.id,
-          timestamp: new Date().toISOString(),
+          created_at: new Date().toISOString(),
         });
       }
 
@@ -294,7 +294,7 @@ export class CollectionsController {
         changes: { name: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
@@ -463,7 +463,7 @@ export class CollectionsController {
         changes: { collection: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
 
       res.status(201).json({
@@ -558,7 +558,7 @@ export class CollectionsController {
         changes: { collection: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
@@ -622,7 +622,7 @@ export class CollectionsController {
         changes: { collection: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
@@ -728,7 +728,7 @@ export class CollectionsController {
             changes: { collection: collectionName, batch: true },
             performed_by: req.user?.id || "unknown",
             session_id: req.session?.id,
-            timestamp: new Date().toISOString(),
+            created_at: new Date().toISOString(),
           });
         } catch (error) {
           errors.push({
@@ -875,7 +875,7 @@ export class CollectionsController {
               changes: { collection: collectionName, batch: true },
               performed_by: req.user?.id || "unknown",
               session_id: req.session?.id,
-              timestamp: new Date().toISOString(),
+              created_at: new Date().toISOString(),
             });
           } else {
             errors.push({
@@ -997,7 +997,7 @@ export class CollectionsController {
               changes: { collection: collectionName, batch: true },
               performed_by: req.user?.id || "unknown",
               session_id: req.session?.id,
-              timestamp: new Date().toISOString(),
+              created_at: new Date().toISOString(),
             });
           } else {
             errors.push({

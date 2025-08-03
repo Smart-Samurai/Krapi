@@ -56,3 +56,12 @@ SDK is the most important part of the app. It describes all functionality. It ex
 Frontend needs to align to SDK and backend. Never change the SDK and backend to fit the frontend.
 
 Avoid creating standalone scripts for testing or fixes; instead, build these capabilities directly into the SDK and backend as proper methods and endpoints. This ensures functionality remains discoverable, maintainable, and evolves with the architecture.
+
+## PORT CONFIGURATION
+
+**CRITICAL: This application uses specific ports that MUST NOT be changed:**
+
+- Backend API Server: Port 3470 (http://localhost:3470)
+- Frontend Manager: Port 3469 (http://localhost:3469)
+
+These ports are hardcoded throughout the application and changing them will break functionality. Always use these exact ports when developing, testing, or deploying this application.

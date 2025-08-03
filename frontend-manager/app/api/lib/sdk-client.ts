@@ -1,7 +1,7 @@
 import { KrapiClient } from "@krapi/sdk";
 
 // Get backend URL from environment variables
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3470";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3470/krapi/k1";
 
 /**
  * Create a new SDK client instance

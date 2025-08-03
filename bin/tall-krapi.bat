@@ -87,15 +87,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM Check if docker-compose.yml exists
-if not exist "docker-compose.yml" (
-    echo ERROR: docker-compose.yml not found in current directory
+REM Check if docker-compose.yml exists in the bin directory
+if not exist "%~dp0docker-compose.yml" (
+    echo ERROR: docker-compose.yml not found in bin directory
     pause
     exit /b 1
 )
 
 REM Start PostgreSQL container
-docker-compose up -d postgres
+docker-compose -f "%~dp0docker-compose.yml" up -d postgres
 if %errorlevel% neq 0 (
     echo ERROR: Failed to start PostgreSQL container
     pause
@@ -127,7 +127,7 @@ echo PostgreSQL is ready. Installing dependencies...
 echo.
 
 echo Step 1: Installing SDK dependencies and building...
-cd /d %~dp0packages\krapi-sdk
+cd /d %~dp0..\packages\krapi-sdk
 pnpm install
 if %errorlevel% neq 0 (
     echo Error: Failed to install SDK dependencies
@@ -144,7 +144,7 @@ echo SDK built successfully!
 echo.
 
 echo Step 2: Installing Backend Server dependencies...
-cd /d %~dp0backend-server
+cd /d %~dp0..\backend-server
 pnpm install
 if %errorlevel% neq 0 (
     echo Error: Failed to install Backend Server dependencies
@@ -155,7 +155,7 @@ echo Backend Server dependencies installed successfully!
 echo.
 
 echo Step 3: Installing Frontend Manager dependencies...
-cd /d %~dp0frontend-manager
+cd /d %~dp0..\frontend-manager
 pnpm install
 if %errorlevel% neq 0 (
     echo Error: Failed to install Frontend Manager dependencies
@@ -169,13 +169,13 @@ echo Step 4: Starting all services...
 echo.
 
 echo Starting SDK in watch mode...
-start "SDK Development" cmd /k "cd /d %~dp0packages\krapi-sdk && pnpm run dev"
+start "SDK Development" cmd /k "cd /d %~dp0..\packages\krapi-sdk && pnpm run dev"
 
 echo Starting Backend Server on port 3470...
-start "Backend Server" cmd /k "cd /d %~dp0backend-server && pnpm run dev"
+start "Backend Server" cmd /k "cd /d %~dp0..\backend-server && pnpm run dev"
 
 echo Starting Frontend Manager on port 3469...
-start "Frontend Manager" cmd /k "cd /d %~dp0frontend-manager && pnpm run dev"
+start "Frontend Manager" cmd /k "cd /d %~dp0..\frontend-manager && pnpm run dev"
 
 echo.
 echo All services are starting in separate windows...

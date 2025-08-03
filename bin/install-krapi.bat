@@ -3,7 +3,7 @@ echo Installing Krapi CMS dependencies...
 echo.
 
 echo Installing SDK dependencies and building...
-cd /d %~dp0packages\krapi-sdk
+cd /d %~dp0..\packages\krapi-sdk
 pnpm install
 if %errorlevel% neq 0 (
     echo Error: Failed to install SDK dependencies
@@ -20,7 +20,7 @@ echo SDK built successfully!
 echo.
 
 echo Installing Backend Server dependencies...
-cd /d %~dp0backend-server
+cd /d %~dp0..\backend-server
 pnpm install
 if %errorlevel% neq 0 (
     echo Error: Failed to install Backend Server dependencies
@@ -31,7 +31,7 @@ echo Backend Server dependencies installed successfully!
 echo.
 
 echo Installing Frontend Manager dependencies...
-cd /d %~dp0frontend-manager
+cd /d %~dp0..\frontend-manager
 pnpm install
 if %errorlevel% neq 0 (
     echo Error: Failed to install Frontend Manager dependencies

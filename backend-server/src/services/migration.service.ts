@@ -21,19 +21,19 @@ export class MigrationService {
         version: 1,
         name: "add_active_column_to_projects",
         up: async (client) => {
-          // Check if column exists
+          // Check if column exists (projects table uses is_active, not active)
           const result = await client.query(`
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = 'projects' AND column_name = 'active'
+            WHERE table_name = 'projects' AND column_name = 'is_active'
           `);
-          
+
           if (result.rows.length === 0) {
             await client.query(`
               ALTER TABLE projects 
-              ADD COLUMN active BOOLEAN DEFAULT true
+              ADD COLUMN is_active BOOLEAN DEFAULT true
             `);
-            console.log("Added 'active' column to projects table");
+            console.log("Added 'is_active' column to projects table");
           }
         },
       },
@@ -47,7 +47,7 @@ export class MigrationService {
             FROM information_schema.columns 
             WHERE table_name = 'collections' AND column_name = 'indexes'
           `);
-          
+
           if (result.rows.length === 0) {
             await client.query(`
               ALTER TABLE collections 
@@ -66,7 +66,7 @@ export class MigrationService {
             FROM information_schema.columns 
             WHERE table_name = 'collections' AND column_name = 'document_count'
           `);
-          
+
           if (result.rows.length === 0) {
             await client.query(`
               ALTER TABLE collections 
@@ -86,14 +86,14 @@ export class MigrationService {
             FROM information_schema.columns 
             WHERE table_name = 'admin_users' AND column_name = 'scopes'
           `);
-          
+
           if (result.rows.length === 0) {
             await client.query(`
               ALTER TABLE admin_users 
               ADD COLUMN scopes TEXT[] DEFAULT '{}'
             `);
             console.log("Added 'scopes' column to admin_users table");
-            
+
             // Update existing master admins with all scopes
             await client.query(`
               UPDATE admin_users 
@@ -113,7 +113,7 @@ export class MigrationService {
             FROM information_schema.columns 
             WHERE table_name = 'admin_users' AND column_name = 'project_ids'
           `);
-          
+
           if (result.rows.length === 0) {
             await client.query(`
               ALTER TABLE admin_users 
@@ -133,13 +133,13 @@ export class MigrationService {
             FROM information_schema.columns 
             WHERE table_name = 'projects' AND column_name = 'is_active'
           `);
-          
+
           const hasActive = await client.query(`
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'projects' AND column_name = 'active'
           `);
-          
+
           // If we have is_active but not active, rename it
           if (hasIsActive.rows.length > 0 && hasActive.rows.length === 0) {
             await client.query(`
@@ -148,7 +148,7 @@ export class MigrationService {
             `);
             console.log("Renamed 'is_active' to 'active' in projects table");
           }
-          
+
           // If we have neither, add active column
           if (hasIsActive.rows.length === 0 && hasActive.rows.length === 0) {
             await client.query(`
@@ -185,20 +185,24 @@ export class MigrationService {
       // Run pending migrations
       for (const migration of this.migrations) {
         if (!executedVersions.has(migration.version)) {
-          console.log(`Running migration ${migration.version}: ${migration.name}`);
-          
+          console.log(
+            `Running migration ${migration.version}: ${migration.name}`
+          );
+
           await client.query("BEGIN");
           try {
             await migration.up(client);
-            
+
             // Record migration
             await client.query(
               "INSERT INTO migrations (version, name) VALUES ($1, $2)",
               [migration.version, migration.name]
             );
-            
+
             await client.query("COMMIT");
-            console.log(`Migration ${migration.version} completed successfully`);
+            console.log(
+              `Migration ${migration.version} completed successfully`
+            );
           } catch (error) {
             await client.query("ROLLBACK");
             console.error(`Migration ${migration.version} failed:`, error);
@@ -249,11 +253,14 @@ export class MigrationService {
 
       for (const { table, column, fix } of fixes) {
         try {
-          const result = await client.query(`
+          const result = await client.query(
+            `
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = $1 AND column_name = $2
-          `, [table, column]);
+          `,
+            [table, column]
+          );
 
           if (result.rows.length === 0) {
             console.log(`Fixing missing column: ${table}.${column}`);
@@ -273,12 +280,14 @@ export class MigrationService {
         {
           name: "idx_collections_project_id",
           table: "collections",
-          definition: "CREATE INDEX idx_collections_project_id ON collections(project_id)",
+          definition:
+            "CREATE INDEX idx_collections_project_id ON collections(project_id)",
         },
         {
           name: "idx_documents_collection_id",
           table: "documents",
-          definition: "CREATE INDEX idx_documents_collection_id ON documents(collection_id)",
+          definition:
+            "CREATE INDEX idx_documents_collection_id ON documents(collection_id)",
         },
         {
           name: "idx_sessions_token",
@@ -299,11 +308,14 @@ export class MigrationService {
 
       for (const { name, table, definition } of indexes) {
         try {
-          const result = await client.query(`
+          const result = await client.query(
+            `
             SELECT indexname 
             FROM pg_indexes 
             WHERE tablename = $1 AND indexname = $2
-          `, [table, name]);
+          `,
+            [table, name]
+          );
 
           if (result.rows.length === 0) {
             console.log(`Creating missing index: ${name}`);
@@ -333,7 +345,10 @@ export class MigrationService {
         WHERE table_name = 'projects' AND column_name = 'settings'
       `);
 
-      if (settingsType.rows.length > 0 && settingsType.rows[0].data_type !== 'jsonb') {
+      if (
+        settingsType.rows.length > 0 &&
+        settingsType.rows[0].data_type !== "jsonb"
+      ) {
         console.log("Fixing projects.settings column type");
         await client.query(`
           ALTER TABLE projects 
@@ -349,7 +364,10 @@ export class MigrationService {
         WHERE table_name = 'collections' AND column_name = 'indexes'
       `);
 
-      if (indexesType.rows.length > 0 && indexesType.rows[0].data_type !== 'jsonb') {
+      if (
+        indexesType.rows.length > 0 &&
+        indexesType.rows[0].data_type !== "jsonb"
+      ) {
         console.log("Fixing collections.indexes column type");
         await client.query(`
           ALTER TABLE collections 

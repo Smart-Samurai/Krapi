@@ -122,7 +122,7 @@ export class StorageController {
           changes: { filename: req.file.originalname, size: req.file.size },
           performed_by: authReq.user?.id || authReq.session?.user_id || 'system',
           session_id: authReq.session?.id,
-          timestamp: new Date().toISOString()
+          created_at: new Date().toISOString()
         });
 
         res.status(201).json({
@@ -305,7 +305,7 @@ export class StorageController {
         changes: { filename: file.original_name },
         performed_by: authReq.user?.id || authReq.session?.user_id || 'system',
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString()
       });
 
       res.status(200).json({

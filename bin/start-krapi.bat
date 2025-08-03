@@ -3,13 +3,13 @@ echo Starting Krapi CMS...
 echo.
 
 echo Starting SDK in watch mode...
-start "SDK Development" cmd /k "cd /d %~dp0packages\krapi-sdk && pnpm run dev"
+start "SDK Development" cmd /k "cd /d %~dp0..\packages\krapi-sdk && pnpm run dev"
 
 echo Starting Backend Server on port 3470...
-start "Backend Server" cmd /k "cd /d %~dp0backend-server && pnpm run dev"
+start "Backend Server" cmd /k "cd /d %~dp0..\backend-server && pnpm run dev"
 
 echo Starting Frontend Manager on port 3469...
-start "Frontend Manager" cmd /k "cd /d %~dp0frontend-manager && pnpm run dev"
+start "Frontend Manager" cmd /k "cd /d %~dp0..\frontend-manager && pnpm run dev"
 
 echo.
 echo Both services are starting in separate windows...

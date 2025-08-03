@@ -23,6 +23,7 @@ export default function ProjectDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (projectId && krapi) {
@@ -43,16 +44,23 @@ export default function ProjectDetailPage() {
   const fetchProjectDetails = async () => {
     try {
       setLoading(true);
+      console.log("Fetching project with ID:", projectId);
+
       const response = await krapi.projects.getById(projectId);
+      console.log("Project response:", response);
+
       if (response.success && response.data) {
         setProject(response.data as Project);
       } else {
-        // Project not found
-        router.push("/projects");
+        console.error("Project not found or failed:", response);
+        // Show error message instead of redirecting immediately
+        setError(response.error || "Project not found");
       }
     } catch (error) {
       console.error("Error fetching project details:", error);
-      router.push("/projects");
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch project"
+      );
     } finally {
       setLoading(false);
     }
@@ -66,10 +74,55 @@ export default function ProjectDetailPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <h3 className="text-red-800 dark:text-red-200 font-medium mb-2">
+            Error Loading Project
+          </h3>
+          <p className="text-red-700 dark:text-red-300 text-sm mb-4">{error}</p>
+          <div className="space-y-2 text-xs text-red-600 dark:text-red-400">
+            <p>
+              <strong>Project ID:</strong> {projectId}
+            </p>
+            <p>
+              <strong>Debug Info:</strong> Check browser console for more
+              details
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/projects")}
+            className="mt-4"
+          >
+            Back to Projects
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!project) {
     return (
       <div className="p-6">
-        <p className="text-text/60">Project not found</p>
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <h3 className="text-yellow-800 dark:text-yellow-200 font-medium mb-2">
+            Project Not Found
+          </h3>
+          <p className="text-yellow-700 dark:text-yellow-300 text-sm mb-4">
+            The project with ID "{projectId}" could not be found.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/projects")}
+            className="mt-4"
+          >
+            Back to Projects
+          </Button>
+        </div>
       </div>
     );
   }
@@ -144,7 +197,9 @@ export default function ProjectDetailPage() {
             <div>
               <p className="text-sm font-medium">API Key</p>
               <code className="text-xs bg-secondary px-2 py-1 rounded">
-                {project.api_key ? project.api_key.substring(0, 8) + "..." : "N/A"}
+                {project.api_key
+                  ? project.api_key.substring(0, 8) + "..."
+                  : "N/A"}
               </code>
             </div>
             <div>
@@ -192,7 +247,9 @@ export default function ProjectDetailPage() {
           <FiDatabase className="mr-3 h-5 w-5" />
           <div className="text-left">
             <p className="font-medium">Manage Collections</p>
-            <p className="text-sm text-text/60">Create and manage data schemas</p>
+            <p className="text-sm text-text/60">
+              Create and manage data schemas
+            </p>
           </div>
         </Button>
         <Button

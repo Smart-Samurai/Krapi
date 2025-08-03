@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 import {
   AdminUser,
   AdminRole,
@@ -92,7 +93,11 @@ export class DatabaseService {
   }
 
   // Health check method
-  async checkHealth(): Promise<{ healthy: boolean; message: string; details?: any }> {
+  async checkHealth(): Promise<{
+    healthy: boolean;
+    message: string;
+    details?: any;
+  }> {
     try {
       // Check connection
       const client = await this.pool.connect();
@@ -101,8 +106,14 @@ export class DatabaseService {
 
       // Check critical tables
       const criticalTables = [
-        'admin_users', 'projects', 'collections', 'documents', 
-        'sessions', 'api_keys', 'changelog', 'migrations'
+        "admin_users",
+        "projects",
+        "collections",
+        "documents",
+        "sessions",
+        "api_keys",
+        "changelog",
+        "migrations",
       ];
 
       const missingTables = [];
@@ -120,7 +131,7 @@ export class DatabaseService {
         return {
           healthy: false,
           message: "Missing critical tables",
-          details: { missingTables }
+          details: { missingTables },
         };
       }
 
@@ -133,32 +144,38 @@ export class DatabaseService {
           connectionPool: {
             totalCount: this.pool.totalCount,
             idleCount: this.pool.idleCount,
-            waitingCount: this.pool.waitingCount
-          }
-        }
+            waitingCount: this.pool.waitingCount,
+          },
+        },
       };
     } catch (error) {
       return {
         healthy: false,
         message: "Database health check failed",
-        details: { error: error instanceof Error ? error.message : String(error) }
+        details: {
+          error: error instanceof Error ? error.message : String(error),
+        },
       };
     }
   }
 
   // Auto-repair database
-  async autoRepair(): Promise<{ success: boolean; message: string; repairs?: string[] }> {
+  async autoRepair(): Promise<{
+    success: boolean;
+    message: string;
+    repairs?: string[];
+  }> {
     const repairs: string[] = [];
-    
+
     try {
       console.log("Starting database auto-repair...");
-      
+
       // Check health first
       const health = await this.checkHealth();
       if (health.healthy) {
         return {
           success: true,
-          message: "Database is healthy, no repairs needed"
+          message: "Database is healthy, no repairs needed",
         };
       }
 
@@ -180,7 +197,9 @@ export class DatabaseService {
       repairs.push("Fixed database schema");
 
       // Create default admin if none exists
-      const adminCount = await this.pool.query("SELECT COUNT(*) FROM admin_users");
+      const adminCount = await this.pool.query(
+        "SELECT COUNT(*) FROM admin_users"
+      );
       if (parseInt(adminCount.rows[0].count) === 0) {
         await this.createDefaultAdmin();
         repairs.push("Created default admin user");
@@ -189,14 +208,14 @@ export class DatabaseService {
       return {
         success: true,
         message: "Database repaired successfully",
-        repairs
+        repairs,
       };
     } catch (error) {
       console.error("Auto-repair failed:", error);
       return {
         success: false,
         message: "Failed to repair database",
-        repairs
+        repairs,
       };
     }
   }
@@ -206,10 +225,12 @@ export class DatabaseService {
     if (!this.isConnected) {
       await this.waitForReady();
     }
-    
+
     // Periodic health check
-    if (!this.lastHealthCheck || 
-        Date.now() - this.lastHealthCheck.getTime() > this.healthCheckInterval) {
+    if (
+      !this.lastHealthCheck ||
+      Date.now() - this.lastHealthCheck.getTime() > this.healthCheckInterval
+    ) {
       const health = await this.checkHealth();
       if (!health.healthy) {
         console.warn("Database health check failed, attempting auto-repair...");
@@ -237,15 +258,15 @@ export class DatabaseService {
         this.isConnected = true;
         console.log("Successfully connected to PostgreSQL");
 
+        // Initialize tables first
+        await this.initializeTables();
+
         // Initialize migration service
         this.migrationService = new MigrationService(this.pool);
-        
-        // Run migrations first
+
+        // Run migrations after tables are created
         await this.migrationService.runMigrations();
 
-        // Initialize tables after successful connection
-        await this.initializeTables();
-        
         // Check and fix schema integrity
         await this.migrationService.checkAndFixSchema();
 
@@ -291,9 +312,11 @@ export class DatabaseService {
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           username VARCHAR(255) UNIQUE NOT NULL,
           email VARCHAR(255) UNIQUE NOT NULL,
-          password VARCHAR(255) NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
           role VARCHAR(50) NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
           access_level VARCHAR(50) NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
+          permissions TEXT[] DEFAULT '{}',
+          scopes TEXT[] DEFAULT '{}',
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -366,7 +389,7 @@ export class DatabaseService {
           project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
           username VARCHAR(255) NOT NULL,
           email VARCHAR(255) NOT NULL,
-          password VARCHAR(255) NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
           phone VARCHAR(50),
           is_verified BOOLEAN DEFAULT false,
           is_active BOOLEAN DEFAULT true,
@@ -402,6 +425,7 @@ export class DatabaseService {
           description TEXT,
           fields JSONB NOT NULL DEFAULT '[]'::jsonb,
           indexes JSONB DEFAULT '[]'::jsonb,
+          document_count INTEGER DEFAULT 0,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           created_by UUID REFERENCES admin_users(id),
@@ -447,7 +471,7 @@ export class DatabaseService {
           path VARCHAR(500) NOT NULL,
           metadata JSONB DEFAULT '{}'::jsonb,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID REFERENCES admin_users(id)
+          uploaded_by UUID REFERENCES admin_users(id)
         )
       `);
 
@@ -458,12 +482,14 @@ export class DatabaseService {
           token VARCHAR(500) UNIQUE NOT NULL,
           user_id UUID REFERENCES admin_users(id),
           project_id UUID REFERENCES projects(id),
-          user_type VARCHAR(50) NOT NULL CHECK (user_type IN ('admin', 'project')),
+          type VARCHAR(50) NOT NULL CHECK (type IN ('admin', 'project')),
           scopes TEXT[] NOT NULL DEFAULT '{}',
           metadata JSONB DEFAULT '{}'::jsonb,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           expires_at TIMESTAMP NOT NULL,
           last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          consumed BOOLEAN DEFAULT false,
+          consumed_at TIMESTAMP,
           is_active BOOLEAN DEFAULT true
         )
       `);
@@ -1150,7 +1176,7 @@ export class DatabaseService {
     } catch (error) {
       console.error("Failed to create project:", error);
       // Check if it's a schema issue
-      if (error instanceof Error && error.message.includes('column')) {
+      if (error instanceof Error && error.message.includes("column")) {
         await this.autoRepair();
         // Retry after repair
         return this.createProject(data);
@@ -1161,11 +1187,26 @@ export class DatabaseService {
 
   async getProjectById(id: string): Promise<Project | null> {
     try {
+      // Use validation utilities
+      const sanitizedId = sanitizeProjectId(id);
+      if (!sanitizedId) {
+        console.warn(`Invalid project ID: ${id} - ID is empty or invalid`);
+        return null;
+      }
+
+      if (!isValidProjectId(sanitizedId)) {
+        console.warn(`Invalid project ID format: ${sanitizedId}`);
+        return null;
+      }
+
       const rows = await this.queryWithRetry<Project>(
         `SELECT * FROM projects WHERE id = $1`,
-        [id]
+        [sanitizedId]
       );
-      return rows.length > 0 ? this.mapProject(rows[0]) : null;
+
+      return rows.length > 0
+        ? this.mapProject(rows[0] as unknown as Record<string, unknown>)
+        : null;
     } catch (error) {
       console.error("Failed to get project by ID:", error);
       throw error;
@@ -1184,19 +1225,19 @@ export class DatabaseService {
 
   async getAllProjects(): Promise<Project[]> {
     try {
-      const rows = await this.queryWithRetry<Project>(
+      const rows = await this.queryWithRetry<Record<string, unknown>>(
         `SELECT * FROM projects ORDER BY created_at DESC`
       );
-      return rows;
+      return rows.map((row) => this.mapProject(row));
     } catch (error) {
       console.error("Failed to get all projects:", error);
       // Attempt to fix the issue
       await this.autoRepair();
       // Retry once after repair
-      const rows = await this.queryWithRetry<Project>(
+      const rows = await this.queryWithRetry<Record<string, unknown>>(
         `SELECT * FROM projects ORDER BY created_at DESC`
       );
-      return rows;
+      return rows.map((row) => this.mapProject(row));
     }
   }
 
@@ -1254,15 +1295,22 @@ export class DatabaseService {
       await client.query("BEGIN");
 
       // Delete related data in correct order
-      await client.query("DELETE FROM documents WHERE collection_id IN (SELECT id FROM collections WHERE project_id = $1)", [id]);
+      await client.query(
+        "DELETE FROM documents WHERE collection_id IN (SELECT id FROM collections WHERE project_id = $1)",
+        [id]
+      );
       await client.query("DELETE FROM collections WHERE project_id = $1", [id]);
-      await client.query("DELETE FROM project_users WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM project_users WHERE project_id = $1", [
+        id,
+      ]);
       await client.query("DELETE FROM files WHERE project_id = $1", [id]);
       await client.query("DELETE FROM changelog WHERE project_id = $1", [id]);
       await client.query("DELETE FROM api_keys WHERE owner_id = $1", [id]);
-      
+
       // Finally delete the project
-      const result = await client.query("DELETE FROM projects WHERE id = $1", [id]);
+      const result = await client.query("DELETE FROM projects WHERE id = $1", [
+        id,
+      ]);
 
       await client.query("COMMIT");
       return result.rowCount > 0;
@@ -2101,6 +2149,56 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
   }
 
+  async getSessionById(sessionId: string): Promise<Session | null> {
+    const result = await this.pool.query(
+      "SELECT * FROM sessions WHERE id = $1 AND is_active = true AND expires_at > CURRENT_TIMESTAMP",
+      [sessionId]
+    );
+
+    return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
+  }
+
+  async createDefaultAdmin(): Promise<void> {
+    const defaultAdmin = {
+      username: "admin",
+      email: "admin@krapi.local",
+      password_hash: await this.hashPassword("admin123"),
+      role: "master_admin" as AdminRole,
+      access_level: "full" as any,
+      permissions: [
+        "users.create",
+        "users.read",
+        "users.update",
+        "users.delete",
+        "projects.create",
+        "projects.read",
+        "projects.update",
+        "projects.delete",
+        "collections.create",
+        "collections.read",
+        "collections.write",
+        "collections.delete",
+        "storage.upload",
+        "storage.read",
+        "storage.delete",
+        "settings.read",
+        "settings.update",
+      ] as AdminPermission[],
+      active: true,
+    };
+
+    await this.createAdminUser({
+      ...defaultAdmin,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    const bcrypt = require("bcryptjs");
+    return await bcrypt.hash(password, 12);
+  }
+
   async invalidateUserSessions(userId: string): Promise<void> {
     await this.pool.query(
       "UPDATE sessions SET is_active = false WHERE user_id = $1",
@@ -2549,7 +2647,9 @@ export class DatabaseService {
       name: row.name as string,
       description: row.description as string | undefined,
       api_key: row.api_key as string,
-      active: (row.active !== undefined ? row.active : row.is_active) as boolean,
+      active: (row.active !== undefined
+        ? row.active
+        : row.is_active) as boolean,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       created_by: row.created_by as string,
@@ -2642,7 +2742,7 @@ export class DatabaseService {
       changes: (row.changes as Record<string, unknown>) || {},
       performed_by: row.performed_by as string,
       session_id: row.session_id as string | undefined,
-      timestamp: row.created_at as string,
+      created_at: row.created_at as string,
     };
   }
 
@@ -2675,7 +2775,7 @@ export class DatabaseService {
     retries: number = 3
   ): Promise<T[]> {
     let lastError: Error | null = null;
-    
+
     for (let i = 0; i < retries; i++) {
       try {
         await this.ensureReady();
@@ -2684,22 +2784,26 @@ export class DatabaseService {
       } catch (error) {
         lastError = error as Error;
         console.error(`Query attempt ${i + 1} failed:`, error);
-        
+
         // Check if it's a connection error
-        if (error instanceof Error && 
-            (error.message.includes('connection') || 
-             error.message.includes('ECONNREFUSED'))) {
+        if (
+          error instanceof Error &&
+          (error.message.includes("connection") ||
+            error.message.includes("ECONNREFUSED"))
+        ) {
           this.isConnected = false;
           await this.initializeWithRetry();
         }
-        
+
         // Wait before retry with exponential backoff
         if (i < retries - 1) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, i) * 1000)
+          );
         }
       }
     }
-    
+
     throw lastError || new Error("Query failed after retries");
   }
 }

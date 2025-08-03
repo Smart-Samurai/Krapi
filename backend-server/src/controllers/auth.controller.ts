@@ -1,12 +1,12 @@
-import { Request, Response } from 'express';
-import { AuthService } from '@/services/auth.service';
-import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse, SessionType } from '@/types';
-import { v4 as uuidv4 } from 'uuid';
+import { Request, Response } from "express";
+import { AuthService } from "@/services/auth.service";
+import { DatabaseService } from "@/services/database.service";
+import { AuthenticatedRequest, ApiResponse, SessionType } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * Authentication Controller
- * 
+ *
  * Handles all authentication-related operations including:
  * - Admin and project session creation
  * - User login/logout
@@ -26,10 +26,10 @@ export class AuthController {
   /**
    * Create admin session using API key
    * POST /krapi/k1/auth/admin/session
-   * 
+   *
    * Creates a new admin session token from a valid admin or master API key.
    * The session inherits the scopes from the API key.
-   * 
+   *
    * @param req - Request with api_key in body
    * @param res - Response with session token and expiration
    */
@@ -40,43 +40,52 @@ export class AuthController {
       // This endpoint now uses API keys instead of a single master key
       const apiKey = await this.db.getApiKey(api_key);
 
-      if (!apiKey || !apiKey.is_active || (apiKey.type !== 'master' && apiKey.type !== 'admin')) {
+      if (
+        !apiKey ||
+        !apiKey.is_active ||
+        (apiKey.type !== "master" && apiKey.type !== "admin")
+      ) {
         res.status(401).json({
           success: false,
-          error: 'Invalid API key'
+          error: "Invalid API key",
         } as ApiResponse);
         return;
       }
 
       // Create session with API key scopes
       const session = await this.db.createSession({
-        token: `tok_${uuidv4().replace(/-/g, '')}`,
+        token: `tok_${uuidv4().replace(/-/g, "")}`,
         type: SessionType.ADMIN,
         user_id: apiKey.owner_id,
         scopes: apiKey.scopes,
         metadata: { api_key_id: apiKey.id },
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        consumed: false
+        consumed: false,
       });
 
       // Log session creation
-      await this.authService.logAuthAction('session_created', 'admin', undefined, session.id);
+      await this.authService.logAuthAction(
+        "session_created",
+        "admin",
+        undefined,
+        session.id
+      );
 
       res.status(200).json({
         success: true,
         data: {
           session_token: session.token,
           expires_at: session.expires_at,
-          scopes: session.scopes
-        }
+          scopes: session.scopes,
+        },
       } as ApiResponse);
       return;
     } catch (error) {
-      console.error('Create admin session error:', error);
+      console.error("Create admin session error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create session'
+        error: "Failed to create session",
       } as ApiResponse);
       return;
     }
@@ -93,31 +102,38 @@ export class AuthController {
       if (!project || project.id !== projectId || !project.active) {
         res.status(401).json({
           success: false,
-          error: 'Invalid API key or project'
+          error: "Invalid API key or project",
         } as ApiResponse);
         return;
       }
 
       // Create project session with default project scopes
-      const session = await this.authService.createProjectSessionWithScopes(projectId);
+      const session = await this.authService.createProjectSessionWithScopes(
+        projectId
+      );
 
       // Log session creation
-      await this.authService.logAuthAction('session_created', 'project', projectId, session.id);
+      await this.authService.logAuthAction(
+        "session_created",
+        "project",
+        projectId,
+        session.id
+      );
 
       res.status(200).json({
         success: true,
         data: {
           session_token: session.token,
           expires_at: session.expires_at,
-          scopes: session.scopes
-        }
+          scopes: session.scopes,
+        },
       } as ApiResponse);
       return;
     } catch (error) {
-      console.error('Create project session error:', error);
+      console.error("Create project session error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create session'
+        error: "Failed to create session",
       } as ApiResponse);
       return;
     }
@@ -133,7 +149,7 @@ export class AuthController {
       if (!user) {
         res.status(401).json({
           success: false,
-          error: 'Invalid credentials'
+          error: "Invalid credentials",
         } as ApiResponse);
         return;
       }
@@ -142,7 +158,9 @@ export class AuthController {
       const session = await this.authService.createAdminSessionWithScopes(user);
 
       // Update last login
-      await this.db.updateAdminUser(user.id, { last_login: new Date().toISOString() });
+      await this.db.updateAdminUser(user.id, {
+        last_login: new Date().toISOString(),
+      });
 
       res.status(200).json({
         success: true,
@@ -154,19 +172,19 @@ export class AuthController {
             role: user.role,
             access_level: user.access_level,
             permissions: user.permissions,
-            scopes: session.scopes
+            scopes: session.scopes,
           },
           token: session.token,
           session_token: session.token,
-          expires_at: session.expires_at
-        }
+          expires_at: session.expires_at,
+        },
       } as ApiResponse);
       return;
     } catch (error) {
-      console.error('Admin login error:', error);
+      console.error("Admin login error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to authenticate'
+        error: "Failed to authenticate",
       } as ApiResponse);
       return;
     }
@@ -179,10 +197,14 @@ export class AuthController {
 
       const session = await this.db.getSessionByToken(session_token);
 
-      if (!session || session.consumed || new Date(session.expires_at) < new Date()) {
+      if (
+        !session ||
+        session.consumed ||
+        new Date(session.expires_at) < new Date()
+      ) {
         res.status(401).json({
           success: false,
-          error: 'Invalid or expired session'
+          error: "Invalid or expired session",
         } as ApiResponse);
         return;
       }
@@ -192,17 +214,17 @@ export class AuthController {
         data: {
           valid: true,
           expires_at: session.expires_at,
-          type: session.type
-        }
+          type: session.type,
+        },
       } as ApiResponse);
-        return;
+      return;
     } catch (error) {
-      console.error('Validate session error:', error);
+      console.error("Validate session error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to validate session'
+        error: "Failed to validate session",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -220,21 +242,26 @@ export class AuthController {
 
       // Log logout
       if (user) {
-        await this.authService.logAuthAction('logout', user.id, undefined, session?.id);
+        await this.authService.logAuthAction(
+          "logout",
+          user.id,
+          undefined,
+          session?.id
+        );
       }
 
       res.status(200).json({
         success: true,
-        message: 'Logged out successfully'
+        message: "Logged out successfully",
       } as ApiResponse);
-        return;
+      return;
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       res.status(500).json({
         success: false,
-        error: 'Logout failed'
+        error: "Logout failed",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -247,22 +274,22 @@ export class AuthController {
       if (!authUser) {
         res.status(401).json({
           success: false,
-          error: 'Not authenticated'
+          error: "Not authenticated",
         } as ApiResponse);
         return;
       }
 
       // Fetch full user data based on type
-      if (authUser.type === 'admin') {
+      if (authUser.type === "admin") {
         const adminUser = await this.db.getAdminUserById(authUser.id);
         if (!adminUser) {
           res.status(404).json({
             success: false,
-            error: 'User not found'
+            error: "User not found",
           } as ApiResponse);
           return;
         }
-        
+
         res.status(200).json({
           success: true,
           data: {
@@ -271,20 +298,23 @@ export class AuthController {
             username: adminUser.username,
             role: adminUser.role,
             access_level: adminUser.access_level,
-            permissions: adminUser.permissions
-          }
+            permissions: adminUser.permissions,
+          },
         } as ApiResponse);
       } else {
         // ProjectUser
-        const projectUser = await this.db.getProjectUser(authUser.project_id!, authUser.id);
+        const projectUser = await this.db.getProjectUser(
+          authUser.project_id!,
+          authUser.id
+        );
         if (!projectUser) {
           res.status(404).json({
             success: false,
-            error: 'User not found'
+            error: "User not found",
           } as ApiResponse);
           return;
         }
-        
+
         res.status(200).json({
           success: true,
           data: {
@@ -292,18 +322,18 @@ export class AuthController {
             email: projectUser.email,
             username: projectUser.username,
             phone: projectUser.phone,
-            is_active: projectUser.is_active
-          }
+            is_active: projectUser.is_active,
+          },
         } as ApiResponse);
       }
       return;
     } catch (error) {
-      console.error('Get current user error:', error);
+      console.error("Get current user error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to get user info'
+        error: "Failed to get user info",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -317,7 +347,7 @@ export class AuthController {
       if (!user) {
         res.status(401).json({
           success: false,
-          error: 'Not authenticated'
+          error: "Not authenticated",
         } as ApiResponse);
         return;
       }
@@ -327,17 +357,20 @@ export class AuthController {
       if (!adminUser) {
         res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: "User not found",
         } as ApiResponse);
         return;
       }
 
       // Verify current password
-      const validUser = await this.authService.authenticateAdmin(adminUser.email, current_password);
+      const validUser = await this.authService.authenticateAdmin(
+        adminUser.email,
+        current_password
+      );
       if (!validUser) {
         res.status(401).json({
           success: false,
-          error: 'Current password is incorrect'
+          error: "Current password is incorrect",
         } as ApiResponse);
         return;
       }
@@ -350,16 +383,16 @@ export class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Password changed successfully'
+        message: "Password changed successfully",
       } as ApiResponse);
-        return;
+      return;
     } catch (error) {
-      console.error('Change password error:', error);
+      console.error("Change password error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to change password'
+        error: "Failed to change password",
       } as ApiResponse);
-        return;
+      return;
     }
   };
 
@@ -371,7 +404,7 @@ export class AuthController {
       if (!api_key) {
         res.status(400).json({
           success: false,
-          error: 'API key is required'
+          error: "API key is required",
         } as ApiResponse);
         return;
       }
@@ -381,7 +414,7 @@ export class AuthController {
       if (!apiKey || !apiKey.is_active) {
         res.status(401).json({
           success: false,
-          error: 'Invalid or inactive API key'
+          error: "Invalid or inactive API key",
         } as ApiResponse);
         return;
       }
@@ -390,7 +423,7 @@ export class AuthController {
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: 'API key expired'
+          error: "API key expired",
         } as ApiResponse);
         return;
       }
@@ -401,25 +434,27 @@ export class AuthController {
       if (!user || !user.active) {
         res.status(401).json({
           success: false,
-          error: 'User not found or inactive'
+          error: "User not found or inactive",
         } as ApiResponse);
         return;
       }
 
       // Create session with API key scopes
       const session = await this.db.createSession({
-        token: `tok_${uuidv4().replace(/-/g, '')}`,
+        token: `tok_${uuidv4().replace(/-/g, "")}`,
         type: SessionType.ADMIN,
         user_id: user.id,
         scopes: apiKey.scopes,
         metadata: { api_key_id: apiKey.id },
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-        consumed: false
+        consumed: false,
       });
 
       // Update last login
-      await this.db.updateAdminUser(user.id, { last_login: new Date().toISOString() });
+      await this.db.updateAdminUser(user.id, {
+        last_login: new Date().toISOString(),
+      });
 
       res.status(200).json({
         success: true,
@@ -431,19 +466,19 @@ export class AuthController {
             role: user.role,
             access_level: user.access_level,
             permissions: user.permissions,
-            scopes: apiKey.scopes
+            scopes: apiKey.scopes,
           },
           token: session.token,
           session_token: session.token,
-          expires_at: session.expires_at
-        }
+          expires_at: session.expires_at,
+        },
       } as ApiResponse);
       return;
     } catch (error) {
-      console.error('Admin API login error:', error);
+      console.error("Admin API login error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to authenticate with API key'
+        error: "Failed to authenticate with API key",
       } as ApiResponse);
       return;
     }
@@ -453,25 +488,27 @@ export class AuthController {
   regenerateApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;
-      
+
       if (!authReq.user) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
 
       // Generate new API key
-      const newApiKey = `mak_${uuidv4().replace(/-/g, '')}`;
-      
+      const newApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+
       // Update user with new API key
-      const updated = await this.db.updateAdminUser(authReq.user.id, { api_key: newApiKey });
+      const updated = await this.db.updateAdminUser(authReq.user.id, {
+        api_key: newApiKey,
+      });
 
       if (!updated) {
         res.status(500).json({
           success: false,
-          error: 'Failed to regenerate API key'
+          error: "Failed to regenerate API key",
         } as ApiResponse);
         return;
       }
@@ -480,15 +517,16 @@ export class AuthController {
         success: true,
         data: {
           api_key: newApiKey,
-          message: 'API key regenerated successfully. Save this key securely - it will not be shown again!'
-        }
+          message:
+            "API key regenerated successfully. Save this key securely - it will not be shown again!",
+        },
       } as ApiResponse);
       return;
     } catch (error) {
-      console.error('Regenerate API key error:', error);
+      console.error("Regenerate API key error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to regenerate API key'
+        error: "Failed to regenerate API key",
       } as ApiResponse);
       return;
     }

@@ -1,11 +1,16 @@
-import { Request, Response } from 'express';
-import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse, Project, ChangeAction } from '@/types';
-import { v4 as uuidv4 } from 'uuid';
+import { Request, Response } from "express";
+import { DatabaseService } from "@/services/database.service";
+import {
+  AuthenticatedRequest,
+  ApiResponse,
+  Project,
+  ChangeAction,
+} from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * Testing Controller
- * 
+ *
  * Provides utilities for development and testing.
  * Only available in development mode.
  */
@@ -22,21 +27,21 @@ export class TestingController {
   createTestProject = async (req: Request, res: Response): Promise<void> => {
     try {
       // Only allow in development mode
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         res.status(403).json({
           success: false,
-          error: 'Testing endpoints are not available in production'
+          error: "Testing endpoints are not available in production",
         } as ApiResponse);
         return;
       }
 
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
-      
+
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
@@ -45,70 +50,91 @@ export class TestingController {
         name = `Test Project ${Date.now()}`,
         withCollections = false,
         withDocuments = false,
-        documentCount = 10
+        documentCount = 10,
       } = req.body;
 
       // Create project
       const project = await this.db.createProject({
         name,
-        description: 'Created by testing utilities',
+        description: "Created by testing utilities",
         settings: { isTestProject: true },
         created_by: currentUser.id,
         active: true,
-        api_key: `test_${uuidv4().replace(/-/g, '')}`
+        api_key: `test_${uuidv4().replace(/-/g, "")}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
 
       // Log the action
       await this.db.createChangelogEntry({
         project_id: project.id,
-        entity_type: 'project',
+        entity_type: "project",
         entity_id: project.id,
         action: ChangeAction.CREATED,
         changes: { name, test: true },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       // Create sample collections if requested
       if (withCollections) {
         const collections = [
-          { name: 'users', fields: [
-            { name: 'name', type: 'string', required: true },
-            { name: 'email', type: 'string', required: true },
-            { name: 'age', type: 'number' }
-          ]},
-          { name: 'products', fields: [
-            { name: 'title', type: 'string', required: true },
-            { name: 'price', type: 'number', required: true },
-            { name: 'description', type: 'string' }
-          ]}
+          {
+            name: "users",
+            fields: [
+              { name: "name", type: "string" as const, required: true },
+              { name: "email", type: "string" as const, required: true },
+              { name: "age", type: "number" as const },
+            ],
+          },
+          {
+            name: "products",
+            fields: [
+              { name: "title", type: "string" as const, required: true },
+              { name: "price", type: "number" as const, required: true },
+              { name: "description", type: "string" as const },
+            ],
+          },
         ];
 
         for (const collData of collections) {
-          const collection = await this.db.createCollection({
-            project_id: project.id,
-            name: collData.name,
-            fields: collData.fields,
-            indexes: [],
-            created_by: currentUser.id
-          });
+          const collection = await this.db.createCollection(
+            project.id,
+            collData.name,
+            {
+              description: `Test collection: ${collData.name}`,
+              fields: collData.fields,
+              indexes: [],
+            },
+            currentUser.id
+          );
 
           // Create sample documents if requested
           if (withDocuments && collection) {
             for (let i = 0; i < documentCount; i++) {
-              if (collData.name === 'users') {
-                await this.db.createDocument(collection.id, {
-                  name: `Test User ${i + 1}`,
-                  email: `user${i + 1}@test.com`,
-                  age: 20 + Math.floor(Math.random() * 50)
-                });
-              } else if (collData.name === 'products') {
-                await this.db.createDocument(collection.id, {
-                  title: `Product ${i + 1}`,
-                  price: Math.floor(Math.random() * 1000) + 10,
-                  description: `Description for product ${i + 1}`
-                });
+              if (collData.name === "users") {
+                await this.db.createDocument(
+                  project.id,
+                  collData.name,
+                  {
+                    name: `Test User ${i + 1}`,
+                    email: `user${i + 1}@test.com`,
+                    age: 20 + Math.floor(Math.random() * 50),
+                  },
+                  currentUser.id
+                );
+              } else if (collData.name === "products") {
+                await this.db.createDocument(
+                  project.id,
+                  collData.name,
+                  {
+                    title: `Product ${i + 1}`,
+                    price: Math.floor(Math.random() * 1000) + 10,
+                    description: `Description for product ${i + 1}`,
+                  },
+                  currentUser.id
+                );
               }
             }
           }
@@ -118,13 +144,13 @@ export class TestingController {
       res.status(201).json({
         success: true,
         data: project,
-        message: 'Test project created successfully'
+        message: "Test project created successfully",
       } as ApiResponse<Project>);
     } catch (error) {
-      console.error('Create test project error:', error);
+      console.error("Create test project error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to create test project'
+        error: "Failed to create test project",
       } as ApiResponse);
     }
   };
@@ -135,21 +161,21 @@ export class TestingController {
   cleanup = async (req: Request, res: Response): Promise<void> => {
     try {
       // Only allow in development mode
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         res.status(403).json({
           success: false,
-          error: 'Testing endpoints are not available in production'
+          error: "Testing endpoints are not available in production",
         } as ApiResponse);
         return;
       }
 
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
-      
+
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
@@ -170,7 +196,7 @@ export class TestingController {
             deletedDocuments += docs.total;
           }
           deletedCollections = collections.length;
-          
+
           await this.db.deleteProject(projectId);
           deletedProjects = 1;
         }
@@ -180,13 +206,15 @@ export class TestingController {
         for (const project of projects) {
           if (project.settings?.isTestProject) {
             // Get collections for counting
-            const collections = await this.db.getProjectTableSchemas(project.id);
+            const collections = await this.db.getProjectTableSchemas(
+              project.id
+            );
             for (const collection of collections) {
               const docs = await this.db.getDocumentsByTable(collection.id);
               deletedDocuments += docs.total;
             }
             deletedCollections += collections.length;
-            
+
             await this.db.deleteProject(project.id);
             deletedProjects++;
           }
@@ -199,15 +227,15 @@ export class TestingController {
           deleted: {
             projects: deletedProjects,
             collections: deletedCollections,
-            documents: deletedDocuments
-          }
-        }
+            documents: deletedDocuments,
+          },
+        },
       } as ApiResponse);
     } catch (error) {
-      console.error('Cleanup error:', error);
+      console.error("Cleanup error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to clean up test data'
+        error: "Failed to clean up test data",
       } as ApiResponse);
     }
   };
@@ -218,21 +246,21 @@ export class TestingController {
   runIntegrationTests = async (req: Request, res: Response): Promise<void> => {
     try {
       // Only allow in development mode
-      if (process.env.NODE_ENV === 'production') {
+      if (process.env.NODE_ENV === "production") {
         res.status(403).json({
           success: false,
-          error: 'Testing endpoints are not available in production'
+          error: "Testing endpoints are not available in production",
         } as ApiResponse);
         return;
       }
 
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
-      
+
       if (!currentUser) {
         res.status(401).json({
           success: false,
-          error: 'Unauthorized'
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
@@ -242,8 +270,8 @@ export class TestingController {
 
       // Test Suite 1: Project Operations
       const projectSuite = {
-        suite: 'Project Operations',
-        tests: []
+        suite: "Project Operations",
+        tests: [],
       };
 
       // Test: Create project
@@ -252,24 +280,26 @@ export class TestingController {
       try {
         const project = await this.db.createProject({
           name: `Integration Test ${Date.now()}`,
-          description: 'Integration test project',
+          description: "Integration test project",
           settings: { isTestProject: true },
           created_by: currentUser.id,
           active: true,
-          api_key: `test_${uuidv4().replace(/-/g, '')}`
+          api_key: `test_${uuidv4().replace(/-/g, "")}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
         testProjectId = project.id;
         projectSuite.tests.push({
-          name: 'Create Project',
+          name: "Create Project",
           passed: true,
-          duration: Date.now() - createStart
+          duration: Date.now() - createStart,
         });
       } catch (error) {
         projectSuite.tests.push({
-          name: 'Create Project',
+          name: "Create Project",
           passed: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          duration: Date.now() - createStart
+          error: error instanceof Error ? error.message : "Unknown error",
+          duration: Date.now() - createStart,
         });
       }
 
@@ -278,19 +308,19 @@ export class TestingController {
         const updateStart = Date.now();
         try {
           await this.db.updateProject(testProjectId, {
-            description: 'Updated description'
+            description: "Updated description",
           });
           projectSuite.tests.push({
-            name: 'Update Project',
+            name: "Update Project",
             passed: true,
-            duration: Date.now() - updateStart
+            duration: Date.now() - updateStart,
           });
         } catch (error) {
           projectSuite.tests.push({
-            name: 'Update Project',
+            name: "Update Project",
             passed: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            duration: Date.now() - updateStart
+            error: error instanceof Error ? error.message : "Unknown error",
+            duration: Date.now() - updateStart,
           });
         }
       }
@@ -301,16 +331,16 @@ export class TestingController {
         try {
           const project = await this.db.getProjectById(testProjectId);
           projectSuite.tests.push({
-            name: 'Get Project',
+            name: "Get Project",
             passed: project !== null,
-            duration: Date.now() - getStart
+            duration: Date.now() - getStart,
           });
         } catch (error) {
           projectSuite.tests.push({
-            name: 'Get Project',
+            name: "Get Project",
             passed: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            duration: Date.now() - getStart
+            error: error instanceof Error ? error.message : "Unknown error",
+            duration: Date.now() - getStart,
           });
         }
       }
@@ -320,7 +350,7 @@ export class TestingController {
         try {
           await this.db.deleteProject(testProjectId);
         } catch (error) {
-          console.error('Failed to clean up test project:', error);
+          console.error("Failed to clean up test project:", error);
         }
       }
 
@@ -350,15 +380,15 @@ export class TestingController {
             total: totalTests,
             passed: passedTests,
             failed: failedTests,
-            duration: Date.now() - startTime
-          }
-        }
+            duration: Date.now() - startTime,
+          },
+        },
       } as ApiResponse);
     } catch (error) {
-      console.error('Run integration tests error:', error);
+      console.error("Run integration tests error:", error);
       res.status(500).json({
         success: false,
-        error: 'Failed to run integration tests'
+        error: "Failed to run integration tests",
       } as ApiResponse);
     }
   };

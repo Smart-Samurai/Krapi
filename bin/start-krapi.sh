@@ -7,7 +7,7 @@ echo ""
 check_postgres() {
     echo "Checking PostgreSQL connection..."
     for i in {1..30}; do
-        if docker-compose ps | grep -q "krapi-postgres" && docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+        if docker-compose -f "$(dirname "$0")/docker-compose.yml" ps | grep -q "krapi-postgres" && docker-compose -f "$(dirname "$0")/docker-compose.yml" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
             echo "PostgreSQL is ready!"
             return 0
         fi
@@ -19,9 +19,9 @@ check_postgres() {
 }
 
 # Start PostgreSQL if not already running
-if ! docker-compose ps | grep -q "krapi-postgres"; then
+if ! docker-compose -f "$(dirname "$0")/docker-compose.yml" ps | grep -q "krapi-postgres"; then
     echo "Starting PostgreSQL..."
-    docker-compose up -d postgres
+    docker-compose -f "$(dirname "$0")/docker-compose.yml" up -d postgres
     sleep 5
 fi
 
@@ -35,9 +35,12 @@ echo ""
 echo "PostgreSQL is ready. Starting application services..."
 echo ""
 
+# Get the project root directory (one level up from bin)
+PROJECT_ROOT="$(dirname "$0")/.."
+
 # Start SDK in watch mode
 echo "Starting SDK in watch mode..."
-(cd packages/krapi-sdk && pnpm run dev) &
+(cd "$PROJECT_ROOT/packages/krapi-sdk" && pnpm run dev) &
 SDK_PID=$!
 
 # Wait a bit for SDK to start building
@@ -45,12 +48,12 @@ sleep 3
 
 # Start Backend Server
 echo "Starting Backend Server on port 3470..."
-(cd backend-server && pnpm run dev) &
+(cd "$PROJECT_ROOT/backend-server" && pnpm run dev) &
 BACKEND_PID=$!
 
 # Start Frontend Manager
 echo "Starting Frontend Manager on port 3469..."
-(cd frontend-manager && pnpm run dev) &
+(cd "$PROJECT_ROOT/frontend-manager" && pnpm run dev) &
 FRONTEND_PID=$!
 
 echo ""

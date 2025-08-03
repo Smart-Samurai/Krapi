@@ -28,10 +28,10 @@ export * from "./types";
 
 /**
  * KRAPI SDK Client
- * 
+ *
  * Main SDK class for interacting with the KRAPI backend API.
  * Supports both session-based and API key authentication.
- * 
+ *
  * @example
  * ```typescript
  * // Initialize with session token
@@ -39,7 +39,7 @@ export * from "./types";
  *   baseUrl: 'http://localhost:3468/krapi/k1',
  *   sessionToken: 'your-session-token'
  * });
- * 
+ *
  * // Initialize with API key
  * const sdk = new KrapiSDK({
  *   baseUrl: 'http://localhost:3468/krapi/k1',
@@ -55,29 +55,29 @@ export class KrapiSDK {
 
   /**
    * Creates a new instance of the KRAPI SDK
-   * 
+   *
    * @param config - SDK configuration object
    * @param config.baseUrl - The base URL of the KRAPI backend (e.g., 'http://localhost:3468/krapi/k1')
    * @param config.sessionToken - Optional session token for authentication
    * @param config.authToken - Alternative name for sessionToken (for backward compatibility)
    * @param config.apiKey - Optional API key for authentication
-   * 
+   *
    * @throws Will throw an error if the baseUrl is not provided
    */
-  constructor(config: { 
-    baseUrl: string; 
+  constructor(config: {
+    baseUrl: string;
     sessionToken?: string;
-    authToken?: string;  // Alternative name for sessionToken
+    authToken?: string; // Alternative name for sessionToken
     apiKey?: string;
   }) {
     if (!config.baseUrl) {
-      throw new Error('baseUrl is required for SDK initialization');
+      throw new Error("baseUrl is required for SDK initialization");
     }
-    
+
     this.sessionToken = config.sessionToken || config.authToken;
     this.apiKey = config.apiKey;
     this.baseURL = config.baseUrl;
-    
+
     this.client = axios.create({
       baseURL: config.baseUrl,
       headers: {
@@ -103,39 +103,39 @@ export class KrapiSDK {
         if (error.response) {
           // Server responded with error status
           const { status, data } = error.response;
-          
+
           if (status === 401) {
             // Clear tokens on authentication failure
             this.sessionToken = undefined;
             this.apiKey = undefined;
           }
-          
+
           // Enhance error with API response details
           const enhancedError = {
             ...error,
             message: data?.error || data?.message || error.message,
             status,
             isApiError: true,
-            originalError: error
+            originalError: error,
           };
-          
+
           return Promise.reject(enhancedError);
         } else if (error.request) {
           // Request made but no response received
           const networkError = {
             ...error,
-            message: 'Network error: No response from server',
+            message: "Network error: No response from server",
             isNetworkError: true,
-            originalError: error
+            originalError: error,
           };
           return Promise.reject(networkError);
         } else {
           // Error in request configuration
           const configError = {
             ...error,
-            message: error.message || 'Request configuration error',
+            message: error.message || "Request configuration error",
             isConfigError: true,
-            originalError: error
+            originalError: error,
           };
           return Promise.reject(configError);
         }
@@ -164,12 +164,12 @@ export class KrapiSDK {
   auth = {
     /**
      * Admin login with username and password
-     * 
+     *
      * @param credentials - Admin login credentials
      * @param credentials.username - Admin username
      * @param credentials.password - Admin password
      * @returns Promise with user data, token, and session information
-     * 
+     *
      * @example
      * ```typescript
      * const result = await sdk.auth.adminLogin({
@@ -198,16 +198,18 @@ export class KrapiSDK {
 
     /**
      * Admin login using API key
-     * 
+     *
      * @param apiKey - Admin API key for authentication
      * @returns Promise with user data, token, and session information
-     * 
+     *
      * @example
      * ```typescript
      * const result = await sdk.auth.adminApiLogin('your-admin-api-key');
      * ```
      */
-    adminApiLogin: async (apiKey: string): Promise<
+    adminApiLogin: async (
+      apiKey: string
+    ): Promise<
       ApiResponse<{
         user: AdminUser & { scopes: string[] };
         token: string;
@@ -215,7 +217,9 @@ export class KrapiSDK {
         expires_at: string;
       }>
     > => {
-      const response = await this.client.post("/auth/admin/api-login", { api_key: apiKey });
+      const response = await this.client.post("/auth/admin/api-login", {
+        api_key: apiKey,
+      });
       if (response.data.data?.session_token) {
         this.setSessionToken(response.data.data.session_token);
       }
@@ -225,11 +229,13 @@ export class KrapiSDK {
     // Create admin session with API key
     createAdminSession: async (
       apiKey: string
-    ): Promise<ApiResponse<{ 
-      session_token: string; 
-      expires_at: string;
-      scopes: string[];
-    }>> => {
+    ): Promise<
+      ApiResponse<{
+        session_token: string;
+        expires_at: string;
+        scopes: string[];
+      }>
+    > => {
       const response = await this.client.post("/auth/admin/session", {
         api_key: apiKey,
       });
@@ -243,11 +249,13 @@ export class KrapiSDK {
     createProjectSession: async (
       projectId: string,
       apiKey: string
-    ): Promise<ApiResponse<{ 
-      session_token: string; 
-      expires_at: string;
-      scopes: string[];
-    }>> => {
+    ): Promise<
+      ApiResponse<{
+        session_token: string;
+        expires_at: string;
+        scopes: string[];
+      }>
+    > => {
       const response = await this.client.post(
         `/auth/project/${projectId}/session`,
         { api_key: apiKey }
@@ -291,10 +299,12 @@ export class KrapiSDK {
     },
 
     // Regenerate API key
-    regenerateApiKey: async (): Promise<ApiResponse<{
-      api_key: string;
-      message: string;
-    }>> => {
+    regenerateApiKey: async (): Promise<
+      ApiResponse<{
+        api_key: string;
+        message: string;
+      }>
+    > => {
       const response = await this.client.post("/auth/regenerate-api-key");
       return response.data;
     },
@@ -410,10 +420,10 @@ export class KrapiSDK {
   // Collections Methods (formerly database)
   collections = {
     // Get all collections in a project
-    getAll: async (
-      projectId: string
-    ): Promise<ApiResponse<Collection[]>> => {
-      const response = await this.client.get(`/projects/${projectId}/collections`);
+    getAll: async (projectId: string): Promise<ApiResponse<Collection[]>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/collections`
+      );
       return response.data;
     },
 
@@ -541,7 +551,9 @@ export class KrapiSDK {
   storage = {
     // Get files in a project
     getFiles: async (projectId: string): Promise<ApiResponse<FileInfo[]>> => {
-      const response = await this.client.get(`/projects/${projectId}/storage/files`);
+      const response = await this.client.get(
+        `/projects/${projectId}/storage/files`
+      );
       return response.data;
     },
 
@@ -633,7 +645,9 @@ export class KrapiSDK {
 
     // Get storage stats
     getStats: async (projectId: string): Promise<ApiResponse<StorageStats>> => {
-      const response = await this.client.get(`/projects/${projectId}/storage/stats`);
+      const response = await this.client.get(
+        `/projects/${projectId}/storage/stats`
+      );
       return response.data;
     },
 
@@ -650,10 +664,9 @@ export class KrapiSDK {
       projectId: string,
       options?: QueryOptions & { active?: boolean }
     ): Promise<PaginatedResponse<ProjectUser>> => {
-      const response = await this.client.get(
-        `/projects/${projectId}/users`,
-        { params: options }
-      );
+      const response = await this.client.get(`/projects/${projectId}/users`, {
+        params: options,
+      });
       return response.data;
     },
 
@@ -710,10 +723,7 @@ export class KrapiSDK {
     },
 
     // Delete user from project
-    delete: async (
-      projectId: string,
-      userId: string
-    ): Promise<ApiResponse> => {
+    delete: async (projectId: string, userId: string): Promise<ApiResponse> => {
       const response = await this.client.delete(
         `/projects/${projectId}/users/${userId}`
       );
@@ -740,11 +750,13 @@ export class KrapiSDK {
         username: string;
         password: string;
       }
-    ): Promise<ApiResponse<{
-      user: ProjectUser;
-      session_token: string;
-      expires_at: string;
-    }>> => {
+    ): Promise<
+      ApiResponse<{
+        user: ProjectUser;
+        session_token: string;
+        expires_at: string;
+      }>
+    > => {
       const response = await this.client.post(
         `/projects/${projectId}/users/authenticate`,
         credentials
@@ -754,90 +766,77 @@ export class KrapiSDK {
   };
 
   /**
-   * System health and diagnostics
+   * Public health check endpoint
    */
   public health = {
     /**
-     * Check overall system health
-     * @returns Health status including database connectivity
+     * Check system health
+     * @returns System health information
      */
-    check: async (): Promise<ApiResponse<{
-      status: 'healthy' | 'unhealthy';
-      timestamp: string;
-      uptime: number;
-      database: {
+    check: async (): Promise<
+      ApiResponse<{
         healthy: boolean;
         message: string;
         details?: any;
-      };
-      version: string;
-    }>> => {
-      try {
-        const response = await this.client.get('/../../health');
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
+        version: string;
+      }>
+    > => {
+      const response = await this.client.get("/../../health");
+      return response.data;
     },
 
     /**
      * Check database health (requires admin read scope)
      * @returns Detailed database health information
      */
-    checkDatabase: async (): Promise<ApiResponse<{
-      healthy: boolean;
-      message: string;
-      details?: any;
-    }>> => {
-      try {
-        const response = await this.client.get('/admin/system/db-health');
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
+    checkDatabase: async (): Promise<
+      ApiResponse<{
+        healthy: boolean;
+        message: string;
+        details?: any;
+      }>
+    > => {
+      const response = await this.client.get("/admin/system/db-health");
+      return response.data;
     },
 
     /**
      * Repair database issues (requires master admin scope)
      * @returns Repair results
      */
-    repairDatabase: async (): Promise<ApiResponse<{
-      success: boolean;
-      message: string;
-      repairs?: string[];
-    }>> => {
-      try {
-        const response = await this.client.post('/admin/system/db-repair');
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
+    repairDatabase: async (): Promise<
+      ApiResponse<{
+        success: boolean;
+        message: string;
+        repairs?: string[];
+      }>
+    > => {
+      const response = await this.client.post("/admin/system/db-repair");
+      return response.data;
     },
 
     /**
      * Run system diagnostics and tests
      * @returns Diagnostic results
      */
-    runDiagnostics: async (): Promise<ApiResponse<{
-      tests: {
-        name: string;
-        passed: boolean;
-        message: string;
-        duration: number;
-      }[];
-      summary: {
-        total: number;
-        passed: number;
-        failed: number;
-      };
-    }>> => {
-      try {
-        const response = await this.client.post('/admin/system/diagnostics');
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
-    }
+    runDiagnostics: async (): Promise<
+      ApiResponse<{
+        tests: {
+          name: string;
+          passed: boolean;
+          message: string;
+          duration: number;
+        }[];
+        summary: {
+          total: number;
+          passed: number;
+          failed: number;
+        };
+      }>
+    > => {
+      const response = await this.client.post("/admin/system/diagnostics");
+      return response.data;
+    },
   };
 
   /**
@@ -855,12 +854,11 @@ export class KrapiSDK {
       withDocuments?: boolean;
       documentCount?: number;
     }): Promise<ApiResponse<Project>> => {
-      try {
-        const response = await this.client.post('/testing/create-project', options);
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
+      const response = await this.client.post(
+        "/testing/create-project",
+        options
+      );
+      return response.data;
     },
 
     /**
@@ -868,49 +866,49 @@ export class KrapiSDK {
      * @param projectId Optional project ID to clean up, or all test data if not provided
      * @returns Cleanup results
      */
-    cleanup: async (projectId?: string): Promise<ApiResponse<{
-      deleted: {
-        projects: number;
-        collections: number;
-        documents: number;
-      };
-    }>> => {
-      try {
-        const response = await this.client.post('/testing/cleanup', { projectId });
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
+    cleanup: async (
+      projectId?: string
+    ): Promise<
+      ApiResponse<{
+        deleted: {
+          projects: number;
+          collections: number;
+          documents: number;
+        };
+      }>
+    > => {
+      const response = await this.client.post("/testing/cleanup", {
+        projectId,
+      });
+      return response.data;
     },
 
     /**
      * Run integration tests
      * @returns Test results
      */
-    runIntegrationTests: async (): Promise<ApiResponse<{
-      results: {
-        suite: string;
-        tests: {
-          name: string;
-          passed: boolean;
-          error?: string;
-          duration: number;
+    runIntegrationTests: async (): Promise<
+      ApiResponse<{
+        results: {
+          suite: string;
+          tests: {
+            name: string;
+            passed: boolean;
+            error?: string;
+            duration: number;
+          }[];
         }[];
-      }[];
-      summary: {
-        total: number;
-        passed: number;
-        failed: number;
-        duration: number;
-      };
-    }>> => {
-      try {
-        const response = await this.client.post('/testing/integration-tests');
-        return response.data;
-      } catch (error) {
-        return this.handleError(error);
-      }
-    }
+        summary: {
+          total: number;
+          passed: number;
+          failed: number;
+          duration: number;
+        };
+      }>
+    > => {
+      const response = await this.client.post("/testing/integration-tests");
+      return response.data;
+    },
   };
 }
 

@@ -67,6 +67,7 @@ export interface ProjectSettings {
   storage_config?: StorageConfig;
   auth_config?: AuthConfig;
   rate_limits?: RateLimitConfig;
+  isTestProject?: boolean;
 }
 
 export interface EmailConfig {
@@ -234,6 +235,7 @@ export interface Session {
   expires_at: string;
   last_activity?: string;
   consumed: boolean;
+  consumed_at?: string;
 }
 
 export enum SessionType {
@@ -251,7 +253,7 @@ export interface ChangelogEntry {
   changes: Record<string, unknown>;
   performed_by: string;
   session_id?: string;
-  timestamp: string;
+  created_at: string;
 }
 
 export enum ChangeAction {
