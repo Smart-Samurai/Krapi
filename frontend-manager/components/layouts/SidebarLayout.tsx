@@ -13,7 +13,7 @@ import {
   SidebarNavGroup,
   SidebarMain,
   navigationItems,
-} from "@/components/styled";
+} from "@/components/ui/sidebar";
 import { createDefaultKrapi } from "@/lib/krapi";
 import { useAuth } from "@/contexts/auth-context";
 

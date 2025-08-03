@@ -2,16 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button, InfoBlock } from "@/components/styled";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  FiCode,
-  FiUsers,
-  FiDatabase,
-  FiFileText,
-  FiSettings,
-  FiActivity,
-  FiKey,
-} from "react-icons/fi";
+  Code,
+  Users,
+  Database,
+  FileText,
+  Settings,
+  Activity,
+  Key,
+} from "lucide-react";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Project } from "@/lib/krapi";
 
@@ -146,7 +148,7 @@ export default function ProjectDetailPage() {
               <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiUsers className="h-6 w-6 text-primary" />
+                              <Users className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -157,7 +159,7 @@ export default function ProjectDetailPage() {
               <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiDatabase className="h-6 w-6 text-primary" />
+                              <Database className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -168,7 +170,7 @@ export default function ProjectDetailPage() {
               <p className="text-2xl font-bold text-text mt-1">0</p>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg">
-              <FiFileText className="h-6 w-6 text-primary" />
+                              <FileText className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -244,7 +246,7 @@ export default function ProjectDetailPage() {
           className="h-auto p-6 justify-start"
           onClick={() => router.push(`/projects/${projectId}/collections`)}
         >
-          <FiDatabase className="mr-3 h-5 w-5" />
+                            <Database className="mr-3 h-5 w-5" />
           <div className="text-left">
             <p className="font-medium">Manage Collections</p>
             <p className="text-sm text-text/60">
@@ -257,7 +259,7 @@ export default function ProjectDetailPage() {
           className="h-auto p-6 justify-start"
           onClick={() => router.push(`/projects/${projectId}/users`)}
         >
-          <FiUsers className="mr-3 h-5 w-5" />
+                            <Users className="mr-3 h-5 w-5" />
           <div className="text-left">
             <p className="font-medium">Manage Users</p>
             <p className="text-sm text-text/60">Control project access</p>

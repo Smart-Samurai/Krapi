@@ -1,91 +1,65 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
-
-@theme {
-  --color-text: #0f1208;
-  --color-background: #f0f4e6;
-  --color-primary: #545d28;
-  --color-secondary: #85cc91;
-  --color-accent: #48ad77;
-
-  /* Map the old variable names to the new ones for backward compatibility */
-  --text: var(--color-text);
-  --background: var(--color-background);
-  --primary: var(--color-primary);
-  --secondary: var(--color-secondary);
-  --accent: var(--color-accent);
-}
-
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-text: #f4f7ed;
-    --color-background: #15190b;
-    --color-primary: #ced7a2;
-    --color-secondary: #337a3f;
-    --color-accent: #52b781;
-
-    /* Map the old variable names to the new ones for backward compatibility */
-    --text: var(--color-text);
-    --background: var(--color-background);
-    --primary: var(--color-primary);
-    --secondary: var(--color-secondary);
-    --accent: var(--color-accent);
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 27 29% 6%;
+    --card: 36 33% 97%;
+    --card-foreground: 27 29% 6%;
+    --popover: 36 33% 97%;
+    --popover-foreground: 27 29% 6%;
+    --primary: 27 92% 38%;
+    --primary-foreground: 36 33% 97%;
+    --secondary: 89 31% 74%;
+    --secondary-foreground: 27 29% 6%;
+    --muted: 35 33% 20%;
+    --muted-foreground: 27 29% 70%;
+    --accent: 112 31% 65%;
+    --accent-foreground: 27 29% 6%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 27 29% 6%;
+    --border: 35 33% 20%;
+    --input: 35 33% 20%;
+    --ring: 112 31% 40%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
-}
-
-.dark {
-  --color-text: #f4f7ed;
-  --color-background: #15190b;
-  --color-primary: #ced7a2;
-  --color-secondary: #337a3f;
-  --color-accent: #52b781;
-
-  /* Map the old variable names to the new ones for backward compatibility */
-  --text: var(--color-text);
-  --background: var(--color-background);
-  --primary: var(--color-primary);
-  --secondary: var(--color-secondary);
-  --accent: var(--color-accent);
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-body {
-  @apply antialiased bg-background text-text min-h-screen;
-}
-
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-@theme inline {
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+ 
+  .dark {
+    --background: 36 33% 3%;
+    --foreground: 27 29% 94%;
+    --card: 36 33% 3%;
+    --card-foreground: 27 29% 94%;
+    --popover: 36 33% 3%;
+    --popover-foreground: 27 29% 94%;
+    --primary: 27 92% 62%;
+    --primary-foreground: 36 33% 3%;
+    --secondary: 89 31% 26%;
+    --secondary-foreground: 27 29% 94%;
+    --muted: 35 33% 80%;
+    --muted-foreground: 27 29% 94%;
+    --accent: 112 31% 35%;
+    --accent-foreground: 27 29% 94%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 28 29% 10%;
+    --border: 36 33% 60%;
+    --input: 35 33% 80%;
+    --ring: 112 31% 60%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
