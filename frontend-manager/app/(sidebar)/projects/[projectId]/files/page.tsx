@@ -5,7 +5,10 @@ import { useParams } from "next/navigation";
 import { createDefaultKrapi, FileInfo, Scope } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { useAuth } from "@/contexts/auth-context";
-import { Button, IconButton, InfoBlock, Input } from "@/components/styled";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FiFile,
   FiFileText,

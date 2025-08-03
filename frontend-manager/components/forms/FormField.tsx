@@ -1,16 +1,11 @@
 import React from "react";
 import { useFormContext } from "react-hook-form";
-import {
-  Label,
-  TextInput,
-  NumberInput,
-  EmailInput,
-  PasswordInput,
-  Textarea,
-  Select,
-  Radio,
-  Checkbox,
-} from "@/components/styled";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 interface FormFieldProps {
@@ -33,8 +28,6 @@ interface FormFieldProps {
   disabled?: boolean;
   options?: Array<{ value: string; label: string }>;
   className?: string;
-  inputSize?: "sm" | "md" | "lg";
-  variant?: "default" | "error" | "success";
   autoComplete?: string;
 }
 
@@ -48,31 +41,25 @@ export const FormField: React.FC<FormFieldProps> = ({
   disabled = false,
   options = [],
   className,
-  inputSize = "md",
-  variant = "default",
   autoComplete,
 }) => {
   const {
     register,
     formState: { errors },
     watch,
+    setValue,
   } = useFormContext();
 
   const error = errors[name];
   const value = watch(name);
   const hasError = !!error;
-  const isSuccess = !hasError && value && value.length > 0;
-
-  const inputVariant = hasError ? "error" : isSuccess ? "success" : variant;
 
   const renderInput = () => {
     const commonProps = {
       ...register(name),
       placeholder,
       disabled,
-      className: cn(className),
-      inputSize,
-      variant: inputVariant,
+      className: cn(hasError && "border-destructive", className),
       autoComplete,
     };
 
@@ -81,53 +68,84 @@ export const FormField: React.FC<FormFieldProps> = ({
         return <Textarea {...commonProps} />;
 
       case "select":
-        return <Select {...commonProps} options={options} />;
+        return (
+          <Select
+            value={value}
+            onValueChange={(val) => setValue(name, val)}
+            disabled={disabled}
+          >
+            <SelectTrigger className={cn(hasError && "border-destructive", className)}>
+              <SelectValue placeholder={placeholder || "Select an option"} />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
 
       case "checkbox":
         return (
-          <Checkbox
-            {...register(name)}
-            label={label || ""}
-            disabled={disabled}
-            error={hasError}
-          />
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id={name}
+              checked={value}
+              onCheckedChange={(checked) => setValue(name, checked)}
+              disabled={disabled}
+            />
+            {label && (
+              <Label
+                htmlFor={name}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {label}
+              </Label>
+            )}
+          </div>
         );
 
       case "radio":
         return (
-          <div className="space-y-2">
+          <RadioGroup
+            value={value}
+            onValueChange={(val) => setValue(name, val)}
+            disabled={disabled}
+          >
             {options.map((option) => (
-              <Radio
-                key={option.value}
-                {...register(name)}
-                value={option.value}
-                label={option.label}
-                disabled={disabled}
-                error={hasError}
-              />
+              <div key={option.value} className="flex items-center space-x-2">
+                <RadioGroupItem value={option.value} id={`${name}-${option.value}`} />
+                <Label htmlFor={`${name}-${option.value}`}>{option.label}</Label>
+              </div>
             ))}
-          </div>
+          </RadioGroup>
         );
 
       case "email":
-        return <EmailInput {...commonProps} />;
+        return <Input {...commonProps} type="email" />;
 
       case "password":
-        return <PasswordInput {...commonProps} />;
+        return <Input {...commonProps} type="password" />;
 
       case "number":
-        return <NumberInput {...commonProps} />;
+        return <Input {...commonProps} type="number" />;
+
+      case "date":
+        return <Input {...commonProps} type="date" />;
 
       default:
-        return <TextInput {...commonProps} />;
+        return <Input {...commonProps} type="text" />;
     }
   };
 
   return (
     <div className="space-y-2">
-      {label && type !== "checkbox" && type !== "radio" && (
-        <Label htmlFor={name} required={required}>
+      {label && type !== "checkbox" && (
+        <Label htmlFor={name}>
           {label}
+          {required && <span className="text-destructive ml-1">*</span>}
         </Label>
       )}
 
@@ -138,7 +156,7 @@ export const FormField: React.FC<FormFieldProps> = ({
       {renderInput()}
 
       {hasError && (
-        <p className="text-sm text-red-600 dark:text-red-400">
+        <p className="text-sm text-destructive">
           {error.message as string}
         </p>
       )}

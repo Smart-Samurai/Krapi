@@ -1,6 +1,6 @@
 import React from "react";
 import { Form, FormField } from "@/components/forms";
-import { Button } from "@/components/styled";
+import { Button } from "@/components/ui/button";
 import {
   userRegistrationSchema,
   projectCreationSchema,

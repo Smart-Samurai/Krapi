@@ -5,17 +5,26 @@ import { useParams } from "next/navigation";
 import { createDefaultKrapi } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Collection } from "@/lib/krapi";
-import { Button, IconButton, InfoBlock, Input } from "@/components/styled";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  FiDatabase,
-  FiPlus,
-  FiEdit,
-  FiTrash2,
-  FiSearch,
-  FiFile,
-  FiMoreVertical,
-  FiSettings,
-} from "react-icons/fi";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Database,
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  File,
+  MoreVertical,
+  Settings,
+} from "lucide-react";
 
 export default function ProjectDatabasePage() {
   const params = useParams();

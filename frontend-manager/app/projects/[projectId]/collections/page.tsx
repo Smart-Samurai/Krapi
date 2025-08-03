@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Collection } from "@krapi/sdk";
 import { ExtendedCollection } from "@/lib/types/extended";
-import { FiPlus, FiDatabase, FiTrash2, FiEdit } from "react-icons/fi";
+import { Plus, Database, Trash2, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProjectCollectionsPage() {
@@ -136,7 +136,7 @@ export default function ProjectCollectionsPage() {
             </p>
           </div>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <FiPlus className="mr-2" />
+            <Plus className="mr-2" />
             Create Collection
           </Button>
         </div>
@@ -156,7 +156,7 @@ export default function ProjectCollectionsPage() {
         ) : collections.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <FiDatabase className="w-12 h-12 text-text/30 mb-4" />
+              <Database className="w-12 h-12 text-muted-foreground/30 mb-4" />
               <h3 className="text-lg font-semibold text-text mb-2">
                 No collections yet
               </h3>
@@ -164,7 +164,7 @@ export default function ProjectCollectionsPage() {
                 Create your first collection to start storing data
               </p>
               <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <FiPlus className="mr-2" />
+                <Plus className="mr-2" />
                 Create First Collection
               </Button>
             </CardContent>
@@ -181,7 +181,7 @@ export default function ProjectCollectionsPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <FiDatabase className="w-5 h-5" />
+                        <Database className="w-5 h-5" />
                         {collection.name}
                       </CardTitle>
                       {collection.description && (
@@ -199,7 +199,7 @@ export default function ProjectCollectionsPage() {
                           router.push(`/projects/${projectId}/collections/${collection.name}/edit`);
                         }}
                       >
-                        <FiEdit className="w-4 h-4" />
+                        <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -209,7 +209,7 @@ export default function ProjectCollectionsPage() {
                           handleDeleteCollection(collection.name);
                         }}
                       >
-                        <FiTrash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>

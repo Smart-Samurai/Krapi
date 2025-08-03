@@ -2,11 +2,25 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, InfoBlock, IconButton } from "@/components/styled";
-import { Form, FormField } from "@/components/forms";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { z } from "zod";
-import { FiMail, FiLock, FiEye, FiEyeOff, FiShield } from "react-icons/fi";
+import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -22,6 +36,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: false,
+    },
+  });
 
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -53,97 +76,145 @@ export default function LoginPage() {
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-            <FiShield className="w-8 h-8 text-white" />
+            <Shield className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-text">Welcome back</h1>
-          <p className="text-text/60 mt-2">Sign in to your account</p>
+          <h1 className="text-3xl font-bold">Welcome back</h1>
+          <p className="text-muted-foreground mt-2">Sign in to your account</p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-background border border-secondary rounded-lg p-8">
-          {error && (
-            <InfoBlock title="Login Failed" variant="error" className="mb-6">
-              {error}
-            </InfoBlock>
-          )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign In</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <Form
-            schema={loginSchema}
-            onSubmit={handleLogin}
-            className="space-y-6"
-          >
-            <div className="space-y-4">
-              <FormField
-                name="email"
-                label="Email"
-                type="email"
-                placeholder="Enter your email"
-                icon={FiMail}
-                required
-              />
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-6">
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="Enter your email"
+                              className="pl-10"
+                              disabled={isLoading}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="relative">
-                <FormField
-                  name="password"
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  icon={FiLock}
-                  required
-                />
-                <IconButton
-                  icon={showPassword ? FiEyeOff : FiEye}
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-3 top-[34px]"
-                  onClick={() => setShowPassword(!showPassword)}
-                  type="button"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <FormField
-                name="rememberMe"
-                label="Remember me"
-                type="checkbox"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              variant="default"
-              size="lg"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              {...field}
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Enter your password"
+                              className="pl-10 pr-10"
+                              disabled={isLoading}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                              disabled={isLoading}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </Form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-text/60">
-              Don't have an account?{" "}
-              <span className="text-primary">
-                Contact administrator
-              </span>
-            </p>
-          </div>
-        </div>
+                <div className="flex items-center justify-between">
+                  <FormField
+                    control={form.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Remember me</FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-text/40">
-            © 2024 KRAPI. All rights reserved.
-          </p>
-        </div>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="px-0"
+                    onClick={() => router.push("/forgot-password")}
+                    disabled={isLoading}
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Signing in..." : "Sign in"}
+                </Button>
+              </form>
+            </Form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Don't have an account?{" "}
+                <Button
+                  variant="link"
+                  className="px-0"
+                  onClick={() => router.push("/register")}
+                  disabled={isLoading}
+                >
+                  Sign up
+                </Button>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
