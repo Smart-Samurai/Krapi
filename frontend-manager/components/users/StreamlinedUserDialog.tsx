@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FiInfo } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Project, Scope, AdminUser, AdminRole, AccessLevel } from "@krapi/sdk";
+import { Project, Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 interface StreamlinedUserDialogProps {

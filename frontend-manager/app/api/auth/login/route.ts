@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createBackendClient } from "@/app/api/lib/sdk-client";
+import { serverSdk } from "@/app/api/lib/sdk-client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = createBackendClient();
+    const client = serverSdk;
     const response = await client.auth.adminLogin({
       username: email,
       password,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createBackendClient, getAuthToken } from '@/app/api/lib/sdk-client';
+import { createAuthenticatedSdk, getAuthToken } from '@/app/api/lib/sdk-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.auth.logout();
 
     return NextResponse.json(response);

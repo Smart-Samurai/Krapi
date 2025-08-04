@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createBackendClient, getAuthToken } from '@/app/api/lib/sdk-client';
+import { createAuthenticatedSdk, getAuthToken } from '@/app/api/lib/sdk-client';
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const client = createBackendClient(authToken);
+    const client = createAuthenticatedSdk(authToken);
     const response = await client.projects.getStats(id);
 
     if (response.success) {

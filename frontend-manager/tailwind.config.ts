@@ -59,6 +59,16 @@ const config: Config = {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -82,9 +92,37 @@ const config: Config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      width: {
+        "sidebar": "var(--sidebar-width)",
+        "sidebar-icon": "var(--sidebar-width-icon)",
+      },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function ({ addUtilities }: any) {
+      addUtilities({
+        '.w-\\(--sidebar-width\\)': {
+          width: 'var(--sidebar-width)',
+        },
+        '.w-\\(--sidebar-width-icon\\)': {
+          width: 'var(--sidebar-width-icon)',
+        },
+        '.w-\\[calc\\(var\\(--sidebar-width-icon\\)\\+\\(--spacing\\(4\\)\\)\\)\\]': {
+          width: 'calc(var(--sidebar-width-icon) + 1rem)',
+        },
+        '.w-\\[calc\\(var\\(--sidebar-width-icon\\)\\+\\(--spacing\\(4\\)\\)\\+2px\\)\\]': {
+          width: 'calc(var(--sidebar-width-icon) + 1rem + 2px)',
+        },
+        '.left-\\[calc\\(var\\(--sidebar-width\\)\\*-1\\)\\]': {
+          left: 'calc(var(--sidebar-width) * -1)',
+        },
+        '.right-\\[calc\\(var\\(--sidebar-width\\)\\*-1\\)\\]': {
+          right: 'calc(var(--sidebar-width) * -1)',
+        },
+      });
+    },
+  ],
 } satisfies Config;
 
 export default config;

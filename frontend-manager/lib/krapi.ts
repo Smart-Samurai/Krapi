@@ -1,65 +1,67 @@
-import { KrapiClient } from "@krapi/sdk";
+import { KrapiSDK } from "@krapi/sdk";
 import type { AdminRole, AccessLevel } from "@krapi/sdk";
 
 /**
- * Create a default Krapi client instance
- *
- * Uses the API URL from environment variables or defaults to localhost.
- * The SDK expects the full API base URL including /krapi/k1.
- *
- * @returns Configured KrapiClient instance
+ * Create a default KRAPI client with base configuration
+ * This function creates an SDK instance without authentication
+ * Authentication should be added later via setSessionToken or setApiKey
  */
-export function createDefaultKrapi(): KrapiClient {
-  const baseURL =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
-
-  return new KrapiClient({
-    baseUrl: baseURL,
+export function createDefaultKrapi(baseUrl?: string): KrapiSDK {
+  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468/krapi/k1";
+  
+  return new KrapiSDK({
+    baseUrl: url
   });
 }
 
 /**
- * Create a Krapi client with custom configuration
- *
- * @param config - Configuration object
- * @param config.baseURL - Full API base URL including /krapi/k1
- * @param config.apiKey - Optional API key for authentication
- * @param config.authToken - Optional session token for authentication
- * @returns Configured KrapiClient instance
+ * Create a KRAPI client with session token authentication
  */
-export function createKrapi(config: {
-  baseURL: string;
-  apiKey?: string;
-  authToken?: string;
-}): KrapiClient {
-  return new KrapiClient({
-    baseUrl: config.baseURL,
-    apiKey: config.apiKey,
-    sessionToken: config.authToken,
+export function createKrapiWithSession(sessionToken: string, baseUrl?: string): KrapiSDK {
+  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468/krapi/k1";
+  
+  return new KrapiSDK({
+    baseUrl: url,
+    sessionToken
   });
 }
 
-// Re-export types and client for convenience
-export { KrapiClient } from "@krapi/sdk";
-export type {
-  ApiResponse,
-  PaginatedResponse,
-  Project,
-  Document,
-  AdminUser,
-  AdminPermission,
-  ProjectSettings,
-  ProjectStats,
-  FileInfo,
-  StorageStats,
-  ProjectUser,
-  QueryOptions,
-  Collection,
-  CollectionField,
-  CollectionIndex,
-  ApiKey,
-} from "@krapi/sdk";
+/**
+ * Create a KRAPI client with API key authentication
+ */
+export function createKrapiWithApiKey(apiKey: string, baseUrl?: string): KrapiSDK {
+  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468/krapi/k1";
+  
+  return new KrapiSDK({
+    baseUrl: url,
+    apiKey
+  });
+}
 
-export { AdminRole, AccessLevel } from "@krapi/sdk";
+// Export the SDK class and types for convenience
+export { KrapiSDK } from "@krapi/sdk";
+
+// Re-export all types
+export {
+  type ApiResponse,
+  type PaginatedResponse,
+  type AdminUser,
+  type AdminPermission,
+  type Project,
+  type ProjectSettings,
+  type ProjectStats,
+  type Collection,
+  type CollectionField,
+  type CollectionIndex,
+  type Document,
+  type FileInfo,
+  type StorageStats,
+  type Session,
+  type QueryOptions,
+  type ProjectUser,
+  type ApiKey,
+  AdminRole,
+  AccessLevel
+} from "@krapi/sdk";
 
 export { Scope, ProjectScope } from "@krapi/sdk";

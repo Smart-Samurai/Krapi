@@ -1,18 +1,18 @@
-import { KrapiClient } from "@krapi/sdk";
+import { KrapiSDK } from "@krapi/sdk";
 
-// Get backend URL from environment variables
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3470/krapi/k1";
+// Default SDK client for server-side usage
+export const serverSdk = new KrapiSDK({
+  baseUrl: process.env.KRAPI_API_URL || "http://localhost:3468/krapi/k1",
+});
 
-/**
- * Create a new SDK client instance
- * @param authToken Optional auth token for authenticated requests
- * @returns KrapiClient instance
- */
-export function createBackendClient(authToken?: string): KrapiClient {
-  return new KrapiClient({
-    baseUrl: BACKEND_URL,
-    sessionToken: authToken,
+// Helper to create authenticated SDK instance
+export function createAuthenticatedSdk(token: string): KrapiSDK {
+  const sdk = new KrapiSDK({
+    baseUrl: process.env.KRAPI_API_URL || "http://localhost:3468/krapi/k1",
   });
+  
+  sdk.setSessionToken(token);
+  return sdk;
 }
 
 /**

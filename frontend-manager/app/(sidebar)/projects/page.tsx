@@ -232,7 +232,7 @@ export default function ProjectsPage() {
               <Card
                 key={project.id}
                 className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => router.push(`/projects/${project.id}`)}
+                onClick={() => router.push(`/projects/${project.id}` as any)}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -253,7 +253,7 @@ export default function ProjectsPage() {
                     className="w-full"
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/projects/${project.id}`);
+                      router.push(`/projects/${project.id}` as any);
                     }}
                   >
                     <ArrowRight className="mr-2 h-4 w-4" />

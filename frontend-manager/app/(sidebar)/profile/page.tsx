@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FiUser, FiLock, FiKey, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
 import { toast } from "sonner";
-import { Scope } from "@krapi/sdk";
+import { Scope } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 export default function ProfilePage() {

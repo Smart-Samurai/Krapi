@@ -153,7 +153,7 @@ export default function CollectionDetailPage() {
     if (!collection || !editingField || !fieldForm.name) return;
 
     try {
-      const updatedFields = collection.fields.map((field) =>
+      const updatedFields = collection.fields.map((field: any) =>
         field.name === editingField.name
           ? {
               name: fieldForm.name,
@@ -198,7 +198,7 @@ export default function CollectionDetailPage() {
 
     try {
       const updatedFields = collection.fields.filter(
-        (field) => field.name !== fieldName
+        (field: any) => field.name !== fieldName
       );
 
       const response = await krapi.collections.update(
@@ -326,7 +326,7 @@ export default function CollectionDetailPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {collection.fields.map((field) => (
+              {collection.fields.map((field: any) => (
                 <div
                   key={field.name}
                   className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"

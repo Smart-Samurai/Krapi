@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { KrapiClient, AdminUser } from "@/lib/krapi";
+import { KrapiSDK, AdminUser, createDefaultKrapi } from "@/lib/krapi";
 import { toast } from "sonner";
 
 interface AuthContextType {
@@ -11,7 +11,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   loginWithApiKey: (apiKey: string) => Promise<void>;
   logout: () => Promise<void>;
-  krapi: KrapiClient | null;
+  krapi: KrapiSDK | null;
   sessionToken: string | null;
   apiKey: string | null;
   scopes: string[];
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     null
   );
   const [loading, setLoading] = useState(true);
-  const [krapi, setKrapi] = useState<KrapiClient | null>(null);
+  const [krapi, setKrapi] = useState<KrapiSDK | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [scopes, setScopes] = useState<string[]>([]);
@@ -61,14 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedToken =
       getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
-
-    const client = new KrapiClient({
-      baseUrl,
-      sessionToken: storedToken || undefined,
-      apiKey: storedApiKey || undefined,
-    });
+          const client = createDefaultKrapi();
+      
+      if (storedToken) {
+        client.setSessionToken(storedToken);
+      } else if (storedApiKey) {
+        client.setApiKey(storedApiKey);
+      }
 
     setKrapi(client);
 
@@ -87,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const validateSession = async (client: KrapiClient, token: string) => {
+  const validateSession = async (client: KrapiSDK, token: string) => {
     try {
       const response = await client.auth.getCurrentUser();
       if (response.success && response.data) {
@@ -97,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedScopes) {
           const parsedScopes = JSON.parse(storedScopes);
           setScopes(parsedScopes);
-          setUser((prev) => (prev ? { ...prev, scopes: parsedScopes } : null));
+          setUser((prev: any) => (prev ? { ...prev, scopes: parsedScopes } : null));
         }
       } else {
         localStorage.removeItem("session_token");
@@ -114,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const validateApiKey = async (client: KrapiClient, key: string) => {
+  const validateApiKey = async (client: KrapiSDK, key: string) => {
     try {
       // Try to login with API key to get user info and scopes
       const response = await client.auth.adminApiLogin(key);
