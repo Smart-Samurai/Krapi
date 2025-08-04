@@ -1,6 +1,7 @@
 import { Router, IRouter } from "express";
 import { ProjectController } from "@/controllers/project.controller";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
+import { validate, validationSchemas } from "@/middleware/validation.middleware";
 import { Scope } from "@/types";
 
 const router: IRouter = Router();
@@ -32,6 +33,7 @@ router.post(
   requireScopes({
     scopes: [Scope.PROJECTS_WRITE],
   }),
+  validate(validationSchemas.createProject),
   controller.createProject
 );
 
@@ -41,6 +43,7 @@ router.put(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
+  validate(validationSchemas.updateProject),
   controller.updateProject
 );
 

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
+// UUID import removed - not used
 import { DatabaseService } from "./database.service";
 import {
   AdminUser,
@@ -8,7 +8,7 @@ import {
   Session,
   SessionType,
   Scope,
-  ApiKey,
+
   ChangeAction,
   Project,
 } from "@/types";

@@ -109,7 +109,7 @@ export const schemas = {
 };
 
 // Request validation schemas
-export const requestSchemas = {
+export const validationSchemas = {
   // Create session
   createSession: z.object({
     body: z.object({

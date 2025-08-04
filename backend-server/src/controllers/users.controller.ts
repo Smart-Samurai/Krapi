@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DatabaseService } from '@/services/database.service';
-import { AuthenticatedRequest, ApiResponse, ProjectUser, ProjectScope } from '@/types';
+import { ApiResponse, ProjectUser, ProjectScope } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { SessionType, Scope } from '@/types';
 

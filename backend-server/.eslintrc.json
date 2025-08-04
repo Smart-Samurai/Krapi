@@ -1,4 +1,5 @@
 {
+  "ignorePatterns": ["start.js", "dist/**", "node_modules/**"],
   "extends": [
     "next/core-web-vitals",
     "plugin:@typescript-eslint/recommended",
