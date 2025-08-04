@@ -1,3 +1,5 @@
+/* eslint-env node */
+
 // Register module aliases
 require('module-alias/register');
 

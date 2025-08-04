@@ -93,7 +93,7 @@
  *    - Use appropriate scopes when creating API keys for limited access
  */
 
-import express, { Express, Request, Response, NextFunction } from "express";
+import express, { Express, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -103,7 +103,7 @@ import rateLimit from "express-rate-limit";
 import routes from "./routes";
 import { DatabaseService } from "./services/database.service";
 import { AuthService } from "./services/auth.service";
-import { AdminRole, AuthenticatedRequest } from "./types";
+// Types imported but used in route files
 
 // Load environment variables
 dotenv.config();
@@ -190,7 +190,7 @@ app.use(
     err: any,
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    _next: express.NextFunction
   ): void => {
     console.error("Global error handler:", err);
 
@@ -219,7 +219,7 @@ app.use(
 );
 
 // Error handling middleware
-app.use((err: any, req: any, res: any, next: any) => {
+  app.use((err: any, req: any, res: any, _next: any) => {
   console.error(err.stack);
   res.status(500).json({ error: "Something went wrong!" });
 });
