@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node dist/app.js",
+    "start": "node start.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -39,6 +39,7 @@
     "express-validator": "^7.2.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "nodemailer": "^7.0.4",
@@ -73,5 +74,13 @@
     "tsc-alias": "^1.8.10",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
+  },
+  "_moduleAliases": {
+    "@": "dist",
+    "@controllers": "dist/controllers",
+    "@services": "dist/services",
+    "@routes": "dist/routes",
+    "@middleware": "dist/middleware",
+    "@types": "dist/types"
   }
 }
