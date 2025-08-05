@@ -22,6 +22,11 @@ import {
   Session,
   QueryOptions,
   ProjectUser,
+  ApiKey,
+  EmailConfig,
+  EmailTemplate,
+  EmailSendRequest,
+  ChangelogEntry,
 } from "./types";
 
 export * from "./types";
@@ -688,9 +693,11 @@ export class KrapiSDK {
         username: string;
         email: string;
         password: string;
+        first_name?: string;
+        last_name?: string;
         phone?: string;
-        scopes?: string[];
-        metadata?: Record<string, unknown>;
+        access_scopes?: string[];
+        custom_fields?: Record<string, any>;
       }
     ): Promise<ApiResponse<ProjectUser>> => {
       const response = await this.client.post(
@@ -708,11 +715,13 @@ export class KrapiSDK {
         username: string;
         email: string;
         password: string;
+        first_name: string;
+        last_name: string;
         phone: string;
         is_verified: boolean;
         is_active: boolean;
-        scopes: string[];
-        metadata: Record<string, unknown>;
+        access_scopes: string[];
+        custom_fields: Record<string, any>;
       }>
     ): Promise<ApiResponse<ProjectUser>> => {
       const response = await this.client.put(
@@ -760,6 +769,272 @@ export class KrapiSDK {
       const response = await this.client.post(
         `/projects/${projectId}/users/authenticate`,
         credentials
+      );
+      return response.data;
+    },
+
+    // Verify user email
+    verifyEmail: async (
+      projectId: string,
+      userId: string,
+      token: string
+    ): Promise<ApiResponse<ProjectUser>> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/users/${userId}/verify-email`,
+        { token }
+      );
+      return response.data;
+    },
+
+    // Send password reset email
+    sendPasswordReset: async (
+      projectId: string,
+      email: string
+    ): Promise<ApiResponse> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/users/password-reset`,
+        { email }
+      );
+      return response.data;
+    },
+
+    // Reset password with token
+    resetPassword: async (
+      projectId: string,
+      token: string,
+      newPassword: string
+    ): Promise<ApiResponse> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/users/password-reset/confirm`,
+        { token, new_password: newPassword }
+      );
+      return response.data;
+    },
+  };
+
+  // API Keys Methods
+  apiKeys = {
+    // Get all API keys for a project
+    getAll: async (
+      projectId: string,
+      options?: QueryOptions
+    ): Promise<PaginatedResponse<ApiKey>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/api-keys`,
+        {
+          params: options,
+        }
+      );
+      return response.data;
+    },
+
+    // Get a specific API key
+    get: async (
+      projectId: string,
+      keyId: string
+    ): Promise<ApiResponse<ApiKey>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/api-keys/${keyId}`
+      );
+      return response.data;
+    },
+
+    // Create API key
+    create: async (
+      projectId: string,
+      keyData: {
+        name: string;
+        scopes: string[];
+        expires_at?: string;
+        metadata?: Record<string, any>;
+      }
+    ): Promise<ApiResponse<ApiKey>> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/api-keys`,
+        keyData
+      );
+      return response.data;
+    },
+
+    // Update API key
+    update: async (
+      projectId: string,
+      keyId: string,
+      updates: Partial<{
+        name: string;
+        scopes: string[];
+        expires_at: string;
+        is_active: boolean;
+        metadata: Record<string, any>;
+      }>
+    ): Promise<ApiResponse<ApiKey>> => {
+      const response = await this.client.put(
+        `/projects/${projectId}/api-keys/${keyId}`,
+        updates
+      );
+      return response.data;
+    },
+
+    // Delete API key
+    delete: async (projectId: string, keyId: string): Promise<ApiResponse> => {
+      const response = await this.client.delete(
+        `/projects/${projectId}/api-keys/${keyId}`
+      );
+      return response.data;
+    },
+
+    // Regenerate API key
+    regenerate: async (
+      projectId: string,
+      keyId: string
+    ): Promise<ApiResponse<ApiKey>> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/api-keys/${keyId}/regenerate`
+      );
+      return response.data;
+    },
+  };
+
+  // Email Methods
+  email = {
+    // Get email configuration
+    getConfig: async (projectId: string): Promise<ApiResponse<EmailConfig>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/email/config`
+      );
+      return response.data;
+    },
+
+    // Update email configuration
+    updateConfig: async (
+      projectId: string,
+      config: EmailConfig
+    ): Promise<ApiResponse<EmailConfig>> => {
+      const response = await this.client.put(
+        `/projects/${projectId}/email/config`,
+        config
+      );
+      return response.data;
+    },
+
+    // Test email configuration
+    testConfig: async (
+      projectId: string,
+      testEmail: string
+    ): Promise<ApiResponse> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/email/test`,
+        { email: testEmail }
+      );
+      return response.data;
+    },
+
+    // Get email templates
+    getTemplates: async (
+      projectId: string,
+      options?: QueryOptions
+    ): Promise<PaginatedResponse<EmailTemplate>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/email/templates`,
+        { params: options }
+      );
+      return response.data;
+    },
+
+    // Get a specific email template
+    getTemplate: async (
+      projectId: string,
+      templateId: string
+    ): Promise<ApiResponse<EmailTemplate>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/email/templates/${templateId}`
+      );
+      return response.data;
+    },
+
+    // Create email template
+    createTemplate: async (
+      projectId: string,
+      template: {
+        name: string;
+        subject: string;
+        body: string;
+        variables: string[];
+      }
+    ): Promise<ApiResponse<EmailTemplate>> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/email/templates`,
+        template
+      );
+      return response.data;
+    },
+
+    // Update email template
+    updateTemplate: async (
+      projectId: string,
+      templateId: string,
+      updates: Partial<{
+        name: string;
+        subject: string;
+        body: string;
+        variables: string[];
+      }>
+    ): Promise<ApiResponse<EmailTemplate>> => {
+      const response = await this.client.put(
+        `/projects/${projectId}/email/templates/${templateId}`,
+        updates
+      );
+      return response.data;
+    },
+
+    // Delete email template
+    deleteTemplate: async (
+      projectId: string,
+      templateId: string
+    ): Promise<ApiResponse> => {
+      const response = await this.client.delete(
+        `/projects/${projectId}/email/templates/${templateId}`
+      );
+      return response.data;
+    },
+
+    // Send email
+    send: async (
+      projectId: string,
+      emailData: EmailSendRequest
+    ): Promise<ApiResponse> => {
+      const response = await this.client.post(
+        `/projects/${projectId}/email/send`,
+        emailData
+      );
+      return response.data;
+    },
+  };
+
+  // Changelog Methods
+  changelog = {
+    // Get changelog entries
+    getEntries: async (
+      projectId: string,
+      options?: QueryOptions
+    ): Promise<PaginatedResponse<ChangelogEntry>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/changelog`,
+        { params: options }
+      );
+      return response.data;
+    },
+
+    // Get changelog for specific resource
+    getResourceChangelog: async (
+      projectId: string,
+      resourceType: string,
+      resourceId: string,
+      options?: QueryOptions
+    ): Promise<PaginatedResponse<ChangelogEntry>> => {
+      const response = await this.client.get(
+        `/projects/${projectId}/changelog/${resourceType}/${resourceId}`,
+        { params: options }
       );
       return response.data;
     },

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/auth-context";
 import { useParams } from "next/navigation";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { ProjectUser, ProjectScope } from "@/lib/krapi";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,19 +12,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,558 +34,685 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
 import {
   Plus,
+  Edit,
+  Trash2,
   Users,
-  MoreVertical,
-  Shield,
   Mail,
   Phone,
+  Calendar,
+  Shield,
   CheckCircle,
   XCircle,
-  Key,
-  Search,
+  Eye,
+  EyeOff,
 } from "lucide-react";
-import { ProjectUser, ProjectScope, Scope } from "@/lib/krapi";
-import { ScopeGuard } from "@/components/scope-guard";
 
-const PROJECT_SCOPES = [
-  {
-    value: ProjectScope.USERS_READ,
-    label: "Users Read",
-    description: "View other users",
-  },
-  {
-    value: ProjectScope.USERS_WRITE,
-    label: "Users Write",
-    description: "Create/update users",
-  },
-  {
-    value: ProjectScope.USERS_DELETE,
-    label: "Users Delete",
-    description: "Delete users",
-  },
-  {
-    value: ProjectScope.DATA_READ,
-    label: "Data Read",
-    description: "View project data",
-  },
-  {
-    value: ProjectScope.DATA_WRITE,
-    label: "Data Write",
-    description: "Create/update data",
-  },
-  {
-    value: ProjectScope.DATA_DELETE,
-    label: "Data Delete",
-    description: "Delete data",
-  },
-  {
-    value: ProjectScope.FILES_READ,
-    label: "Files Read",
-    description: "View/download files",
-  },
-  {
-    value: ProjectScope.FILES_WRITE,
-    label: "Files Write",
-    description: "Upload files",
-  },
-  {
-    value: ProjectScope.FILES_DELETE,
-    label: "Files Delete",
-    description: "Delete files",
-  },
-  {
-    value: ProjectScope.FUNCTIONS_EXECUTE,
-    label: "Functions Execute",
-    description: "Run functions",
-  },
-  {
-    value: ProjectScope.EMAIL_SEND,
-    label: "Email Send",
-    description: "Send emails",
-  },
-];
+const scopeLabels: Record<ProjectScope, string> = {
+  [ProjectScope.USERS_READ]: "Read Users",
+  [ProjectScope.USERS_WRITE]: "Write Users",
+  [ProjectScope.USERS_DELETE]: "Delete Users",
+  [ProjectScope.DATA_READ]: "Read Data",
+  [ProjectScope.DATA_WRITE]: "Write Data",
+  [ProjectScope.DATA_DELETE]: "Delete Data",
+  [ProjectScope.FILES_READ]: "Read Files",
+  [ProjectScope.FILES_WRITE]: "Write Files",
+  [ProjectScope.FILES_DELETE]: "Delete Files",
+  [ProjectScope.FUNCTIONS_EXECUTE]: "Execute Functions",
+  [ProjectScope.EMAIL_SEND]: "Send Emails",
+};
 
-export default function ProjectUsersPage() {
-  const { krapi, hasScope } = useAuth();
+export default function UsersPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const krapi = useKrapi();
 
   const [users, setUsers] = useState<ProjectUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showScopesDialog, setShowScopesDialog] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<ProjectUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ProjectUser | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // New user form
-  const [newUser, setNewUser] = useState({
+  // Form state for creating/editing users
+  const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
+    first_name: "",
+    last_name: "",
     phone: "",
-    scopes: [ProjectScope.DATA_READ, ProjectScope.FILES_READ],
+    access_scopes: [] as string[],
+    custom_fields: {} as Record<string, any>,
   });
 
-  // Selected scopes for editing
-  const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
-
   useEffect(() => {
-    loadUsers();
-  }, [projectId]);
+    if (krapi) {
+      loadUsers();
+    }
+  }, [krapi, projectId]);
 
   const loadUsers = async () => {
-    if (!krapi || !projectId) return;
+    if (!krapi) return;
+
+    setIsLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      const response = await krapi.users.getAll(projectId, {
-        search: searchQuery,
-      });
-      if (response.success && response.data) {
-        setUsers(response.data);
+      const result = await krapi.users.getAll(projectId);
+      if (result.success && result.data) {
+        setUsers(result.data);
+      } else {
+        setError(result.error || "Failed to load users");
       }
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      toast.error("Failed to load users");
+    } catch (err) {
+      setError("An error occurred while loading users");
+      console.error("Error loading users:", err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const createUser = async () => {
-    if (!krapi || !projectId) return;
+  const handleCreateUser = async () => {
+    if (!krapi) return;
 
     try {
-      const response = await krapi.users.create(projectId, newUser);
-      if (response.success && response.data) {
-        setUsers([...users, response.data]);
-        setShowCreateDialog(false);
-        setNewUser({
+      const result = await krapi.users.create(projectId, {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+        access_scopes: formData.access_scopes,
+        custom_fields: formData.custom_fields,
+      });
+
+      if (result.success) {
+        setIsCreateDialogOpen(false);
+        setFormData({
           username: "",
           email: "",
           password: "",
+          first_name: "",
+          last_name: "",
           phone: "",
-          scopes: [ProjectScope.DATA_READ, ProjectScope.FILES_READ],
+          access_scopes: [],
+          custom_fields: {},
         });
-        toast.success("User created successfully");
+        loadUsers();
+      } else {
+        setError(result.error || "Failed to create user");
       }
-    } catch (error: any) {
-      console.error("Failed to create user:", error);
-      toast.error(error.response?.data?.error || "Failed to create user");
+    } catch (err) {
+      setError("An error occurred while creating user");
+      console.error("Error creating user:", err);
     }
   };
 
-  const updateUserScopes = async () => {
-    if (!krapi || !projectId || !selectedUser) return;
+  const handleUpdateUser = async () => {
+    if (!krapi || !editingUser) return;
 
     try {
-      const response = await krapi.users.updateScopes(
+      const updates: any = {
+        username: formData.username,
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+        access_scopes: formData.access_scopes,
+        custom_fields: formData.custom_fields,
+      };
+
+      if (formData.password) {
+        updates.password = formData.password;
+      }
+
+      const result = await krapi.users.update(
         projectId,
-        selectedUser.id,
-        selectedScopes
+        editingUser.id,
+        updates
       );
-      if (response.success && response.data) {
-        if (response.data) {
-          setUsers(
-            users
-              .map((u) => (u.id === selectedUser.id ? response.data : u))
-              .filter((u): u is ProjectUser => u !== undefined)
-          );
-        }
-        setShowScopesDialog(false);
-        toast.success("User scopes updated");
+
+      if (result.success) {
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+        setFormData({
+          username: "",
+          email: "",
+          password: "",
+          first_name: "",
+          last_name: "",
+          phone: "",
+          access_scopes: [],
+          custom_fields: {},
+        });
+        loadUsers();
+      } else {
+        setError(result.error || "Failed to update user");
       }
-    } catch (error) {
-      console.error("Failed to update scopes:", error);
-      toast.error("Failed to update scopes");
+    } catch (err) {
+      setError("An error occurred while updating user");
+      console.error("Error updating user:", err);
     }
   };
 
-  const toggleUserStatus = async (user: ProjectUser) => {
-    if (!krapi || !projectId) return;
+  const handleDeleteUser = async (userId: string) => {
+    if (!krapi) return;
 
-    try {
-      const response = await krapi.users.update(projectId, user.id, {
-        is_active: !user.is_active,
-      });
-      if (response.success && response.data) {
-        if (response.data) {
-          setUsers(
-            users
-              .map((u) => (u.id === user.id ? response.data : u))
-              .filter((u): u is ProjectUser => u !== undefined)
-          );
-        }
-        toast.success(
-          `User ${response.data.is_active ? "activated" : "deactivated"}`
-        );
-      }
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      toast.error("Failed to update user");
-    }
-  };
-
-  const deleteUser = async (userId: string) => {
     if (
-      !krapi ||
-      !projectId ||
-      !confirm("Are you sure you want to delete this user?")
-    )
+      !confirm(
+        "Are you sure you want to delete this user? This action cannot be undone."
+      )
+    ) {
       return;
+    }
 
     try {
-      const response = await krapi.users.delete(projectId, userId);
-      if (response.success) {
-        setUsers(users.filter((u) => u.id !== userId));
-        toast.success("User deleted");
+      const result = await krapi.users.delete(projectId, userId);
+      if (result.success) {
+        loadUsers();
+      } else {
+        setError(result.error || "Failed to delete user");
       }
-    } catch (error) {
-      console.error("Failed to delete user:", error);
-      toast.error("Failed to delete user");
+    } catch (err) {
+      setError("An error occurred while deleting user");
+      console.error("Error deleting user:", err);
     }
   };
 
-  if (loading) {
+  const toggleScope = (scope: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      access_scopes: prev.access_scopes.includes(scope)
+        ? prev.access_scopes.filter((s) => s !== scope)
+        : [...prev.access_scopes, scope],
+    }));
+  };
+
+  const openEditDialog = (user: ProjectUser) => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      password: "",
+      first_name: user.first_name || "",
+      last_name: user.last_name || "",
+      phone: user.phone || "",
+      access_scopes: user.access_scopes,
+      custom_fields: user.custom_fields || {},
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-64" />
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Project Users</h1>
-          <p className="text-muted-foreground">Manage users for this project</p>
+          <h1 className="text-3xl font-bold">Users</h1>
+          <p className="text-muted-foreground">
+            Manage project users and their access permissions
+          </p>
         </div>
-        <ScopeGuard scopes={Scope.PROJECTS_WRITE}>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
-                <DialogDescription>
-                  Add a new user to this project with specific permissions
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create User
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New User</DialogTitle>
+              <DialogDescription>
+                Add a new user to this project with specific access scopes
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="username">Username *</Label>
                   <Input
                     id="username"
-                    value={newUser.username}
+                    value={formData.username}
                     onChange={(e) =>
-                      setNewUser({ ...newUser, username: e.target.value })
+                      setFormData((prev) => ({
+                        ...prev,
+                        username: e.target.value,
+                      }))
                     }
-                    placeholder="johndoe"
+                    placeholder="Enter username"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
                     type="email"
-                    value={newUser.email}
+                    value={formData.email}
                     onChange={(e) =>
-                      setNewUser({ ...newUser, email: e.target.value })
+                      setFormData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
                     }
-                    placeholder="john@example.com"
+                    placeholder="Enter email"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">First Name</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        first_name: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter first name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        last_name: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter last name"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password *</Label>
+                <div className="relative">
                   <Input
                     id="password"
-                    type="password"
-                    value={newUser.password}
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
                     onChange={(e) =>
-                      setNewUser({ ...newUser, password: e.target.value })
+                      setFormData((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
                     }
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone (optional)</Label>
-                  <Input
-                    id="phone"
-                    value={newUser.phone}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, phone: e.target.value })
-                    }
-                    placeholder="+1234567890"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Permissions</Label>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {PROJECT_SCOPES.map((scope) => (
-                      <div
-                        key={scope.value}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={scope.value}
-                          checked={newUser.scopes.includes(scope.value)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setNewUser({
-                                ...newUser,
-                                scopes: [...newUser.scopes, scope.value],
-                              });
-                            } else {
-                              setNewUser({
-                                ...newUser,
-                                scopes: newUser.scopes.filter(
-                                  (s) => s !== scope.value
-                                ),
-                              });
-                            }
-                          }}
-                        />
-                        <Label
-                          htmlFor={scope.value}
-                          className="text-sm font-normal cursor-pointer"
-                        >
-                          <span className="font-medium">{scope.label}</span>
-                          <span className="text-muted-foreground ml-2">
-                            {scope.description}
-                          </span>
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateDialog(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={createUser}>Create User</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </ScopeGuard>
+              <div>
+                <Label>Access Scopes</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {Object.entries(scopeLabels).map(([scope, label]) => (
+                    <div key={scope} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={scope}
+                        checked={formData.access_scopes.includes(scope)}
+                        onCheckedChange={() => toggleScope(scope)}
+                      />
+                      <Label htmlFor={scope} className="text-sm font-normal">
+                        {label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateUser}
+                disabled={
+                  !formData.username || !formData.email || !formData.password
+                }
+              >
+                Create User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>
-            {users.length} user{users.length !== 1 ? "s" : ""} in this project
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && loadUsers()}
-                className="pl-10"
-              />
-            </div>
-          </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{user.username}</div>
-                      <div className="text-sm text-muted-foreground">
-                        ID: {user.id.substring(0, 8)}...
+      {users.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Users Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Create your first user to start managing project access
+            </p>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create User
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Users</CardTitle>
+            <CardDescription>
+              {users.length} user{users.length !== 1 ? "s" : ""} in this project
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Scopes</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">
+                          {user.first_name && user.last_name
+                            ? `${user.first_name} ${user.last_name}`
+                            : user.username}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          @{user.username}
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3 w-3" />
-                        {user.email}
-                        {user.is_verified && (
-                          <CheckCircle className="h-3 w-3 text-green-500" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1 text-sm">
+                          <Mail className="h-3 w-3" />
+                          {user.email}
+                        </div>
+                        {user.phone && (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Phone className="h-3 w-3" />
+                            {user.phone}
+                          </div>
                         )}
                       </div>
-                      {user.phone && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          {user.phone}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.is_active ? "default" : "secondary"}>
-                      {user.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {user.scopes.length} scopes
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {user.last_login
-                        ? new Date(user.last_login).toLocaleDateString()
-                        : "Never"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <ScopeGuard
-                      scopes={Scope.PROJECTS_WRITE}
-                      showRequirements={false}
-                    >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setSelectedScopes(user.scopes);
-                              setShowScopesDialog(true);
-                            }}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={user.is_active ? "default" : "secondary"}
+                        >
+                          {user.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                        <Badge
+                          variant={user.is_verified ? "default" : "outline"}
+                        >
+                          {user.is_verified ? "Verified" : "Unverified"}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {user.access_scopes.slice(0, 3).map((scope) => (
+                          <Badge
+                            key={scope}
+                            variant="outline"
+                            className="text-xs"
                           >
-                            <Key className="mr-2 h-4 w-4" />
-                            Manage Permissions
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => toggleUserStatus(user)}
-                          >
-                            {user.is_active ? (
-                              <>
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Activate
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => deleteUser(user.id)}
-                          >
-                            Delete User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </ScopeGuard>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                            {scopeLabels[scope as ProjectScope] || scope}
+                          </Badge>
+                        ))}
+                        {user.access_scopes.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{user.access_scopes.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(user.register_date).toLocaleDateString()}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(user)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
-          {users.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No users found</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Scopes Management Dialog */}
-      <Dialog open={showScopesDialog} onOpenChange={setShowScopesDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Manage User Permissions</DialogTitle>
+            <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update permissions for {selectedUser?.username}
+              Modify user information and access permissions
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-4 max-h-96 overflow-y-auto">
-            {PROJECT_SCOPES.map((scope) => (
-              <div key={scope.value} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`edit-${scope.value}`}
-                  checked={selectedScopes.includes(scope.value)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedScopes([...selectedScopes, scope.value]);
-                    } else {
-                      setSelectedScopes(
-                        selectedScopes.filter((s) => s !== scope.value)
-                      );
-                    }
-                  }}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-username">Username *</Label>
+                <Input
+                  id="edit-username"
+                  value={formData.username}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      username: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter username"
                 />
-                <Label
-                  htmlFor={`edit-${scope.value}`}
-                  className="text-sm font-normal cursor-pointer"
-                >
-                  <span className="font-medium">{scope.label}</span>
-                  <span className="text-muted-foreground ml-2">
-                    {scope.description}
-                  </span>
-                </Label>
               </div>
-            ))}
+              <div>
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  placeholder="Enter email"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-first_name">First Name</Label>
+                <Input
+                  id="edit-first_name"
+                  value={formData.first_name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      first_name: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter first name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-last_name">Last Name</Label>
+                <Input
+                  id="edit-last_name"
+                  value={formData.last_name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      last_name: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter last name"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                }
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-password">
+                Password (leave blank to keep current)
+              </Label>
+              <div className="relative">
+                <Input
+                  id="edit-password"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter new password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div>
+              <Label>Access Scopes</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {Object.entries(scopeLabels).map(([scope, label]) => (
+                  <div key={scope} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-${scope}`}
+                      checked={formData.access_scopes.includes(scope)}
+                      onCheckedChange={() => toggleScope(scope)}
+                    />
+                    <Label
+                      htmlFor={`edit-${scope}`}
+                      className="text-sm font-normal"
+                    >
+                      {label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowScopesDialog(false)}
+              onClick={() => setIsEditDialogOpen(false)}
             >
               Cancel
             </Button>
-            <Button onClick={updateUserScopes}>Update Permissions</Button>
+            <Button
+              onClick={handleUpdateUser}
+              disabled={!formData.username || !formData.email}
+            >
+              Update User
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

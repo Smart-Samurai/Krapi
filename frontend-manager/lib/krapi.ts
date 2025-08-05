@@ -7,7 +7,7 @@ import type { AdminRole, AccessLevel } from "@krapi/sdk";
  * Authentication should be added later via setSessionToken or setApiKey
  */
 export function createDefaultKrapi(baseUrl?: string): KrapiSDK {
-  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468/krapi/k1";
+  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
   
   return new KrapiSDK({
     baseUrl: url
@@ -18,7 +18,7 @@ export function createDefaultKrapi(baseUrl?: string): KrapiSDK {
  * Create a KRAPI client with session token authentication
  */
 export function createKrapiWithSession(sessionToken: string, baseUrl?: string): KrapiSDK {
-  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468/krapi/k1";
+  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
   
   return new KrapiSDK({
     baseUrl: url,
@@ -30,7 +30,7 @@ export function createKrapiWithSession(sessionToken: string, baseUrl?: string): 
  * Create a KRAPI client with API key authentication
  */
 export function createKrapiWithApiKey(apiKey: string, baseUrl?: string): KrapiSDK {
-  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3468/krapi/k1";
+  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
   
   return new KrapiSDK({
     baseUrl: url,

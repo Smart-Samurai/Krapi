@@ -1,0 +1,1208 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { EmailConfig, EmailTemplate } from "@/lib/krapi";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Mail,
+  Settings,
+  TestTube,
+  Save,
+  CheckCircle,
+  AlertTriangle,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Send,
+  FileText,
+  Calendar,
+  Code2,
+  BookOpen,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export default function EmailPage() {
+  const params = useParams();
+  const projectId = params.projectId as string;
+  const krapi = useKrapi();
+
+  const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] =
+    useState(false);
+  const [isEditTemplateDialogOpen, setIsEditTemplateDialogOpen] =
+    useState(false);
+  const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(
+    null
+  );
+
+  // Filter and search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Form state for email configuration
+  const [configForm, setConfigForm] = useState({
+    smtp_host: "",
+    smtp_port: 587,
+    smtp_username: "",
+    smtp_password: "",
+    smtp_secure: false,
+    from_email: "",
+    from_name: "",
+  });
+
+  // Form state for creating/editing templates
+  const [templateForm, setTemplateForm] = useState({
+    name: "",
+    subject: "",
+    body: "",
+    variables: [] as string[],
+  });
+
+  useEffect(() => {
+    if (krapi) {
+      loadEmailConfig();
+      loadTemplates();
+    }
+  }, [krapi, projectId]);
+
+  const loadEmailConfig = async () => {
+    if (!krapi) return;
+
+    try {
+      const result = await krapi.email.getConfig(projectId);
+      if (result.success && result.data) {
+        setEmailConfig(result.data);
+        setConfigForm({
+          smtp_host: result.data.smtp_host,
+          smtp_port: result.data.smtp_port,
+          smtp_username: result.data.smtp_username,
+          smtp_password: result.data.smtp_password,
+          smtp_secure: result.data.smtp_secure,
+          from_email: result.data.from_email,
+          from_name: result.data.from_name,
+        });
+      }
+    } catch (err) {
+      console.error("Error loading email config:", err);
+    }
+  };
+
+  const loadTemplates = async () => {
+    if (!krapi) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await krapi.email.getTemplates(projectId);
+      if (result.success && result.data) {
+        setTemplates(result.data);
+      } else {
+        setError(result.error || "Failed to load email templates");
+      }
+    } catch (err) {
+      setError("An error occurred while loading email templates");
+      console.error("Error loading templates:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    if (!krapi) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const result = await krapi.email.updateConfig(projectId, configForm);
+      if (result.success) {
+        setEmailConfig(result.data);
+        // You could add a success toast here
+      } else {
+        setError(result.error || "Failed to save email configuration");
+      }
+    } catch (err) {
+      setError("An error occurred while saving email configuration");
+      console.error("Error saving config:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTestConfig = async () => {
+    if (!krapi || !testEmail) return;
+
+    setIsTesting(true);
+    setError(null);
+
+    try {
+      const result = await krapi.email.testConfig(projectId, testEmail);
+      if (result.success) {
+        // You could add a success toast here
+        setTestEmail("");
+      } else {
+        setError(result.error || "Failed to send test email");
+      }
+    } catch (err) {
+      setError("An error occurred while sending test email");
+      console.error("Error testing config:", err);
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    if (!krapi) return;
+
+    try {
+      const result = await krapi.email.createTemplate(projectId, {
+        name: templateForm.name,
+        subject: templateForm.subject,
+        body: templateForm.body,
+        variables: templateForm.variables,
+      });
+
+      if (result.success) {
+        setIsCreateTemplateDialogOpen(false);
+        setTemplateForm({
+          name: "",
+          subject: "",
+          body: "",
+          variables: [],
+        });
+        loadTemplates();
+      } else {
+        setError(result.error || "Failed to create email template");
+      }
+    } catch (err) {
+      setError("An error occurred while creating email template");
+      console.error("Error creating template:", err);
+    }
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!krapi || !editingTemplate) return;
+
+    try {
+      const result = await krapi.email.updateTemplate(
+        projectId,
+        editingTemplate.id,
+        {
+          name: templateForm.name,
+          subject: templateForm.subject,
+          body: templateForm.body,
+          variables: templateForm.variables,
+        }
+      );
+
+      if (result.success) {
+        setIsEditTemplateDialogOpen(false);
+        setEditingTemplate(null);
+        setTemplateForm({
+          name: "",
+          subject: "",
+          body: "",
+          variables: [],
+        });
+        loadTemplates();
+      } else {
+        setError(result.error || "Failed to update email template");
+      }
+    } catch (err) {
+      setError("An error occurred while updating email template");
+      console.error("Error updating template:", err);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!krapi) return;
+
+    if (
+      !confirm(
+        "Are you sure you want to delete this email template? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const result = await krapi.email.deleteTemplate(projectId, templateId);
+      if (result.success) {
+        loadTemplates();
+      } else {
+        setError(result.error || "Failed to delete email template");
+      }
+    } catch (err) {
+      setError("An error occurred while deleting email template");
+      console.error("Error deleting template:", err);
+    }
+  };
+
+  const openEditTemplateDialog = (template: EmailTemplate) => {
+    setEditingTemplate(template);
+    setTemplateForm({
+      name: template.name,
+      subject: template.subject,
+      body: template.body,
+      variables: template.variables,
+    });
+    setIsEditTemplateDialogOpen(true);
+  };
+
+  const addVariable = () => {
+    setTemplateForm((prev) => ({
+      ...prev,
+      variables: [...prev.variables, ""],
+    }));
+  };
+
+  const removeVariable = (index: number) => {
+    setTemplateForm((prev) => ({
+      ...prev,
+      variables: prev.variables.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateVariable = (index: number, value: string) => {
+    setTemplateForm((prev) => ({
+      ...prev,
+      variables: prev.variables.map((v, i) => (i === index ? value : v)),
+    }));
+  };
+
+  const filteredTemplates = templates.filter(
+    (template) =>
+      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.subject.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedTemplates = [...filteredTemplates].sort((a, b) => {
+    let aValue: any, bValue: any;
+
+    switch (sortBy) {
+      case "created_at":
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
+        break;
+      case "name":
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      default:
+        aValue = a[sortBy as keyof EmailTemplate];
+        bValue = b[sortBy as keyof EmailTemplate];
+    }
+
+    if (sortOrder === "asc") {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Email Configuration</h1>
+          <p className="text-muted-foreground">
+            Configure SMTP settings and manage email templates
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <BookOpen className="mr-2 h-4 w-4" />
+                API Docs
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Code2 className="h-5 w-5" />
+                  Email API Documentation
+                </DialogTitle>
+                <DialogDescription>
+                  Code examples for integrating with KRAPI Email API
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <pre className="text-sm overflow-x-auto">
+{`// Initialize KRAPI client
+import { KrapiSDK } from '@krapi/sdk';
+
+const krapi = new KrapiSDK({
+  baseURL: 'http://localhost:3470',
+  apiKey: 'your-api-key'
+});
+
+// Get email configuration
+const config = await krapi.email.getConfig(projectId);
+
+// Update email configuration
+const updatedConfig = await krapi.email.updateConfig(projectId, {
+  smtp_host: 'smtp.gmail.com',
+  smtp_port: 587,
+  smtp_username: 'your-email@gmail.com',
+  smtp_password: 'your-app-password',
+  smtp_secure: true,
+  from_email: 'noreply@yourdomain.com',
+  from_name: 'Your Company'
+});
+
+// Test email configuration
+const testResult = await krapi.email.testConfig(projectId, 'test@example.com');
+
+// Get email templates
+const templates = await krapi.email.getTemplates(projectId);
+
+// Create email template
+const newTemplate = await krapi.email.createTemplate(projectId, {
+  name: 'Welcome Email',
+  subject: 'Welcome to {{company_name}}!',
+  body: 'Hello {{user_name}}, welcome to our platform!',
+  variables: ['company_name', 'user_name']
+});
+
+// Update email template
+const updatedTemplate = await krapi.email.updateTemplate(projectId, templateId, {
+  name: 'Updated Welcome Email',
+  subject: 'Welcome to {{company_name}}!',
+  body: 'Hello {{user_name}}, welcome to our platform!',
+  variables: ['company_name', 'user_name']
+});
+
+// Delete email template
+await krapi.email.deleteTemplate(projectId, templateId);
+
+// Send email using template
+const emailResult = await krapi.email.send(projectId, {
+  to: 'user@example.com',
+  template_id: templateId,
+  variables: {
+    company_name: 'My Company',
+    user_name: 'John Doe'
+  }
+});
+
+// Send custom email
+const customEmail = await krapi.email.send(projectId, {
+  to: 'user@example.com',
+  subject: 'Custom Subject',
+  body: 'Custom email body'
+});`}
+                    </pre>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Python Requests</h3>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <pre className="text-sm overflow-x-auto">
+{`import requests
+import json
+
+# Base configuration
+BASE_URL = "http://localhost:3470"
+API_KEY = "your-api-key"
+PROJECT_ID = "your-project-id"
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Get email configuration
+response = requests.get(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/config",
+    headers=headers
+)
+config = response.json()
+
+# Update email configuration
+config_data = {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "your-email@gmail.com",
+    "smtp_password": "your-app-password",
+    "smtp_secure": True,
+    "from_email": "noreply@yourdomain.com",
+    "from_name": "Your Company"
+}
+
+response = requests.put(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/config",
+    headers=headers,
+    json=config_data
+)
+
+# Test email configuration
+test_data = {"email": "test@example.com"}
+response = requests.post(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/test",
+    headers=headers,
+    json=test_data
+)
+
+# Get email templates
+response = requests.get(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates",
+    headers=headers
+)
+templates = response.json()
+
+# Create email template
+template_data = {
+    "name": "Welcome Email",
+    "subject": "Welcome to {{company_name}}!",
+    "body": "Hello {{user_name}}, welcome to our platform!",
+    "variables": ["company_name", "user_name"]
+}
+
+response = requests.post(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates",
+    headers=headers,
+    json=template_data
+)
+
+# Update email template
+update_data = {
+    "name": "Updated Welcome Email",
+    "subject": "Welcome to {{company_name}}!",
+    "body": "Hello {{user_name}}, welcome to our platform!",
+    "variables": ["company_name", "user_name"]
+}
+
+response = requests.put(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates/{template_id}",
+    headers=headers,
+    json=update_data
+)
+
+# Delete email template
+response = requests.delete(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates/{template_id}",
+    headers=headers
+)
+
+# Send email using template
+email_data = {
+    "to": "user@example.com",
+    "template_id": template_id,
+    "variables": {
+        "company_name": "My Company",
+        "user_name": "John Doe"
+    }
+}
+
+response = requests.post(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/send",
+    headers=headers,
+    json=email_data
+)
+
+# Send custom email
+custom_email_data = {
+    "to": "user@example.com",
+    "subject": "Custom Subject",
+    "body": "Custom email body"
+}
+
+response = requests.post(
+    f"{BASE_URL}/projects/{PROJECT_ID}/email/send",
+    headers=headers,
+    json=custom_email_data
+)`}
+                    </pre>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">SMTP Configuration</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <h4 className="font-medium mb-2">Required Fields:</h4>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>• smtp_host - SMTP server hostname</li>
+                        <li>• smtp_port - SMTP server port</li>
+                        <li>• smtp_username - SMTP username</li>
+                        <li>• smtp_password - SMTP password</li>
+                        <li>• from_email - Sender email address</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-2">Optional Fields:</h4>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>• smtp_secure - Use SSL/TLS (boolean)</li>
+                        <li>• from_name - Sender display name</li>
+                        <li>• metadata - Additional configuration</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Template Variables</h3>
+                  <div className="text-sm text-muted-foreground">
+                    <p>Use double curly braces to define variables in templates:</p>
+                    <ul className="mt-2 space-y-1">
+                      <li>• {{variable_name}} - Basic variable replacement</li>
+                      <li>• {{user.name}} - Nested object properties</li>
+                      <li>• {{array.0}} - Array element access</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Tabs defaultValue="config" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            SMTP Configuration
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Email Templates
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="config" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                SMTP Settings
+              </CardTitle>
+              <CardDescription>
+                Configure your SMTP server settings for sending emails
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="smtp_host">SMTP Host *</Label>
+                  <Input
+                    id="smtp_host"
+                    value={configForm.smtp_host}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        smtp_host: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g., smtp.gmail.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="smtp_port">SMTP Port *</Label>
+                  <Input
+                    id="smtp_port"
+                    type="number"
+                    value={configForm.smtp_port}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        smtp_port: parseInt(e.target.value),
+                      }))
+                    }
+                    placeholder="587"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="smtp_username">SMTP Username *</Label>
+                  <Input
+                    id="smtp_username"
+                    value={configForm.smtp_username}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        smtp_username: e.target.value,
+                      }))
+                    }
+                    placeholder="your-email@gmail.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="smtp_password">SMTP Password *</Label>
+                  <Input
+                    id="smtp_password"
+                    type="password"
+                    value={configForm.smtp_password}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        smtp_password: e.target.value,
+                      }))
+                    }
+                    placeholder="your-app-password"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="from_email">From Email *</Label>
+                  <Input
+                    id="from_email"
+                    type="email"
+                    value={configForm.from_email}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        from_email: e.target.value,
+                      }))
+                    }
+                    placeholder="noreply@yourdomain.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="from_name">From Name *</Label>
+                  <Input
+                    id="from_name"
+                    value={configForm.from_name}
+                    onChange={(e) =>
+                      setConfigForm((prev) => ({
+                        ...prev,
+                        from_name: e.target.value,
+                      }))
+                    }
+                    placeholder="Your Company Name"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="smtp_secure"
+                  checked={configForm.smtp_secure}
+                  onCheckedChange={(checked) =>
+                    setConfigForm((prev) => ({ ...prev, smtp_secure: checked }))
+                  }
+                />
+                <Label htmlFor="smtp_secure">Use SSL/TLS</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleSaveConfig} disabled={isSaving}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSaving ? "Saving..." : "Save Configuration"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TestTube className="h-5 w-5" />
+                Test Configuration
+              </CardTitle>
+              <CardDescription>
+                Send a test email to verify your SMTP configuration
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="test_email">Test Email Address</Label>
+                <Input
+                  id="test_email"
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="test@example.com"
+                />
+              </div>
+              <Button
+                onClick={handleTestConfig}
+                disabled={isTesting || !testEmail}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {isTesting ? "Sending..." : "Send Test Email"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Email Templates</h2>
+              <p className="text-muted-foreground">
+                Create and manage email templates for your project
+              </p>
+            </div>
+            <Dialog
+              open={isCreateTemplateDialogOpen}
+              onOpenChange={setIsCreateTemplateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Email Template</DialogTitle>
+                  <DialogDescription>
+                    Create a new email template with variables
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="template-name">Template Name *</Label>
+                    <Input
+                      id="template-name"
+                      value={templateForm.name}
+                      onChange={(e) =>
+                        setTemplateForm((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Welcome Email, Password Reset"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="template-subject">Subject *</Label>
+                    <Input
+                      id="template-subject"
+                      value={templateForm.subject}
+                      onChange={(e) =>
+                        setTemplateForm((prev) => ({
+                          ...prev,
+                          subject: e.target.value,
+                        }))
+                      }
+                      placeholder="Welcome to {{company_name}}!"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="template-body">Email Body *</Label>
+                    <Textarea
+                      id="template-body"
+                      value={templateForm.body}
+                      onChange={(e) =>
+                        setTemplateForm((prev) => ({
+                          ...prev,
+                          body: e.target.value,
+                        }))
+                      }
+                      placeholder="Hello {{user_name}}, welcome to our platform!"
+                      rows={10}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Template Variables</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addVariable}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Variable
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {templateForm.variables.map((variable, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input
+                            value={variable}
+                            onChange={(e) =>
+                              updateVariable(index, e.target.value)
+                            }
+                            placeholder="variable_name"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeVariable(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateTemplateDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateTemplate}
+                    disabled={
+                      !templateForm.name ||
+                      !templateForm.subject ||
+                      !templateForm.body
+                    }
+                  >
+                    Create Template
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Filters and Search */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filters & Search
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="search-templates">Search Templates</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="search-templates"
+                      placeholder="Search by name or subject..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="sort-templates">Sort By</Label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created_at">Created Date</SelectItem>
+                      <SelectItem value="name">Name</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {sortedTemplates.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  No Email Templates Yet
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Create your first email template to get started
+                </p>
+                <Button onClick={() => setIsCreateTemplateDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Template
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Email Templates ({sortedTemplates.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Variables</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedTemplates.map((template) => (
+                        <TableRow key={template.id}>
+                          <TableCell>
+                            <div className="font-medium">{template.name}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate">
+                              {template.subject}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {template.variables.map((variable, index) => (
+                                <Badge
+                                  key={index}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {variable}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(
+                                template.created_at
+                              ).toLocaleDateString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    openEditTemplateDialog(template)
+                                  }
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  Preview
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() =>
+                                    handleDeleteTemplate(template.id)
+                                  }
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Edit Template Dialog */}
+          <Dialog
+            open={isEditTemplateDialogOpen}
+            onOpenChange={setIsEditTemplateDialogOpen}
+          >
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Email Template</DialogTitle>
+                <DialogDescription>
+                  Modify the email template and its variables
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-template-name">Template Name *</Label>
+                  <Input
+                    id="edit-template-name"
+                    value={templateForm.name}
+                    onChange={(e) =>
+                      setTemplateForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g., Welcome Email, Password Reset"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-template-subject">Subject *</Label>
+                  <Input
+                    id="edit-template-subject"
+                    value={templateForm.subject}
+                    onChange={(e) =>
+                      setTemplateForm((prev) => ({
+                        ...prev,
+                        subject: e.target.value,
+                      }))
+                    }
+                    placeholder="Welcome to {{company_name}}!"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-template-body">Email Body *</Label>
+                  <Textarea
+                    id="edit-template-body"
+                    value={templateForm.body}
+                    onChange={(e) =>
+                      setTemplateForm((prev) => ({
+                        ...prev,
+                        body: e.target.value,
+                      }))
+                    }
+                    placeholder="Hello {{user_name}}, welcome to our platform!"
+                    rows={10}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Template Variables</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addVariable}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Variable
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {templateForm.variables.map((variable, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={variable}
+                          onChange={(e) =>
+                            updateVariable(index, e.target.value)
+                          }
+                          placeholder="variable_name"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeVariable(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditTemplateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateTemplate}
+                  disabled={
+                    !templateForm.name ||
+                    !templateForm.subject ||
+                    !templateForm.body
+                  }
+                >
+                  Update Template
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

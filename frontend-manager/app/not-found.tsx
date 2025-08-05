@@ -1,53 +1,46 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Home, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#f5f5f5",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <div style={{ textAlign: "center" }}>
-        <h1 style={{ fontSize: "4rem", margin: "0 0 1rem 0" }}>404</h1>
-        <h2 style={{ fontSize: "1.5rem", margin: "0 0 1rem 0" }}>
-          Page Not Found
-        </h2>
-        <p className="text-lg text-gray-600 mb-8">
-          We couldn&apos;t find the page you&apos;re looking for.
-        </p>
-        <Link
-          href="/dashboard"
-          style={{
-            display: "inline-block",
-            padding: "0.75rem 1.5rem",
-            backgroundColor: "#007bff",
-            color: "white",
-            textDecoration: "none",
-            borderRadius: "0.375rem",
-            marginRight: "1rem",
-          }}
-        >
-          Go to Dashboard
-        </Link>
-        <Link
-          href="/login"
-          style={{
-            display: "inline-block",
-            padding: "0.75rem 1.5rem",
-            border: "1px solid #ccc",
-            color: "#333",
-            textDecoration: "none",
-            borderRadius: "0.375rem",
-          }}
-        >
-          Go to Login
-        </Link>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <span className="text-3xl font-bold text-muted-foreground">
+              404
+            </span>
+          </div>
+          <CardTitle className="text-2xl">Page Not Found</CardTitle>
+          <CardDescription>
+            We couldn&apos;t find the page you&apos;re looking for.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <Button asChild className="w-full">
+              <Link href="/dashboard">
+                <Home className="mr-2 h-4 w-4" />
+                Go to Dashboard
+              </Link>
+            </Button>
+            <Button variant="outline" asChild className="w-full">
+              <Link href="/login">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Go to Login
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

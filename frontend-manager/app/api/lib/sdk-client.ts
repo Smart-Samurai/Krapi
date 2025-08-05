@@ -2,13 +2,13 @@ import { KrapiSDK } from "@krapi/sdk";
 
 // Default SDK client for server-side usage
 export const serverSdk = new KrapiSDK({
-  baseUrl: process.env.KRAPI_API_URL || "http://localhost:3468/krapi/k1",
+  baseUrl: process.env.KRAPI_API_URL || "http://localhost:3470",
 });
 
 // Helper to create authenticated SDK instance
 export function createAuthenticatedSdk(token: string): KrapiSDK {
   const sdk = new KrapiSDK({
-    baseUrl: process.env.KRAPI_API_URL || "http://localhost:3468/krapi/k1",
+    baseUrl: process.env.KRAPI_API_URL || "http://localhost:3470",
   });
   
   sdk.setSessionToken(token);

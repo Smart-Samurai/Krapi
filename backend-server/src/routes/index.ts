@@ -18,6 +18,8 @@ import projectRoutes from './project.routes';
 import collectionsRoutes from './collections.routes';
 import storageRoutes from './storage.routes';
 import usersRoutes from './users.routes';
+import emailRoutes from './email.routes';
+import apiKeysRoutes from './api-keys.routes';
 import testingRoutes from './testing.routes';
 import { DatabaseService } from '@/services/database.service';
 
@@ -106,9 +108,10 @@ if (process.env.NODE_ENV !== 'production') {
 router.use('/projects', collectionsRoutes); // /projects/:projectId/collections
 router.use('/projects', storageRoutes);     // /projects/:projectId/storage
 router.use('/projects', usersRoutes);       // /projects/:projectId/users
+router.use('/projects', emailRoutes);       // /projects/:projectId/email
+router.use('/projects', apiKeysRoutes);     // /projects/:projectId/api-keys
 
 // Future project-level routes will follow the same pattern:
-// router.use('/projects', emailRoutes);    // /projects/:projectId/email
 // router.use('/projects', functionsRoutes); // /projects/:projectId/functions
 
 // 404 handler

@@ -514,6 +514,20 @@ export class DatabaseService {
         )
       `);
 
+      // Email Templates Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS email_templates (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          subject VARCHAR(500) NOT NULL,
+          body TEXT NOT NULL,
+          variables JSONB DEFAULT '[]',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `);
+
       // System checks table
       await client.query(`
         CREATE TABLE IF NOT EXISTS system_checks (
@@ -543,6 +557,7 @@ export class DatabaseService {
         "projects",
         "collections",
         "documents",
+        "email_templates",
       ];
       for (const table of tablesWithUpdatedAt) {
         await client.query(`
@@ -2559,6 +2574,161 @@ export class DatabaseService {
 
     const result = await this.pool.query(query, values);
     return this.mapApiKey(result.rows[0]);
+  }
+
+  // Email Configuration Methods
+  async getEmailConfig(projectId: string): Promise<any> {
+    await this.ensureReady();
+    const query = `
+      SELECT email_config FROM projects 
+      WHERE id = $1
+    `;
+    const result = await this.queryWithRetry(query, [projectId]);
+    return result[0]?.email_config || null;
+  }
+
+  async updateEmailConfig(projectId: string, config: any): Promise<any> {
+    await this.ensureReady();
+    const query = `
+      UPDATE projects 
+      SET email_config = $2, updated_at = NOW()
+      WHERE id = $1
+      RETURNING email_config
+    `;
+    const result = await this.queryWithRetry(query, [projectId, JSON.stringify(config)]);
+    return result[0]?.email_config || null;
+  }
+
+  async testEmailConfig(projectId: string, email: string): Promise<{ success: boolean; message: string }> {
+    // This would integrate with an email service like nodemailer
+    // For now, return a mock response
+    return {
+      success: true,
+      message: `Test email would be sent to ${email}`
+    };
+  }
+
+  // Email Template Methods
+  async getEmailTemplates(projectId: string): Promise<any[]> {
+    await this.ensureReady();
+    const query = `
+      SELECT * FROM email_templates 
+      WHERE project_id = $1
+      ORDER BY created_at DESC
+    `;
+    const result = await this.queryWithRetry(query, [projectId]);
+    return result;
+  }
+
+  async getEmailTemplate(projectId: string, templateId: string): Promise<any> {
+    await this.ensureReady();
+    const query = `
+      SELECT * FROM email_templates 
+      WHERE project_id = $1 AND id = $2
+    `;
+    const result = await this.queryWithRetry(query, [projectId, templateId]);
+    return result[0] || null;
+  }
+
+  async createEmailTemplate(projectId: string, templateData: any): Promise<any> {
+    await this.ensureReady();
+    const { name, subject, body, variables } = templateData;
+    const query = `
+      INSERT INTO email_templates (project_id, name, subject, body, variables, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+      RETURNING *
+    `;
+    const result = await this.queryWithRetry(query, [
+      projectId, 
+      name, 
+      subject, 
+      body, 
+      JSON.stringify(variables || [])
+    ]);
+    return result[0];
+  }
+
+  async updateEmailTemplate(projectId: string, templateId: string, templateData: any): Promise<any> {
+    await this.ensureReady();
+    const { name, subject, body, variables } = templateData;
+    const query = `
+      UPDATE email_templates 
+      SET name = $3, subject = $4, body = $5, variables = $6, updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *
+    `;
+    const result = await this.queryWithRetry(query, [
+      projectId, 
+      templateId, 
+      name, 
+      subject, 
+      body, 
+      JSON.stringify(variables || [])
+    ]);
+    return result[0] || null;
+  }
+
+  async deleteEmailTemplate(projectId: string, templateId: string): Promise<boolean> {
+    await this.ensureReady();
+    const query = `
+      DELETE FROM email_templates 
+      WHERE project_id = $1 AND id = $2
+    `;
+    const result = await this.queryWithRetry(query, [projectId, templateId]);
+    return result.length > 0;
+  }
+
+  async sendEmail(projectId: string, emailData: any): Promise<{ success: boolean; message: string }> {
+    // This would integrate with an email service like nodemailer
+    // For now, return a mock response
+    return {
+      success: true,
+      message: `Email would be sent to ${emailData.to}`
+    };
+  }
+
+  // Additional API Key Methods
+  async getProjectApiKey(projectId: string, keyId: string): Promise<ApiKey | null> {
+    await this.ensureReady();
+    const query = `
+      SELECT * FROM api_keys 
+      WHERE project_id = $1 AND id = $2
+    `;
+    const result = await this.queryWithRetry(query, [projectId, keyId]);
+    return result[0] ? this.mapApiKey(result[0]) : null;
+  }
+
+  async updateProjectApiKey(projectId: string, keyId: string, updates: Partial<ApiKey>): Promise<ApiKey | null> {
+    await this.ensureReady();
+    const { name, scopes, expires_at, is_active } = updates;
+    const query = `
+      UPDATE api_keys 
+      SET name = $3, scopes = $4, expires_at = $5, is_active = $6, updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *
+    `;
+    const result = await this.queryWithRetry(query, [
+      projectId, 
+      keyId, 
+      name, 
+      JSON.stringify(scopes || []), 
+      expires_at, 
+      is_active
+    ]);
+    return result[0] ? this.mapApiKey(result[0]) : null;
+  }
+
+  async regenerateApiKey(projectId: string, keyId: string): Promise<ApiKey | null> {
+    await this.ensureReady();
+    const newKey = `krapi_${uuidv4().replace(/-/g, '')}`;
+    const query = `
+      UPDATE api_keys 
+      SET key = $3, updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *
+    `;
+    const result = await this.queryWithRetry(query, [projectId, keyId, newKey]);
+    return result[0] ? this.mapApiKey(result[0]) : null;
   }
 
   // Get active sessions

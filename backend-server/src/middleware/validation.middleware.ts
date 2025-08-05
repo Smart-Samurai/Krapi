@@ -280,3 +280,65 @@ export const validationSchemas = {
     })
   })
 };
+
+/**
+ * Validate project access middleware
+ * Ensures the user has access to the project specified in the URL
+ */
+export const validateProjectAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const projectId = req.params.projectId;
+    const user = (req as any).user;
+
+    if (!projectId) {
+      res.status(400).json({
+        success: false,
+        error: 'Project ID is required'
+      });
+      return;
+    }
+
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+      return;
+    }
+
+    // For admin users, check if they have access to the project
+    if (user.type === 'admin') {
+      const db = (req as any).app.locals.db;
+      const hasAccess = await db.checkProjectAccess(projectId, user.id);
+      
+      if (!hasAccess) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied to this project'
+        });
+        return;
+      }
+    }
+
+    // For project users, ensure they're accessing their own project
+    if (user.type === 'project' && user.projectId !== projectId) {
+      res.status(403).json({
+        success: false,
+        error: 'Access denied to this project'
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.error('Project access validation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+};

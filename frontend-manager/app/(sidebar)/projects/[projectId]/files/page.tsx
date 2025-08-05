@@ -1,131 +1,246 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { createDefaultKrapi, FileInfo, Scope } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { useAuth } from "@/contexts/auth-context";
+import type { FileInfo, StorageStats } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  File,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import {
+  Upload,
+  Download,
+  Trash2,
   FileText,
   Image,
   Video,
   Music,
   Archive,
-  Plus,
-  Download,
-  Trash2,
+  File,
   Search,
+  Filter,
+  Calendar,
+  User,
+  HardDrive,
+  MoreHorizontal,
   Eye,
-  MoreVertical,
-  Upload,
-  Folder,
+  Link,
+  Copy,
+  Code2,
+  BookOpen,
 } from "lucide-react";
-import { InfoBlock } from "@/components/styled/InfoBlock";
-import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-export default function ProjectFilesPage() {
+const getFileIcon = (mimeType: string) => {
+  if (mimeType.startsWith("image/")) return Image;
+  if (mimeType.startsWith("video/")) return Video;
+  if (mimeType.startsWith("audio/")) return Music;
+  if (
+    mimeType.includes("zip") ||
+    mimeType.includes("tar") ||
+    mimeType.includes("rar")
+  )
+    return Archive;
+  if (mimeType.startsWith("text/") || mimeType.includes("document"))
+    return FileText;
+  return File;
+};
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+const getFileTypeCategory = (mimeType: string) => {
+  if (mimeType.startsWith("image/")) return "Images";
+  if (mimeType.startsWith("video/")) return "Videos";
+  if (mimeType.startsWith("audio/")) return "Audio";
+  if (
+    mimeType.includes("zip") ||
+    mimeType.includes("tar") ||
+    mimeType.includes("rar")
+  )
+    return "Archives";
+  if (mimeType.startsWith("text/") || mimeType.includes("document"))
+    return "Documents";
+  return "Other";
+};
+
+export default function FilesPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
-  const { hasScope } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [files, setFiles] = useState<FileInfo[]>([]);
+  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+
+  // Filter and search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [fileTypeFilter, setFileTypeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     if (krapi) {
-      fetchFiles();
+      loadFiles();
+      loadStorageStats();
     }
-  }, [projectId, krapi]);
+  }, [krapi, projectId]);
 
-  if (!krapi) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const loadFiles = async () => {
+    if (!krapi) return;
 
-  const fetchFiles = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await krapi.storage.getFiles(projectId);
-
       if (result.success && result.data) {
         setFiles(result.data);
       } else {
-        setError(result.error || "Failed to fetch files");
+        setError(result.error || "Failed to load files");
       }
     } catch (err) {
-      setError("An error occurred while fetching files");
-      console.error("Error fetching files:", err);
+      setError("An error occurred while loading files");
+      console.error("Error loading files:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadStorageStats = async () => {
+    if (!krapi) return;
+
+    try {
+      const result = await krapi.storage.getStats(projectId);
+      if (result.success && result.data) {
+        setStorageStats(result.data);
+      }
+    } catch (err) {
+      console.error("Error loading storage stats:", err);
     }
   };
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!hasScope(Scope.STORAGE_WRITE)) {
-      toast.error("You don't have permission to upload files");
-      return;
-    }
+    const selectedFiles = event.target.files;
+    if (!selectedFiles || selectedFiles.length === 0 || !krapi) return;
 
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
-      const result = await krapi.storage.uploadFile(
-        projectId,
-        file,
-        (progress: any) => setUploadProgress(progress)
-      );
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        setUploadProgress((i / selectedFiles.length) * 100);
 
-      if (result.success) {
-        toast.success("File uploaded successfully");
-        await fetchFiles(); // Refresh the file list
-      } else {
-        toast.error(result.error || "Failed to upload file");
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const result = await krapi.storage.uploadFile(projectId, file);
+        if (!result.success) {
+          throw new Error(result.error || "Failed to upload file");
+        }
       }
+
+      setUploadProgress(100);
+      setTimeout(() => {
+        setUploadProgress(0);
+        setIsUploading(false);
+        loadFiles();
+        loadStorageStats();
+      }, 1000);
     } catch (err) {
-      console.error("Error uploading file:", err);
-      toast.error("An error occurred while uploading the file");
-    } finally {
+      setError("An error occurred while uploading files");
+      console.error("Error uploading files:", err);
       setIsUploading(false);
       setUploadProgress(0);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   };
 
-  const handleFileDelete = async (fileId: string, fileName: string) => {
-    if (!hasScope(Scope.STORAGE_DELETE)) {
-      toast.error("You don't have permission to delete files");
-      return;
+  const handleDownload = async (file: FileInfo) => {
+    if (!krapi) return;
+
+    try {
+      const result = await krapi.storage.downloadFile(projectId, file.id);
+      if (result.success && result.data) {
+        // Create a download link
+        const link = document.createElement("a");
+        link.href = file.url;
+        link.download = file.original_name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        setError(result.error || "Failed to download file");
+      }
+    } catch (err) {
+      setError("An error occurred while downloading file");
+      console.error("Error downloading file:", err);
     }
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    if (!krapi) return;
 
     if (
       !confirm(
-        `Are you sure you want to delete "${fileName}"? This action cannot be undone.`
+        "Are you sure you want to delete this file? This action cannot be undone."
       )
     ) {
       return;
@@ -133,269 +248,615 @@ export default function ProjectFilesPage() {
 
     try {
       const result = await krapi.storage.deleteFile(projectId, fileId);
-
       if (result.success) {
-        toast.success("File deleted successfully");
-        setFiles(files.filter((f) => f.id !== fileId));
+        loadFiles();
+        loadStorageStats();
       } else {
-        toast.error(result.error || "Failed to delete file");
+        setError(result.error || "Failed to delete file");
       }
     } catch (err) {
+      setError("An error occurred while deleting file");
       console.error("Error deleting file:", err);
-      toast.error("An error occurred while deleting the file");
     }
   };
 
-  const handleFileDownload = async (fileId: string, fileName: string) => {
+  const copyFileUrl = async (file: FileInfo) => {
     try {
-      const result = await krapi.storage.downloadFile(projectId, fileId);
-
-      if (result.success && result.data) {
-        // Create a blob URL and trigger download
-        const url = window.URL.createObjectURL(result.data as Blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        toast.success("File downloaded successfully");
-      } else {
-        toast.error("Failed to download file");
-      }
+      await navigator.clipboard.writeText(file.url);
+      // You could add a toast notification here
     } catch (err) {
-      console.error("Error downloading file:", err);
-      toast.error("An error occurred while downloading the file");
+      console.error("Failed to copy URL:", err);
     }
   };
 
-  const getFileIcon = (mime_type: string) => {
-    if (mime_type.startsWith("image/")) return <Image className="h-5 w-5" />;
-    if (mime_type.startsWith("video/")) return <Video className="h-5 w-5" />;
-    if (mime_type.startsWith("audio/")) return <Music className="h-5 w-5" />;
-    if (mime_type.includes("zip") || mime_type.includes("archive"))
-      return <Archive className="h-5 w-5" />;
-    if (mime_type.includes("text") || mime_type.includes("document"))
-      return <FileText className="h-5 w-5" />;
-    return <File className="h-5 w-5" />;
+  const openFileDetails = (file: FileInfo) => {
+    setSelectedFile(file);
+    setIsDetailsDialogOpen(true);
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
+  const filteredFiles = files.filter((file) => {
+    const matchesSearch =
+      file.original_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      file.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType =
+      fileTypeFilter === "all" ||
+      getFileTypeCategory(file.mime_type) === fileTypeFilter;
+    return matchesSearch && matchesType;
+  });
 
-  const filteredFiles = files.filter((file) =>
-    file.original_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const sortedFiles = [...filteredFiles].sort((a, b) => {
+    let aValue: any, bValue: any;
+
+    switch (sortBy) {
+      case "created_at":
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
+        break;
+      case "size":
+        aValue = a.size;
+        bValue = b.size;
+        break;
+      case "name":
+        aValue = a.original_name.toLowerCase();
+        bValue = b.original_name.toLowerCase();
+        break;
+      default:
+        aValue = a[sortBy as keyof FileInfo];
+        bValue = b[sortBy as keyof FileInfo];
+    }
+
+    if (sortOrder === "asc") {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
 
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-text/60">Loading files...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <InfoBlock title="Error" variant="error">
-          {error}
-        </InfoBlock>
+        <div className="grid gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        onChange={handleFileUpload}
-        className="hidden"
-      />
-
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-text">Files</h1>
-          <p className="text-text/60 mt-1">
-            Manage files and media for this project
+          <h1 className="text-3xl font-bold">Files</h1>
+          <p className="text-muted-foreground">
+            Manage your project's file storage
           </p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+            accept="*/*"
+          />
           <Button
-            variant="default"
-            size="lg"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || !hasScope(Scope.STORAGE_WRITE)}
-            title={
-              !hasScope(Scope.STORAGE_WRITE)
-                ? "You don't have permission to upload files"
-                : undefined
-            }
+            disabled={isUploading}
           >
             <Upload className="mr-2 h-4 w-4" />
-            {isUploading ? `Uploading... ${uploadProgress}%` : "Upload Files"}
+            {isUploading ? "Uploading..." : "Upload Files"}
           </Button>
+          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <BookOpen className="mr-2 h-4 w-4" />
+                API Docs
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Code2 className="h-5 w-5" />
+                  File Storage API Documentation
+                </DialogTitle>
+                <DialogDescription>
+                  Code examples for integrating with KRAPI File Storage API
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <pre className="text-sm overflow-x-auto">
+                      {`// Initialize KRAPI client
+import { KrapiSDK } from '@krapi/sdk';
+
+const krapi = new KrapiSDK({
+  baseURL: 'http://localhost:3470',
+  apiKey: 'your-api-key'
+});
+
+// Get all files in a project
+const files = await krapi.storage.getFiles(projectId);
+
+// Get file info
+const fileInfo = await krapi.storage.getFileInfo(projectId, fileId);
+
+// Upload a file
+const file = new File(['file content'], 'filename.txt', { type: 'text/plain' });
+const uploadedFile = await krapi.storage.uploadFile(projectId, file, (progress) => {
+  console.log('Upload progress:', progress);
+});
+
+// Download a file
+const downloadResult = await krapi.storage.downloadFile(projectId, fileId);
+if (downloadResult.success) {
+  // Handle the blob/buffer data
+  const blob = downloadResult.data;
+}
+
+// Delete a file
+await krapi.storage.deleteFile(projectId, fileId);
+
+// Get storage statistics
+const stats = await krapi.storage.getStats(projectId);
+
+// Get file URL
+const fileUrl = krapi.storage.getFileUrl(projectId, fileId);`}
+                    </pre>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Python Requests
+                  </h3>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <pre className="text-sm overflow-x-auto">
+                      {`import requests
+import json
+
+# Base configuration
+BASE_URL = "http://localhost:3470"
+API_KEY = "your-api-key"
+PROJECT_ID = "your-project-id"
+
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Get all files
+response = requests.get(
+    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files",
+    headers=headers
+)
+files = response.json()
+
+# Get file info
+response = requests.get(
+    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files/{file_id}",
+    headers=headers
+)
+file_info = response.json()
+
+# Upload a file
+with open('file.txt', 'rb') as f:
+    files = {'file': f}
+    response = requests.post(
+        f"{BASE_URL}/projects/{PROJECT_ID}/storage/files",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        files=files
+    )
+uploaded_file = response.json()
+
+# Download a file
+response = requests.get(
+    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files/{file_id}/download",
+    headers=headers
+)
+with open('downloaded_file.txt', 'wb') as f:
+    f.write(response.content)
+
+# Delete a file
+response = requests.delete(
+    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files/{file_id}",
+    headers=headers
+)
+
+# Get storage statistics
+response = requests.get(
+    f"{BASE_URL}/projects/{PROJECT_ID}/storage/stats",
+    headers=headers
+)
+stats = response.json()`}
+                    </pre>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">
+                    File Operations
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <h4 className="font-medium mb-2">
+                        Supported Operations:
+                      </h4>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>• Upload files with progress tracking</li>
+                        <li>• Download files as blob/buffer</li>
+                        <li>• Get file metadata and info</li>
+                        <li>• Delete files permanently</li>
+                        <li>• Get storage usage statistics</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-2">File Properties:</h4>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>• filename - Stored filename</li>
+                        <li>• original_name - Original filename</li>
+                        <li>• mime_type - File type</li>
+                        <li>• size - File size in bytes</li>
+                        <li>• url - Direct download URL</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-background border border-secondary rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-text/60">Total Files</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {files.length}
-              </p>
+      {/* Storage Stats */}
+      {storageStats && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HardDrive className="h-5 w-5" />
+              Storage Usage
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Used Space</span>
+                <span className="text-sm text-muted-foreground">
+                  {formatFileSize(storageStats.total_size)} /{" "}
+                  {formatFileSize(storageStats.storage_limit)}
+                </span>
+              </div>
+              <Progress
+                value={storageStats.usage_percentage}
+                className="w-full"
+              />
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold">
+                    {storageStats.file_count}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Files</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">
+                    {formatFileSize(storageStats.total_size)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Used</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">
+                    {Math.round(storageStats.usage_percentage)}%
+                  </div>
+                  <div className="text-sm text-muted-foreground">Usage</div>
+                </div>
+              </div>
             </div>
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <File className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-text/60">Total Size</p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {formatFileSize(
-                  files.reduce((acc, file) => acc + file.size, 0)
-                )}
-              </p>
-            </div>
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Folder className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-        </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-text/60">
-                Average File Size
-              </p>
-              <p className="text-2xl font-bold text-text mt-1">
-                {files.length > 0
-                  ? formatFileSize(
-                      files.reduce((acc, file) => acc + file.size, 0) /
-                        files.length
-                    )
-                  : "0 Bytes"}
-              </p>
-            </div>
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <File className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-        </div>
-      </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 h-5 w-5" />
-        <Input
-          placeholder="Search files..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Filters and Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters & Search
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="search">Search Files</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  id="search"
+                  placeholder="Search by filename..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="fileType">File Type</Label>
+              <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Images">Images</SelectItem>
+                  <SelectItem value="Videos">Videos</SelectItem>
+                  <SelectItem value="Audio">Audio</SelectItem>
+                  <SelectItem value="Documents">Documents</SelectItem>
+                  <SelectItem value="Archives">Archives</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="sort">Sort By</Label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Upload Date</SelectItem>
+                  <SelectItem value="size">File Size</SelectItem>
+                  <SelectItem value="name">File Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Files List */}
-      {filteredFiles.length === 0 ? (
-        <div className="text-center py-12 bg-background border border-secondary rounded-lg">
-          <Folder className="h-12 w-12 text-text/20 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text/60 mb-2">
-            {searchTerm ? "No files found" : "No files uploaded yet"}
-          </h3>
-          <p className="text-sm text-text/40 mb-6">
-            {searchTerm
-              ? "Try adjusting your search criteria"
-              : "Upload your first file to get started"}
-          </p>
-          {!searchTerm && (
-            <Button
-              variant="default"
-              size="default"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {isUploading && (
+        <Alert>
+          <AlertDescription>
+            <div className="flex items-center gap-2">
+              <Upload className="h-4 w-4 animate-pulse" />
+              Uploading files... {Math.round(uploadProgress)}%
+            </div>
+            <Progress value={uploadProgress} className="mt-2" />
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {sortedFiles.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Files Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Upload your first file to get started
+            </p>
+            <Button onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
               Upload Files
             </Button>
-          )}
-        </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredFiles.map((file) => (
-            <div
-              key={file.id}
-              className="bg-background border border-secondary rounded-lg p-4 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    {getFileIcon(file.mime_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text truncate">
-                      {file.original_name}
-                    </p>
-                    <p className="text-xs text-text/60">
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      handleFileDownload(file.id, file.original_name)
-                    }
-                    title="Download"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      handleFileDelete(file.id, file.original_name)
-                    }
-                    title={
-                      !hasScope(Scope.STORAGE_DELETE)
-                        ? "No permission to delete"
-                        : "Delete"
-                    }
-                    disabled={!hasScope(Scope.STORAGE_DELETE)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-1 text-xs text-text/60">
-                <p>Type: {file.mime_type}</p>
-                <p>
-                  Uploaded: {new Date(file.created_at).toLocaleDateString()}
-                </p>
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Files ({sortedFiles.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>File</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Uploaded</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedFiles.map((file) => {
+                    const FileIcon = getFileIcon(file.mime_type);
+                    return (
+                      <TableRow key={file.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0">
+                              <FileIcon className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">
+                                {file.original_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {file.filename}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {getFileTypeCategory(file.mime_type)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(file.created_at).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => openFileDetails(file)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDownload(file)}
+                              >
+                                <Download className="mr-2 h-4 w-4" />
+                                Download
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => copyFileUrl(file)}
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy URL
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteFile(file.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
-          ))}
-        </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* File Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>File Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about the selected file
+            </DialogDescription>
+          </DialogHeader>
+          {selectedFile && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const FileIcon = getFileIcon(selectedFile.mime_type);
+                  return (
+                    <FileIcon className="h-12 w-12 text-muted-foreground" />
+                  );
+                })()}
+                <div>
+                  <h3 className="font-semibold">
+                    {selectedFile.original_name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedFile.filename}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>File Type</Label>
+                  <p className="text-sm">{selectedFile.mime_type}</p>
+                </div>
+                <div>
+                  <Label>File Size</Label>
+                  <p className="text-sm">{formatFileSize(selectedFile.size)}</p>
+                </div>
+                <div>
+                  <Label>Upload Date</Label>
+                  <p className="text-sm">
+                    {new Date(selectedFile.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <Label>Last Modified</Label>
+                  <p className="text-sm">
+                    {new Date(selectedFile.updated_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label>File URL</Label>
+                <div className="flex items-center gap-2">
+                  <Input value={selectedFile.url} readOnly />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyFileUrl(selectedFile)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {selectedFile.relations && selectedFile.relations.length > 0 && (
+                <div>
+                  <Label>Relations</Label>
+                  <div className="space-y-2">
+                    {selectedFile.relations.map((relation, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <Link className="h-4 w-4" />
+                        <span>
+                          {relation.type}: {relation.target_type} (
+                          {relation.target_id})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDetailsDialogOpen(false)}
+            >
+              Close
+            </Button>
+            {selectedFile && (
+              <Button onClick={() => handleDownload(selectedFile)}>
+                <Download className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
