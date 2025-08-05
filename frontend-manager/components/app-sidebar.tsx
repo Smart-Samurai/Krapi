@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -89,14 +90,15 @@ export function AppSidebar() {
             const isActive = pathname === item.href;
 
             return (
-              <SidebarMenuButton
-                key={item.href}
-                href={item.href}
-                isActive={isActive}
-                icon={Icon}
-              >
-                {item.title}
-              </SidebarMenuButton>
+              <Link key={item.href} href={item.href} className="block">
+                <SidebarMenuButton
+                  isActive={isActive}
+                  icon={Icon}
+                  className="w-full cursor-pointer"
+                >
+                  {item.title}
+                </SidebarMenuButton>
+              </Link>
             );
           })}
         </SidebarMenu>
@@ -106,7 +108,7 @@ export function AppSidebar() {
           <ThemeToggle />
           <button
             onClick={logout}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Logout
           </button>
@@ -182,22 +184,24 @@ function ProjectSidebar() {
       <SidebarContent>
         <SidebarMenu>
           {/* Back to Admin Dashboard */}
-          <SidebarMenuButton
-            href="/dashboard"
-            icon={LayoutDashboard}
-            className="mb-2"
-          >
-            ← Back to Admin
-          </SidebarMenuButton>
+          <Link href="/dashboard" className="block">
+            <SidebarMenuButton
+              icon={LayoutDashboard}
+              className="mb-2 w-full cursor-pointer"
+            >
+              ← Back to Admin
+            </SidebarMenuButton>
+          </Link>
 
           {/* Back to Projects List */}
-          <SidebarMenuButton
-            href="/projects"
-            icon={FolderOpen}
-            className="mb-4"
-          >
-            ← All Projects
-          </SidebarMenuButton>
+          <Link href="/projects" className="block">
+            <SidebarMenuButton
+              icon={FolderOpen}
+              className="mb-4 w-full cursor-pointer"
+            >
+              ← All Projects
+            </SidebarMenuButton>
+          </Link>
 
           {/* Project Navigation */}
           {projectNavItems.map((item) => {
@@ -205,14 +209,15 @@ function ProjectSidebar() {
             const isActive = pathname === item.href;
 
             return (
-              <SidebarMenuButton
-                key={item.href}
-                href={item.href}
-                isActive={isActive}
-                icon={Icon}
-              >
-                {item.title}
-              </SidebarMenuButton>
+              <Link key={item.href} href={item.href} className="block">
+                <SidebarMenuButton
+                  isActive={isActive}
+                  icon={Icon}
+                  className="w-full cursor-pointer"
+                >
+                  {item.title}
+                </SidebarMenuButton>
+              </Link>
             );
           })}
         </SidebarMenu>
@@ -222,7 +227,7 @@ function ProjectSidebar() {
           <ThemeToggle />
           <button
             onClick={logout}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Logout
           </button>

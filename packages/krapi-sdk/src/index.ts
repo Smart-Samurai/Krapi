@@ -151,10 +151,14 @@ export class KrapiSDK {
   // Set authentication tokens
   setSessionToken(token: string) {
     this.sessionToken = token;
+    // Clear API key when setting session token
+    this.apiKey = undefined;
   }
 
   setApiKey(key: string) {
     this.apiKey = key;
+    // Clear session token when setting API key
+    this.sessionToken = undefined;
   }
 
   clearAuth() {

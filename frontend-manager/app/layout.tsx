@@ -52,7 +52,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
-        className={`${inter.className} bg-background text-text`}
+        className={`${inter.className} bg-background text-foreground`}
         suppressHydrationWarning
       >
         <Providers>{children}</Providers>

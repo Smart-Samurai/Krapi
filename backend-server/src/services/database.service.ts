@@ -80,6 +80,11 @@ export class DatabaseService {
     return this.readyPromise;
   }
 
+  // Public method to get a database connection
+  async getConnection() {
+    return this.pool.connect();
+  }
+
   async runSchemaFixes(): Promise<void> {
     if (!this.migrationService) {
       throw new Error("Migration service not initialized");
@@ -956,6 +961,10 @@ export class DatabaseService {
         actions.push("Created missing tables");
       }
 
+      // Fix missing columns in existing tables
+      await this.fixMissingColumns();
+      actions.push("Fixed missing columns");
+
       // Fix default admin
       if (!health.checks.defaultAdmin.status) {
         console.log("Repairing: Fixing default admin...");
@@ -986,6 +995,48 @@ export class DatabaseService {
     } catch (error) {
       console.error("Database repair failed:", error);
       return { success: false, actions };
+    }
+  }
+
+  private async fixMissingColumns(): Promise<void> {
+    try {
+      // Check and add missing columns to sessions table
+      const sessionColumns = await this.pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'sessions' AND table_schema = 'public'
+      `);
+
+      const existingColumns = sessionColumns.rows.map((row) => row.column_name);
+
+      // Add consumed column if it doesn't exist
+      if (!existingColumns.includes("consumed")) {
+        await this.pool.query(`
+          ALTER TABLE sessions 
+          ADD COLUMN consumed BOOLEAN DEFAULT false
+        `);
+        console.log("Added missing 'consumed' column to sessions table");
+      }
+
+      // Add consumed_at column if it doesn't exist
+      if (!existingColumns.includes("consumed_at")) {
+        await this.pool.query(`
+          ALTER TABLE sessions 
+          ADD COLUMN consumed_at TIMESTAMP
+        `);
+        console.log("Added missing 'consumed_at' column to sessions table");
+      }
+
+      // Add user_type column if it doesn't exist (for backward compatibility)
+      if (!existingColumns.includes("user_type")) {
+        await this.pool.query(`
+          ALTER TABLE sessions 
+          ADD COLUMN user_type VARCHAR(50) DEFAULT 'admin'
+        `);
+        console.log("Added missing 'user_type' column to sessions table");
+      }
+    } catch (error) {
+      console.error("Error fixing missing columns:", error);
     }
   }
 
@@ -1278,7 +1329,8 @@ export class DatabaseService {
         values.push(JSON.stringify(data.settings));
       }
       if (data.active !== undefined) {
-        updateFields.push(`active = $${paramCount++}`);
+        // Try to update is_active first, if it fails, try active
+        updateFields.push(`is_active = $${paramCount++}`);
         values.push(data.active);
       }
       if (data.api_key !== undefined) {
@@ -2580,31 +2632,43 @@ export class DatabaseService {
   async getEmailConfig(projectId: string): Promise<any> {
     await this.ensureReady();
     const query = `
-      SELECT email_config FROM projects 
+      SELECT settings->>'email_config' as email_config FROM projects 
       WHERE id = $1
     `;
     const result = await this.queryWithRetry(query, [projectId]);
-    return result[0]?.email_config || null;
+    const emailConfig = result[0]?.email_config;
+    return emailConfig ? JSON.parse(emailConfig) : null;
   }
 
   async updateEmailConfig(projectId: string, config: any): Promise<any> {
     await this.ensureReady();
     const query = `
       UPDATE projects 
-      SET email_config = $2, updated_at = NOW()
+      SET settings = jsonb_set(
+        COALESCE(settings, '{}'::jsonb), 
+        '{email_config}', 
+        $2::jsonb
+      ), updated_at = NOW()
       WHERE id = $1
-      RETURNING email_config
+      RETURNING settings->>'email_config' as email_config
     `;
-    const result = await this.queryWithRetry(query, [projectId, JSON.stringify(config)]);
-    return result[0]?.email_config || null;
+    const result = await this.queryWithRetry(query, [
+      projectId,
+      JSON.stringify(config),
+    ]);
+    const emailConfig = result[0]?.email_config;
+    return emailConfig ? JSON.parse(emailConfig) : null;
   }
 
-  async testEmailConfig(projectId: string, email: string): Promise<{ success: boolean; message: string }> {
+  async testEmailConfig(
+    projectId: string,
+    email: string
+  ): Promise<{ success: boolean; message: string }> {
     // This would integrate with an email service like nodemailer
     // For now, return a mock response
     return {
       success: true,
-      message: `Test email would be sent to ${email}`
+      message: `Test email would be sent to ${email}`,
     };
   }
 
@@ -2630,7 +2694,10 @@ export class DatabaseService {
     return result[0] || null;
   }
 
-  async createEmailTemplate(projectId: string, templateData: any): Promise<any> {
+  async createEmailTemplate(
+    projectId: string,
+    templateData: any
+  ): Promise<any> {
     await this.ensureReady();
     const { name, subject, body, variables } = templateData;
     const query = `
@@ -2639,16 +2706,20 @@ export class DatabaseService {
       RETURNING *
     `;
     const result = await this.queryWithRetry(query, [
-      projectId, 
-      name, 
-      subject, 
-      body, 
-      JSON.stringify(variables || [])
+      projectId,
+      name,
+      subject,
+      body,
+      JSON.stringify(variables || []),
     ]);
     return result[0];
   }
 
-  async updateEmailTemplate(projectId: string, templateId: string, templateData: any): Promise<any> {
+  async updateEmailTemplate(
+    projectId: string,
+    templateId: string,
+    templateData: any
+  ): Promise<any> {
     await this.ensureReady();
     const { name, subject, body, variables } = templateData;
     const query = `
@@ -2658,17 +2729,20 @@ export class DatabaseService {
       RETURNING *
     `;
     const result = await this.queryWithRetry(query, [
-      projectId, 
-      templateId, 
-      name, 
-      subject, 
-      body, 
-      JSON.stringify(variables || [])
+      projectId,
+      templateId,
+      name,
+      subject,
+      body,
+      JSON.stringify(variables || []),
     ]);
     return result[0] || null;
   }
 
-  async deleteEmailTemplate(projectId: string, templateId: string): Promise<boolean> {
+  async deleteEmailTemplate(
+    projectId: string,
+    templateId: string
+  ): Promise<boolean> {
     await this.ensureReady();
     const query = `
       DELETE FROM email_templates 
@@ -2678,17 +2752,23 @@ export class DatabaseService {
     return result.length > 0;
   }
 
-  async sendEmail(projectId: string, emailData: any): Promise<{ success: boolean; message: string }> {
+  async sendEmail(
+    projectId: string,
+    emailData: any
+  ): Promise<{ success: boolean; message: string }> {
     // This would integrate with an email service like nodemailer
     // For now, return a mock response
     return {
       success: true,
-      message: `Email would be sent to ${emailData.to}`
+      message: `Email would be sent to ${emailData.to}`,
     };
   }
 
   // Additional API Key Methods
-  async getProjectApiKey(projectId: string, keyId: string): Promise<ApiKey | null> {
+  async getProjectApiKey(
+    projectId: string,
+    keyId: string
+  ): Promise<ApiKey | null> {
     await this.ensureReady();
     const query = `
       SELECT * FROM api_keys 
@@ -2698,7 +2778,11 @@ export class DatabaseService {
     return result[0] ? this.mapApiKey(result[0]) : null;
   }
 
-  async updateProjectApiKey(projectId: string, keyId: string, updates: Partial<ApiKey>): Promise<ApiKey | null> {
+  async updateProjectApiKey(
+    projectId: string,
+    keyId: string,
+    updates: Partial<ApiKey>
+  ): Promise<ApiKey | null> {
     await this.ensureReady();
     const { name, scopes, expires_at, is_active } = updates;
     const query = `
@@ -2708,19 +2792,22 @@ export class DatabaseService {
       RETURNING *
     `;
     const result = await this.queryWithRetry(query, [
-      projectId, 
-      keyId, 
-      name, 
-      JSON.stringify(scopes || []), 
-      expires_at, 
-      is_active
+      projectId,
+      keyId,
+      name,
+      JSON.stringify(scopes || []),
+      expires_at,
+      is_active,
     ]);
     return result[0] ? this.mapApiKey(result[0]) : null;
   }
 
-  async regenerateApiKey(projectId: string, keyId: string): Promise<ApiKey | null> {
+  async regenerateApiKey(
+    projectId: string,
+    keyId: string
+  ): Promise<ApiKey | null> {
     await this.ensureReady();
-    const newKey = `krapi_${uuidv4().replace(/-/g, '')}`;
+    const newKey = `krapi_${uuidv4().replace(/-/g, "")}`;
     const query = `
       UPDATE api_keys 
       SET key = $3, updated_at = NOW()
@@ -2737,7 +2824,7 @@ export class DatabaseService {
 
     const query = `
       SELECT * FROM sessions 
-      WHERE expires_at > NOW() AND revoked_at IS NULL
+      WHERE expires_at > NOW() AND is_active = true
       ORDER BY created_at DESC
     `;
 

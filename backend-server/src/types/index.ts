@@ -74,10 +74,10 @@ export interface EmailConfig {
   smtp_host: string;
   smtp_port: number;
   smtp_secure: boolean;
-  smtp_user: string;
-  smtp_pass: string;
+  smtp_username: string;
+  smtp_password: string;
   from_email: string;
-  from_name?: string;
+  from_name: string;
 }
 
 export interface StorageConfig {

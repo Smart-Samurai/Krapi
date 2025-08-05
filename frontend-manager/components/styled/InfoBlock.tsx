@@ -10,7 +10,7 @@ interface InfoBlockProps {
 }
 
 const variantClasses = {
-  default: "bg-background border border-primary",
+  default: "bg-card border border-primary",
   info: "bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800",
   warning:
     "bg-yellow-50 border border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800",
@@ -20,7 +20,7 @@ const variantClasses = {
 };
 
 const variantTextClasses = {
-  default: "text-text",
+  default: "text-foreground",
   info: "text-blue-800 dark:text-blue-200",
   warning: "text-yellow-800 dark:text-yellow-200",
   success: "text-green-800 dark:text-green-200",

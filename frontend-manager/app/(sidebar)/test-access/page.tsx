@@ -74,9 +74,12 @@ export default function TestAccessPage() {
   const { krapi, user, hasScope } = useAuth();
   const [loading, setLoading] = useState(false);
   const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
-  const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(null);
+  const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(
+    null
+  );
   const [testResults, setTestResults] = useState<TestSuite[]>([]);
-  const [diagnosticResults, setDiagnosticResults] = useState<DiagnosticResult | null>(null);
+  const [diagnosticResults, setDiagnosticResults] =
+    useState<DiagnosticResult | null>(null);
   const [testProjects, setTestProjects] = useState<Project[]>([]);
   const [running, setRunning] = useState<{
     health: boolean;
@@ -96,9 +99,9 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      setRunning(prev => ({ ...prev, health: true }));
+      setRunning((prev) => ({ ...prev, health: true }));
       const response = await krapi.health.check();
-      
+
       if (response.success && response.data) {
         setHealthStatus(response.data);
         toast.success("System health check completed");
@@ -110,11 +113,11 @@ export default function TestAccessPage() {
       setHealthStatus({
         healthy: false,
         message: "Health check failed",
-        details: { error: (error as Error).message }
+        details: { error: (error as Error).message },
       });
       toast.error("Health check failed");
     } finally {
-      setRunning(prev => ({ ...prev, health: false }));
+      setRunning((prev) => ({ ...prev, health: false }));
     }
   };
 
@@ -122,9 +125,9 @@ export default function TestAccessPage() {
     if (!krapi || !hasScope(Scope.ADMIN_READ)) return;
 
     try {
-      setRunning(prev => ({ ...prev, dbHealth: true }));
+      setRunning((prev) => ({ ...prev, dbHealth: true }));
       const response = await krapi.health.checkDatabase();
-      
+
       if (response.success && response.data) {
         setDbHealthStatus(response.data);
         toast.success("Database health check completed");
@@ -136,11 +139,11 @@ export default function TestAccessPage() {
       setDbHealthStatus({
         healthy: false,
         message: "Database health check failed",
-        details: { error: (error as Error).message }
+        details: { error: (error as Error).message },
       });
       toast.error("Database health check failed");
     } finally {
-      setRunning(prev => ({ ...prev, dbHealth: false }));
+      setRunning((prev) => ({ ...prev, dbHealth: false }));
     }
   };
 
@@ -149,7 +152,7 @@ export default function TestAccessPage() {
 
     try {
       const response = await krapi.health.repairDatabase();
-      
+
       if (response.success && response.data) {
         toast.success(`Database repair completed: ${response.data.message}`);
         // Refresh database health after repair
@@ -167,9 +170,9 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      setRunning(prev => ({ ...prev, diagnostics: true }));
+      setRunning((prev) => ({ ...prev, diagnostics: true }));
       const response = await krapi.health.runDiagnostics();
-      
+
       if (response.success && response.data) {
         setDiagnosticResults(response.data);
         toast.success("System diagnostics completed");
@@ -180,7 +183,7 @@ export default function TestAccessPage() {
       console.error("Error running diagnostics:", error);
       toast.error("Diagnostics failed");
     } finally {
-      setRunning(prev => ({ ...prev, diagnostics: false }));
+      setRunning((prev) => ({ ...prev, diagnostics: false }));
     }
   };
 
@@ -188,9 +191,9 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      setRunning(prev => ({ ...prev, integration: true }));
+      setRunning((prev) => ({ ...prev, integration: true }));
       const response = await krapi.testing.runIntegrationTests();
-      
+
       if (response.success && response.data) {
         setTestResults(response.data.results);
         toast.success("Integration tests completed");
@@ -201,7 +204,7 @@ export default function TestAccessPage() {
       console.error("Error running integration tests:", error);
       toast.error("Integration tests failed");
     } finally {
-      setRunning(prev => ({ ...prev, integration: false }));
+      setRunning((prev) => ({ ...prev, integration: false }));
     }
   };
 
@@ -209,16 +212,16 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      setRunning(prev => ({ ...prev, creating: true }));
+      setRunning((prev) => ({ ...prev, creating: true }));
       const response = await krapi.testing.createTestProject({
         name: `Test Project ${Date.now()}`,
         withCollections: true,
         withDocuments: true,
         documentCount: 10,
       });
-      
+
       if (response.success && response.data) {
-        setTestProjects(prev => [...prev, response.data!]);
+        setTestProjects((prev) => [...prev, response.data!]);
         toast.success("Test project created successfully");
       } else {
         toast.error("Failed to create test project");
@@ -227,7 +230,7 @@ export default function TestAccessPage() {
       console.error("Error creating test project:", error);
       toast.error("Failed to create test project");
     } finally {
-      setRunning(prev => ({ ...prev, creating: false }));
+      setRunning((prev) => ({ ...prev, creating: false }));
     }
   };
 
@@ -236,15 +239,15 @@ export default function TestAccessPage() {
 
     try {
       const response = await krapi.testing.cleanup(projectId);
-      
+
       if (response.success && response.data) {
         const { deleted } = response.data;
         toast.success(
           `Cleanup completed: ${deleted.projects} projects, ${deleted.collections} collections, ${deleted.documents} documents deleted`
         );
-        
+
         if (projectId) {
-          setTestProjects(prev => prev.filter(p => p.id !== projectId));
+          setTestProjects((prev) => prev.filter((p) => p.id !== projectId));
         } else {
           setTestProjects([]);
         }
@@ -264,9 +267,10 @@ export default function TestAccessPage() {
       const response = await krapi.projects.getAll();
       if (response.success && response.data) {
         // Filter test projects (those with "test" in the name)
-        const testProjects = response.data.filter(p => 
-          p.name.toLowerCase().includes('test') || 
-          p.description?.toLowerCase().includes('test')
+        const testProjects = response.data.filter(
+          (p) =>
+            p.name.toLowerCase().includes("test") ||
+            p.description?.toLowerCase().includes("test")
         );
         setTestProjects(testProjects);
       }
@@ -286,7 +290,7 @@ export default function TestAccessPage() {
 
   const getHealthBadge = (healthy: boolean) => {
     return healthy ? (
-      <Badge variant="default" className="bg-green-600">
+      <Badge variant="default" className="bg-primary">
         <CheckCircle2 className="mr-1 h-3 w-3" />
         Healthy
       </Badge>
@@ -300,7 +304,7 @@ export default function TestAccessPage() {
 
   const getTestStatusIcon = (passed: boolean) => {
     return passed ? (
-      <CheckCircle2 className="h-4 w-4 text-green-600" />
+      <CheckCircle2 className="h-4 w-4 text-primary" />
     ) : (
       <XCircle className="h-4 w-4 text-red-600" />
     );
@@ -363,9 +367,9 @@ export default function TestAccessPage() {
                     Click "Check Health" to run system health check
                   </p>
                 )}
-                
-                <Button 
-                  onClick={checkSystemHealth} 
+
+                <Button
+                  onClick={checkSystemHealth}
                   disabled={running.health}
                   className="w-full"
                 >
@@ -419,16 +423,15 @@ export default function TestAccessPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {hasScope(Scope.ADMIN_READ) 
-                      ? "Click \"Check Database\" to run database health check"
-                      : "Requires admin read access"
-                    }
+                    {hasScope(Scope.ADMIN_READ)
+                      ? 'Click "Check Database" to run database health check'
+                      : "Requires admin read access"}
                   </p>
                 )}
-                
+
                 <div className="space-y-2">
-                  <Button 
-                    onClick={checkDatabaseHealth} 
+                  <Button
+                    onClick={checkDatabaseHealth}
                     disabled={running.dbHealth || !hasScope(Scope.ADMIN_READ)}
                     className="w-full"
                   >
@@ -444,9 +447,9 @@ export default function TestAccessPage() {
                       </>
                     )}
                   </Button>
-                  
+
                   {hasScope(Scope.MASTER) && (
-                    <Button 
+                    <Button
                       onClick={repairDatabase}
                       variant="destructive"
                       size="sm"
@@ -478,16 +481,20 @@ export default function TestAccessPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
+                      <div className="text-2xl font-bold text-primary">
                         {diagnosticResults.summary.passed}
                       </div>
-                      <div className="text-sm text-muted-foreground">Passed</div>
+                      <div className="text-sm text-muted-foreground">
+                        Passed
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-red-600">
                         {diagnosticResults.summary.failed}
                       </div>
-                      <div className="text-sm text-muted-foreground">Failed</div>
+                      <div className="text-sm text-muted-foreground">
+                        Failed
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold">
@@ -497,8 +504,12 @@ export default function TestAccessPage() {
                     </div>
                   </div>
 
-                  <Progress 
-                    value={(diagnosticResults.summary.passed / diagnosticResults.summary.total) * 100}
+                  <Progress
+                    value={
+                      (diagnosticResults.summary.passed /
+                        diagnosticResults.summary.total) *
+                      100
+                    }
                     className="w-full"
                   />
 
@@ -514,19 +525,30 @@ export default function TestAccessPage() {
                     <TableBody>
                       {diagnosticResults.tests.map((test, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{test.name}</TableCell>
-                          <TableCell>{getTestStatusIcon(test.passed)}</TableCell>
+                          <TableCell className="font-medium">
+                            {test.name}
+                          </TableCell>
+                          <TableCell>
+                            {getTestStatusIcon(test.passed)}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {formatDuration(test.duration)}
                             </div>
                           </TableCell>
-                                                     <TableCell>
-                             <span className={test.passed ? "text-green-600" : "text-red-600"}>
-                               {test.message || (test.passed ? "Passed" : "Failed")}
-                             </span>
-                           </TableCell>
+                          <TableCell>
+                            <span
+                              className={
+                                test.passed
+                                  ? "text-primary"
+                                  : "text-destructive"
+                              }
+                            >
+                              {test.message ||
+                                (test.passed ? "Passed" : "Failed")}
+                            </span>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -536,12 +558,14 @@ export default function TestAccessPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Zap className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No diagnostic results available</p>
-                  <p className="text-sm">Run diagnostics to check system health</p>
+                  <p className="text-sm">
+                    Run diagnostics to check system health
+                  </p>
                 </div>
               )}
 
-              <Button 
-                onClick={runDiagnostics} 
+              <Button
+                onClick={runDiagnostics}
                 disabled={running.diagnostics}
                 className="w-full"
               >
@@ -578,7 +602,7 @@ export default function TestAccessPage() {
                   {testResults.map((suite, suiteIndex) => (
                     <div key={suiteIndex} className="space-y-3">
                       <h4 className="font-semibold text-lg">{suite.suite}</h4>
-                      
+
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -591,8 +615,12 @@ export default function TestAccessPage() {
                         <TableBody>
                           {suite.tests.map((test, testIndex) => (
                             <TableRow key={testIndex}>
-                              <TableCell className="font-medium">{test.name}</TableCell>
-                              <TableCell>{getTestStatusIcon(test.passed)}</TableCell>
+                              <TableCell className="font-medium">
+                                {test.name}
+                              </TableCell>
+                              <TableCell>
+                                {getTestStatusIcon(test.passed)}
+                              </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
@@ -601,7 +629,7 @@ export default function TestAccessPage() {
                               </TableCell>
                               <TableCell>
                                 {test.passed ? (
-                                  <span className="text-green-600">Passed</span>
+                                  <span className="text-primary">Passed</span>
                                 ) : (
                                   <div className="space-y-1">
                                     <span className="text-red-600">Failed</span>
@@ -617,7 +645,7 @@ export default function TestAccessPage() {
                           ))}
                         </TableBody>
                       </Table>
-                      
+
                       {suiteIndex < testResults.length - 1 && <Separator />}
                     </div>
                   ))}
@@ -626,12 +654,14 @@ export default function TestAccessPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <TestTube2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No test results available</p>
-                  <p className="text-sm">Run integration tests to verify system functionality</p>
+                  <p className="text-sm">
+                    Run integration tests to verify system functionality
+                  </p>
                 </div>
               )}
 
-              <Button 
-                onClick={runIntegrationTests} 
+              <Button
+                onClick={runIntegrationTests}
                 disabled={running.integration}
                 className="w-full"
               >
@@ -664,8 +694,8 @@ export default function TestAccessPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
-                <Button 
-                  onClick={createTestProject} 
+                <Button
+                  onClick={createTestProject}
                   disabled={running.creating}
                   className="flex-1"
                 >
@@ -681,8 +711,8 @@ export default function TestAccessPage() {
                     </>
                   )}
                 </Button>
-                
-                <Button 
+
+                <Button
                   onClick={() => cleanupTestData()}
                   variant="destructive"
                   disabled={testProjects.length === 0}
@@ -705,12 +735,16 @@ export default function TestAccessPage() {
                   <TableBody>
                     {testProjects.map((project) => (
                       <TableRow key={project.id}>
-                        <TableCell className="font-medium">{project.name}</TableCell>
+                        <TableCell className="font-medium">
+                          {project.name}
+                        </TableCell>
                         <TableCell>
                           {new Date(project.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={project.active ? "default" : "secondary"}>
+                          <Badge
+                            variant={project.active ? "default" : "secondary"}
+                          >
                             {project.active ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
@@ -731,7 +765,9 @@ export default function TestAccessPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Plus className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No test projects found</p>
-                  <p className="text-sm">Create test projects to experiment with features</p>
+                  <p className="text-sm">
+                    Create test projects to experiment with features
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -742,8 +778,9 @@ export default function TestAccessPage() {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Note:</strong> Testing and diagnostic features require appropriate permissions. 
-          Health checks are available to all users, while database operations require admin access.
+          <strong>Note:</strong> Testing and diagnostic features require
+          appropriate permissions. Health checks are available to all users,
+          while database operations require admin access.
         </AlertDescription>
       </Alert>
     </div>

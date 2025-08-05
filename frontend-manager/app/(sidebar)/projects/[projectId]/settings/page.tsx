@@ -72,12 +72,14 @@ export default function ProjectSettingsPage() {
       form.reset({
         name: project.name,
         description: project.description || "",
-        is_active: project.is_active,
+        is_active: project.active,
       });
     }
   }, [project, form]);
 
   const fetchProjectDetails = async () => {
+    if (!krapi) return;
+
     setIsLoading(true);
     setError(null);
 
@@ -107,7 +109,7 @@ export default function ProjectSettingsPage() {
       const result = await krapi.projects.update(projectId, {
         name: data.name,
         description: data.description,
-        is_active: data.is_active,
+        active: data.is_active,
       });
 
       if (result.success && result.data) {

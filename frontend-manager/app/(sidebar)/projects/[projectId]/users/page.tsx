@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { ProjectUser, ProjectScope } from "@/lib/krapi";
+import type { ProjectUser } from "@/lib/krapi";
+import { ProjectScope } from "@krapi/sdk";
 import { Button } from "@/components/ui/button";
 import {
   Card,

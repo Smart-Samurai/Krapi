@@ -36,4 +36,13 @@ router.post(
   controller.runIntegrationTests
 );
 
+// Check database schema
+router.get(
+  "/schema",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.checkSchema
+);
+
 export default router;

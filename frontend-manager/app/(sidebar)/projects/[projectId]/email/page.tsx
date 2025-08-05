@@ -126,10 +126,14 @@ export default function EmailPage() {
   }, [krapi, projectId]);
 
   const loadEmailConfig = async () => {
-    if (!krapi) return;
+    if (!krapi || !projectId) return;
+
+    console.log("Loading email config for project:", projectId);
+    console.log("Krapi client:", krapi);
 
     try {
       const result = await krapi.email.getConfig(projectId);
+      console.log("Email config result:", result);
       if (result.success && result.data) {
         setEmailConfig(result.data);
         setConfigForm({
@@ -148,13 +152,16 @@ export default function EmailPage() {
   };
 
   const loadTemplates = async () => {
-    if (!krapi) return;
+    if (!krapi || !projectId) return;
+
+    console.log("Loading templates for project:", projectId);
 
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await krapi.email.getTemplates(projectId);
+      console.log("Templates result:", result);
       if (result.success && result.data) {
         setTemplates(result.data);
       } else {
@@ -169,15 +176,15 @@ export default function EmailPage() {
   };
 
   const handleSaveConfig = async () => {
-    if (!krapi) return;
+    if (!krapi || !projectId) return;
 
     setIsSaving(true);
     setError(null);
 
     try {
       const result = await krapi.email.updateConfig(projectId, configForm);
-      if (result.success) {
-        setEmailConfig(result.data);
+      if (result.success && result.data) {
+        setEmailConfig(result.data as EmailConfig);
         // You could add a success toast here
       } else {
         setError(result.error || "Failed to save email configuration");
@@ -191,7 +198,7 @@ export default function EmailPage() {
   };
 
   const handleTestConfig = async () => {
-    if (!krapi || !testEmail) return;
+    if (!krapi || !projectId || !testEmail) return;
 
     setIsTesting(true);
     setError(null);
@@ -213,7 +220,7 @@ export default function EmailPage() {
   };
 
   const handleCreateTemplate = async () => {
-    if (!krapi) return;
+    if (!krapi || !projectId) return;
 
     try {
       const result = await krapi.email.createTemplate(projectId, {
@@ -242,7 +249,7 @@ export default function EmailPage() {
   };
 
   const handleUpdateTemplate = async () => {
-    if (!krapi || !editingTemplate) return;
+    if (!krapi || !projectId || !editingTemplate) return;
 
     try {
       const result = await krapi.email.updateTemplate(
@@ -276,7 +283,7 @@ export default function EmailPage() {
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!krapi) return;
+    if (!krapi || !projectId) return;
 
     if (
       !confirm(
@@ -394,243 +401,53 @@ export default function EmailPage() {
                 API Docs
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Code2 className="h-5 w-5" />
                   Email API Documentation
                 </DialogTitle>
                 <DialogDescription>
-                  Code examples for integrating with KRAPI Email API
+                  Documentation for the Email API endpoints
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
-{`// Initialize KRAPI client
-import { KrapiSDK } from '@krapi/sdk';
-
-const krapi = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
-  apiKey: 'your-api-key'
-});
-
-// Get email configuration
-const config = await krapi.email.getConfig(projectId);
-
-// Update email configuration
-const updatedConfig = await krapi.email.updateConfig(projectId, {
-  smtp_host: 'smtp.gmail.com',
-  smtp_port: 587,
-  smtp_username: 'your-email@gmail.com',
-  smtp_password: 'your-app-password',
-  smtp_secure: true,
-  from_email: 'noreply@yourdomain.com',
-  from_name: 'Your Company'
-});
-
-// Test email configuration
-const testResult = await krapi.email.testConfig(projectId, 'test@example.com');
-
-// Get email templates
-const templates = await krapi.email.getTemplates(projectId);
-
-// Create email template
-const newTemplate = await krapi.email.createTemplate(projectId, {
-  name: 'Welcome Email',
-  subject: 'Welcome to {{company_name}}!',
-  body: 'Hello {{user_name}}, welcome to our platform!',
-  variables: ['company_name', 'user_name']
-});
-
-// Update email template
-const updatedTemplate = await krapi.email.updateTemplate(projectId, templateId, {
-  name: 'Updated Welcome Email',
-  subject: 'Welcome to {{company_name}}!',
-  body: 'Hello {{user_name}}, welcome to our platform!',
-  variables: ['company_name', 'user_name']
-});
-
-// Delete email template
-await krapi.email.deleteTemplate(projectId, templateId);
-
-// Send email using template
-const emailResult = await krapi.email.send(projectId, {
-  to: 'user@example.com',
-  template_id: templateId,
-  variables: {
-    company_name: 'My Company',
-    user_name: 'John Doe'
-  }
-});
-
-// Send custom email
-const customEmail = await krapi.email.send(projectId, {
-  to: 'user@example.com',
-  subject: 'Custom Subject',
-  body: 'Custom email body'
-});`}
-                    </pre>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Python Requests</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
-{`import requests
-import json
-
-# Base configuration
-BASE_URL = "http://localhost:3470"
-API_KEY = "your-api-key"
-PROJECT_ID = "your-project-id"
-
-headers = {
-    "Authorization": f"Bearer {API_KEY}",
-    "Content-Type": "application/json"
-}
-
-# Get email configuration
-response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/config",
-    headers=headers
-)
-config = response.json()
-
-# Update email configuration
-config_data = {
-    "smtp_host": "smtp.gmail.com",
-    "smtp_port": 587,
-    "smtp_username": "your-email@gmail.com",
-    "smtp_password": "your-app-password",
-    "smtp_secure": True,
-    "from_email": "noreply@yourdomain.com",
-    "from_name": "Your Company"
-}
-
-response = requests.put(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/config",
-    headers=headers,
-    json=config_data
-)
-
-# Test email configuration
-test_data = {"email": "test@example.com"}
-response = requests.post(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/test",
-    headers=headers,
-    json=test_data
-)
-
-# Get email templates
-response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates",
-    headers=headers
-)
-templates = response.json()
-
-# Create email template
-template_data = {
-    "name": "Welcome Email",
-    "subject": "Welcome to {{company_name}}!",
-    "body": "Hello {{user_name}}, welcome to our platform!",
-    "variables": ["company_name", "user_name"]
-}
-
-response = requests.post(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates",
-    headers=headers,
-    json=template_data
-)
-
-# Update email template
-update_data = {
-    "name": "Updated Welcome Email",
-    "subject": "Welcome to {{company_name}}!",
-    "body": "Hello {{user_name}}, welcome to our platform!",
-    "variables": ["company_name", "user_name"]
-}
-
-response = requests.put(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates/{template_id}",
-    headers=headers,
-    json=update_data
-)
-
-# Delete email template
-response = requests.delete(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/templates/{template_id}",
-    headers=headers
-)
-
-# Send email using template
-email_data = {
-    "to": "user@example.com",
-    "template_id": template_id,
-    "variables": {
-        "company_name": "My Company",
-        "user_name": "John Doe"
-    }
-}
-
-response = requests.post(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/send",
-    headers=headers,
-    json=email_data
-)
-
-# Send custom email
-custom_email_data = {
-    "to": "user@example.com",
-    "subject": "Custom Subject",
-    "body": "Custom email body"
-}
-
-response = requests.post(
-    f"{BASE_URL}/projects/{PROJECT_ID}/email/send",
-    headers=headers,
-    json=custom_email_data
-)`}
-                    </pre>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">SMTP Configuration</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <h4 className="font-medium mb-2">Required Fields:</h4>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li>• smtp_host - SMTP server hostname</li>
-                        <li>• smtp_port - SMTP server port</li>
-                        <li>• smtp_username - SMTP username</li>
-                        <li>• smtp_password - SMTP password</li>
-                        <li>• from_email - Sender email address</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="font-medium mb-2">Optional Fields:</h4>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li>• smtp_secure - Use SSL/TLS (boolean)</li>
-                        <li>• from_name - Sender display name</li>
-                        <li>• metadata - Additional configuration</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Template Variables</h3>
-                  <div className="text-sm text-muted-foreground">
-                    <p>Use double curly braces to define variables in templates:</p>
-                    <ul className="mt-2 space-y-1">
-                      <li>• {{variable_name}} - Basic variable replacement</li>
-                      <li>• {{user.name}} - Nested object properties</li>
-                      <li>• {{array.0}} - Array element access</li>
-                    </ul>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Available Endpoints
+                  </h3>
+                  <div className="text-sm space-y-2">
+                    <p>
+                      <strong>GET /email/config</strong> - Get email
+                      configuration
+                    </p>
+                    <p>
+                      <strong>PUT /email/config</strong> - Update email
+                      configuration
+                    </p>
+                    <p>
+                      <strong>POST /email/test</strong> - Test email
+                      configuration
+                    </p>
+                    <p>
+                      <strong>GET /email/templates</strong> - Get email
+                      templates
+                    </p>
+                    <p>
+                      <strong>POST /email/templates</strong> - Create email
+                      template
+                    </p>
+                    <p>
+                      <strong>PUT /email/templates/:id</strong> - Update email
+                      template
+                    </p>
+                    <p>
+                      <strong>DELETE /email/templates/:id</strong> - Delete
+                      email template
+                    </p>
+                    <p>
+                      <strong>POST /email/send</strong> - Send email
+                    </p>
                   </div>
                 </div>
               </div>

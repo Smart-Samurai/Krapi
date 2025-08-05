@@ -392,6 +392,35 @@ export class TestingController {
       } as ApiResponse);
     }
   };
+
+  // Test endpoint to check database schema
+  checkSchema = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const client = await this.db.getConnection();
+      try {
+        // Check what columns exist in the projects table
+        const result = await client.query(`
+          SELECT column_name, data_type, is_nullable, column_default
+          FROM information_schema.columns 
+          WHERE table_name = 'projects' 
+          ORDER BY ordinal_position
+        `);
+
+        res.status(200).json({
+          success: true,
+          data: result.rows,
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error("Schema check error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to check schema",
+      });
+    }
+  };
 }
 
 export default new TestingController();

@@ -7,34 +7,43 @@ import type { AdminRole, AccessLevel } from "@krapi/sdk";
  * Authentication should be added later via setSessionToken or setApiKey
  */
 export function createDefaultKrapi(baseUrl?: string): KrapiSDK {
-  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
-  
+  const url =
+    baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+
   return new KrapiSDK({
-    baseUrl: url
+    baseUrl: url,
   });
 }
 
 /**
  * Create a KRAPI client with session token authentication
  */
-export function createKrapiWithSession(sessionToken: string, baseUrl?: string): KrapiSDK {
-  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
-  
+export function createKrapiWithSession(
+  sessionToken: string,
+  baseUrl?: string
+): KrapiSDK {
+  const url =
+    baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+
   return new KrapiSDK({
     baseUrl: url,
-    sessionToken
+    sessionToken,
   });
 }
 
 /**
  * Create a KRAPI client with API key authentication
  */
-export function createKrapiWithApiKey(apiKey: string, baseUrl?: string): KrapiSDK {
-  const url = baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
-  
+export function createKrapiWithApiKey(
+  apiKey: string,
+  baseUrl?: string
+): KrapiSDK {
+  const url =
+    baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+
   return new KrapiSDK({
     baseUrl: url,
-    apiKey
+    apiKey,
   });
 }
 
@@ -60,8 +69,11 @@ export {
   type QueryOptions,
   type ProjectUser,
   type ApiKey,
+  type EmailConfig,
+  type EmailTemplate,
+  type EmailSendRequest,
   AdminRole,
-  AccessLevel
+  AccessLevel,
 } from "@krapi/sdk";
 
 export { Scope, ProjectScope } from "@krapi/sdk";

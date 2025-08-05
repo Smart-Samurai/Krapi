@@ -158,7 +158,9 @@ export default function UserSettingsModal({
                   <Input
                     value={user?.active ? "Active" : "Inactive"}
                     disabled
-                    className={user?.active ? "text-green-600" : "text-red-600"}
+                    className={
+                      user?.active ? "text-primary" : "text-destructive"
+                    }
                   />
                 </div>
                 <div>

@@ -22,14 +22,14 @@ export const StyledButton = React.forwardRef<
 
     const variantClasses = {
       primary:
-        "bg-primary text-white hover:bg-primary-hover focus:ring-primary shadow-primary/25",
+        "bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary shadow-primary/25",
       secondary:
-        "bg-secondary text-white hover:bg-secondary-hover focus:ring-secondary shadow-secondary/25",
+        "bg-secondary text-secondary-foreground hover:bg-secondary/90 focus:ring-secondary shadow-secondary/25",
       accent:
-        "bg-accent text-white hover:bg-accent-hover focus:ring-accent shadow-accent/25",
-      ghost: "text-text hover:bg-background-secondary focus:ring-text",
+        "bg-accent text-accent-foreground hover:bg-accent/90 focus:ring-accent shadow-accent/25",
+      ghost: "text-foreground hover:bg-muted focus:ring-muted",
       outline:
-        "border border-border bg-background text-text hover:bg-background-secondary hover:border-border-hover focus:ring-border",
+        "border border-border bg-background text-foreground hover:bg-muted hover:border-border focus:ring-border",
     };
 
     const sizeClasses = {
@@ -67,18 +67,21 @@ export const StyledInput = React.forwardRef<HTMLInputElement, StyledInputProps>(
     return (
       <div className="space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-text">{label}</label>
+          <label className="block text-sm font-medium text-foreground">
+            {label}
+          </label>
         )}
         <input
           ref={ref}
           className={cn(
-            "flex h-10 w-full rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 shadow-sm",
-            error && "border-error focus:ring-error focus:border-error",
+            "flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 shadow-sm",
+            error &&
+              "border-destructive focus:ring-destructive focus:border-destructive",
             className
           )}
           {...props}
         />
-        {error && <p className="text-sm text-error">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     );
   }
@@ -96,7 +99,7 @@ export const StyledCard = React.forwardRef<HTMLDivElement, StyledCardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-xl border border-border bg-background-secondary p-6 shadow-lg shadow-black/5",
+          "rounded-xl border border-border bg-card p-6 shadow-lg shadow-black/5",
           className
         )}
         {...props}
@@ -140,8 +143,8 @@ export const StyledListItem = React.forwardRef<
       className={cn(
         "flex items-center justify-between p-3 rounded-lg border border-border transition-colors duration-200",
         active
-          ? "bg-primary text-white shadow-sm"
-          : "bg-background-tertiary text-text hover:bg-background-secondary hover:border-border-hover",
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "bg-background text-foreground hover:bg-muted hover:border-border",
         className
       )}
       {...props}
@@ -167,12 +170,12 @@ interface StyledBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 export const StyledBadge = React.forwardRef<HTMLSpanElement, StyledBadgeProps>(
   ({ className, children, variant = "primary", ...props }, ref) => {
     const variantClasses = {
-      primary: "bg-primary text-white",
-      secondary: "bg-secondary text-white",
-      accent: "bg-accent text-white",
-      success: "bg-success text-white",
-      error: "bg-error text-white",
-      warning: "bg-warning text-white",
+      primary: "bg-primary text-primary-foreground",
+      secondary: "bg-secondary text-secondary-foreground",
+      accent: "bg-accent text-accent-foreground",
+      success: "bg-primary text-primary-foreground",
+      error: "bg-destructive text-destructive-foreground",
+      warning: "bg-yellow-600 text-white",
     };
 
     return (
@@ -208,8 +211,8 @@ export const StyledMenuItem = React.forwardRef<
       className={cn(
         "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-200 cursor-pointer",
         active
-          ? "bg-primary text-white"
-          : "bg-background-tertiary text-text hover:bg-background-secondary",
+          ? "bg-primary text-primary-foreground"
+          : "bg-background text-foreground hover:bg-muted",
         className
       )}
       {...props}
@@ -236,9 +239,11 @@ export const StyledSection = React.forwardRef<
       {(title || description) && (
         <div className="space-y-2">
           {title && (
-            <h3 className="text-lg font-semibold text-text">{title}</h3>
+            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
           )}
-          {description && <p className="text-sm text-text">{description}</p>}
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
         </div>
       )}
       {children}

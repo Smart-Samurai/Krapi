@@ -154,9 +154,6 @@ const limiter = rateLimit({
 });
 app.use("/krapi/k1", limiter);
 
-// Mount routes
-app.use("/krapi/k1", routes);
-
 // Health check endpoint (no auth required)
 app.get("/health", async (req: Request, res: Response) => {
   try {
@@ -219,7 +216,7 @@ app.use(
 );
 
 // Error handling middleware
-  app.use((err: any, req: any, res: any, _next: any) => {
+app.use((err: any, req: any, res: any, _next: any) => {
   console.error(err.stack);
   res.status(500).json({ error: "Something went wrong!" });
 });

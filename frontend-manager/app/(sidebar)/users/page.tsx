@@ -149,57 +149,63 @@ export default function ServerAdministrationPage() {
 
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
-          const transformedUsers: LocalAdminUser[] = response.data.map((user: any) => ({
-            id: user.id.toString(),
-            email: user.email,
-            firstName: user.username?.split(" ")[0] || "",
-            lastName: user.username?.split(" ")[1] || "",
-            role: user.role as
-              | "master_admin"
-              | "admin"
-              | "project_admin"
-              | "limited_admin",
-            status: user.active ? "active" : "inactive",
-            permissions: {
-              canManageUsers:
-                user.permissions?.some(
-                  (p: any) =>
-                    p === "users.create" ||
-                    p === "users.update" ||
-                    p === "users.delete"
-                ) || false,
-              canCreateProjects:
-                user.permissions?.some((p: any) => p === "projects.create") || false,
-              canDeleteProjects:
-                user.permissions?.some((p: any) => p === "projects.delete") || false,
-              canManageSystemSettings:
-                user.permissions?.some((p: any) => p === "settings.update") || false,
-              canViewSystemLogs: false, // Not available in current permission system
-              canManageBackups: false, // Not available in current permission system
-              canAccessAllProjects:
-                user.permissions?.some((p: any) => p === "projects.read") || false,
-              restrictedProjectIds: [],
-              canManageDatabase:
-                user.permissions?.some(
-                  (p: any) =>
-                    p === "collections.create" ||
-                    p === "collections.write" ||
-                    p === "collections.delete"
-                ) || false,
-              canManageAPI: false, // Not available in current permission system
-              canManageFiles:
-                user.permissions?.some(
-                  (p: any) => p === "storage.upload" || p === "storage.delete"
-                ) || false,
-              canManageAuth: false, // Not available in current permission system
-              canCreateAdminAccounts: false, // Not available in current permission system
-              canModifyOtherAdmins: false, // Not available in current permission system
-              isMasterAdmin: user.role === "master_admin",
-            },
-            lastActive: user.last_login || user.updated_at,
-            createdAt: user.created_at,
-            lastLogin: user.last_login || "",
-          }));
+          const transformedUsers: LocalAdminUser[] = response.data.map(
+            (user: any) => ({
+              id: user.id.toString(),
+              email: user.email,
+              firstName: user.username?.split(" ")[0] || "",
+              lastName: user.username?.split(" ")[1] || "",
+              role: user.role as
+                | "master_admin"
+                | "admin"
+                | "project_admin"
+                | "limited_admin",
+              status: user.active ? "active" : "inactive",
+              permissions: {
+                canManageUsers:
+                  user.permissions?.some(
+                    (p: any) =>
+                      p === "users.create" ||
+                      p === "users.update" ||
+                      p === "users.delete"
+                  ) || false,
+                canCreateProjects:
+                  user.permissions?.some((p: any) => p === "projects.create") ||
+                  false,
+                canDeleteProjects:
+                  user.permissions?.some((p: any) => p === "projects.delete") ||
+                  false,
+                canManageSystemSettings:
+                  user.permissions?.some((p: any) => p === "settings.update") ||
+                  false,
+                canViewSystemLogs: false, // Not available in current permission system
+                canManageBackups: false, // Not available in current permission system
+                canAccessAllProjects:
+                  user.permissions?.some((p: any) => p === "projects.read") ||
+                  false,
+                restrictedProjectIds: [],
+                canManageDatabase:
+                  user.permissions?.some(
+                    (p: any) =>
+                      p === "collections.create" ||
+                      p === "collections.write" ||
+                      p === "collections.delete"
+                  ) || false,
+                canManageAPI: false, // Not available in current permission system
+                canManageFiles:
+                  user.permissions?.some(
+                    (p: any) => p === "storage.upload" || p === "storage.delete"
+                  ) || false,
+                canManageAuth: false, // Not available in current permission system
+                canCreateAdminAccounts: false, // Not available in current permission system
+                canModifyOtherAdmins: false, // Not available in current permission system
+                isMasterAdmin: user.role === "master_admin",
+              },
+              lastActive: user.last_login || user.updated_at,
+              createdAt: user.created_at,
+              lastLogin: user.last_login || "",
+            })
+          );
           setAdminUsers(transformedUsers);
         } else {
           console.error("Failed to fetch admin users:", response.error);
@@ -225,8 +231,6 @@ export default function ServerAdministrationPage() {
       </div>
     );
   }
-
-
 
   const handleEditAdmin = async (data: AdminUserFormData) => {
     if (!selectedUser) return;
@@ -349,7 +353,7 @@ export default function ServerAdministrationPage() {
       case "admin":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400";
       case "project_admin":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+        return "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary";
       case "limited_admin":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
       default:
@@ -360,7 +364,7 @@ export default function ServerAdministrationPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+        return "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary";
       case "inactive":
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400";
       case "suspended":
@@ -447,8 +451,8 @@ export default function ServerAdministrationPage() {
                   : adminUsers.filter((u) => u.status === "active").length}
               </p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <UserCheck className="h-6 w-6 text-green-600" />
+            <div className="p-3 bg-primary/10 dark:bg-primary/20 rounded-lg">
+              <UserCheck className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
@@ -935,57 +939,68 @@ export default function ServerAdministrationPage() {
 
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
-                const transformedUsers: LocalAdminUser[] = response.data.map((user: any) => ({
-                  id: user.id.toString(),
-                  email: user.email,
-                  firstName: user.username?.split(" ")[0] || "",
-                  lastName: user.username?.split(" ")[1] || "",
-                  role: user.role as
-                    | "master_admin"
-                    | "admin"
-                    | "project_admin"
-                    | "limited_admin",
-                  status: user.active ? "active" : "inactive",
-                  permissions: {
-                    canManageUsers:
-                      user.permissions?.some(
-                        (p: any) =>
-                          p === "users.create" ||
-                          p === "users.update" ||
-                          p === "users.delete"
-                      ) || false,
-                    canCreateProjects:
-                      user.permissions?.some((p: any) => p === "projects.create") || false,
-                    canDeleteProjects:
-                      user.permissions?.some((p: any) => p === "projects.delete") || false,
-                    canManageSystemSettings:
-                      user.permissions?.some((p: any) => p === "settings.update") || false,
-                    canViewSystemLogs: false, // Not available in current permission system
-                    canManageBackups: false, // Not available in current permission system
-                    canAccessAllProjects:
-                      user.permissions?.some((p: any) => p === "projects.read") || false,
-                    restrictedProjectIds: [],
-                    canManageDatabase:
-                      user.permissions?.some(
-                        (p: any) =>
-                          p === "collections.create" ||
-                          p === "collections.write" ||
-                          p === "collections.delete"
-                      ) || false,
-                    canManageAPI: false, // Not available in current permission system
-                    canManageFiles:
-                      user.permissions?.some(
-                        (p: any) => p === "storage.upload" || p === "storage.delete"
-                      ) || false,
-                    canManageAuth: false, // Not available in current permission system
-                    canCreateAdminAccounts: false, // Not available in current permission system
-                    canModifyOtherAdmins: false, // Not available in current permission system
-                    isMasterAdmin: user.role === "master_admin",
-                  },
-                  lastActive: user.last_login || user.updated_at,
-                  createdAt: user.created_at,
-                  lastLogin: user.last_login || "",
-                }));
+                const transformedUsers: LocalAdminUser[] = response.data.map(
+                  (user: any) => ({
+                    id: user.id.toString(),
+                    email: user.email,
+                    firstName: user.username?.split(" ")[0] || "",
+                    lastName: user.username?.split(" ")[1] || "",
+                    role: user.role as
+                      | "master_admin"
+                      | "admin"
+                      | "project_admin"
+                      | "limited_admin",
+                    status: user.active ? "active" : "inactive",
+                    permissions: {
+                      canManageUsers:
+                        user.permissions?.some(
+                          (p: any) =>
+                            p === "users.create" ||
+                            p === "users.update" ||
+                            p === "users.delete"
+                        ) || false,
+                      canCreateProjects:
+                        user.permissions?.some(
+                          (p: any) => p === "projects.create"
+                        ) || false,
+                      canDeleteProjects:
+                        user.permissions?.some(
+                          (p: any) => p === "projects.delete"
+                        ) || false,
+                      canManageSystemSettings:
+                        user.permissions?.some(
+                          (p: any) => p === "settings.update"
+                        ) || false,
+                      canViewSystemLogs: false, // Not available in current permission system
+                      canManageBackups: false, // Not available in current permission system
+                      canAccessAllProjects:
+                        user.permissions?.some(
+                          (p: any) => p === "projects.read"
+                        ) || false,
+                      restrictedProjectIds: [],
+                      canManageDatabase:
+                        user.permissions?.some(
+                          (p: any) =>
+                            p === "collections.create" ||
+                            p === "collections.write" ||
+                            p === "collections.delete"
+                        ) || false,
+                      canManageAPI: false, // Not available in current permission system
+                      canManageFiles:
+                        user.permissions?.some(
+                          (p: any) =>
+                            p === "storage.upload" || p === "storage.delete"
+                        ) || false,
+                      canManageAuth: false, // Not available in current permission system
+                      canCreateAdminAccounts: false, // Not available in current permission system
+                      canModifyOtherAdmins: false, // Not available in current permission system
+                      isMasterAdmin: user.role === "master_admin",
+                    },
+                    lastActive: user.last_login || user.updated_at,
+                    createdAt: user.created_at,
+                    lastLogin: user.last_login || "",
+                  })
+                );
                 setAdminUsers(transformedUsers);
               } else {
                 console.error("Failed to fetch admin users:", response.error);
@@ -1007,18 +1022,22 @@ export default function ServerAdministrationPage() {
       <StreamlinedUserDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
-        editUser={selectedUser ? {
-          id: selectedUser.id,
-          email: selectedUser.email,
-          username: `${selectedUser.firstName} ${selectedUser.lastName}`,
-          role: selectedUser.role as AdminRole,
-          access_level: 'full' as AccessLevel,
-          permissions: [],
-          active: selectedUser.status === 'active',
-          created_at: selectedUser.createdAt,
-          updated_at: selectedUser.lastActive,
-          last_login: selectedUser.lastLogin,
-        } as ExtendedAdminUser : undefined}
+        editUser={
+          selectedUser
+            ? ({
+                id: selectedUser.id,
+                email: selectedUser.email,
+                username: `${selectedUser.firstName} ${selectedUser.lastName}`,
+                role: selectedUser.role as AdminRole,
+                access_level: "full" as AccessLevel,
+                permissions: [],
+                active: selectedUser.status === "active",
+                created_at: selectedUser.createdAt,
+                updated_at: selectedUser.lastActive,
+                last_login: selectedUser.lastLogin,
+              } as ExtendedAdminUser)
+            : undefined
+        }
         onSuccess={() => {
           const fetchAdminUsers = async () => {
             if (!krapi) return;
@@ -1029,57 +1048,68 @@ export default function ServerAdministrationPage() {
 
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
-                const transformedUsers: LocalAdminUser[] = response.data.map((user: any) => ({
-                  id: user.id.toString(),
-                  email: user.email,
-                  firstName: user.username?.split(" ")[0] || "",
-                  lastName: user.username?.split(" ")[1] || "",
-                  role: user.role as
-                    | "master_admin"
-                    | "admin"
-                    | "project_admin"
-                    | "limited_admin",
-                  status: user.active ? "active" : "inactive",
-                  permissions: {
-                    canManageUsers:
-                      user.permissions?.some(
-                        (p: any) =>
-                          p === "users.create" ||
-                          p === "users.update" ||
-                          p === "users.delete"
-                      ) || false,
-                    canCreateProjects:
-                      user.permissions?.some((p: any) => p === "projects.create") || false,
-                    canDeleteProjects:
-                      user.permissions?.some((p: any) => p === "projects.delete") || false,
-                    canManageSystemSettings:
-                      user.permissions?.some((p: any) => p === "settings.update") || false,
-                    canViewSystemLogs: false, // Not available in current permission system
-                    canManageBackups: false, // Not available in current permission system
-                    canAccessAllProjects:
-                      user.permissions?.some((p: any) => p === "projects.read") || false,
-                    restrictedProjectIds: [],
-                    canManageDatabase:
-                      user.permissions?.some(
-                        (p: any) =>
-                          p === "collections.create" ||
-                          p === "collections.write" ||
-                          p === "collections.delete"
-                      ) || false,
-                    canManageAPI: false, // Not available in current permission system
-                    canManageFiles:
-                      user.permissions?.some(
-                        (p: any) => p === "storage.upload" || p === "storage.delete"
-                      ) || false,
-                    canManageAuth: false, // Not available in current permission system
-                    canCreateAdminAccounts: false, // Not available in current permission system
-                    canModifyOtherAdmins: false, // Not available in current permission system
-                    isMasterAdmin: user.role === "master_admin",
-                  },
-                  lastActive: user.last_login || user.updated_at,
-                  createdAt: user.created_at,
-                  lastLogin: user.last_login || "",
-                }));
+                const transformedUsers: LocalAdminUser[] = response.data.map(
+                  (user: any) => ({
+                    id: user.id.toString(),
+                    email: user.email,
+                    firstName: user.username?.split(" ")[0] || "",
+                    lastName: user.username?.split(" ")[1] || "",
+                    role: user.role as
+                      | "master_admin"
+                      | "admin"
+                      | "project_admin"
+                      | "limited_admin",
+                    status: user.active ? "active" : "inactive",
+                    permissions: {
+                      canManageUsers:
+                        user.permissions?.some(
+                          (p: any) =>
+                            p === "users.create" ||
+                            p === "users.update" ||
+                            p === "users.delete"
+                        ) || false,
+                      canCreateProjects:
+                        user.permissions?.some(
+                          (p: any) => p === "projects.create"
+                        ) || false,
+                      canDeleteProjects:
+                        user.permissions?.some(
+                          (p: any) => p === "projects.delete"
+                        ) || false,
+                      canManageSystemSettings:
+                        user.permissions?.some(
+                          (p: any) => p === "settings.update"
+                        ) || false,
+                      canViewSystemLogs: false, // Not available in current permission system
+                      canManageBackups: false, // Not available in current permission system
+                      canAccessAllProjects:
+                        user.permissions?.some(
+                          (p: any) => p === "projects.read"
+                        ) || false,
+                      restrictedProjectIds: [],
+                      canManageDatabase:
+                        user.permissions?.some(
+                          (p: any) =>
+                            p === "collections.create" ||
+                            p === "collections.write" ||
+                            p === "collections.delete"
+                        ) || false,
+                      canManageAPI: false, // Not available in current permission system
+                      canManageFiles:
+                        user.permissions?.some(
+                          (p: any) =>
+                            p === "storage.upload" || p === "storage.delete"
+                        ) || false,
+                      canManageAuth: false, // Not available in current permission system
+                      canCreateAdminAccounts: false, // Not available in current permission system
+                      canModifyOtherAdmins: false, // Not available in current permission system
+                      isMasterAdmin: user.role === "master_admin",
+                    },
+                    lastActive: user.last_login || user.updated_at,
+                    createdAt: user.created_at,
+                    lastLogin: user.last_login || "",
+                  })
+                );
                 setAdminUsers(transformedUsers);
               } else {
                 console.error("Failed to fetch admin users:", response.error);
