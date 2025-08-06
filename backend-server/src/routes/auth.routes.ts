@@ -1,16 +1,31 @@
 /**
  * Authentication Routes
- * 
+ *
  * Handles all authentication-related endpoints for both admin and project users.
  * Base path: /krapi/k1/auth
  */
 
 import { Router, IRouter } from "express";
+import rateLimit from "express-rate-limit";
 import { AuthController } from "@/controllers/auth.controller";
 import { authenticate } from "@/middleware/auth.middleware";
 
 const router: IRouter = Router();
 const controller = new AuthController();
+
+// Rate limiting for sensitive operations
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Only 10 attempts per 15 minutes for sensitive operations
+  message: "Too many attempts for this operation, please try again later.",
+});
+
+// Rate limiting for login attempts (more lenient)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 login attempts per 15 minutes
+  message: "Too many login attempts, please try again later.",
+});
 
 // ===== Admin Authentication =====
 /**
@@ -19,7 +34,7 @@ const controller = new AuthController();
  * Body: { username: string, password: string }
  * Returns: { user, token, session_token, expires_at }
  */
-router.post("/admin/login", controller.adminLogin);
+router.post("/admin/login", loginLimiter, controller.adminLogin);
 
 /**
  * Admin login with API key
@@ -80,7 +95,7 @@ router.post("/logout", controller.logout);
  * Body: { current_password: string, new_password: string }
  * Returns: Success message
  */
-router.post("/change-password", controller.changePassword);
+router.post("/change-password", sensitiveLimiter, controller.changePassword);
 
 /**
  * Regenerate API key for current user

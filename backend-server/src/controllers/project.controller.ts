@@ -155,7 +155,7 @@ export class ProjectController {
     try {
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
-      const { name, description, settings = {} } = req.body;
+      const { name, description, project_url, settings = {} } = req.body;
 
       if (!currentUser) {
         res.status(401).json({
@@ -180,6 +180,7 @@ export class ProjectController {
       const newProject = await this.db.createProject({
         name: name.trim(),
         description: description?.trim() || null,
+        project_url: project_url?.trim() || null,
         settings,
         created_by: currentUser.id,
         active: true,
@@ -194,7 +195,7 @@ export class ProjectController {
         entity_type: "project",
         entity_id: newProject.id,
         action: ChangeAction.CREATED,
-        changes: { name, description },
+        changes: { name, description, project_url },
         performed_by: currentUser.id,
         session_id: authReq.session?.id,
         created_at: new Date().toISOString(),

@@ -1,9 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,13 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FiUser, FiLock, FiKey, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
+import {
+  FiUser,
+  FiLock,
+  FiKey,
+  FiShield,
+  FiEye,
+  FiEyeOff,
+} from "react-icons/fi";
 import { toast } from "sonner";
 import { Scope } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 export default function ProfilePage() {
-  const { user, scopes } = useAuth();
+  const { user, scopes, sessionToken } = useReduxAuth();
   const krapi = useKrapi();
   const extendedUser = user as ExtendedAdminUser;
 
@@ -35,6 +48,7 @@ export default function ProfilePage() {
   // API Key state
   const [showApiKey, setShowApiKey] = useState(false);
   const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
+  const [isCreatingMasterKey, setIsCreatingMasterKey] = useState(false);
 
   const getInitials = () => {
     if (!user) return "U";
@@ -58,7 +72,7 @@ export default function ProfilePage() {
       return;
     }
 
-    if (!krapi) {
+    if (!krapi?.auth) {
       toast.error("Authentication not initialized");
       return;
     }
@@ -86,9 +100,13 @@ export default function ProfilePage() {
   };
 
   const handleRegenerateApiKey = async () => {
-    if (!krapi) return;
+    if (!krapi?.auth) return;
 
-    if (!confirm("Are you sure you want to regenerate your API key? The old key will stop working immediately.")) {
+    if (
+      !confirm(
+        "Are you sure you want to regenerate your API key? The old key will stop working immediately."
+      )
+    ) {
       return;
     }
 
@@ -105,6 +123,55 @@ export default function ProfilePage() {
       toast.error("Failed to regenerate API key");
     } finally {
       setIsRegeneratingKey(false);
+    }
+  };
+
+  const handleCreateMasterApiKey = async () => {
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
+    if (
+      !confirm(
+        "Are you sure you want to create a master API key? This will give full access to the entire system."
+      )
+    ) {
+      return;
+    }
+
+    setIsCreatingMasterKey(true);
+    try {
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1"
+        }/admin/master-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({
+            name: "Master API Key for Debugging",
+            scopes: ["master"],
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        toast.success("Master API key created successfully");
+        // Refresh the page or update the user data
+        window.location.reload();
+      } else {
+        toast.error(data.error || "Failed to create master API key");
+      }
+    } catch (error) {
+      toast.error("Failed to create master API key");
+    } finally {
+      setIsCreatingMasterKey(false);
     }
   };
 
@@ -157,7 +224,9 @@ export default function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h2 className="text-2xl font-semibold">{user?.username || "User"}</h2>
+                <h2 className="text-2xl font-semibold">
+                  {user?.username || "User"}
+                </h2>
                 <p className="text-text/60">{user?.email}</p>
                 <div className="flex items-center gap-2 mt-3">
                   <Badge variant="outline">{getRoleDisplay()}</Badge>
@@ -199,9 +268,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Account Information</CardTitle>
-                <CardDescription>
-                  Your basic account details
-                </CardDescription>
+                <CardDescription>Your basic account details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -215,7 +282,11 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <Label>Account ID</Label>
-                    <Input value={user?.id || ""} disabled className="font-mono text-sm" />
+                    <Input
+                      value={user?.id || ""}
+                      disabled
+                      className="font-mono text-sm"
+                    />
                   </div>
                   <div>
                     <Label>Member Since</Label>
@@ -241,7 +312,10 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <Label>Login Count</Label>
-                    <Input value={extendedUser?.login_count?.toString() || "0"} disabled />
+                    <Input
+                      value={extendedUser?.login_count?.toString() || "0"}
+                      disabled
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -253,9 +327,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Change Password</CardTitle>
-                <CardDescription>
-                  Update your account password
-                </CardDescription>
+                <CardDescription>Update your account password</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -363,7 +435,9 @@ export default function ProfilePage() {
                     !confirmPassword
                   }
                 >
-                  {isChangingPassword ? "Changing Password..." : "Change Password"}
+                  {isChangingPassword
+                    ? "Changing Password..."
+                    : "Change Password"}
                 </Button>
               </CardContent>
             </Card>
@@ -383,7 +457,8 @@ export default function ProfilePage() {
                   <div className="p-4 bg-primary/10 rounded-lg">
                     <p className="font-medium">Master Administrator</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      You have full access to all features and resources in Krapi
+                      You have full access to all features and resources in
+                      Krapi
                     </p>
                   </div>
                 ) : (
@@ -405,14 +480,16 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {extendedUser?.project_ids && extendedUser.project_ids.length > 0 && (
-                      <div>
-                        <h4 className="font-medium mb-2">Project Access</h4>
-                        <p className="text-sm text-muted-foreground">
-                          You have access to {extendedUser.project_ids.length} project(s)
-                        </p>
-                      </div>
-                    )}
+                    {extendedUser?.project_ids &&
+                      extendedUser.project_ids.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-2">Project Access</h4>
+                          <p className="text-sm text-muted-foreground">
+                            You have access to {extendedUser.project_ids.length}{" "}
+                            project(s)
+                          </p>
+                        </div>
+                      )}
                   </div>
                 )}
               </CardContent>
@@ -438,7 +515,11 @@ export default function ProfilePage() {
                           value={
                             showApiKey
                               ? extendedUser.api_key
-                              : extendedUser.api_key.substring(0, 8) + "..." + extendedUser.api_key.substring(extendedUser.api_key.length - 4)
+                              : extendedUser.api_key.substring(0, 8) +
+                                "..." +
+                                extendedUser.api_key.substring(
+                                  extendedUser.api_key.length - 4
+                                )
                           }
                           readOnly
                           className="font-mono text-sm"
@@ -465,14 +546,38 @@ export default function ProfilePage() {
                     <div>
                       <h4 className="font-medium mb-2">Regenerate API Key</h4>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Generate a new API key. The current key will stop working immediately.
+                        Generate a new API key. The current key will stop
+                        working immediately.
                       </p>
                       <Button
                         variant="destructive"
                         onClick={handleRegenerateApiKey}
                         disabled={isRegeneratingKey}
                       >
-                        {isRegeneratingKey ? "Regenerating..." : "Regenerate API Key"}
+                        {isRegeneratingKey
+                          ? "Regenerating..."
+                          : "Regenerate API Key"}
+                      </Button>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h4 className="font-medium mb-2">
+                        Create Master API Key
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Create a new API key with master access. This is for
+                        debugging and development purposes.
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={handleCreateMasterApiKey}
+                        disabled={isCreatingMasterKey}
+                      >
+                        {isCreatingMasterKey
+                          ? "Creating..."
+                          : "Create Master API Key"}
                       </Button>
                     </div>
                   </>

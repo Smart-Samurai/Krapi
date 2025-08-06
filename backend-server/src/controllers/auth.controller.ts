@@ -299,6 +299,12 @@ export class AuthController {
             role: adminUser.role,
             access_level: adminUser.access_level,
             permissions: adminUser.permissions,
+            active: adminUser.active,
+            created_at: adminUser.created_at,
+            updated_at: adminUser.updated_at,
+            last_login: adminUser.last_login,
+            api_key: adminUser.api_key,
+            login_count: adminUser.login_count || 0,
           },
         } as ApiResponse);
       } else {

@@ -67,6 +67,15 @@ router.post(
   controller.createUserApiKey
 );
 
+// Master API key management
+router.post(
+  "/master-api-keys",
+  requireScopes({
+    scopes: [Scope.MASTER],
+  }),
+  controller.createMasterApiKey
+);
+
 router.delete(
   "/api-keys/:keyId",
   requireScopes({

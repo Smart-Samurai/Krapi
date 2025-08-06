@@ -1,43 +1,43 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { useAuth } from '@/contexts/auth-context';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Shield, AlertCircle } from 'lucide-react';
+import React from "react";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Shield, AlertCircle } from "lucide-react";
 
 interface ScopeGuardProps {
   scopes: string | string[];
   requireAll?: boolean;
-  children: ReactNode;
-  fallback?: ReactNode;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
   showRequirements?: boolean;
 }
 
-export function ScopeGuard({ 
-  scopes, 
+export function ScopeGuard({
+  scopes,
   requireAll = false,
-  children, 
+  children,
   fallback,
-  showRequirements = true 
+  showRequirements = true,
 }: ScopeGuardProps) {
-  const { hasScope } = useAuth();
-  
+  const { hasScope } = useReduxAuth();
+
   const requiredScopes = Array.isArray(scopes) ? scopes : [scopes];
   const hasAccess = hasScope(scopes);
-  
+
   if (hasAccess) {
     return <>{children}</>;
   }
-  
+
   if (fallback) {
     return <>{fallback}</>;
   }
-  
+
   if (!showRequirements) {
     return null;
   }
-  
+
   return (
     <Alert className="my-4">
       <AlertCircle className="h-4 w-4" />
@@ -46,10 +46,10 @@ export function ScopeGuard({
         <p>You don't have permission to access this feature.</p>
         <div>
           <p className="text-sm font-medium mb-1">
-            Required {requireAll ? 'all' : 'any'} of these scopes:
+            Required {requireAll ? "all" : "any"} of these scopes:
           </p>
           <div className="flex flex-wrap gap-2">
-            {requiredScopes.map(scope => (
+            {requiredScopes.map((scope) => (
               <Badge key={scope} variant="outline" className="text-xs">
                 {scope}
               </Badge>
@@ -67,11 +67,11 @@ interface ScopeIndicatorProps {
 }
 
 export function ScopeIndicator({ scopes, className }: ScopeIndicatorProps) {
-  const { hasScope, hasMasterAccess } = useAuth();
-  
+  const { hasScope, hasMasterAccess } = useReduxAuth();
+
   const requiredScopes = Array.isArray(scopes) ? scopes : [scopes];
   const hasAccess = hasScope(scopes);
-  
+
   if (hasMasterAccess()) {
     return (
       <Badge variant="default" className={className}>
@@ -80,12 +80,9 @@ export function ScopeIndicator({ scopes, className }: ScopeIndicatorProps) {
       </Badge>
     );
   }
-  
+
   return (
-    <Badge 
-      variant={hasAccess ? "secondary" : "outline"} 
-      className={className}
-    >
+    <Badge variant={hasAccess ? "secondary" : "outline"} className={className}>
       {hasAccess ? (
         <>
           <Shield className="mr-1 h-3 w-3" />
@@ -94,7 +91,10 @@ export function ScopeIndicator({ scopes, className }: ScopeIndicatorProps) {
       ) : (
         <>
           <AlertCircle className="mr-1 h-3 w-3" />
-          {requiredScopes.length === 1 ? requiredScopes[0] : `${requiredScopes.length} scopes`} required
+          {requiredScopes.length === 1
+            ? requiredScopes[0]
+            : `${requiredScopes.length} scopes`}{" "}
+          required
         </>
       )}
     </Badge>

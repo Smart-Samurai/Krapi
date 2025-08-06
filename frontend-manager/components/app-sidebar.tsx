@@ -1,8 +1,9 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import React, { useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/contexts/auth-context";
+import { usePathname } from "next/navigation";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Sidebar,
@@ -27,7 +28,7 @@ import {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout } = useReduxAuth();
 
   // Check if we're in a project context
   const isProjectContext = pathname.startsWith("/projects/");
@@ -90,12 +91,12 @@ export function AppSidebar() {
             const isActive = pathname === item.href;
 
             return (
-              <Link key={item.href} href={item.href} className="block">
+              <Link key={item.href} href={item.href as any} className="block">
                 <SidebarMenuButton
                   isActive={isActive}
-                  icon={Icon}
                   className="w-full cursor-pointer"
                 >
+                  <Icon className="h-4 w-4 mr-2" />
                   {item.title}
                 </SidebarMenuButton>
               </Link>
@@ -121,7 +122,7 @@ export function AppSidebar() {
 // Project-specific sidebar component
 function ProjectSidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout } = useReduxAuth();
 
   // Extract project ID from pathname
   const projectId = pathname.split("/")[2]; // /projects/[projectId]/...
@@ -185,21 +186,16 @@ function ProjectSidebar() {
         <SidebarMenu>
           {/* Back to Admin Dashboard */}
           <Link href="/dashboard" className="block">
-            <SidebarMenuButton
-              icon={LayoutDashboard}
-              className="mb-2 w-full cursor-pointer"
-            >
-              ← Back to Admin
+            <SidebarMenuButton className="w-full cursor-pointer">
+              <LayoutDashboard className="h-4 w-4 mr-2" />
+              Back to Admin
             </SidebarMenuButton>
           </Link>
 
           {/* Back to Projects List */}
           <Link href="/projects" className="block">
-            <SidebarMenuButton
-              icon={FolderOpen}
-              className="mb-4 w-full cursor-pointer"
-            >
-              ← All Projects
+            <SidebarMenuButton className="mb-4 w-full cursor-pointer">
+              <FolderOpen className="h-4 w-4 mr-2" />← All Projects
             </SidebarMenuButton>
           </Link>
 
@@ -209,12 +205,12 @@ function ProjectSidebar() {
             const isActive = pathname === item.href;
 
             return (
-              <Link key={item.href} href={item.href} className="block">
+              <Link key={item.href} href={item.href as any} className="block">
                 <SidebarMenuButton
                   isActive={isActive}
-                  icon={Icon}
                   className="w-full cursor-pointer"
                 >
+                  <Icon className="h-4 w-4 mr-2" />
                   {item.title}
                 </SidebarMenuButton>
               </Link>

@@ -13,6 +13,7 @@ export interface AdminUser {
   last_login?: string;
   api_key?: string; // Primary API key
   api_keys?: ApiKey[]; // All API keys for this user
+  login_count?: number; // Number of times user has logged in
 }
 
 export enum AdminRole {
@@ -54,6 +55,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  project_url?: string; // For domain validation - added to align with SDK
   api_key: string;
   settings: ProjectSettings;
   created_by: string;
@@ -126,7 +128,11 @@ export type FieldType =
   | "boolean"
   | "date"
   | "array"
-  | "object";
+  | "object"
+  | "uniqueID"
+  | "relation"
+  | "json"
+  | "text";
 
 export interface FieldValidation {
   // String validations

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import {
   Card,
   CardContent,
@@ -71,7 +71,7 @@ interface DiagnosticResult {
 }
 
 export default function TestAccessPage() {
-  const { krapi, user, hasScope } = useAuth();
+  const { krapi, user, hasScope } = useReduxAuth();
   const [loading, setLoading] = useState(false);
   const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
   const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(
@@ -268,7 +268,7 @@ export default function TestAccessPage() {
       if (response.success && response.data) {
         // Filter test projects (those with "test" in the name)
         const testProjects = response.data.filter(
-          (p) =>
+          (p: any) =>
             p.name.toLowerCase().includes("test") ||
             p.description?.toLowerCase().includes("test")
         );

@@ -14,7 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -42,7 +48,7 @@ import {
 } from "lucide-react";
 import { InfoBlock } from "@/components/styled/InfoBlock";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 // Settings schema
 const generalSettingsSchema = z.object({
@@ -100,15 +106,15 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [testEmailDialog, setTestEmailDialog] = useState(false);
   const [testEmail, setTestEmail] = useState("");
-  
+
   const krapi = useKrapi();
-  const { user } = useAuth();
+  const { user } = useReduxAuth();
 
   const tabs = [
-      { id: "general", label: "General", icon: Settings },
-  { id: "security", label: "Security", icon: Shield },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "database", label: "Database", icon: Database },
+    { id: "general", label: "General", icon: Settings },
+    { id: "security", label: "Security", icon: Shield },
+    { id: "email", label: "Email", icon: Mail },
+    { id: "database", label: "Database", icon: Database },
   ];
 
   // Fetch settings from backend
@@ -118,7 +124,7 @@ export default function SettingsPage() {
         setIsLoading(true);
         // TODO: Replace with actual API call when backend endpoint is ready
         // const response = await krapi.system.getSettings();
-        
+
         // Mock data for now
         setSettings({
           general: {
@@ -169,10 +175,10 @@ export default function SettingsPage() {
       setIsSaving(true);
       // TODO: Implement API call
       console.log("Saving general settings:", data);
-      
+
       // Update local state
-      setSettings(prev => prev ? { ...prev, general: data } : null);
-      
+      setSettings((prev) => (prev ? { ...prev, general: data } : null));
+
       // Show success message
       alert("General settings saved successfully!");
     } catch (error) {
@@ -188,10 +194,10 @@ export default function SettingsPage() {
       setIsSaving(true);
       // TODO: Implement API call
       console.log("Saving security settings:", data);
-      
+
       // Update local state
-      setSettings(prev => prev ? { ...prev, security: data } : null);
-      
+      setSettings((prev) => (prev ? { ...prev, security: data } : null));
+
       alert("Security settings saved successfully!");
     } catch (error) {
       console.error("Failed to save security settings:", error);
@@ -206,10 +212,10 @@ export default function SettingsPage() {
       setIsSaving(true);
       // TODO: Implement API call
       console.log("Saving email settings:", data);
-      
+
       // Update local state
-      setSettings(prev => prev ? { ...prev, email: data } : null);
-      
+      setSettings((prev) => (prev ? { ...prev, email: data } : null));
+
       alert("Email settings saved successfully!");
     } catch (error) {
       console.error("Failed to save email settings:", error);
@@ -224,10 +230,10 @@ export default function SettingsPage() {
       setIsSaving(true);
       // TODO: Implement API call
       console.log("Saving database settings:", data);
-      
+
       // Update local state
-      setSettings(prev => prev ? { ...prev, database: data } : null);
-      
+      setSettings((prev) => (prev ? { ...prev, database: data } : null));
+
       alert("Database settings saved successfully!");
     } catch (error) {
       console.error("Failed to save database settings:", error);
@@ -242,7 +248,7 @@ export default function SettingsPage() {
       alert("Please enter an email address");
       return;
     }
-    
+
     try {
       // TODO: Implement API call to test email
       console.log("Testing email to:", testEmail);
@@ -316,7 +322,8 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <InfoBlock variant="info">
               <p>
-                General settings affect how your KRAPI instance appears and behaves.
+                General settings affect how your KRAPI instance appears and
+                behaves.
               </p>
             </InfoBlock>
 
@@ -332,21 +339,21 @@ export default function SettingsPage() {
                   type="text"
                   description="The name of your KRAPI instance"
                 />
-                
+
                 <FormField
                   name="siteUrl"
                   label="Site URL"
                   type="text"
                   description="The public URL of your KRAPI instance"
                 />
-                
+
                 <FormField
                   name="adminEmail"
                   label="Admin Email"
                   type="email"
                   description="Primary contact email for system notifications"
                 />
-                
+
                 <FormField
                   name="timezone"
                   label="Timezone"
@@ -360,7 +367,7 @@ export default function SettingsPage() {
                   ]}
                   description="Default timezone for the system"
                 />
-                
+
                 <FormField
                   name="defaultLanguage"
                   label="Default Language"
@@ -390,7 +397,8 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <InfoBlock variant="warning">
               <p>
-                Security settings help protect your KRAPI instance from unauthorized access.
+                Security settings help protect your KRAPI instance from
+                unauthorized access.
               </p>
             </InfoBlock>
 
@@ -406,24 +414,26 @@ export default function SettingsPage() {
                   type="checkbox"
                   description="Require all admin users to enable 2FA"
                 />
-                
+
                 <FormField
                   name="sessionTimeout"
                   label="Session Timeout (minutes)"
                   type="number"
                   description="How long before inactive sessions expire"
                 />
-                
+
                 <FormField
                   name="maxLoginAttempts"
                   label="Max Login Attempts"
                   type="number"
                   description="Maximum failed login attempts before account lockout"
                 />
-                
+
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">Password Requirements</h3>
-                  
+                  <h3 className="text-lg font-semibold mb-4">
+                    Password Requirements
+                  </h3>
+
                   <div className="space-y-4">
                     <FormField
                       name="passwordMinLength"
@@ -431,21 +441,21 @@ export default function SettingsPage() {
                       type="number"
                       description="Minimum number of characters required"
                     />
-                    
+
                     <FormField
                       name="passwordRequireUppercase"
                       label="Require Uppercase Letters"
                       type="checkbox"
                       description="Passwords must contain at least one uppercase letter"
                     />
-                    
+
                     <FormField
                       name="passwordRequireNumbers"
                       label="Require Numbers"
                       type="checkbox"
                       description="Passwords must contain at least one number"
                     />
-                    
+
                     <FormField
                       name="passwordRequireSymbols"
                       label="Require Symbols"
@@ -471,7 +481,8 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <InfoBlock variant="info">
               <p>
-                Configure email settings for system notifications and user communications.
+                Configure email settings for system notifications and user
+                communications.
               </p>
             </InfoBlock>
 
@@ -487,21 +498,21 @@ export default function SettingsPage() {
                   type="text"
                   description="Your email server hostname"
                 />
-                
+
                 <FormField
                   name="smtpPort"
                   label="SMTP Port"
                   type="number"
                   description="Usually 587 for TLS or 465 for SSL"
                 />
-                
+
                 <FormField
                   name="smtpUsername"
                   label="SMTP Username"
                   type="text"
                   description="Authentication username for SMTP"
                 />
-                
+
                 <FormField
                   name="smtpPassword"
                   label="SMTP Password"
@@ -509,17 +520,19 @@ export default function SettingsPage() {
                   description="Authentication password for SMTP"
                   placeholder="Leave blank to keep current password"
                 />
-                
+
                 <FormField
                   name="smtpSecure"
                   label="Use Secure Connection (TLS/SSL)"
                   type="checkbox"
                   description="Enable secure email transmission"
                 />
-                
+
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">Sender Information</h3>
-                  
+                  <h3 className="text-lg font-semibold mb-4">
+                    Sender Information
+                  </h3>
+
                   <div className="space-y-4">
                     <FormField
                       name="fromEmail"
@@ -527,7 +540,7 @@ export default function SettingsPage() {
                       type="email"
                       description="Email address that will appear as sender"
                     />
-                    
+
                     <FormField
                       name="fromName"
                       label="From Name"
@@ -546,7 +559,7 @@ export default function SettingsPage() {
                     <Mail className="h-4 w-4 mr-2" />
                     Send Test Email
                   </Button>
-                  
+
                   <Button type="submit" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
@@ -562,7 +575,8 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <InfoBlock variant="warning">
               <p>
-                Database settings affect performance and data retention. Change with caution.
+                Database settings affect performance and data retention. Change
+                with caution.
               </p>
             </InfoBlock>
 
@@ -578,24 +592,26 @@ export default function SettingsPage() {
                   type="number"
                   description="Maximum number of database connections"
                 />
-                
+
                 <FormField
                   name="queryTimeout"
                   label="Query Timeout (ms)"
                   type="number"
                   description="Maximum time for database queries"
                 />
-                
+
                 <FormField
                   name="enableQueryLogging"
                   label="Enable Query Logging"
                   type="checkbox"
                   description="Log all database queries (may impact performance)"
                 />
-                
+
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">Backup Settings</h3>
-                  
+                  <h3 className="text-lg font-semibold mb-4">
+                    Backup Settings
+                  </h3>
+
                   <div className="space-y-4">
                     <FormField
                       name="backupSchedule"
@@ -609,7 +625,7 @@ export default function SettingsPage() {
                       ]}
                       description="How often to automatically backup the database"
                     />
-                    
+
                     <FormField
                       name="backupRetentionDays"
                       label="Backup Retention (days)"
@@ -637,10 +653,11 @@ export default function SettingsPage() {
           <DialogHeader>
             <DialogTitle>Send Test Email</DialogTitle>
             <DialogDescription>
-              Send a test email to verify your email configuration is working correctly.
+              Send a test email to verify your email configuration is working
+              correctly.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -655,7 +672,7 @@ export default function SettingsPage() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button
               variant="secondary"

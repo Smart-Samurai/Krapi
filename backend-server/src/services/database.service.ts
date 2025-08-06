@@ -201,6 +201,11 @@ export class DatabaseService {
       await this.migrationService.checkAndFixSchema();
       repairs.push("Fixed database schema");
 
+      // Fix missing columns
+      console.log("Checking and fixing missing columns...");
+      await this.fixMissingColumns();
+      repairs.push("Fixed missing columns");
+
       // Create default admin if none exists
       const adminCount = await this.pool.query(
         "SELECT COUNT(*) FROM admin_users"
@@ -363,6 +368,7 @@ export class DatabaseService {
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           name VARCHAR(255) UNIQUE NOT NULL,
           description TEXT,
+          project_url VARCHAR(500),
           api_key VARCHAR(255) UNIQUE NOT NULL,
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -658,7 +664,7 @@ export class DatabaseService {
         masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
         const adminResult = await this.pool.query(
-          `INSERT INTO admin_users (username, email, password, role, access_level, api_key) 
+          `INSERT INTO admin_users (username, email, password_hash, role, access_level, api_key) 
            VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
           [
@@ -690,7 +696,7 @@ export class DatabaseService {
           masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
           await this.pool.query(
             `UPDATE admin_users 
-             SET password = $1, is_active = true, api_key = $2 
+             SET password_hash = $1, is_active = true, api_key = $2 
              WHERE username = $3`,
             [hashedPassword, masterApiKey, "admin"]
           );
@@ -701,7 +707,7 @@ export class DatabaseService {
           masterApiKey = adminResult.rows[0].api_key;
           await this.pool.query(
             `UPDATE admin_users 
-             SET password = $1, is_active = true 
+             SET password_hash = $1, is_active = true 
              WHERE username = $2`,
             [hashedPassword, "admin"]
           );
@@ -1007,10 +1013,12 @@ export class DatabaseService {
         WHERE table_name = 'sessions' AND table_schema = 'public'
       `);
 
-      const existingColumns = sessionColumns.rows.map((row) => row.column_name);
+      const existingSessionColumns = sessionColumns.rows.map(
+        (row) => row.column_name
+      );
 
       // Add consumed column if it doesn't exist
-      if (!existingColumns.includes("consumed")) {
+      if (!existingSessionColumns.includes("consumed")) {
         await this.pool.query(`
           ALTER TABLE sessions 
           ADD COLUMN consumed BOOLEAN DEFAULT false
@@ -1019,7 +1027,7 @@ export class DatabaseService {
       }
 
       // Add consumed_at column if it doesn't exist
-      if (!existingColumns.includes("consumed_at")) {
+      if (!existingSessionColumns.includes("consumed_at")) {
         await this.pool.query(`
           ALTER TABLE sessions 
           ADD COLUMN consumed_at TIMESTAMP
@@ -1027,14 +1035,115 @@ export class DatabaseService {
         console.log("Added missing 'consumed_at' column to sessions table");
       }
 
-      // Add user_type column if it doesn't exist (for backward compatibility)
-      if (!existingColumns.includes("user_type")) {
+      // Check and add missing columns to projects table
+      const projectColumns = await this.pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'projects' AND table_schema = 'public'
+      `);
+
+      const existingProjectColumns = projectColumns.rows.map(
+        (row) => row.column_name
+      );
+
+      // Add is_active column if it doesn't exist
+      if (!existingProjectColumns.includes("is_active")) {
         await this.pool.query(`
-          ALTER TABLE sessions 
-          ADD COLUMN user_type VARCHAR(50) DEFAULT 'admin'
+          ALTER TABLE projects 
+          ADD COLUMN is_active BOOLEAN DEFAULT true
         `);
-        console.log("Added missing 'user_type' column to sessions table");
+        console.log("Added missing 'is_active' column to projects table");
       }
+
+      // Add created_by column if it doesn't exist
+      if (!existingProjectColumns.includes("created_by")) {
+        await this.pool.query(`
+          ALTER TABLE projects 
+          ADD COLUMN created_by UUID REFERENCES admin_users(id)
+        `);
+        console.log("Added missing 'created_by' column to projects table");
+      }
+
+      // Add settings column if it doesn't exist
+      if (!existingProjectColumns.includes("settings")) {
+        await this.pool.query(`
+          ALTER TABLE projects 
+          ADD COLUMN settings JSONB DEFAULT '{}'::jsonb
+        `);
+        console.log("Added missing 'settings' column to projects table");
+      }
+
+      // Add storage_used column if it doesn't exist
+      if (!existingProjectColumns.includes("storage_used")) {
+        await this.pool.query(`
+          ALTER TABLE projects 
+          ADD COLUMN storage_used BIGINT DEFAULT 0
+        `);
+        console.log("Added missing 'storage_used' column to projects table");
+      }
+
+      // Add api_calls_count column if it doesn't exist
+      if (!existingProjectColumns.includes("api_calls_count")) {
+        await this.pool.query(`
+          ALTER TABLE projects 
+          ADD COLUMN api_calls_count BIGINT DEFAULT 0
+        `);
+        console.log("Added missing 'api_calls_count' column to projects table");
+      }
+
+      // Add last_api_call column if it doesn't exist
+      if (!existingProjectColumns.includes("last_api_call")) {
+        await this.pool.query(`
+          ALTER TABLE projects 
+          ADD COLUMN last_api_call TIMESTAMP
+        `);
+        console.log("Added missing 'last_api_call' column to projects table");
+      }
+
+      // Check and add missing columns to admin_users table
+      const adminUserColumns = await this.pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'admin_users' AND table_schema = 'public'
+      `);
+
+      const existingAdminUserColumns = adminUserColumns.rows.map(
+        (row) => row.column_name
+      );
+
+      // Add password_hash column if it doesn't exist (rename from password if needed)
+      if (!existingAdminUserColumns.includes("password_hash")) {
+        if (existingAdminUserColumns.includes("password")) {
+          // Rename password column to password_hash
+          await this.pool.query(`
+            ALTER TABLE admin_users 
+            RENAME COLUMN password TO password_hash
+          `);
+          console.log(
+            "Renamed 'password' column to 'password_hash' in admin_users table"
+          );
+        } else {
+          // Add password_hash column
+          await this.pool.query(`
+            ALTER TABLE admin_users 
+            ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''
+          `);
+          console.log(
+            "Added missing 'password_hash' column to admin_users table"
+          );
+        }
+      }
+
+      // Add api_key column if it doesn't exist
+      if (!existingAdminUserColumns.includes("api_key")) {
+        await this.pool.query(`
+          ALTER TABLE admin_users 
+          ADD COLUMN api_key VARCHAR(255) UNIQUE
+        `);
+        console.log("Added missing 'api_key' column to admin_users table");
+      }
+
+      // Note: Removed user_type backward compatibility code - now using 'type' column directly
     } catch (error) {
       console.error("Error fixing missing columns:", error);
     }
@@ -1053,7 +1162,7 @@ export class DatabaseService {
       (data.password ? await bcrypt.hash(data.password, 10) : "");
 
     const result = await this.pool.query(
-      `INSERT INTO admin_users (username, email, password, role, access_level, is_active) 
+      `INSERT INTO admin_users (username, email, password_hash, role, access_level, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
       [
@@ -1153,11 +1262,11 @@ export class DatabaseService {
     }
     if ("password" in data && typeof data.password === "string") {
       const hashedPassword = await bcrypt.hash(data.password, 10);
-      fields.push(`password = $${paramCount++}`);
+      fields.push(`password_hash = $${paramCount++}`);
       values.push(hashedPassword);
     }
     if (data.password_hash !== undefined) {
-      fields.push(`password = $${paramCount++}`);
+      fields.push(`password_hash = $${paramCount++}`);
       values.push(data.password_hash);
     }
 
@@ -1225,12 +1334,13 @@ export class DatabaseService {
       const apiKey = data.api_key || `pk_${uuidv4().replace(/-/g, "")}`;
 
       const rows = await this.queryWithRetry<any>(
-        `INSERT INTO projects (name, description, api_key, is_active, created_by, settings) 
-         VALUES ($1, $2, $3, $4, $5, $6) 
+        `INSERT INTO projects (name, description, project_url, api_key, is_active, created_by, settings) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7) 
          RETURNING *`,
         [
           data.name,
           data.description,
+          data.project_url,
           apiKey,
           data.active ?? true,
           data.created_by,
@@ -1312,44 +1422,46 @@ export class DatabaseService {
     data: Partial<Project>
   ): Promise<Project | null> {
     try {
-      const updateFields = [];
-      const values = [];
+      const updates: string[] = [];
+      const values: unknown[] = [];
       let paramCount = 1;
 
       if (data.name !== undefined) {
-        updateFields.push(`name = $${paramCount++}`);
+        updates.push(`name = $${paramCount++}`);
         values.push(data.name);
       }
       if (data.description !== undefined) {
-        updateFields.push(`description = $${paramCount++}`);
+        updates.push(`description = $${paramCount++}`);
         values.push(data.description);
       }
-      if (data.settings !== undefined) {
-        updateFields.push(`settings = $${paramCount++}`);
-        values.push(JSON.stringify(data.settings));
+      if (data.project_url !== undefined) {
+        updates.push(`project_url = $${paramCount++}`);
+        values.push(data.project_url);
       }
       if (data.active !== undefined) {
-        // Try to update is_active first, if it fails, try active
-        updateFields.push(`is_active = $${paramCount++}`);
+        updates.push(`is_active = $${paramCount++}`);
         values.push(data.active);
       }
-      if (data.api_key !== undefined) {
-        updateFields.push(`api_key = $${paramCount++}`);
-        values.push(data.api_key);
+      if (data.settings !== undefined) {
+        updates.push(`settings = $${paramCount++}`);
+        values.push(JSON.stringify(data.settings));
       }
 
-      updateFields.push(`updated_at = $${paramCount++}`);
-      values.push(new Date().toISOString());
+      if (updates.length === 0) {
+        return this.getProjectById(id);
+      }
 
+      updates.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(id);
 
-      const rows = await this.queryWithRetry<Project>(
-        `UPDATE projects SET ${updateFields.join(", ")} 
-         WHERE id = $${paramCount} RETURNING *`,
+      const rows = await this.queryWithRetry<any>(
+        `UPDATE projects SET ${updates.join(
+          ", "
+        )} WHERE id = $${paramCount} RETURNING *`,
         values
       );
 
-      return rows[0] || null;
+      return rows.length > 0 ? this.mapProject(rows[0]) : null;
     } catch (error) {
       console.error("Failed to update project:", error);
       throw error;
@@ -1447,7 +1559,7 @@ export class DatabaseService {
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
     const result = await this.pool.query(
-      `INSERT INTO project_users (project_id, username, email, password, phone, scopes, metadata) 
+      `INSERT INTO project_users (project_id, username, email, password_hash, phone, scopes, metadata) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
       [
@@ -1569,7 +1681,7 @@ export class DatabaseService {
     }
     if (updates.password !== undefined) {
       const hashedPassword = await bcrypt.hash(updates.password, 10);
-      fields.push(`password = $${paramCount++}`);
+      fields.push(`password_hash = $${paramCount++}`);
       values.push(hashedPassword);
     }
     if (updates.phone !== undefined) {
@@ -1637,7 +1749,7 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     const user = result.rows[0];
-    const isValid = await bcrypt.compare(password, user.password);
+    const isValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isValid) return null;
 
@@ -2122,7 +2234,7 @@ export class DatabaseService {
     data: Omit<Session, "id" | "createdAt" | "lastActivity">
   ): Promise<Session> {
     const result = await this.pool.query(
-      `INSERT INTO sessions (token, user_id, project_id, user_type, scopes, metadata, expires_at, is_active) 
+      `INSERT INTO sessions (token, user_id, project_id, type, scopes, metadata, expires_at, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
       [
@@ -2886,7 +2998,7 @@ export class DatabaseService {
       id: row.id as string,
       username: row.username as string,
       email: row.email as string,
-      password_hash: row.password as string,
+      password_hash: row.password_hash as string,
       role: row.role as AdminRole,
       access_level: row.access_level as AccessLevel,
       permissions: (row.permissions as AdminPermission[]) || [],
@@ -2895,6 +3007,7 @@ export class DatabaseService {
       updated_at: row.updated_at as string,
       last_login: row.last_login as string | undefined,
       api_key: row.api_key as string | undefined,
+      login_count: (row.login_count as number) || 0,
     };
   }
 
@@ -2902,15 +3015,14 @@ export class DatabaseService {
     return {
       id: row.id as string,
       name: row.name as string,
-      description: row.description as string | undefined,
+      description: row.description as string | null,
+      project_url: row.project_url as string | null,
       api_key: row.api_key as string,
-      active: (row.active !== undefined
-        ? row.active
-        : row.is_active) as boolean,
+      settings: row.settings as ProjectSettings,
+      created_by: row.created_by as string,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-      created_by: row.created_by as string,
-      settings: row.settings as ProjectSettings,
+      active: row.is_active as boolean,
     };
   }
 
@@ -2977,7 +3089,7 @@ export class DatabaseService {
     return {
       id: row.id as string,
       token: row.token as string,
-      type: row.user_type as SessionType,
+      type: row.type as SessionType,
       user_id: row.user_id as string | undefined,
       project_id: row.project_id as string | undefined,
       scopes: (row.scopes as Scope[]) || [],

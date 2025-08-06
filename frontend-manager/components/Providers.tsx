@@ -1,13 +1,22 @@
 "use client";
 
-import { AuthProvider } from "@/contexts/auth-context";
+import { ReduxAuthProvider } from "@/contexts/redux-auth-context";
 import { ThemeProvider } from "next-themes";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { AuthErrorBoundaryWrapper } from "@/components/auth-error-boundary";
+import { Provider } from "react-redux";
+import { store } from "@/store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const hasSetupErrorHandling = useRef(false);
+
   useEffect(() => {
     // Suppress hydration warnings in development
-    if (process.env.NODE_ENV === "development") {
+    if (
+      process.env.NODE_ENV === "development" &&
+      !hasSetupErrorHandling.current
+    ) {
+      hasSetupErrorHandling.current = true;
       const originalError = console.error;
       console.error = (...args) => {
         const message = args[0];
@@ -28,13 +37,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <AuthProvider>{children}</AuthProvider>
-    </ThemeProvider>
+    <Provider store={store}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <ReduxAuthProvider>
+          <AuthErrorBoundaryWrapper>{children}</AuthErrorBoundaryWrapper>
+        </ReduxAuthProvider>
+      </ThemeProvider>
+    </Provider>
   );
 }

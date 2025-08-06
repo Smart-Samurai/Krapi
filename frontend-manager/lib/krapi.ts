@@ -1,5 +1,5 @@
 import { KrapiSDK } from "@krapi/sdk";
-import type { AdminRole, AccessLevel } from "@krapi/sdk";
+import type { AdminRole, AccessLevel, ApiKey, ApiResponse } from "@krapi/sdk";
 
 /**
  * Create a default KRAPI client with base configuration
@@ -45,6 +45,24 @@ export function createKrapiWithApiKey(
     baseUrl: url,
     apiKey,
   });
+}
+
+// Extend the KrapiSDK class to include the createMasterApiKey method
+export class ExtendedKrapiSDK extends KrapiSDK {
+  admin: any = {
+    ...this.admin,
+    // Create master API key
+    createMasterApiKey: async (data: {
+      name: string;
+      scopes: string[];
+    }): Promise<ApiResponse<ApiKey>> => {
+      const response = await (this as any).client.post(
+        "/admin/master-api-keys",
+        data
+      );
+      return response.data;
+    },
+  };
 }
 
 // Export the SDK class and types for convenience

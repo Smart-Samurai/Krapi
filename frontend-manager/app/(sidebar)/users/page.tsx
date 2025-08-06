@@ -48,7 +48,7 @@ import { IconButton } from "@/components/styled/IconButton";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { AdminUser as AdminUserType } from "@/lib/krapi";
 import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { toast } from "sonner";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
 import { DatabaseAdminUser, ExtendedAdminUser } from "@/lib/types/extended";
@@ -133,7 +133,7 @@ export default function ServerAdministrationPage() {
   const [selectedUser, setSelectedUser] = useState<LocalAdminUser | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const krapi = useKrapi();
-  const { hasScope } = useAuth();
+  const { hasScope } = useReduxAuth();
 
   const [adminUsers, setAdminUsers] = useState<LocalAdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);

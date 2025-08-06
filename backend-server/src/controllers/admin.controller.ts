@@ -614,6 +614,64 @@ export class AdminController {
     }
   };
 
+  // Create master API key
+  createMasterApiKey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+
+      if (!currentUser) {
+        res.status(401).json({
+          success: false,
+          error: "Unauthorized",
+        } as ApiResponse);
+        return;
+      }
+
+      // Only master admins can create master API keys
+      if (currentUser.role !== "master_admin") {
+        res.status(403).json({
+          success: false,
+          error: "Only master administrators can create master API keys",
+        } as ApiResponse);
+        return;
+      }
+
+      const { name = "Master API Key", scopes = ["master"] } = req.body;
+
+      // Create master API key
+      const newApiKey = await this.db.createApiKey({
+        name,
+        type: "master",
+        owner_id: currentUser.id,
+        scopes,
+      });
+
+      // Log the action
+      await this.db.createChangelogEntry({
+        entity_type: "api_key",
+        entity_id: newApiKey.id,
+        action: ChangeAction.CREATED,
+        changes: { name, scopes, type: "master" },
+        performed_by: currentUser.id,
+        session_id: authReq.session?.id,
+        created_at: new Date().toISOString(),
+      });
+
+      res.status(201).json({
+        success: true,
+        data: newApiKey,
+        message: "Master API key created successfully",
+      } as ApiResponse);
+    } catch (error) {
+      console.error("Create master API key error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create master API key",
+      } as ApiResponse);
+    }
+  };
+
   // Get system statistics
   getSystemStats = async (req: Request, res: Response): Promise<void> => {
     try {

@@ -366,6 +366,15 @@ export class KrapiSDK {
       const response = await this.client.delete(`/admin/users/${id}`);
       return response.data;
     },
+
+    // Create master API key
+    createMasterApiKey: async (data: {
+      name: string;
+      scopes: string[];
+    }): Promise<ApiResponse<ApiKey>> => {
+      const response = await this.client.post("/admin/master-api-keys", data);
+      return response.data;
+    },
   };
 
   // Project Methods

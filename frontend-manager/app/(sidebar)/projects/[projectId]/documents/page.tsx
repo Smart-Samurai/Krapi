@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type {
-  Document,
-  Collection,
-  QueryOptions,
-  FilterCondition,
-} from "@/lib/krapi";
+import type { Document, Collection, QueryOptions } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -90,7 +85,7 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [filters, setFilters] = useState<FilterCondition[]>([]);
+  const [filters, setFilters] = useState<any[]>([]); // Changed from FilterCondition[]
 
   // Form state for creating/editing documents
   const [formData, setFormData] = useState({
@@ -146,14 +141,18 @@ export default function DocumentsPage() {
     try {
       const options: QueryOptions = {
         page: 1,
-        limit: 100,
+        limit: 50,
         orderBy: sortBy,
         order: sortOrder,
         search: searchQuery || undefined,
         filter: filters.length > 0 ? filters : undefined,
       };
 
-      const result = await krapi.documents.getAll(selectedCollection, options);
+      const result = await krapi.documents.getAll(
+        projectId,
+        selectedCollection,
+        options
+      );
       if (result.success && result.data) {
         setDocuments(result.data);
       } else {
@@ -172,6 +171,7 @@ export default function DocumentsPage() {
 
     try {
       const result = await krapi.documents.create(
+        projectId,
         selectedCollection,
         formData.data
       );
@@ -193,6 +193,7 @@ export default function DocumentsPage() {
 
     try {
       const result = await krapi.documents.update(
+        projectId,
         selectedCollection,
         editingDocument.id,
         formData.data
@@ -225,6 +226,7 @@ export default function DocumentsPage() {
 
     try {
       const result = await krapi.documents.delete(
+        projectId,
         selectedCollection,
         documentId
       );

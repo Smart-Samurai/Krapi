@@ -69,6 +69,19 @@ router.get(
 );
 
 /**
+ * GET /projects/:projectId/email/templates/:templateId
+ * Get a specific email template
+ */
+router.get(
+  "/:projectId/email/templates/:templateId",
+  requireScopes({
+    scopes: [Scope.PROJECTS_READ],
+    projectSpecific: true,
+  }),
+  controller.getEmailTemplate
+);
+
+/**
  * POST /projects/:projectId/email/templates
  * Create a new email template
  */
@@ -112,7 +125,7 @@ router.delete(
  * Send an email using a template or custom content
  */
 router.post(
-  "/send",
+  "/:projectId/email/send",
   requireScopes({
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,

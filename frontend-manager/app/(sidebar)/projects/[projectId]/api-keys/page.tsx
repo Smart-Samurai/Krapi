@@ -122,7 +122,7 @@ export default function ApiKeysPage() {
   }, [krapi, projectId]);
 
   const loadApiKeys = async () => {
-    if (!krapi) return;
+    if (!krapi?.apiKeys) return;
 
     setIsLoading(true);
     setError(null);
@@ -143,7 +143,7 @@ export default function ApiKeysPage() {
   };
 
   const handleCreateApiKey = async () => {
-    if (!krapi) return;
+    if (!krapi?.apiKeys) return;
 
     try {
       const result = await krapi.apiKeys.create(projectId, {
@@ -172,7 +172,7 @@ export default function ApiKeysPage() {
   };
 
   const handleUpdateApiKey = async () => {
-    if (!krapi || !editingApiKey) return;
+    if (!krapi?.apiKeys || !editingApiKey) return;
 
     try {
       const result = await krapi.apiKeys.update(projectId, editingApiKey.id, {
@@ -203,7 +203,7 @@ export default function ApiKeysPage() {
   };
 
   const handleDeleteApiKey = async (keyId: string) => {
-    if (!krapi) return;
+    if (!krapi?.apiKeys) return;
 
     if (
       !confirm(
@@ -227,11 +227,11 @@ export default function ApiKeysPage() {
   };
 
   const handleRegenerateApiKey = async (keyId: string) => {
-    if (!krapi) return;
+    if (!krapi?.apiKeys) return;
 
     if (
       !confirm(
-        "Are you sure you want to regenerate this API key? The old key will no longer work."
+        "Are you sure you want to regenerate this API key? The old key will be invalidated."
       )
     ) {
       return;

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Collection, CollectionField, FieldType } from "@/lib/krapi";
+import type { Collection, CollectionField } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -51,13 +51,26 @@ import {
   Users,
   Calendar,
   Hash,
-  Link,
   Code,
   Type,
   Code2,
   BookOpen,
+  Link as LinkIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+
+type FieldType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "date"
+  | "array"
+  | "object"
+  | "uniqueID"
+  | "relation"
+  | "json"
+  | "text";
 
 const fieldTypeIcons: Record<
   FieldType,
@@ -71,7 +84,7 @@ const fieldTypeIcons: Record<
   array: Code,
   object: Code,
   uniqueID: Hash,
-  relation: Link,
+  relation: LinkIcon,
   json: Code,
 };
 
@@ -117,7 +130,7 @@ export default function CollectionsPage() {
   }, [krapi, projectId]);
 
   const loadCollections = async () => {
-    if (!krapi) return;
+    if (!krapi?.collections) return;
 
     setIsLoading(true);
     setError(null);
@@ -129,16 +142,16 @@ export default function CollectionsPage() {
       } else {
         setError(result.error || "Failed to load collections");
       }
-    } catch (err) {
-      setError("An error occurred while loading collections");
-      console.error("Error loading collections:", err);
+    } catch (error) {
+      console.error("Error loading collections:", error);
+      setError("Failed to load collections");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCreateCollection = async () => {
-    if (!krapi) return;
+    if (!krapi?.collections) return;
 
     try {
       const result = await krapi.collections.create(projectId, {
@@ -151,24 +164,24 @@ export default function CollectionsPage() {
         setIsCreateDialogOpen(false);
         setFormData({ name: "", description: "", fields: [] });
         loadCollections();
+        toast.success("Collection created successfully");
       } else {
         setError(result.error || "Failed to create collection");
       }
-    } catch (err) {
-      setError("An error occurred while creating collection");
-      console.error("Error creating collection:", err);
+    } catch (error) {
+      console.error("Error creating collection:", error);
+      setError("Failed to create collection");
     }
   };
 
   const handleUpdateCollection = async () => {
-    if (!krapi || !editingCollection) return;
+    if (!krapi?.collections || !editingCollection) return;
 
     try {
       const result = await krapi.collections.update(
         projectId,
-        editingCollection.id,
+        editingCollection.name,
         {
-          name: formData.name,
           description: formData.description,
           fields: formData.fields,
         }
@@ -179,17 +192,18 @@ export default function CollectionsPage() {
         setEditingCollection(null);
         setFormData({ name: "", description: "", fields: [] });
         loadCollections();
+        toast.success("Collection updated successfully");
       } else {
         setError(result.error || "Failed to update collection");
       }
-    } catch (err) {
-      setError("An error occurred while updating collection");
-      console.error("Error updating collection:", err);
+    } catch (error) {
+      console.error("Error updating collection:", error);
+      setError("Failed to update collection");
     }
   };
 
   const handleDeleteCollection = async (collectionId: string) => {
-    if (!krapi) return;
+    if (!krapi?.collections) return;
 
     if (
       !confirm(
@@ -203,12 +217,13 @@ export default function CollectionsPage() {
       const result = await krapi.collections.delete(projectId, collectionId);
       if (result.success) {
         loadCollections();
+        toast.success("Collection deleted successfully");
       } else {
         setError(result.error || "Failed to delete collection");
       }
-    } catch (err) {
-      setError("An error occurred while deleting collection");
-      console.error("Error deleting collection:", err);
+    } catch (error) {
+      console.error("Error deleting collection:", error);
+      setError("Failed to delete collection");
     }
   };
 
@@ -361,16 +376,18 @@ export default function CollectionsPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {Object.entries(fieldTypeLabels).map(
-                                  ([value, label]) => (
-                                    <SelectItem key={value} value={value}>
-                                      <div className="flex items-center gap-2">
-                                        {React.createElement(Icon, {
-                                          className: "h-4 w-4",
-                                        })}
-                                        {label}
-                                      </div>
-                                    </SelectItem>
-                                  )
+                                  ([value, label]) => {
+                                    const Icon =
+                                      fieldTypeIcons[value as FieldType];
+                                    return (
+                                      <SelectItem key={value} value={value}>
+                                        <div className="flex items-center gap-2">
+                                          <Icon className="h-4 w-4" />
+                                          {label}
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  }
                                 )}
                               </SelectContent>
                             </Select>
@@ -680,7 +697,9 @@ response = requests.delete(
                     </Button>
                     <Button variant="outline" size="sm" asChild>
                       <Link
-                        href={`/projects/${projectId}/collections/${collection.id}/documents`}
+                        href={
+                          `/projects/${projectId}/collections/${collection.id}/documents` as any
+                        }
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Documents
@@ -818,16 +837,17 @@ response = requests.delete(
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(fieldTypeLabels).map(
-                              ([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  <div className="flex items-center gap-2">
-                                    {React.createElement(Icon, {
-                                      className: "h-4 w-4",
-                                    })}
-                                    {label}
-                                  </div>
-                                </SelectItem>
-                              )
+                              ([value, label]) => {
+                                const Icon = fieldTypeIcons[value as FieldType];
+                                return (
+                                  <SelectItem key={value} value={value}>
+                                    <div className="flex items-center gap-2">
+                                      <Icon className="h-4 w-4" />
+                                      {label}
+                                    </div>
+                                  </SelectItem>
+                                );
+                              }
                             )}
                           </SelectContent>
                         </Select>

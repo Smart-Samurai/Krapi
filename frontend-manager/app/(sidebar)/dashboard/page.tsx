@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project } from "@/lib/krapi";
 import {
@@ -30,7 +30,7 @@ import Link from "next/link";
 import { Scope } from "@/lib/krapi";
 
 export default function DashboardPage() {
-  const { user, loading, scopes, hasScope, hasMasterAccess } = useAuth();
+  const { user, loading, scopes, hasScope, hasMasterAccess } = useReduxAuth();
   const krapi = useKrapi();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -45,10 +45,10 @@ export default function DashboardPage() {
     if (krapi && hasScope(Scope.PROJECTS_READ)) {
       loadProjects();
     }
-  }, [krapi, hasScope]);
+  }, [krapi, scopes]); // Use scopes instead of hasScope since hasScope is now memoized
 
   const loadProjects = async () => {
-    if (!krapi) return;
+    if (!krapi?.projects) return;
 
     setIsLoadingProjects(true);
     try {
@@ -57,13 +57,15 @@ export default function DashboardPage() {
         setProjects(result.data);
         setStats({
           totalProjects: result.data.length,
-          activeProjects: result.data.filter((p) => p.is_active).length,
+          activeProjects: result.data.filter((p: Project) => p.active).length,
           totalCollections: 0, // Will be calculated later
           totalDocuments: 0, // Will be calculated later
         });
       }
     } catch (error) {
       console.error("Failed to load projects:", error);
+      // Note: Authentication errors are automatically handled by the enhanced useKrapi hook
+      // and will redirect to login page. For other errors, you can handle them here.
     } finally {
       setIsLoadingProjects(false);
     }
@@ -98,7 +100,7 @@ export default function DashboardPage() {
             Admin dashboard for managing your KRAPI instance
           </p>
         </div>
-        {hasScope(Scope.PROJECTS_CREATE) && (
+        {hasScope(Scope.PROJECTS_WRITE) && (
           <Button asChild>
             <Link href="/projects">
               <Plus className="mr-2 h-4 w-4" />
@@ -274,7 +276,7 @@ export default function DashboardPage() {
             <div className="text-center py-8">
               <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">No projects found</p>
-              {hasScope(Scope.PROJECTS_CREATE) && (
+              {hasScope(Scope.PROJECTS_WRITE) && (
                 <Button asChild>
                   <Link href="/projects">
                     <Plus className="mr-2 h-4 w-4" />
@@ -301,10 +303,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge
-                      variant={project.is_active ? "default" : "secondary"}
-                    >
-                      {project.is_active ? "Active" : "Inactive"}
+                    <Badge variant={project.active ? "default" : "secondary"}>
+                      {project.active ? "Active" : "Inactive"}
                     </Badge>
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/projects/${project.id}`}>View Project</Link>
@@ -332,7 +332,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {hasScope(Scope.PROJECTS_CREATE) && (
+            {hasScope(Scope.PROJECTS_WRITE) && (
               <Button
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-start gap-2"

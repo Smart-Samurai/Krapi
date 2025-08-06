@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import {
   Card,
   CardContent,
@@ -56,7 +56,7 @@ type EditProjectFormData = z.infer<typeof editProjectSchema>;
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { krapi, hasScope } = useAuth();
+  const { krapi, hasScope } = useReduxAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);

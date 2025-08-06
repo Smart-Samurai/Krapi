@@ -6,7 +6,7 @@ import { Scope } from "@/types";
 const router: IRouter = Router();
 const controller = new UsersController();
 
-// All routes require authentication
+// All routes require authentication except for public endpoints
 router.use(authenticate);
 
 // User management routes
@@ -67,5 +67,15 @@ router.put(
 
 // Authentication endpoint (public for project users)
 router.post("/:projectId/users/authenticate", controller.authenticateUser);
+
+// Email verification (public)
+router.post("/:projectId/users/:userId/verify-email", controller.verifyEmail);
+
+// Password reset (public)
+router.post("/:projectId/users/password-reset", controller.sendPasswordReset);
+router.post(
+  "/:projectId/users/password-reset/confirm",
+  controller.resetPassword
+);
 
 export default router;

@@ -1,16 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuth } from "@/contexts/auth-context";
-import { useNotification } from "@/hooks/useNotification";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { useNotification } from "@/hooks/useNotification";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +33,7 @@ export default function UserSettingsModal({
   isOpen,
   onClose,
 }: UserSettingsModalProps) {
-  const { user } = useAuth();
+  const { user } = useReduxAuth();
   const { showSuccess, showError } = useNotification();
   const krapi = useKrapi();
 
@@ -110,9 +109,7 @@ export default function UserSettingsModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>User Settings</DialogTitle>
-          <DialogDescription>
-            Manage your account settings and preferences
-          </DialogDescription>
+          {/* DialogDescription is removed as per new_code */}
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">

@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { z } from "zod";
 import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
-import { useAuth } from "@/contexts/auth-context";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -38,10 +38,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loading, error } = useReduxAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -53,9 +51,6 @@ export default function LoginPage() {
   });
 
   const handleLogin = async (data: LoginFormData) => {
-    setIsLoading(true);
-    setError(null);
-
     try {
       // Store remember me preference before login
       if (data.rememberMe) {
@@ -66,13 +61,7 @@ export default function LoginPage() {
       await login(data.email, data.password);
     } catch (err) {
       console.error("Login error:", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unexpected error occurred");
-      }
-    } finally {
-      setIsLoading(false);
+      // Error handling is now managed by Redux
     }
   };
 
@@ -123,7 +112,7 @@ export default function LoginPage() {
                               type="email"
                               placeholder="Enter your email"
                               className="pl-10"
-                              disabled={isLoading}
+                              disabled={loading}
                             />
                           </div>
                         </FormControl>
@@ -146,7 +135,7 @@ export default function LoginPage() {
                               type={showPassword ? "text" : "password"}
                               placeholder="Enter your password"
                               className="pl-10 pr-10"
-                              disabled={isLoading}
+                              disabled={loading}
                             />
                             <Button
                               type="button"
@@ -154,7 +143,7 @@ export default function LoginPage() {
                               size="sm"
                               className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                               onClick={() => setShowPassword(!showPassword)}
-                              disabled={isLoading}
+                              disabled={loading}
                             >
                               {showPassword ? (
                                 <EyeOff className="h-4 w-4" />
@@ -180,7 +169,7 @@ export default function LoginPage() {
                           <Checkbox
                             checked={field.value}
                             onCheckedChange={field.onChange}
-                            disabled={isLoading}
+                            disabled={loading}
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
@@ -195,14 +184,14 @@ export default function LoginPage() {
                     variant="link"
                     className="px-0"
                     onClick={() => router.push("/forgot-password" as any)}
-                    disabled={isLoading}
+                    disabled={loading}
                   >
                     Forgot password?
                   </Button>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign in"}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Signing in..." : "Sign in"}
                 </Button>
               </form>
             </Form>
@@ -214,7 +203,7 @@ export default function LoginPage() {
                   variant="link"
                   className="px-0"
                   onClick={() => router.push("/register" as any)}
-                  disabled={isLoading}
+                  disabled={loading}
                 >
                   Sign up
                 </Button>

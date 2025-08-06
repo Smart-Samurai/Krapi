@@ -137,6 +137,50 @@ export class EmailController {
     }
   };
 
+  // Get a specific email template
+  getEmailTemplate = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId, templateId } = req.params;
+
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
+
+      if (!templateId) {
+        res.status(400).json({
+          success: false,
+          error: "Template ID is required",
+        });
+        return;
+      }
+
+      const template = await this.db.getEmailTemplate(projectId, templateId);
+
+      if (!template) {
+        res.status(404).json({
+          success: false,
+          error: "Email template not found",
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: template,
+      });
+    } catch (error) {
+      console.error("Error getting email template:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get email template",
+      });
+    }
+  };
+
   // Create email template
   createEmailTemplate = async (req: Request, res: Response): Promise<void> => {
     try {

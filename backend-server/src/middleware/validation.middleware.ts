@@ -91,6 +91,9 @@ export const schemas = {
     "json",
     "reference",
     "file",
+    "uniqueID",
+    "relation",
+    "text",
   ]),
 
   // Admin role
@@ -203,6 +206,7 @@ export const validationSchemas = {
     body: z.object({
       name: schemas.projectName,
       description: z.string().optional(),
+      project_url: z.string().url().optional(),
       settings: z
         .object({
           email_config: schemas.smtpConfig.optional(),
@@ -222,6 +226,7 @@ export const validationSchemas = {
     body: z.object({
       name: schemas.projectName.optional(),
       description: z.string().optional(),
+      project_url: z.string().url().optional(),
       settings: z
         .object({
           email_config: schemas.smtpConfig.optional(),
