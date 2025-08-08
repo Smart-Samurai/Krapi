@@ -29,6 +29,20 @@ export const fetchProjects = createAsyncThunk<Project[], void, { state: RootStat
   }
 );
 
+export const fetchProjectById = createAsyncThunk<Project, { id: string }, { state: RootState }>(
+  "projects/fetchById",
+  async ({ id }, { getState, rejectWithValue }) => {
+    try {
+      const sdk = buildKrapiFromState(getState());
+      const res = await sdk.projects.getById(id);
+      if (!res.success || !res.data) return rejectWithValue(res.error || "Failed to fetch project");
+      return res.data;
+    } catch (e: any) {
+      return rejectWithValue(e.message || "Fetch error");
+    }
+  }
+);
+
 export const createProject = createAsyncThunk<Project, { name: string; description?: string }, { state: RootState }>(
   "projects/create",
   async (data, { getState, rejectWithValue }) => {
@@ -72,6 +86,20 @@ const projectsSlice = createSlice({
         state.items = action.payload;
       })
       .addCase(fetchProjects.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) || "Failed";
+      })
+      .addCase(fetchProjectById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProjectById.fulfilled, (state, action) => {
+        state.loading = false;
+        const idx = state.items.findIndex((p) => p.id === action.payload.id);
+        if (idx >= 0) state.items[idx] = action.payload;
+        else state.items.push(action.payload);
+      })
+      .addCase(fetchProjectById.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "Failed";
       })
