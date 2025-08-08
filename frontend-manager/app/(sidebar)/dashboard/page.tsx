@@ -22,8 +22,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
 
 export default function DashboardPage() {
-  const { user, loading, scopes, hasScope, hasMasterAccess } = useReduxAuth();
-  const krapi = useKrapi();
+  const { user, loading, scopes, hasScope } = useReduxAuth();
   const dispatch = useAppDispatch();
   const projectsState = useAppSelector((s) => s.projects);
   const projects = projectsState.items;
@@ -200,7 +199,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {hasMasterAccess() ? (
+          {scopes.includes('master') ? (
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertTitle>Master Access Enabled</AlertTitle>

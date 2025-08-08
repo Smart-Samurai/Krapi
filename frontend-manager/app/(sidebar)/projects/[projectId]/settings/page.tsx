@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,13 +13,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Save, Settings, Trash2, AlertTriangle } from "lucide-react";
+import { Save } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -48,7 +45,6 @@ type ProjectSettingsFormData = z.infer<typeof projectSettingsSchema>;
 export default function ProjectSettingsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const projectsState = useAppSelector((s) => s.projects);
   const project = projectsState.items.find((p) => p.id === projectId) || null;

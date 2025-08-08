@@ -107,19 +107,8 @@ export default function DocumentsPage() {
     loadDocuments();
   }, [loadDocuments]);
 
-  const legacyLoadCollections = async () => {};
 
-
-  const legacyLoadDocuments = async () => {
-    if (!krapi || !selectedCollection) return;
-    try {
-      const result = await krapi.documents.getAll(projectId, selectedCollection);
-      if (!result.success) setError(result.error || "Failed to load documents");
-    } catch (err) {
-      setError("An error occurred while loading documents");
-      console.error("Error loading documents:", err);
-    }
-  };
+    
 
   const handleCreateDocument = async () => {
     if (!selectedCollection) return;
