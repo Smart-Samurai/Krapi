@@ -3,10 +3,15 @@ import authReducer from "./authSlice";
 import uiReducer from "./uiSlice";
 import projectsReducer from "./projectsSlice";
 
+import collectionsReducer from "./collectionsSlice";
+import documentsReducer from "./documentsSlice";
+
 const rootReducer = combineReducers({
   auth: authReducer,
   ui: uiReducer,
   projects: projectsReducer,
+  collections: collectionsReducer,
+  documents: documentsReducer,
 });
 
 export const store = configureStore({
