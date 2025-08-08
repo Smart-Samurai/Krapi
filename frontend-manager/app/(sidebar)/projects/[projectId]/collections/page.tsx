@@ -47,7 +47,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2, Database, FileText, Calendar, Hash, Code, Type, Code2, BookOpen, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
-/* eslint-disable react/no-unescaped-entities */
+
 import { toast } from "sonner";
 
 type FieldType =

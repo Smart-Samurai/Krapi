@@ -8,7 +8,6 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { fetchDocuments, createDocument, updateDocument, deleteDocument } from "@/store/documentsSlice";
 import type { Document, Collection } from "@/lib/krapi";
-/* eslint-disable react/no-unescaped-entities */
 import { Button } from "@/components/ui/button";
 import {
   Card,

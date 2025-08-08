@@ -43,8 +43,6 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react/no-unescaped-entities */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Mail, Settings, TestTube, Save, Search, Filter, MoreHorizontal, Eye, Send, FileText, Code2, BookOpen } from "lucide-react";
 import {
