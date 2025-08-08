@@ -5,6 +5,9 @@ import projectsReducer from "./projectsSlice";
 
 import collectionsReducer from "./collectionsSlice";
 import documentsReducer from "./documentsSlice";
+import usersReducer from "./usersSlice";
+import emailReducer from "./emailSlice";
+import storageReducer from "./storageSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -12,6 +15,9 @@ const rootReducer = combineReducers({
   projects: projectsReducer,
   collections: collectionsReducer,
   documents: documentsReducer,
+  users: usersReducer,
+  email: emailReducer,
+  storage: storageReducer,
 });
 
 export const store = configureStore({

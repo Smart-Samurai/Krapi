@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
+import { fetchCollections } from "@/store/collectionsSlice";
+import { fetchDocuments, createDocument, updateDocument, deleteDocument } from "@/store/documentsSlice";
 import type { Document, Collection, QueryOptions } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,10 +74,12 @@ export default function DocumentsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
-
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const collectionsBucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
+  const collections = (collectionsBucket?.items || []) as Collection[];
+  const documentsBucket = useAppSelector((s) => selectedCollection ? s.documents.byKey[`${projectId}:${selectedCollection}`] : undefined);
+  const documents = documentsBucket?.items || [];
+  const isLoading = (collectionsBucket?.loading || false) || (documentsBucket?.loading || false);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -93,51 +99,42 @@ export default function DocumentsPage() {
     data: {} as Record<string, any>,
   });
 
-  useEffect(() => {
-    if (krapi) {
-      loadCollections();
-    }
-  }, [krapi, projectId]);
+  const loadCollections = useCallback(() => {
+    dispatch(fetchCollections({ projectId }));
+  }, [dispatch, projectId]);
+
+  const loadDocuments = useCallback(() => {
+    if (!selectedCollection) return;
+    const opts: QueryOptions = {
+      page: 1,
+      limit: 50,
+      orderBy: sortBy,
+      order: sortOrder,
+      search: searchQuery || undefined,
+      filter: filters.length > 0 ? filters : undefined,
+    } as any;
+    dispatch(fetchDocuments({ projectId, collectionId: selectedCollection }));
+  }, [dispatch, projectId, selectedCollection, sortBy, sortOrder, searchQuery, filters]);
 
   useEffect(() => {
-    if (krapi && collections.length > 0) {
-      loadDocuments();
+    loadCollections();
+  }, [loadCollections]);
+
+  useEffect(() => {
+    if (collections.length > 0 && !selectedCollection) {
+      setSelectedCollection(collections[0].id);
     }
-  }, [
-    krapi,
-    collections,
-    selectedCollection,
-    searchQuery,
-    sortBy,
-    sortOrder,
-    filters,
-  ]);
+  }, [collections, selectedCollection]);
 
-  const loadCollections = async () => {
-    if (!krapi) return;
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
-    try {
-      const result = await krapi.collections.getAll(projectId);
-      if (result.success && result.data) {
-        setCollections(result.data);
-        if (result.data.length > 0 && !selectedCollection) {
-          setSelectedCollection(result.data[0].id);
-        }
-      } else {
-        setError(result.error || "Failed to load collections");
-      }
-    } catch (err) {
-      setError("An error occurred while loading collections");
-      console.error("Error loading collections:", err);
-    }
-  };
+  const legacyLoadCollections = async () => {};
 
-  const loadDocuments = async () => {
+
+  const legacyLoadDocuments = async () => {
     if (!krapi || !selectedCollection) return;
-
-    setIsLoading(true);
-    setError(null);
-
     try {
       const options: QueryOptions = {
         page: 1,
@@ -147,75 +144,64 @@ export default function DocumentsPage() {
         search: searchQuery || undefined,
         filter: filters.length > 0 ? filters : undefined,
       };
-
-      const result = await krapi.documents.getAll(
-        projectId,
-        selectedCollection,
-        options
-      );
-      if (result.success && result.data) {
-        setDocuments(result.data);
-      } else {
-        setError(result.error || "Failed to load documents");
-      }
+      const result = await krapi.documents.getAll(projectId, selectedCollection, options);
+      if (!result.success) setError(result.error || "Failed to load documents");
     } catch (err) {
       setError("An error occurred while loading documents");
       console.error("Error loading documents:", err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleCreateDocument = async () => {
-    if (!krapi || !selectedCollection) return;
-
+    if (!selectedCollection) return;
     try {
-      const result = await krapi.documents.create(
-        projectId,
-        selectedCollection,
-        formData.data
+      dispatch(beginBusy());
+      const action = await dispatch(
+        createDocument({ projectId, collectionId: selectedCollection, data: formData.data })
       );
-      if (result.success) {
+      if (createDocument.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
         setFormData({ collection_id: "", data: {} });
         loadDocuments();
       } else {
-        setError(result.error || "Failed to create document");
+        const msg = (action as any).payload || "Failed to create document";
+        setError(String(msg));
       }
     } catch (err) {
       setError("An error occurred while creating document");
       console.error("Error creating document:", err);
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleUpdateDocument = async () => {
-    if (!krapi || !editingDocument) return;
+    if (!editingDocument) return;
 
     try {
-      const result = await krapi.documents.update(
-        projectId,
-        selectedCollection,
-        editingDocument.id,
-        formData.data
+      dispatch(beginBusy());
+      const action = await dispatch(
+        updateDocument({ projectId, collectionId: selectedCollection, id: editingDocument.id, data: formData.data })
       );
 
-      if (result.success) {
+      if (updateDocument.fulfilled.match(action)) {
         setIsEditDialogOpen(false);
         setEditingDocument(null);
         setFormData({ collection_id: "", data: {} });
         loadDocuments();
       } else {
-        setError(result.error || "Failed to update document");
+        const msg = (action as any).payload || "Failed to update document";
+        setError(String(msg));
       }
     } catch (err) {
       setError("An error occurred while updating document");
       console.error("Error updating document:", err);
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleDeleteDocument = async (documentId: string) => {
-    if (!krapi) return;
-
     if (
       !confirm(
         "Are you sure you want to delete this document? This action cannot be undone."
@@ -225,19 +211,19 @@ export default function DocumentsPage() {
     }
 
     try {
-      const result = await krapi.documents.delete(
-        projectId,
-        selectedCollection,
-        documentId
-      );
-      if (result.success) {
+      dispatch(beginBusy());
+      const action = await dispatch(deleteDocument({ projectId, collectionId: selectedCollection, id: documentId }));
+      if (deleteDocument.fulfilled.match(action)) {
         loadDocuments();
       } else {
-        setError(result.error || "Failed to delete document");
+        const msg = (action as any).payload || "Failed to delete document";
+        setError(String(msg));
       }
     } catch (err) {
       setError("An error occurred while deleting document");
       console.error("Error deleting document:", err);
+    } finally {
+      dispatch(endBusy());
     }
   };
 
