@@ -1,11 +1,16 @@
-import { configureStore } from "@reduxjs/toolkit";
+import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
+import uiReducer from "./uiSlice";
+import projectsReducer from "./projectsSlice";
+
+const rootReducer = combineReducers({
+  auth: authReducer,
+  ui: uiReducer,
+  projects: projectsReducer,
+});
 
 export const store = configureStore({
-  reducer: {
-    auth: authReducer,
-    // ui added via dynamic import in Providers; keep minimal static shape for SSR safety
-  },
+  reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {

@@ -6,18 +6,9 @@ import { useEffect, useRef } from "react";
 import { AuthErrorBoundaryWrapper } from "@/components/auth-error-boundary";
 import { Provider } from "react-redux";
 import { store } from "@/store";
-import uiReducer from "@/store/uiSlice";
-import { combineReducers } from "@reduxjs/toolkit";
-import authReducer from "@/store/authSlice";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const hasSetupErrorHandling = useRef(false);
-
-  useEffect(() => {
-    // Dynamically extend reducer map with ui slice to avoid SSR module timing issues
-    const rootReducer = combineReducers({ auth: authReducer, ui: uiReducer });
-    store.replaceReducer(rootReducer);
-  }, []);
 
   useEffect(() => {
     // Suppress hydration warnings in development
