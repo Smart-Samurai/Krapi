@@ -74,6 +74,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome to KRAPI Admin.</p>
+      </div>
+      <div className="rounded-md border p-4">
+        <p className="mb-2">Try the new Model Context Protocol (MCP) tools:</p>
+        <a href="/mcp" className="text-primary underline">Go to Admin MCP</a>
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Welcome back, {user?.username}!</h1>

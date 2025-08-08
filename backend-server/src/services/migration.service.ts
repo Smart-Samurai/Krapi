@@ -127,7 +127,7 @@ export class MigrationService {
         version: 6,
         name: "fix_projects_table_columns",
         up: async (client) => {
-          // Fix is_active vs active column naming
+          // Standardize on is_active column naming
           const hasIsActive = await client.query(`
             SELECT column_name 
             FROM information_schema.columns 
@@ -140,22 +140,22 @@ export class MigrationService {
             WHERE table_name = 'projects' AND column_name = 'active'
           `);
 
-          // If we have is_active but not active, rename it
-          if (hasIsActive.rows.length > 0 && hasActive.rows.length === 0) {
+          // If we have active but not is_active, rename it to is_active
+          if (hasActive.rows.length > 0 && hasIsActive.rows.length === 0) {
             await client.query(`
               ALTER TABLE projects 
-              RENAME COLUMN is_active TO active
+              RENAME COLUMN active TO is_active
             `);
-            console.log("Renamed 'is_active' to 'active' in projects table");
+            console.log("Renamed 'active' to 'is_active' in projects table");
           }
 
-          // If we have neither, add active column
+          // If we have neither, add is_active column
           if (hasIsActive.rows.length === 0 && hasActive.rows.length === 0) {
             await client.query(`
               ALTER TABLE projects 
-              ADD COLUMN active BOOLEAN DEFAULT true
+              ADD COLUMN is_active BOOLEAN DEFAULT true
             `);
-            console.log("Added 'active' column to projects table");
+            console.log("Added 'is_active' column to projects table");
           }
         },
       },
@@ -226,8 +226,8 @@ export class MigrationService {
       const fixes = [
         {
           table: "projects",
-          column: "active",
-          fix: "ALTER TABLE projects ADD COLUMN active BOOLEAN DEFAULT true",
+          column: "is_active",
+          fix: "ALTER TABLE projects ADD COLUMN is_active BOOLEAN DEFAULT true",
         },
         {
           table: "collections",
@@ -295,9 +295,9 @@ export class MigrationService {
           definition: "CREATE INDEX idx_sessions_token ON sessions(token)",
         },
         {
-          name: "idx_projects_active",
+          name: "idx_projects_is_active",
           table: "projects",
-          definition: "CREATE INDEX idx_projects_active ON projects(active)",
+          definition: "CREATE INDEX idx_projects_is_active ON projects(is_active)",
         },
         {
           name: "idx_api_keys_key",
