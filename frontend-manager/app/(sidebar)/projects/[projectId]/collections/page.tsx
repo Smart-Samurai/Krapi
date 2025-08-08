@@ -45,21 +45,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Database,
-  FileText,
-  Users,
-  Calendar,
-  Hash,
-  Code,
-  Type,
-  Code2,
-  BookOpen,
-  Link as LinkIcon,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Database, FileText, Calendar, Hash, Code, Type, Code2, BookOpen, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 

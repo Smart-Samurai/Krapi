@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { FileInfo, StorageStats } from "@/lib/krapi";
+import type { FileInfo } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
   Card,

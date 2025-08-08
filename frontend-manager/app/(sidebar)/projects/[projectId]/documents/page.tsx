@@ -45,22 +45,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Database,
-  FileText,
-  Search,
-  Filter,
-  ArrowUpDown,
-  Calendar,
-  User,
-  MoreHorizontal,
-  Eye,
-  Code2,
-  BookOpen,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Database, FileText, Search, Filter, ArrowUpDown, MoreHorizontal, Eye, Code2, BookOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,7 +62,7 @@ export default function DocumentsPage() {
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
   const collections = (collectionsBucket?.items || []) as Collection[];
-  const documentsBucket = useAppSelector((s) => selectedCollection ? s.documents.byKey[`${projectId}:${selectedCollection}`] : undefined);
+  const documentsBucket = useAppSelector((s) => (selectedCollection ? s.documents.byKey[`${projectId}:${selectedCollection}`] : undefined));
   const documents = documentsBucket?.items || [];
   const isLoading = (collectionsBucket?.loading || false) || (documentsBucket?.loading || false);
   const [error, setError] = useState<string | null>(null);

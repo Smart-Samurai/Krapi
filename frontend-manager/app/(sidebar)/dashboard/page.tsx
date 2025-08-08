@@ -15,17 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Activity,
-  FolderOpen,
-  Users,
-  Shield,
-  CheckCircle2,
-  Plus,
-  TrendingUp,
-  Database,
-  FileText,
-} from "lucide-react";
+import { FolderOpen, Users, Shield, CheckCircle2, Plus, TrendingUp, Database, FileText } from "lucide-react";
 import Link from "next/link";
 import { Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -53,7 +43,7 @@ export default function DashboardPage() {
     if (hasScope(Scope.PROJECTS_READ)) {
       loadProjects();
     }
-  }, [loadProjects, scopes]);
+  }, [loadProjects, scopes, hasScope]);
 
   useEffect(() => {
     setStats({

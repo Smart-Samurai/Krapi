@@ -11,21 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Database,
-  Users,
-  FileText,
-  Settings,
-  Activity,
-  Calendar,
-  Globe,
-  ArrowRight,
-  Edit,
-  Mail,
-} from "lucide-react";
+import { Database, Users, FileText, Activity, ArrowRight, Edit, Mail } from "lucide-react";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
