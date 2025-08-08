@@ -31,7 +31,6 @@ router.get(
       const { page = 1, limit = 50, entity_type, entity_id } = req.query;
 
       const db = DatabaseService.getInstance();
-      const offset = (Number(page) - 1) * Number(limit);
 
       const filters: any = {};
       if (entity_type) filters.entity_type = entity_type as string;
@@ -81,7 +80,6 @@ router.get(
       const { page = 1, limit = 50 } = req.query;
 
       const db = DatabaseService.getInstance();
-      const offset = (Number(page) - 1) * Number(limit);
 
       const entries = await db.getChangelogEntries({
         project_id: projectId,

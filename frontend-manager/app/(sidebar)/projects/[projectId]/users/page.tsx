@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { ProjectUser } from "@/lib/krapi";
@@ -15,16 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   Dialog,
   DialogContent,
@@ -58,6 +51,9 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
+import { fetchUsers, createUser, updateUser, deleteUser } from "@/store/usersSlice";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.USERS_READ]: "Read Users",
@@ -77,9 +73,11 @@ export default function UsersPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
+  const dispatch = useAppDispatch();
+  const bucket = useAppSelector((s) => s.users.byProjectId[projectId]);
+  const users = bucket?.items || [];
+  const isLoading = bucket?.loading || false;
 
-  const [users, setUsers] = useState<ProjectUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -98,49 +96,21 @@ export default function UsersPage() {
     custom_fields: {} as Record<string, any>,
   });
 
+  const loadUsersCb = useCallback(() => {
+    dispatch(fetchUsers({ projectId }));
+  }, [dispatch, projectId]);
+
   useEffect(() => {
-    if (krapi) {
-      loadUsers();
-    }
-  }, [krapi, projectId]);
-
-  const loadUsers = async () => {
-    if (!krapi) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await krapi.users.getAll(projectId);
-      if (result.success && result.data) {
-        setUsers(result.data);
-      } else {
-        setError(result.error || "Failed to load users");
-      }
-    } catch (err) {
-      setError("An error occurred while loading users");
-      console.error("Error loading users:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadUsersCb();
+  }, [loadUsersCb]);
 
   const handleCreateUser = async () => {
-    if (!krapi) return;
-
     try {
-      const result = await krapi.users.create(projectId, {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        phone: formData.phone,
-        access_scopes: formData.access_scopes,
-        custom_fields: formData.custom_fields,
-      });
-
-      if (result.success) {
+      dispatch(beginBusy());
+      const action = await dispatch(
+        createUser({ projectId, payload: { ...formData } as any })
+      );
+      if (createUser.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
         setFormData({
           username: "",
@@ -152,20 +122,24 @@ export default function UsersPage() {
           access_scopes: [],
           custom_fields: {},
         });
-        loadUsers();
+        loadUsersCb();
       } else {
-        setError(result.error || "Failed to create user");
+        const msg = (action as any).payload || "Failed to create user";
+        setError(String(msg));
       }
     } catch (err) {
       setError("An error occurred while creating user");
       console.error("Error creating user:", err);
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleUpdateUser = async () => {
-    if (!krapi || !editingUser) return;
+    if (!editingUser) return;
 
     try {
+      dispatch(beginBusy());
       const updates: any = {
         username: formData.username,
         email: formData.email,
@@ -175,18 +149,13 @@ export default function UsersPage() {
         access_scopes: formData.access_scopes,
         custom_fields: formData.custom_fields,
       };
+      if (formData.password) updates.password = formData.password;
 
-      if (formData.password) {
-        updates.password = formData.password;
-      }
-
-      const result = await krapi.users.update(
-        projectId,
-        editingUser.id,
-        updates
+      const action = await dispatch(
+        updateUser({ projectId, userId: editingUser.id, updates })
       );
 
-      if (result.success) {
+      if (updateUser.fulfilled.match(action)) {
         setIsEditDialogOpen(false);
         setEditingUser(null);
         setFormData({
@@ -199,19 +168,20 @@ export default function UsersPage() {
           access_scopes: [],
           custom_fields: {},
         });
-        loadUsers();
+        loadUsersCb();
       } else {
-        setError(result.error || "Failed to update user");
+        const msg = (action as any).payload || "Failed to update user";
+        setError(String(msg));
       }
     } catch (err) {
       setError("An error occurred while updating user");
       console.error("Error updating user:", err);
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!krapi) return;
-
     if (
       !confirm(
         "Are you sure you want to delete this user? This action cannot be undone."
@@ -221,15 +191,19 @@ export default function UsersPage() {
     }
 
     try {
-      const result = await krapi.users.delete(projectId, userId);
-      if (result.success) {
-        loadUsers();
+      dispatch(beginBusy());
+      const action = await dispatch(deleteUser({ projectId, userId }));
+      if (deleteUser.fulfilled.match(action)) {
+        loadUsersCb();
       } else {
-        setError(result.error || "Failed to delete user");
+        const msg = (action as any).payload || "Failed to delete user";
+        setError(String(msg));
       }
     } catch (err) {
       setError("An error occurred while deleting user");
       console.error("Error deleting user:", err);
+    } finally {
+      dispatch(endBusy());
     }
   };
 

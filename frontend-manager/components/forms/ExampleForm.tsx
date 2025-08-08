@@ -1,5 +1,6 @@
 import React from "react";
-import { Form, FormField } from "@/components/forms";
+import { Form } from "./Form";
+import { FormField } from "./FormField";
 import { Button } from "@/components/ui/button";
 import {
   userRegistrationSchema,

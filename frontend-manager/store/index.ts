@@ -1,18 +1,32 @@
-import { configureStore } from "@reduxjs/toolkit";
+import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
+import uiReducer from "./uiSlice";
+import projectsReducer from "./projectsSlice";
+
+import collectionsReducer from "./collectionsSlice";
+import documentsReducer from "./documentsSlice";
+import usersReducer from "./usersSlice";
+import emailReducer from "./emailSlice";
+import storageReducer from "./storageSlice";
+
+const rootReducer = combineReducers({
+  auth: authReducer,
+  ui: uiReducer,
+  projects: projectsReducer,
+  collections: collectionsReducer,
+  documents: documentsReducer,
+  users: usersReducer,
+  email: emailReducer,
+  storage: storageReducer,
+});
 
 export const store = configureStore({
-  reducer: {
-    auth: authReducer,
-  },
+  reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore these action types
         ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
-        // Ignore these field paths in all actions
         ignoredActionPaths: ["meta.arg", "payload.timestamp"],
-        // Ignore these paths in the state
         ignoredPaths: ["items.dates"],
       },
     }),

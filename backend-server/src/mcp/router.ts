@@ -1,0 +1,207 @@
+import { Router } from 'express';
+import { LlmService, LlmConfig, ChatMessage } from './llm.service';
+import { McpToolsService, ToolContext } from './tools.service';
+import { authenticate, requireScopes } from '@/middleware/auth.middleware';
+import { Scope } from '@/types';
+
+const router: ReturnType<typeof Router> = Router();
+const tools = new McpToolsService();
+
+function resolveContext(req: any, scope: 'admin' | 'project', projectId?: string): ToolContext {
+  return {
+    scope,
+    projectId,
+    userId: req.user?.id,
+  };
+}
+
+function getLlmConfig(req: any): LlmConfig {
+  const { provider, endpoint, apiKey, model } = req.body;
+  if (!provider || !endpoint || !model) {
+    throw new Error('provider, endpoint and model are required');
+  }
+  return { provider, endpoint, apiKey, model } as LlmConfig;
+}
+
+const adminToolSpecs = [
+  {
+    name: 'create_project',
+    description: 'Create a new project',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        project_url: { type: 'string' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'update_project',
+    description: 'Update project details',
+    parameters: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+        name: { type: 'string' },
+        description: { type: 'string' },
+        project_url: { type: 'string' },
+        active: { type: 'boolean' },
+      },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'list_projects',
+    description: 'List projects optionally filtered by name',
+    parameters: {
+      type: 'object',
+      properties: { search: { type: 'string' } },
+    },
+  },
+];
+
+const projectToolSpecs = [
+  {
+    name: 'create_collection',
+    description: 'Create a collection in this project',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        fields: { type: 'array', items: { type: 'object' } },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'list_collections',
+    description: 'List collections (schemas) in this project',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'create_document',
+    description: 'Create a document in a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_id: { type: 'string' },
+        data: { type: 'object' },
+      },
+      required: ['collection_id', 'data'],
+    },
+  },
+  {
+    name: 'list_documents',
+    description: 'List/search documents in a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_id: { type: 'string' },
+        search: { type: 'string' },
+        limit: { type: 'number' },
+        page: { type: 'number' },
+      },
+      required: ['collection_id'],
+    },
+  },
+  {
+    name: 'update_document',
+    description: 'Update a document by id',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_id: { type: 'string' },
+        document_id: { type: 'string' },
+        data: { type: 'object' },
+      },
+      required: ['collection_id', 'document_id', 'data'],
+    },
+  },
+  {
+    name: 'delete_document',
+    description: 'Delete a document by id',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_id: { type: 'string' },
+        document_id: { type: 'string' },
+      },
+      required: ['collection_id', 'document_id'],
+    },
+  },
+  {
+    name: 'list_users',
+    description: 'List/search users in this project',
+    parameters: {
+      type: 'object',
+      properties: { search: { type: 'string' } },
+    },
+  },
+];
+
+async function dispatchTool(ctx: ToolContext, name: string, args: any): Promise<string> {
+  switch (name) {
+    case 'create_project': return JSON.stringify(await tools.createProject(ctx, args));
+    case 'update_project': return JSON.stringify(await tools.updateProject(ctx, args));
+    case 'list_projects': return JSON.stringify(await tools.listProjects(ctx, args));
+    case 'create_collection': return JSON.stringify(await tools.createCollection(ctx, args));
+    case 'list_collections': return JSON.stringify(await tools.listCollections(ctx));
+    case 'create_document': return JSON.stringify(await tools.createDocument(ctx, args));
+    case 'list_documents': return JSON.stringify(await tools.listDocuments(ctx, args));
+    case 'update_document': return JSON.stringify(await tools.updateDocument(ctx, args));
+    case 'delete_document': return JSON.stringify(await tools.deleteDocument(ctx, args));
+    case 'list_users': return JSON.stringify(await tools.listUsers(ctx, args));
+    default: throw new Error(`Unknown tool: ${name}`);
+  }
+}
+
+router.use(authenticate);
+
+// Admin-scoped MCP chat
+router.post('/admin/chat', requireScopes({ scopes: [Scope.ADMIN_READ], requireAll: false }), async (req: any, res) => {
+  try {
+    const config = getLlmConfig(req);
+    const messages: ChatMessage[] = req.body.messages || [];
+    const { messages: updated, toolCalls } = await LlmService.chatWithTools(config, messages, adminToolSpecs);
+
+    if (toolCalls && toolCalls.length > 0) {
+      const ctx = resolveContext(req, 'admin');
+      const results = await Promise.all(toolCalls.map(async (tc) => ({ tool_call_id: tc.id, output: await dispatchTool(ctx, tc.name, tc.arguments) })));
+      const withTools = LlmService.appendToolResults(updated, results);
+      const finalTurn = await LlmService.chatWithTools(config, withTools, adminToolSpecs);
+      return res.json({ success: true, messages: finalTurn.messages });
+    }
+
+    return res.json({ success: true, messages: updated });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message || 'MCP admin chat failed' });
+  }
+});
+
+// Project-scoped MCP chat
+router.post('/projects/:projectId/chat', requireScopes({ scopes: [Scope.PROJECTS_READ], projectSpecific: true }), async (req: any, res) => {
+  try {
+    const config = getLlmConfig(req);
+    const messages: ChatMessage[] = req.body.messages || [];
+    const { projectId } = req.params;
+
+    const { messages: updated, toolCalls } = await LlmService.chatWithTools(config, messages, projectToolSpecs);
+
+    if (toolCalls && toolCalls.length > 0) {
+      const ctx = resolveContext(req, 'project', projectId);
+      const results = await Promise.all(toolCalls.map(async (tc) => ({ tool_call_id: tc.id, output: await dispatchTool(ctx, tc.name, tc.arguments) })));
+      const withTools = LlmService.appendToolResults(updated, results);
+      const finalTurn = await LlmService.chatWithTools(config, withTools, projectToolSpecs);
+      return res.json({ success: true, messages: finalTurn.messages });
+    }
+
+    return res.json({ success: true, messages: updated });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message || 'MCP project chat failed' });
+  }
+});
+
+export default router;

@@ -23,6 +23,7 @@ import apiKeysRoutes from "./api-keys.routes";
 import changelogRoutes from "./changelog.routes";
 import testingRoutes from "./testing.routes";
 import { DatabaseService } from "@/services/database.service";
+import mcpRouter from "@/mcp/router";
 
 const router: RouterType = Router();
 
@@ -108,12 +109,17 @@ if (process.env.NODE_ENV !== "production") {
 
 // ===== Project-Level Routes =====
 // All project-specific resources are nested under /projects/:projectId
-router.use("/projects", collectionsRoutes); // /projects/:projectId/collections
-router.use("/projects", storageRoutes); // /projects/:projectId/storage
-router.use("/projects", usersRoutes); // /projects/:projectId/users
-router.use("/projects", emailRoutes); // /projects/:projectId/email
-router.use("/projects", apiKeysRoutes); // /projects/:projectId/api-keys
-router.use("/projects", changelogRoutes); // /projects/:projectId/changelog
+import { enforceProjectOrigin } from "@/middleware/origin-guard.middleware";
+
+router.use("/projects", enforceProjectOrigin, collectionsRoutes); // /projects/:projectId/collections
+router.use("/projects", enforceProjectOrigin, storageRoutes); // /projects/:projectId/storage
+router.use("/projects", enforceProjectOrigin, usersRoutes); // /projects/:projectId/users
+router.use("/projects", enforceProjectOrigin, emailRoutes); // /projects/:projectId/email
+router.use("/projects", enforceProjectOrigin, apiKeysRoutes); // /projects/:projectId/api-keys
+router.use("/projects", enforceProjectOrigin, changelogRoutes); // /projects/:projectId/changelog
+
+// MCP integrated endpoints
+router.use("/mcp", mcpRouter);
 
 // Future project-level routes will follow the same pattern:
 // router.use('/projects', functionsRoutes); // /projects/:projectId/functions

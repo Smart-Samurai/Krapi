@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import {
@@ -39,6 +39,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -56,6 +58,8 @@ type EditProjectFormData = z.infer<typeof editProjectSchema>;
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const globalBusy = useAppSelector((s) => s.ui?.globalBusyCount ?? 0);
   const { krapi, hasScope } = useReduxAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,9 +81,31 @@ export default function ProjectsPage() {
     resolver: zodResolver(editProjectSchema),
   });
 
+  const loadProjects = useCallback(async () => {
+    if (!krapi || !hasScope(Scope.PROJECTS_READ)) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    dispatch(beginBusy());
+    try {
+      const response = await krapi.projects.getAll();
+      if (response.success && response.data) {
+        setProjects(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to load projects:", error);
+      toast.error("Failed to load projects");
+    } finally {
+      setLoading(false);
+      dispatch(endBusy());
+    }
+  }, [krapi, hasScope, dispatch]);
+
   useEffect(() => {
     loadProjects();
-  }, []);
+  }, [loadProjects]);
 
   useEffect(() => {
     if (selectedProject) {
@@ -91,25 +117,6 @@ export default function ProjectsPage() {
     }
   }, [selectedProject, editForm]);
 
-  const loadProjects = async () => {
-    if (!krapi || !hasScope(Scope.PROJECTS_READ)) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await krapi.projects.getAll();
-      if (response.success && response.data) {
-        setProjects(response.data);
-      }
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-      toast.error("Failed to load projects");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const createProject = async (data: CreateProjectFormData) => {
     if (!krapi || !hasScope(Scope.PROJECTS_WRITE)) {
       toast.error("You don't have permission to create projects");
@@ -117,19 +124,21 @@ export default function ProjectsPage() {
     }
 
     setIsCreating(true);
+    dispatch(beginBusy());
     try {
       const response = await krapi.projects.create(data);
       if (response.success && response.data) {
-        setProjects([...projects, response.data!]);
         toast.success("Project created successfully");
         setIsCreateDialogOpen(false);
         createForm.reset();
+        await loadProjects(); // refresh list
       }
     } catch (error) {
       console.error("Failed to create project:", error);
       toast.error("Failed to create project");
     } finally {
       setIsCreating(false);
+      dispatch(endBusy());
     }
   };
 
@@ -140,29 +149,27 @@ export default function ProjectsPage() {
     }
 
     setIsUpdating(true);
+    dispatch(beginBusy());
     try {
       const response = await krapi.projects.update(selectedProject.id, data);
       if (response.success && response.data) {
-        setProjects(
-          projects.map((p) =>
-            p.id === selectedProject.id ? response.data! : p
-          )
-        );
         toast.success("Project updated successfully");
         setIsEditDialogOpen(false);
         setSelectedProject(null);
+        await loadProjects();
       }
     } catch (error) {
       console.error("Failed to update project:", error);
       toast.error("Failed to update project");
     } finally {
       setIsUpdating(false);
+      dispatch(endBusy());
     }
   };
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 cursor-progress" aria-busy>
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
@@ -181,8 +188,10 @@ export default function ProjectsPage() {
     );
   }
 
+  const isBusy = globalBusy > 0;
+
   return (
-    <div className="p-6 space-y-6">
+    <div className={`p-6 space-y-6 ${isBusy ? "cursor-progress" : ""}`}> 
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Projects</h1>
@@ -201,7 +210,7 @@ export default function ProjectsPage() {
               </Button>
             }
           >
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setIsCreateDialogOpen(true)} disabled={isBusy}>
               <Plus className="mr-2 h-4 w-4" />
               Create Project
             </Button>
@@ -219,7 +228,7 @@ export default function ProjectsPage() {
                 Create your first project to get started
               </p>
               <ScopeGuard scopes={Scope.PROJECTS_WRITE}>
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Button onClick={() => setIsCreateDialogOpen(true)} disabled={isBusy}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create First Project
                 </Button>
@@ -317,6 +326,7 @@ export default function ProjectsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
+                  disabled={isCreating}
                 >
                   Cancel
                 </Button>
@@ -375,6 +385,7 @@ export default function ProjectsPage() {
                     setIsEditDialogOpen(false);
                     setSelectedProject(null);
                   }}
+                  disabled={isUpdating}
                 >
                   Cancel
                 </Button>

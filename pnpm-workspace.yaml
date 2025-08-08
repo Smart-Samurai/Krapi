@@ -2,3 +2,4 @@ packages:
   - 'backend-server'
   - 'frontend-manager'
   - 'packages/*'
+  - 'packages/krapi-mcp-server'

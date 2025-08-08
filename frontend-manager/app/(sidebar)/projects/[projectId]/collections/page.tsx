@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
+import { fetchCollections, createCollection, updateCollection, deleteCollection as deleteCollectionThunk } from "@/store/collectionsSlice";
 import type { Collection, CollectionField } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,22 +45,9 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Database,
-  FileText,
-  Users,
-  Calendar,
-  Hash,
-  Code,
-  Type,
-  Code2,
-  BookOpen,
-  Link as LinkIcon,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Database, FileText, Calendar, Hash, Code, Type, Code2, BookOpen, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
+
 import { toast } from "sonner";
 
 type FieldType =
@@ -105,9 +95,10 @@ export default function CollectionsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
-
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const bucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
+  const collections = bucket?.items || [];
+  const isLoading = bucket?.loading || false;
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -123,107 +114,86 @@ export default function CollectionsPage() {
     fields: [] as CollectionField[],
   });
 
+  const loadCollections = useCallback(() => {
+    dispatch(fetchCollections({ projectId }));
+  }, [dispatch, projectId]);
+
   useEffect(() => {
-    if (krapi) {
-      loadCollections();
-    }
-  }, [krapi, projectId]);
+    loadCollections();
+  }, [loadCollections]);
 
-  const loadCollections = async () => {
-    if (!krapi?.collections) return;
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await krapi.collections.getAll(projectId);
-      if (result.success && result.data) {
-        setCollections(result.data);
-      } else {
-        setError(result.error || "Failed to load collections");
-      }
-    } catch (error) {
-      console.error("Error loading collections:", error);
-      setError("Failed to load collections");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCreateCollection = async () => {
-    if (!krapi?.collections) return;
-
     try {
-      const result = await krapi.collections.create(projectId, {
-        name: formData.name,
-        description: formData.description,
-        fields: formData.fields,
-      });
-
-      if (result.success) {
+      dispatch(beginBusy());
+      const action = await dispatch(
+        createCollection({ projectId, payload: { name: formData.name, description: formData.description, fields: formData.fields } })
+      );
+      if (createCollection.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
         setFormData({ name: "", description: "", fields: [] });
         loadCollections();
         toast.success("Collection created successfully");
       } else {
-        setError(result.error || "Failed to create collection");
+        const msg = (action as any).payload || "Failed to create collection";
+        setError(String(msg));
       }
     } catch (error) {
       console.error("Error creating collection:", error);
       setError("Failed to create collection");
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleUpdateCollection = async () => {
-    if (!krapi?.collections || !editingCollection) return;
-
+    if (!editingCollection) return;
     try {
-      const result = await krapi.collections.update(
-        projectId,
-        editingCollection.name,
-        {
-          description: formData.description,
-          fields: formData.fields,
-        }
+      dispatch(beginBusy());
+      const action = await dispatch(
+        updateCollection({ projectId, name: editingCollection.name, updates: { description: formData.description, fields: formData.fields } })
       );
-
-      if (result.success) {
+      if (updateCollection.fulfilled.match(action)) {
         setIsEditDialogOpen(false);
         setEditingCollection(null);
         setFormData({ name: "", description: "", fields: [] });
         loadCollections();
         toast.success("Collection updated successfully");
       } else {
-        setError(result.error || "Failed to update collection");
+        const msg = (action as any).payload || "Failed to update collection";
+        setError(String(msg));
       }
     } catch (error) {
       console.error("Error updating collection:", error);
       setError("Failed to update collection");
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleDeleteCollection = async (collectionId: string) => {
-    if (!krapi?.collections) return;
-
-    if (
-      !confirm(
-        "Are you sure you want to delete this collection? This action cannot be undone."
-      )
-    ) {
+    if (!confirm(
+      "Are you sure you want to delete this collection? This action cannot be undone."
+    )) {
       return;
     }
 
     try {
-      const result = await krapi.collections.delete(projectId, collectionId);
-      if (result.success) {
+      dispatch(beginBusy());
+      const action = await dispatch(deleteCollectionThunk({ projectId, name: collectionId }));
+      if (deleteCollectionThunk.fulfilled.match(action)) {
         loadCollections();
         toast.success("Collection deleted successfully");
       } else {
-        setError(result.error || "Failed to delete collection");
+        const msg = (action as any).payload || "Failed to delete collection";
+        setError(String(msg));
       }
     } catch (error) {
       console.error("Error deleting collection:", error);
       setError("Failed to delete collection");
+    } finally {
+      dispatch(endBusy());
     }
   };
 

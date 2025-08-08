@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { ApiKey } from "@/lib/krapi";
@@ -9,22 +9,14 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -52,8 +44,6 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Calendar,
-  User,
   Search,
   Filter,
   MoreHorizontal,
@@ -105,7 +95,7 @@ export default function ApiKeysPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortOrder] = useState<"asc" | "desc">("desc");
 
   // Form state for creating/editing API keys
   const [formData, setFormData] = useState({
@@ -115,13 +105,7 @@ export default function ApiKeysPage() {
     metadata: {} as Record<string, any>,
   });
 
-  useEffect(() => {
-    if (krapi) {
-      loadApiKeys();
-    }
-  }, [krapi, projectId]);
-
-  const loadApiKeys = async () => {
+  const loadApiKeys = useCallback(async () => {
     if (!krapi?.apiKeys) return;
 
     setIsLoading(true);
@@ -140,7 +124,13 @@ export default function ApiKeysPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [krapi, projectId]);
+
+  useEffect(() => {
+    if (krapi) {
+      loadApiKeys();
+    }
+  }, [krapi, loadApiKeys]);
 
   const handleCreateApiKey = async () => {
     if (!krapi?.apiKeys) return;
@@ -262,7 +252,6 @@ export default function ApiKeysPage() {
   const copyApiKey = async (apiKey: string) => {
     try {
       await navigator.clipboard.writeText(apiKey);
-      // You could add a toast notification here
     } catch (err) {
       console.error("Failed to copy API key:", err);
     }
@@ -336,7 +325,7 @@ export default function ApiKeysPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 cursor-progress" aria-busy>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
