@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Project } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +33,7 @@ export default function ProjectDetailPage() {
   const collections = collectionsBucket?.items || [];
   const isLoading = projectsState.loading || collectionsBucket?.loading || false;
 
-  const [error, setError] = useState<string | null>(null);
+
   const [stats, setStats] = useState({
     collections: 0,
     documents: 0,

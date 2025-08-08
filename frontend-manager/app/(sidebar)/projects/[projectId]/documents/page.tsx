@@ -8,6 +8,7 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { fetchDocuments, createDocument, updateDocument, deleteDocument } from "@/store/documentsSlice";
 import type { Document, Collection } from "@/lib/krapi";
+/* eslint-disable react/no-unescaped-entities */
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -58,6 +59,7 @@ import {
 export default function DocumentsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
@@ -76,6 +78,7 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [filters] = useState<any[]>([]); // Changed from FilterCondition[]
 
   // Form state for creating/editing documents

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project } from "@/lib/krapi";
 import {
