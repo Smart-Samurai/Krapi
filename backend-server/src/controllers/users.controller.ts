@@ -401,7 +401,7 @@ export class UsersController {
   sendPasswordReset = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
-      const { email } = req.body;
+      const { email } = req.body as { email?: string };
 
       if (!email) {
         res.status(400).json({
@@ -444,8 +444,7 @@ export class UsersController {
   // Reset password with token
   resetPassword = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { projectId } = req.params;
-      const { token, new_password } = req.body;
+      const { token, new_password } = req.body as { token?: string; new_password?: string };
 
       if (!token || !new_password) {
         res.status(400).json({

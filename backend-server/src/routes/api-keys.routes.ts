@@ -54,7 +54,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { projectId } = req.params as { projectId: string };
-    const { name, scopes, expires_at, metadata } = req.body;
+    const { name, scopes } = req.body;
     const db = DatabaseService.getInstance();
     
     const apiKey = await db.createProjectApiKey({
@@ -147,7 +147,7 @@ router.put('/:keyId', async (req: AuthenticatedRequest, res: Response) => {
  */
 router.delete('/:keyId', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { projectId, keyId } = req.params as { projectId: string; keyId: string };
+    const { keyId } = req.params as { projectId: string; keyId: string };
     const db = DatabaseService.getInstance();
     
     const result = await db.deleteProjectApiKey(keyId);
