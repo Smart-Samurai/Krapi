@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { fetchDocuments, createDocument, updateDocument, deleteDocument } from "@/store/documentsSlice";
-import type { Document, Collection, QueryOptions } from "@/lib/krapi";
+import type { Document, Collection } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -76,7 +76,7 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [filters, setFilters] = useState<any[]>([]); // Changed from FilterCondition[]
+  const [filters] = useState<any[]>([]); // Changed from FilterCondition[]
 
   // Form state for creating/editing documents
   const [formData, setFormData] = useState({
@@ -90,16 +90,8 @@ export default function DocumentsPage() {
 
   const loadDocuments = useCallback(() => {
     if (!selectedCollection) return;
-    const opts: QueryOptions = {
-      page: 1,
-      limit: 50,
-      orderBy: sortBy,
-      order: sortOrder,
-      search: searchQuery || undefined,
-      filter: filters.length > 0 ? filters : undefined,
-    } as any;
     dispatch(fetchDocuments({ projectId, collectionId: selectedCollection }));
-  }, [dispatch, projectId, selectedCollection, sortBy, sortOrder, searchQuery, filters]);
+  }, [dispatch, projectId, selectedCollection]);
 
   useEffect(() => {
     loadCollections();
@@ -121,15 +113,7 @@ export default function DocumentsPage() {
   const legacyLoadDocuments = async () => {
     if (!krapi || !selectedCollection) return;
     try {
-      const options: QueryOptions = {
-        page: 1,
-        limit: 50,
-        orderBy: sortBy,
-        order: sortOrder,
-        search: searchQuery || undefined,
-        filter: filters.length > 0 ? filters : undefined,
-      };
-      const result = await krapi.documents.getAll(projectId, selectedCollection, options);
+      const result = await krapi.documents.getAll(projectId, selectedCollection);
       if (!result.success) setError(result.error || "Failed to load documents");
     } catch (err) {
       setError("An error occurred while loading documents");

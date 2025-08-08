@@ -22,7 +22,7 @@ import { fetchCollections } from "@/store/collectionsSlice";
 
 export default function ProjectDetailPage() {
   const params = useParams();
-  const router = useRouter();
+
   const projectId = params.projectId as string;
   const dispatch = useAppDispatch();
 

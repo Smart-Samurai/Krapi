@@ -138,8 +138,8 @@ export default function FilesPage() {
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy] = useState("created_at");
+  const [sortOrder] = useState<"asc" | "desc">("desc");
 
   const loadFilesCb = useCallback(() => {
     dispatch(fetchFiles({ projectId }));
@@ -566,7 +566,7 @@ stats = response.json()`}
             </div>
             <div>
               <Label htmlFor="sort">Sort By</Label>
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={() => {}} >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

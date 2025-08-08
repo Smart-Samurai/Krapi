@@ -92,8 +92,8 @@ export default function EmailPage() {
 
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy] = useState("created_at");
+  const [sortOrder] = useState<"asc" | "desc">("desc");
 
   // Form state for email configuration
   const [configForm, setConfigForm] = useState({
@@ -703,7 +703,7 @@ export default function EmailPage() {
                 </div>
                 <div>
                   <Label htmlFor="sort-templates">Sort By</Label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
+                  <Select value={sortBy} onValueChange={() => {}} >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
