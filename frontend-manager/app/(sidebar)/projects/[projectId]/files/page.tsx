@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { FileInfo, StorageStats } from "@/lib/krapi";
@@ -73,6 +73,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
+import { fetchFiles, fetchStorageStats, uploadFile, deleteFile } from "@/store/storageSlice";
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;
@@ -117,10 +120,14 @@ export default function FilesPage() {
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dispatch = useAppDispatch();
 
-  const [files, setFiles] = useState<FileInfo[]>([]);
-  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const filesBucket = useAppSelector((s) => s.storage.filesByProjectId[projectId]);
+  const statsBucket = useAppSelector((s) => s.storage.statsByProjectId[projectId]);
+  const files = filesBucket?.items || [];
+  const storageStats = statsBucket?.data || null;
+  const isLoading = (filesBucket?.loading || false) || (statsBucket?.loading || false);
+
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -134,82 +141,36 @@ export default function FilesPage() {
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  const loadFilesCb = useCallback(() => {
+    dispatch(fetchFiles({ projectId }));
+  }, [dispatch, projectId]);
+
+  const loadStorageStatsCb = useCallback(() => {
+    dispatch(fetchStorageStats({ projectId }));
+  }, [dispatch, projectId]);
+
   useEffect(() => {
-    if (krapi) {
-      loadFiles();
-      loadStorageStats();
-    }
-  }, [krapi, projectId]);
+    loadFilesCb();
+    loadStorageStatsCb();
+  }, [loadFilesCb, loadStorageStatsCb]);
 
-  const loadFiles = async () => {
-    if (!krapi) return;
-
-    setIsLoading(true);
-    setError(null);
-
+  const handleUpload = async (file: File) => {
     try {
-      const result = await krapi.storage.getFiles(projectId);
-      if (result.success && result.data) {
-        setFiles(result.data);
-      } else {
-        setError(result.error || "Failed to load files");
-      }
-    } catch (err) {
-      setError("An error occurred while loading files");
-      console.error("Error loading files:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadStorageStats = async () => {
-    if (!krapi) return;
-
-    try {
-      const result = await krapi.storage.getStats(projectId);
-      if (result.success && result.data) {
-        setStorageStats(result.data);
-      }
-    } catch (err) {
-      console.error("Error loading storage stats:", err);
-    }
-  };
-
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const selectedFiles = event.target.files;
-    if (!selectedFiles || selectedFiles.length === 0 || !krapi) return;
-
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    try {
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        setUploadProgress((i / selectedFiles.length) * 100);
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const result = await krapi.storage.uploadFile(projectId, file);
-        if (!result.success) {
-          throw new Error(result.error || "Failed to upload file");
-        }
-      }
-
-      setUploadProgress(100);
-      setTimeout(() => {
-        setUploadProgress(0);
-        setIsUploading(false);
-        loadFiles();
-        loadStorageStats();
-      }, 1000);
-    } catch (err) {
-      setError("An error occurred while uploading files");
-      console.error("Error uploading files:", err);
-      setIsUploading(false);
+      setIsUploading(true);
       setUploadProgress(0);
+      dispatch(beginBusy());
+      const action = await dispatch(uploadFile({ projectId, file }));
+      if (uploadFile.fulfilled.match(action)) {
+        loadFilesCb();
+      } else {
+        const msg = (action as any).payload || "Failed to upload file";
+        setError(String(msg));
+      }
+    } catch (err) {
+      setError("Failed to upload file");
+    } finally {
+      setIsUploading(false);
+      dispatch(endBusy());
     }
   };
 
@@ -236,27 +197,20 @@ export default function FilesPage() {
   };
 
   const handleDeleteFile = async (fileId: string) => {
-    if (!krapi) return;
-
-    if (
-      !confirm(
-        "Are you sure you want to delete this file? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
-
+    if (!confirm("Are you sure you want to delete this file?")) return;
     try {
-      const result = await krapi.storage.deleteFile(projectId, fileId);
-      if (result.success) {
-        loadFiles();
-        loadStorageStats();
+      dispatch(beginBusy());
+      const action = await dispatch(deleteFile({ projectId, fileId }));
+      if (deleteFile.fulfilled.match(action)) {
+        loadFilesCb();
       } else {
-        setError(result.error || "Failed to delete file");
+        const msg = (action as any).payload || "Failed to delete file";
+        setError(String(msg));
       }
     } catch (err) {
-      setError("An error occurred while deleting file");
-      console.error("Error deleting file:", err);
+      setError("Failed to delete file");
+    } finally {
+      dispatch(endBusy());
     }
   };
 
@@ -342,7 +296,14 @@ export default function FilesPage() {
             ref={fileInputRef}
             type="file"
             multiple
-            onChange={handleFileUpload}
+            onChange={(e) => {
+              const files = e.target.files;
+              if (files && files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                  handleUpload(files[i]);
+                }
+              }
+            }}
             className="hidden"
             accept="*/*"
           />

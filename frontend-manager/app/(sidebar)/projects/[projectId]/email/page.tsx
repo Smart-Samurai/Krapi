@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { EmailConfig, EmailTemplate } from "@/lib/krapi";
@@ -72,15 +72,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  fetchEmailConfig,
+  updateEmailConfig,
+  testEmailConfig,
+  fetchEmailTemplates,
+  createEmailTemplate,
+  updateEmailTemplate,
+  deleteEmailTemplate,
+} from "@/store/emailSlice";
 
 export default function EmailPage() {
   const params = useParams();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
+  const dispatch = useAppDispatch();
 
-  const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const configBucket = useAppSelector((s) => s.email.configByProjectId[projectId]);
+  const templatesBucket = useAppSelector((s) => s.email.templatesByProjectId[projectId]);
+  const emailConfig = configBucket?.data || null;
+  const templates = templatesBucket?.items || [];
+  const isLoading = (configBucket?.loading || false) || (templatesBucket?.loading || false);
+
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -118,191 +133,122 @@ export default function EmailPage() {
     variables: [] as string[],
   });
 
+  const loadEmailConfigCb = useCallback(() => {
+    dispatch(fetchEmailConfig({ projectId }));
+  }, [dispatch, projectId]);
+
+  const loadTemplatesCb = useCallback(() => {
+    dispatch(fetchEmailTemplates({ projectId }));
+  }, [dispatch, projectId]);
+
   useEffect(() => {
-    if (krapi) {
-      loadEmailConfig();
-      loadTemplates();
+    loadEmailConfigCb();
+    loadTemplatesCb();
+  }, [loadEmailConfigCb, loadTemplatesCb]);
+
+  useEffect(() => {
+    if (emailConfig) {
+      setConfigForm({
+        smtp_host: emailConfig.smtp_host,
+        smtp_port: emailConfig.smtp_port,
+        smtp_username: emailConfig.smtp_username,
+        smtp_password: emailConfig.smtp_password,
+        smtp_secure: emailConfig.smtp_secure,
+        from_email: emailConfig.from_email,
+        from_name: emailConfig.from_name,
+      });
     }
-  }, [krapi, projectId]);
-
-  const loadEmailConfig = async () => {
-    if (!krapi || !projectId) return;
-
-    console.log("Loading email config for project:", projectId);
-    console.log("Krapi client:", krapi);
-
-    try {
-      const result = await krapi.email.getConfig(projectId);
-      console.log("Email config result:", result);
-      if (result.success && result.data) {
-        setEmailConfig(result.data);
-        setConfigForm({
-          smtp_host: result.data.smtp_host,
-          smtp_port: result.data.smtp_port,
-          smtp_username: result.data.smtp_username,
-          smtp_password: result.data.smtp_password,
-          smtp_secure: result.data.smtp_secure,
-          from_email: result.data.from_email,
-          from_name: result.data.from_name,
-        });
-      }
-    } catch (err) {
-      console.error("Error loading email config:", err);
-    }
-  };
-
-  const loadTemplates = async () => {
-    if (!krapi || !projectId) return;
-
-    console.log("Loading templates for project:", projectId);
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await krapi.email.getTemplates(projectId);
-      console.log("Templates result:", result);
-      if (result.success && result.data) {
-        setTemplates(result.data);
-      } else {
-        setError(result.error || "Failed to load email templates");
-      }
-    } catch (err) {
-      setError("An error occurred while loading email templates");
-      console.error("Error loading templates:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [emailConfig]);
 
   const handleSaveConfig = async () => {
-    if (!krapi || !projectId) return;
-
-    setIsSaving(true);
-    setError(null);
-
     try {
-      const result = await krapi.email.updateConfig(projectId, configForm);
-      if (result.success && result.data) {
-        setEmailConfig(result.data as EmailConfig);
-        // You could add a success toast here
-      } else {
-        setError(result.error || "Failed to save email configuration");
+      setIsSaving(true);
+      dispatch(beginBusy());
+      const action = await dispatch(updateEmailConfig({ projectId, config: { ...configForm } as EmailConfig }));
+      if (!updateEmailConfig.fulfilled.match(action)) {
+        const msg = (action as any).payload || "Failed to update email config";
+        setError(String(msg));
       }
     } catch (err) {
-      setError("An error occurred while saving email configuration");
-      console.error("Error saving config:", err);
+      setError("Failed to update email config");
     } finally {
       setIsSaving(false);
+      dispatch(endBusy());
     }
   };
 
   const handleTestConfig = async () => {
-    if (!krapi || !projectId || !testEmail) return;
-
-    setIsTesting(true);
-    setError(null);
-
     try {
-      const result = await krapi.email.testConfig(projectId, testEmail);
-      if (result.success) {
-        // You could add a success toast here
-        setTestEmail("");
-      } else {
-        setError(result.error || "Failed to send test email");
+      setIsTesting(true);
+      dispatch(beginBusy());
+      const action = await dispatch(testEmailConfig({ projectId, email: testEmail }));
+      if (!testEmailConfig.fulfilled.match(action)) {
+        const msg = (action as any).payload || "Failed to test email config";
+        setError(String(msg));
       }
     } catch (err) {
-      setError("An error occurred while sending test email");
-      console.error("Error testing config:", err);
+      setError("Failed to test email config");
     } finally {
       setIsTesting(false);
+      dispatch(endBusy());
     }
   };
 
   const handleCreateTemplate = async () => {
-    if (!krapi || !projectId) return;
-
     try {
-      const result = await krapi.email.createTemplate(projectId, {
-        name: templateForm.name,
-        subject: templateForm.subject,
-        body: templateForm.body,
-        variables: templateForm.variables,
-      });
-
-      if (result.success) {
+      dispatch(beginBusy());
+      const action = await dispatch(createEmailTemplate({ projectId, payload: { ...templateForm } }));
+      if (createEmailTemplate.fulfilled.match(action)) {
         setIsCreateTemplateDialogOpen(false);
-        setTemplateForm({
-          name: "",
-          subject: "",
-          body: "",
-          variables: [],
-        });
-        loadTemplates();
+        setTemplateForm({ name: "", subject: "", body: "", variables: [] });
+        loadTemplatesCb();
       } else {
-        setError(result.error || "Failed to create email template");
+        const msg = (action as any).payload || "Failed to create template";
+        setError(String(msg));
       }
     } catch (err) {
-      setError("An error occurred while creating email template");
-      console.error("Error creating template:", err);
+      setError("Failed to create template");
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleUpdateTemplate = async () => {
-    if (!krapi || !projectId || !editingTemplate) return;
-
+    if (!editingTemplate) return;
     try {
-      const result = await krapi.email.updateTemplate(
-        projectId,
-        editingTemplate.id,
-        {
-          name: templateForm.name,
-          subject: templateForm.subject,
-          body: templateForm.body,
-          variables: templateForm.variables,
-        }
-      );
-
-      if (result.success) {
+      dispatch(beginBusy());
+      const action = await dispatch(updateEmailTemplate({ projectId, templateId: editingTemplate.id, updates: { ...templateForm } }));
+      if (updateEmailTemplate.fulfilled.match(action)) {
         setIsEditTemplateDialogOpen(false);
         setEditingTemplate(null);
-        setTemplateForm({
-          name: "",
-          subject: "",
-          body: "",
-          variables: [],
-        });
-        loadTemplates();
+        setTemplateForm({ name: "", subject: "", body: "", variables: [] });
+        loadTemplatesCb();
       } else {
-        setError(result.error || "Failed to update email template");
+        const msg = (action as any).payload || "Failed to update template";
+        setError(String(msg));
       }
     } catch (err) {
-      setError("An error occurred while updating email template");
-      console.error("Error updating template:", err);
+      setError("Failed to update template");
+    } finally {
+      dispatch(endBusy());
     }
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!krapi || !projectId) return;
-
-    if (
-      !confirm(
-        "Are you sure you want to delete this email template? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
-
+    if (!confirm("Are you sure you want to delete this template?")) return;
     try {
-      const result = await krapi.email.deleteTemplate(projectId, templateId);
-      if (result.success) {
-        loadTemplates();
+      dispatch(beginBusy());
+      const action = await dispatch(deleteEmailTemplate({ projectId, templateId }));
+      if (deleteEmailTemplate.fulfilled.match(action)) {
+        loadTemplatesCb();
       } else {
-        setError(result.error || "Failed to delete email template");
+        const msg = (action as any).payload || "Failed to delete template";
+        setError(String(msg));
       }
     } catch (err) {
-      setError("An error occurred while deleting email template");
-      console.error("Error deleting template:", err);
+      setError("Failed to delete template");
+    } finally {
+      dispatch(endBusy());
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project } from "@/lib/krapi";
@@ -28,12 +28,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Scope } from "@/lib/krapi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchProjects } from "@/store/projectsSlice";
 
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope, hasMasterAccess } = useReduxAuth();
   const krapi = useKrapi();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const dispatch = useAppDispatch();
+  const projectsState = useAppSelector((s) => s.projects);
+  const projects = projectsState.items;
+  const isLoadingProjects = projectsState.loading;
   const [stats, setStats] = useState({
     totalProjects: 0,
     activeProjects: 0,
@@ -41,35 +45,24 @@ export default function DashboardPage() {
     totalDocuments: 0,
   });
 
+  const loadProjects = useCallback(() => {
+    dispatch(fetchProjects());
+  }, [dispatch]);
+
   useEffect(() => {
-    if (krapi && hasScope(Scope.PROJECTS_READ)) {
+    if (hasScope(Scope.PROJECTS_READ)) {
       loadProjects();
     }
-  }, [krapi, scopes]); // Use scopes instead of hasScope since hasScope is now memoized
+  }, [loadProjects, scopes]);
 
-  const loadProjects = async () => {
-    if (!krapi?.projects) return;
-
-    setIsLoadingProjects(true);
-    try {
-      const result = await krapi.projects.getAll();
-      if (result.success && result.data) {
-        setProjects(result.data);
-        setStats({
-          totalProjects: result.data.length,
-          activeProjects: result.data.filter((p: Project) => p.active).length,
-          totalCollections: 0, // Will be calculated later
-          totalDocuments: 0, // Will be calculated later
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load projects:", error);
-      // Note: Authentication errors are automatically handled by the enhanced useKrapi hook
-      // and will redirect to login page. For other errors, you can handle them here.
-    } finally {
-      setIsLoadingProjects(false);
-    }
-  };
+  useEffect(() => {
+    setStats({
+      totalProjects: projects.length,
+      activeProjects: projects.filter((p: Project) => p.active).length,
+      totalCollections: 0,
+      totalDocuments: 0,
+    });
+  }, [projects]);
 
   if (loading) {
     return (
@@ -93,12 +86,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
-            Welcome back, {user?.username}!
-          </h1>
-          <p className="text-muted-foreground">
-            Admin dashboard for managing your KRAPI instance
-          </p>
+          <h1 className="text-3xl font-bold">Welcome back, {user?.username}!</h1>
+          <p className="text-muted-foreground">Admin dashboard for managing your KRAPI instance</p>
         </div>
         {hasScope(Scope.PROJECTS_WRITE) && (
           <Button asChild>
@@ -114,22 +103,12 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Projects
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoadingProjects ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                stats.totalProjects
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.activeProjects} active
-            </p>
+            <div className="text-2xl font-bold">{stats.totalProjects}</div>
+            <p className="text-xs text-muted-foreground">All projects in the system</p>
           </CardContent>
         </Card>
 
@@ -254,75 +233,43 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Projects */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Recent Projects
-          </CardTitle>
-          <CardDescription>
-            Your most recently created or updated projects
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingProjects ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="text-center py-8">
-              <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">No projects found</p>
-              {hasScope(Scope.PROJECTS_WRITE) && (
-                <Button asChild>
-                  <Link href="/projects">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Your First Project
-                  </Link>
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {projects.slice(0, 5).map((project) => (
-                <div
-                  key={project.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <FolderOpen className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{project.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Created{" "}
-                        {new Date(project.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={project.active ? "default" : "secondary"}>
-                      {project.active ? "Active" : "Inactive"}
-                    </Badge>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/projects/${project.id}`}>View Project</Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {projects.length > 5 && (
-                <div className="text-center pt-2">
-                  <Button variant="outline" asChild>
-                    <Link href="/projects">View All Projects</Link>
+      {/* Projects List */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {isLoadingProjects ? (
+          [...Array(6)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4 mt-2" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          projects.map((project) => (
+            <Card key={project.id}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  {project.name}
+                </CardTitle>
+                <CardDescription>{project.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <Badge variant={project.active ? "default" : "secondary"}>
+                    {project.active ? "Active" : "Inactive"}
+                  </Badge>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/projects/${project.id}`}>Manage</Link>
                   </Button>
                 </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
 
       {/* Quick Actions */}
       <Card>
