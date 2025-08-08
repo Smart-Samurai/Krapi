@@ -23,6 +23,7 @@ import apiKeysRoutes from "./api-keys.routes";
 import changelogRoutes from "./changelog.routes";
 import testingRoutes from "./testing.routes";
 import { DatabaseService } from "@/services/database.service";
+import mcpRouter from "@/mcp/router";
 
 const router: RouterType = Router();
 
@@ -114,6 +115,9 @@ router.use("/projects", usersRoutes); // /projects/:projectId/users
 router.use("/projects", emailRoutes); // /projects/:projectId/email
 router.use("/projects", apiKeysRoutes); // /projects/:projectId/api-keys
 router.use("/projects", changelogRoutes); // /projects/:projectId/changelog
+
+// MCP integrated endpoints
+router.use("/mcp", mcpRouter);
 
 // Future project-level routes will follow the same pattern:
 // router.use('/projects', functionsRoutes); // /projects/:projectId/functions
