@@ -316,6 +316,9 @@ export class DatabaseService {
     try {
       await client.query("BEGIN");
 
+      // Ensure required extension for gen_random_uuid()
+      await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+
       // Admin Users Table
       await client.query(`
         CREATE TABLE IF NOT EXISTS admin_users (

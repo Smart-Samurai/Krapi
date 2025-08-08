@@ -7,7 +7,7 @@ echo ""
 check_postgres() {
     echo "Checking PostgreSQL connection..."
     for i in {1..30}; do
-        if docker-compose -f "$(dirname "$0")/docker-compose.yml" ps | grep -q "krapi-postgres" && docker-compose -f "$(dirname "$0")/docker-compose.yml" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+        if docker compose -f "$(dirname "$0")/docker-compose.yml" ps | grep -q "krapi-postgres" && docker compose -f "$(dirname "$0")/docker-compose.yml" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
             echo "PostgreSQL is ready!"
             return 0
         fi
@@ -19,9 +19,9 @@ check_postgres() {
 }
 
 # Start PostgreSQL if not already running
-if ! docker-compose -f "$(dirname "$0")/docker-compose.yml" ps | grep -q "krapi-postgres"; then
+if ! docker compose -f "$(dirname "$0")/docker-compose.yml" ps | grep -q "krapi-postgres"; then
     echo "Starting PostgreSQL..."
-    docker-compose -f "$(dirname "$0")/docker-compose.yml" up -d postgres
+    docker compose -f "$(dirname "$0")/docker-compose.yml" up -d postgres
     sleep 5
 fi
 
@@ -37,6 +37,13 @@ echo ""
 
 # Get the project root directory (one level up from bin)
 PROJECT_ROOT="$(dirname "$0")/.."
+
+# Export DB environment variables for local dev services
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=krapi
+export DB_USER=postgres
+export DB_PASSWORD=postgres
 
 # Start SDK in watch mode
 echo "Starting SDK in watch mode..."

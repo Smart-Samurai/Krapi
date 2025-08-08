@@ -51,6 +51,11 @@ export function AppSidebar() {
       href: "/projects",
     },
     {
+      title: "MCP",
+      icon: TestTube2,
+      href: "/mcp",
+    },
+    {
       title: "Admin Users",
       icon: Users,
       href: "/users",
@@ -162,6 +167,11 @@ function ProjectSidebar() {
       title: "Email",
       icon: Mail,
       href: `/projects/${projectId}/email`,
+    },
+    {
+      title: "MCP",
+      icon: TestTube2,
+      href: `/projects/${projectId}/mcp`,
     },
     {
       title: "Settings",

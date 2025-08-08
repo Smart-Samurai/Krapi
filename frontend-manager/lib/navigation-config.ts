@@ -16,6 +16,7 @@ export interface NavigationItem {
 export interface NavigationItems {
   dashboard: NavigationItem;
   projects: NavigationItem;
+  mcp: NavigationItem;
   users: NavigationItem;
   settings: NavigationItem;
   testAccess: NavigationItem;
@@ -32,6 +33,11 @@ export const navigationItems: NavigationItems = {
     icon: FolderOpen,
     label: "Projects",
     href: "/projects",
+  },
+  mcp: {
+    icon: TestTube2,
+    label: "MCP",
+    href: "/mcp",
   },
   users: {
     icon: Users,
