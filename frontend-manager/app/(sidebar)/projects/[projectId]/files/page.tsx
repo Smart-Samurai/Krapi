@@ -5,17 +5,11 @@ import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { FileInfo } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import {
   Select,
   SelectContent,
@@ -55,8 +49,6 @@ import {
   File,
   Search,
   Filter,
-  Calendar,
-  User,
   HardDrive,
   MoreHorizontal,
   Eye,
@@ -75,7 +67,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import { fetchFiles, fetchStorageStats, uploadFile, deleteFile } from "@/store/storageSlice";
+import {
+  fetchFiles,
+  fetchStorageStats,
+  uploadFile,
+  deleteFile,
+} from "@/store/storageSlice";
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;
@@ -122,11 +119,16 @@ export default function FilesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dispatch = useAppDispatch();
 
-  const filesBucket = useAppSelector((s) => s.storage.filesByProjectId[projectId]);
-  const statsBucket = useAppSelector((s) => s.storage.statsByProjectId[projectId]);
+  const filesBucket = useAppSelector(
+    (s) => s.storage.filesByProjectId[projectId]
+  );
+  const statsBucket = useAppSelector(
+    (s) => s.storage.statsByProjectId[projectId]
+  );
   const files = filesBucket?.items || [];
   const storageStats = statsBucket?.data || null;
-  const isLoading = (filesBucket?.loading || false) || (statsBucket?.loading || false);
+  const isLoading =
+    filesBucket?.loading || false || statsBucket?.loading || false;
 
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -166,7 +168,7 @@ export default function FilesPage() {
         const msg = (action as any).payload || "Failed to upload file";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to upload file");
     } finally {
       setIsUploading(false);
@@ -190,9 +192,9 @@ export default function FilesPage() {
       } else {
         setError(result.error || "Failed to download file");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred while downloading file");
-      console.error("Error downloading file:", err);
+      console.error("Error downloading file:", _err);
     }
   };
 
@@ -207,7 +209,7 @@ export default function FilesPage() {
         const msg = (action as any).payload || "Failed to delete file";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to delete file");
     } finally {
       dispatch(endBusy());
@@ -288,7 +290,7 @@ export default function FilesPage() {
         <div>
           <h1 className="text-3xl font-bold">Files</h1>
           <p className="text-muted-foreground">
-            Manage your project's file storage
+            Manage your project&apos;s file storage
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -566,7 +568,7 @@ stats = response.json()`}
             </div>
             <div>
               <Label htmlFor="sort">Sort By</Label>
-              <Select value={sortBy} onValueChange={() => {}} >
+              <Select value={sortBy} onValueChange={() => {}}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

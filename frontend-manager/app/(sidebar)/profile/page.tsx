@@ -92,7 +92,7 @@ export default function ProfilePage() {
       } else {
         toast.error(response.error || "Failed to change password");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to change password");
     } finally {
       setIsChangingPassword(false);
@@ -119,7 +119,7 @@ export default function ProfilePage() {
       } else {
         toast.error(response.error || "Failed to regenerate API key");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to regenerate API key");
     } finally {
       setIsRegeneratingKey(false);
@@ -168,7 +168,7 @@ export default function ProfilePage() {
       } else {
         toast.error(data.error || "Failed to create master API key");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to create master API key");
     } finally {
       setIsCreatingMasterKey(false);

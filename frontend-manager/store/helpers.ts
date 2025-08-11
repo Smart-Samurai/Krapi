@@ -2,7 +2,8 @@ import { KrapiSDK } from "@/lib/krapi";
 import type { RootState } from "./index";
 
 export function buildKrapiFromState(state: RootState): KrapiSDK {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1";
   const client = new KrapiSDK({ baseUrl });
   if (state.auth.sessionToken) {
     client.setSessionToken(state.auth.sessionToken);

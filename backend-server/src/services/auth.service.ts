@@ -8,7 +8,6 @@ import {
   Session,
   SessionType,
   Scope,
-
   ChangeAction,
   Project,
 } from "@/types";
@@ -330,7 +329,6 @@ export class AuthService {
       changes: { action },
       performed_by: userId,
       session_id: sessionId,
-      created_at: new Date().toISOString(),
     });
   }
 }

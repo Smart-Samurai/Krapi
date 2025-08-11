@@ -2398,7 +2398,7 @@ export class DatabaseService {
 
   // Changelog Methods
   async createChangelogEntry(
-    data: Omit<ChangelogEntry, "id" | "createdAt">
+    data: Omit<ChangelogEntry, "id" | "created_at">
   ): Promise<ChangelogEntry> {
     const result = await this.pool.query(
       `INSERT INTO changelog (project_id, entity_type, entity_id, action, changes, performed_by, session_id, created_at) 
@@ -3177,5 +3177,202 @@ export class DatabaseService {
     }
 
     throw lastError || new Error("Query failed after retries");
+  }
+
+  async getProjectStats(projectId: string): Promise<{
+    totalDocuments: number;
+    totalCollections: number;
+    totalFiles: number;
+    totalUsers: number;
+    storageUsed: number;
+    apiCallsCount: number;
+    lastApiCall: Date | null;
+  }> {
+    await this.ensureReady();
+
+    // Get document count
+    const docResult = await this.pool.query(
+      "SELECT COUNT(*) FROM documents WHERE project_id = $1",
+      [projectId]
+    );
+    const totalDocuments = parseInt(docResult.rows[0].count);
+
+    // Get collection count
+    const colResult = await this.pool.query(
+      "SELECT COUNT(*) FROM collections WHERE project_id = $1",
+      [projectId]
+    );
+    const totalCollections = parseInt(colResult.rows[0].count);
+
+    // Get file count
+    const fileResult = await this.pool.query(
+      "SELECT COUNT(*) FROM files WHERE project_id = $1",
+      [projectId]
+    );
+    const totalFiles = parseInt(fileResult.rows[0].count);
+
+    // Get user count
+    const userResult = await this.pool.query(
+      "SELECT COUNT(*) FROM project_users WHERE project_id = $1",
+      [projectId]
+    );
+    const totalUsers = parseInt(userResult.rows[0].count);
+
+    // Get project info
+    const projectResult = await this.pool.query(
+      "SELECT storage_used, api_calls_count, last_api_call FROM projects WHERE id = $1",
+      [projectId]
+    );
+    const project = projectResult.rows[0];
+
+    return {
+      totalDocuments,
+      totalCollections,
+      totalFiles,
+      totalUsers,
+      storageUsed: project?.storage_used || 0,
+      apiCallsCount: project?.api_calls_count || 0,
+      lastApiCall: project?.last_api_call
+        ? new Date(project.last_api_call)
+        : null,
+    };
+  }
+
+  async getProjectActivity(
+    projectId: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      entityType?: string;
+      action?: string;
+    } = {}
+  ): Promise<{ activities: ChangelogEntry[]; total: number }> {
+    await this.ensureReady();
+    const { limit = 50, offset = 0, entityType, action } = options;
+
+    let whereClause = "WHERE project_id = $1";
+    const params: any[] = [projectId];
+    let paramCount = 1;
+
+    if (entityType) {
+      whereClause += ` AND entity_type = $${++paramCount}`;
+      params.push(entityType);
+    }
+
+    if (action) {
+      whereClause += ` AND action = $${++paramCount}`;
+      params.push(action);
+    }
+
+    // Get total count
+    const countResult = await this.pool.query(
+      `SELECT COUNT(*) FROM changelog ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get activities
+    const activitiesResult = await this.pool.query(
+      `SELECT * FROM changelog ${whereClause} 
+       ORDER BY created_at DESC 
+       LIMIT $${++paramCount} OFFSET $${++paramCount}`,
+      [...params, limit, offset]
+    );
+
+    const activities = activitiesResult.rows.map((row) =>
+      this.mapChangelogEntry(row)
+    );
+
+    return { activities, total };
+  }
+
+  async getProjectSettings(projectId: string): Promise<{
+    emailConfig: any;
+    storageConfig: any;
+    apiConfig: any;
+    generalConfig: any;
+  }> {
+    await this.ensureReady();
+
+    // Get project
+    const project = await this.getProjectById(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Return default settings for now
+    // TODO: Implement actual settings storage
+    return {
+      emailConfig: {
+        enabled: false,
+        provider: "smtp",
+        settings: {},
+      },
+      storageConfig: {
+        maxStorage: 1073741824, // 1GB default
+        allowedFileTypes: ["*"],
+        compression: true,
+      },
+      apiConfig: {
+        rateLimit: 1000,
+        maxRequestSize: 10485760, // 10MB
+        cors: {
+          enabled: true,
+          origins: ["*"],
+        },
+      },
+      generalConfig: {
+        maintenanceMode: false,
+        debugMode: false,
+        logLevel: "info",
+      },
+    };
+  }
+
+  async getProjectStorageStats(projectId: string): Promise<{
+    totalFiles: number;
+    totalSize: number;
+    fileTypes: Record<string, number>;
+    lastUpload: Date | null;
+  }> {
+    await this.ensureReady();
+
+    // Get total files and size
+    const filesResult = await this.pool.query(
+      "SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM files WHERE project_id = $1",
+      [projectId]
+    );
+
+    const totalFiles = parseInt(filesResult.rows[0].count);
+    const totalSize = parseInt(filesResult.rows[0].total_size);
+
+    // Get file type distribution
+    const typesResult = await this.pool.query(
+      "SELECT mime_type, COUNT(*) as count FROM files WHERE project_id = $1 GROUP BY mime_type",
+      [projectId]
+    );
+
+    const fileTypes: Record<string, number> = {};
+    typesResult.rows.forEach((row) => {
+      fileTypes[row.mime_type] = parseInt(row.count);
+    });
+
+    // Get last upload
+    const lastUploadResult = await this.pool.query(
+      "SELECT created_at FROM files WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [projectId]
+    );
+
+    const lastUpload =
+      lastUploadResult.rows.length > 0
+        ? new Date(lastUploadResult.rows[0].created_at)
+        : null;
+
+    return {
+      totalFiles,
+      totalSize,
+      fileTypes,
+      lastUpload,
+    };
   }
 }

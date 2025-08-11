@@ -28,16 +28,31 @@ if not defined DB_USER set DB_USER=postgres
 if not defined DB_PASSWORD set DB_PASSWORD=postgres
 
 set AUTO=0
-for %%A in (%*) do (
-  if "%%~A"=="-y" set AUTO=1
-  if "%%~A"=="--auto" set AUTO=1
+set "ARGS=%*"
+if defined ARGS (
+  for %%A in (%ARGS%) do (
+    if "%%~A"=="-y" set AUTO=1
+    if "%%~A"=="--auto" set AUTO=1
+    if /I "%%~A"=="--dev" set MODE=DEV
+    if /I "%%~A"=="--prod" set MODE=PROD
+    if /I "%%~A"=="--install" set MODE=INSTALL
+    if /I "%%~A"=="--build" set MODE=BUILD
+    if /I "%%~A"=="--start-db" set MODE=STARTDB
+    if /I "%%~A"=="--reset-db" set MODE=RESETDB
+    if /I "%%~A"=="--help" set MODE=HELP
+  )
 )
+
+REM Jump over function definitions to :main
+goto :main
 
 :has_pnpm
 where pnpm >nul 2>&1
 if %errorlevel% neq 0 (
-  echo [supervise] pnpm not found. Please install pnpm (via corepack) and retry.
-  echo         npm i -g corepack ^&^& corepack enable ^&^& corepack prepare pnpm@latest --activate
+  echo [supervise] pnpm not found. Please install pnpm ^(via corepack^) and retry:
+  echo         1^) npm i -g corepack
+  echo         2^) corepack enable
+  echo         3^) corepack prepare pnpm@latest --activate
   exit /b 1
 )
 exit /b 0
@@ -76,7 +91,7 @@ echo [supervise] WARNING: Postgres readiness timed out; proceeding anyway.
 exit /b 0
 
 :reset_postgres
-set /p CONFIRM=This will STOP Postgres, DELETE its data volume ('postgres_data'), and start fresh. Type 'RESET' to continue: 
+set /p CONFIRM=This will STOP Postgres, DELETE its data volume 'postgres_data', and start fresh. Type RESET to continue: 
 if /i not "%CONFIRM%"=="RESET" (
   echo [supervise] Aborted.
   goto :eof
@@ -185,14 +200,49 @@ echo Invalid option
 goto :utilities_loop
 
 :main
-if %AUTO%==1 (
-  echo [supervise] Auto mode: running Option 1 (Full setup)
-  call :install_deps || exit /b 1
-  call :ensure_postgres
-  call :build_all || exit /b 1
-  call :start_prod_all
-  exit /b 0
+if defined MODE (
+  if /I "%MODE%"=="HELP" (
+    echo Usage: bin\supervise.bat [options]
+    echo.
+    echo Options:
+    echo   --dev         Start SDK, Backend, Frontend in dev ^(ensures Postgres^)
+    echo   --prod        Start Backend and Frontend in prod ^(ensures Postgres^)
+    echo   --install     Install workspace dependencies
+    echo   --build       Build SDK, Backend, Frontend
+    echo   --start-db    Ensure Postgres Docker container is running
+    echo   --reset-db    Reset Postgres Docker volume and start fresh
+    echo   -y, --auto    Full setup: install, start Postgres, build, start ^(prod^)
+    echo   --help        Show this help
+    exit /b 0
+  )
+  if /I "%MODE%"=="DEV" (
+    call :ensure_postgres
+    call :start_dev_all
+    exit /b %errorlevel%
+  )
+  if /I "%MODE%"=="PROD" (
+    call :ensure_postgres
+    call :start_prod_all
+    exit /b %errorlevel%
+  )
+  if /I "%MODE%"=="INSTALL" (
+    call :install_deps
+    exit /b %errorlevel%
+  )
+  if /I "%MODE%"=="BUILD" (
+    call :build_all
+    exit /b %errorlevel%
+  )
+  if /I "%MODE%"=="STARTDB" (
+    call :ensure_postgres
+    exit /b %errorlevel%
+  )
+  if /I "%MODE%"=="RESETDB" (
+    call :reset_postgres
+    exit /b %errorlevel%
+  )
 )
+if "%AUTO%"=="1" goto :auto_run
 
 :loop
 call :menu
@@ -216,4 +266,19 @@ if "%SELECTION%"=="1" (
   goto :loop
 )
 
-call :main
+REM If the script was double-clicked, keep the window open on exit
+if /I "%CMDEXTVERSION%" NEQ "" (
+  echo.
+  echo Press any key to exit...
+  pause >nul
+)
+
+:auto_run
+echo [supervise] Auto mode: running Option 1 - Full setup
+call :install_deps
+if errorlevel 1 exit /b 1
+call :ensure_postgres
+call :build_all
+if errorlevel 1 exit /b 1
+call :start_prod_all
+exit /b 0

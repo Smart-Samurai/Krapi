@@ -1,0 +1,259 @@
+"use client";
+
+import React, { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Database,
+  HardDrive,
+  Upload,
+  Download,
+  Trash2,
+  FileText,
+  Activity,
+  Info,
+} from "lucide-react";
+import { createDefaultKrapi } from "@/lib/krapi";
+
+interface StorageStats {
+  total_size: number;
+  storage_limit: number;
+  usage_percentage: number;
+  file_count: number;
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+export default function StoragePage() {
+  const params = useParams();
+  const projectId = params.projectId as string;
+  const dispatch = useAppDispatch();
+
+  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadStorageStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const krapi = createDefaultKrapi();
+      const response = await krapi.storage.getStats(projectId);
+      if (response.success && response.data) {
+        setStorageStats(response.data);
+      } else {
+        setError(response.error || "Failed to load storage statistics");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load storage statistics");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    loadStorageStats();
+  }, [loadStorageStats]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Storage Management</h1>
+          <p className="text-muted-foreground">
+            Monitor and manage your project's storage usage
+          </p>
+        </div>
+        <Button onClick={loadStorageStats}>
+          <Activity className="mr-2 h-4 w-4" /> Refresh
+        </Button>
+      </div>
+
+      {/* Storage Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Usage</CardTitle>
+            <HardDrive className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {storageStats ? formatFileSize(storageStats.total_size) : "0 B"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Current storage used
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Storage Limit</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {storageStats
+                ? formatFileSize(storageStats.storage_limit)
+                : "0 B"}
+            </div>
+            <p className="text-xs text-muted-foreground">Maximum allowed</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Usage Percentage
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {storageStats ? Math.round(storageStats.usage_percentage) : 0}%
+            </div>
+            <p className="text-xs text-muted-foreground">Of total limit</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">File Count</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {storageStats ? storageStats.file_count : 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Total files stored</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Storage Usage Progress */}
+      {storageStats && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Storage Usage</CardTitle>
+            <CardDescription>
+              Visual representation of your storage consumption
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span>Used: {formatFileSize(storageStats.total_size)}</span>
+              <span>
+                Available:{" "}
+                {formatFileSize(
+                  storageStats.storage_limit - storageStats.total_size
+                )}
+              </span>
+            </div>
+            <Progress
+              value={storageStats.usage_percentage}
+              className="w-full"
+            />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>0%</span>
+              <span>{Math.round(storageStats.usage_percentage)}%</span>
+              <span>100%</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Manage your storage resources</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <Button variant="outline" asChild>
+            <a href={`/projects/${projectId}/files`}>
+              <FileText className="mr-2 h-4 w-4" /> Manage Files
+            </a>
+          </Button>
+          <Button variant="outline" asChild>
+            <a href={`/projects/${projectId}/files`}>
+              <Upload className="mr-2 h-4 w-4" /> Upload Files
+            </a>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Storage Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Storage Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <h4 className="font-medium mb-2">Storage Features</h4>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                <li>• Secure file storage with encryption</li>
+                <li>• Automatic backup and redundancy</li>
+                <li>• CDN integration for fast delivery</li>
+                <li>• File versioning and history</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Usage Guidelines</h4>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                <li>• Monitor usage regularly</li>
+                <li>• Clean up unused files</li>
+                <li>• Use appropriate file formats</li>
+                <li>• Contact support for limit increases</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

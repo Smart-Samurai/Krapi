@@ -9,25 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Form, FormField } from "@/components/forms";
 import { z } from "zod";
 import {
@@ -42,8 +28,6 @@ import {
   Key,
   Save,
   RefreshCw,
-  Check,
-  X,
 } from "lucide-react";
 import { InfoBlock } from "@/components/styled/InfoBlock";
 import { useKrapi } from "@/lib/hooks/useKrapi";
@@ -107,7 +91,7 @@ export default function SettingsPage() {
   const [testEmail, setTestEmail] = useState("");
 
   const krapi = useKrapi();
-  const { user } = useReduxAuth();
+  const { user: _user } = useReduxAuth();
 
   const tabs = [
     { id: "general", label: "General", icon: Settings },

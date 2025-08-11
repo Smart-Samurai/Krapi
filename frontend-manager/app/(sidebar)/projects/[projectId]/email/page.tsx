@@ -44,7 +44,23 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, Mail, Settings, TestTube, Save, Search, Filter, MoreHorizontal, Eye, Send, FileText, Code2, BookOpen } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Mail,
+  Settings,
+  TestTube,
+  Save,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Send,
+  FileText,
+  Code2,
+  BookOpen,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,11 +88,16 @@ export default function EmailPage() {
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
 
-  const configBucket = useAppSelector((s) => s.email.configByProjectId[projectId]);
-  const templatesBucket = useAppSelector((s) => s.email.templatesByProjectId[projectId]);
+  const configBucket = useAppSelector(
+    (s) => s.email.configByProjectId[projectId]
+  );
+  const templatesBucket = useAppSelector(
+    (s) => s.email.templatesByProjectId[projectId]
+  );
   const emailConfig = configBucket?.data || null;
   const templates = templatesBucket?.items || [];
-  const isLoading = (configBucket?.loading || false) || (templatesBucket?.loading || false);
+  const isLoading =
+    configBucket?.loading || false || templatesBucket?.loading || false;
 
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -146,12 +167,17 @@ export default function EmailPage() {
     try {
       setIsSaving(true);
       dispatch(beginBusy());
-      const action = await dispatch(updateEmailConfig({ projectId, config: { ...configForm } as EmailConfig }));
+      const action = await dispatch(
+        updateEmailConfig({
+          projectId,
+          config: { ...configForm } as EmailConfig,
+        })
+      );
       if (!updateEmailConfig.fulfilled.match(action)) {
         const msg = (action as any).payload || "Failed to update email config";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to update email config");
     } finally {
       setIsSaving(false);
@@ -163,12 +189,14 @@ export default function EmailPage() {
     try {
       setIsTesting(true);
       dispatch(beginBusy());
-      const action = await dispatch(testEmailConfig({ projectId, email: testEmail }));
+      const action = await dispatch(
+        testEmailConfig({ projectId, email: testEmail })
+      );
       if (!testEmailConfig.fulfilled.match(action)) {
         const msg = (action as any).payload || "Failed to test email config";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to test email config");
     } finally {
       setIsTesting(false);
@@ -179,7 +207,9 @@ export default function EmailPage() {
   const handleCreateTemplate = async () => {
     try {
       dispatch(beginBusy());
-      const action = await dispatch(createEmailTemplate({ projectId, payload: { ...templateForm } }));
+      const action = await dispatch(
+        createEmailTemplate({ projectId, data: { ...templateForm } })
+      );
       if (createEmailTemplate.fulfilled.match(action)) {
         setIsCreateTemplateDialogOpen(false);
         setTemplateForm({ name: "", subject: "", body: "", variables: [] });
@@ -188,7 +218,7 @@ export default function EmailPage() {
         const msg = (action as any).payload || "Failed to create template";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to create template");
     } finally {
       dispatch(endBusy());
@@ -199,7 +229,13 @@ export default function EmailPage() {
     if (!editingTemplate) return;
     try {
       dispatch(beginBusy());
-      const action = await dispatch(updateEmailTemplate({ projectId, templateId: editingTemplate.id, updates: { ...templateForm } }));
+      const action = await dispatch(
+        updateEmailTemplate({
+          projectId,
+          templateId: editingTemplate.id,
+          updates: { ...templateForm },
+        })
+      );
       if (updateEmailTemplate.fulfilled.match(action)) {
         setIsEditTemplateDialogOpen(false);
         setEditingTemplate(null);
@@ -209,7 +245,7 @@ export default function EmailPage() {
         const msg = (action as any).payload || "Failed to update template";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to update template");
     } finally {
       dispatch(endBusy());
@@ -220,14 +256,16 @@ export default function EmailPage() {
     if (!confirm("Are you sure you want to delete this template?")) return;
     try {
       dispatch(beginBusy());
-      const action = await dispatch(deleteEmailTemplate({ projectId, templateId }));
+      const action = await dispatch(
+        deleteEmailTemplate({ projectId, templateId })
+      );
       if (deleteEmailTemplate.fulfilled.match(action)) {
         loadTemplatesCb();
       } else {
         const msg = (action as any).payload || "Failed to delete template";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to delete template");
     } finally {
       dispatch(endBusy());
@@ -704,7 +742,7 @@ export default function EmailPage() {
                 </div>
                 <div>
                   <Label htmlFor="sort-templates">Sort By</Label>
-                  <Select value={sortBy} onValueChange={() => {}} >
+                  <Select value={sortBy} onValueChange={() => {}}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

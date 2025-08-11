@@ -1,127 +1,226 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import type { RootState } from "./index";
-import type { Document } from "@/lib/krapi";
-import { buildKrapiFromState } from "./helpers";
+import {
+  createSlice,
+  createAsyncThunk,
+  PayloadAction,
+  ActionReducerMapBuilder,
+} from "@reduxjs/toolkit";
+import { Document, createDefaultKrapi } from "@/lib/krapi";
 
-interface Bucket {
-  items: Document[];
+// Types
+export interface DocumentsState {
+  byKey: Record<string, Document[]>;
   loading: boolean;
   error: string | null;
 }
-interface DocumentsState {
-  byKey: Record<string, Bucket>; // key = `${projectId}:${collectionId}`
-}
 
-const initialState: DocumentsState = { byKey: {} };
+// Helper function to generate key
+const getDocumentsKey = (projectId: string, collectionId: string) =>
+  `${projectId}:${collectionId}`;
 
-const keyOf = (projectId: string, collectionId: string) => `${projectId}:${collectionId}`;
-
-export const fetchDocuments = createAsyncThunk<
-  { projectId: string; collectionId: string; data: Document[] },
-  { projectId: string; collectionId: string },
-  { state: RootState }
->("documents/fetchAll", async ({ projectId, collectionId }, { getState, rejectWithValue }) => {
-  try {
-    const sdk = buildKrapiFromState(getState());
-    const res = await sdk.documents.getAll(projectId, collectionId, { limit: 200 });
-    if (!res.success || !res.data) return rejectWithValue("Failed to fetch documents");
-    const data = Array.isArray((res as any).data) ? ((res as any).data as Document[]) : ((res as any).data.items as Document[]);
-    return { projectId, collectionId, data };
-  } catch (e: any) {
-    return rejectWithValue(e.message || "Fetch error");
+// Async thunks
+export const fetchDocuments = createAsyncThunk(
+  "documents/fetchAll",
+  async (
+    { projectId, collectionId }: { projectId: string; collectionId: string },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.documents.getAll(projectId, collectionId);
+      if (response.success && response.data) {
+        return { projectId, collectionId, documents: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to fetch documents");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to fetch documents");
+    }
   }
-});
+);
 
-export const createDocument = createAsyncThunk<
-  { projectId: string; collectionId: string; doc: Document },
-  { projectId: string; collectionId: string; data: Record<string, any> },
-  { state: RootState }
->("documents/create", async ({ projectId, collectionId, data }, { getState, rejectWithValue }) => {
-  try {
-    const sdk = buildKrapiFromState(getState());
-    const res = await sdk.documents.create(projectId, collectionId, data);
-    if (!res.success || !res.data) return rejectWithValue("Failed to create document");
-    return { projectId, collectionId, doc: res.data };
-  } catch (e: any) {
-    return rejectWithValue(e.message || "Create error");
+export const createDocument = createAsyncThunk(
+  "documents/create",
+  async (
+    {
+      projectId,
+      collectionId,
+      data,
+    }: { projectId: string; collectionId: string; data: Record<string, any> },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.documents.create(
+        projectId,
+        collectionId,
+        data
+      );
+      if (response.success && response.data) {
+        return { projectId, collectionId, document: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to create document");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to create document");
+    }
   }
-});
+);
 
-export const updateDocument = createAsyncThunk<
-  { projectId: string; collectionId: string; doc: Document },
-  { projectId: string; collectionId: string; id: string; data: Record<string, any> },
-  { state: RootState }
->("documents/update", async ({ projectId, collectionId, id, data }, { getState, rejectWithValue }) => {
-  try {
-    const sdk = buildKrapiFromState(getState());
-    const res = await sdk.documents.update(projectId, collectionId, id, data);
-    if (!res.success || !res.data) return rejectWithValue("Failed to update document");
-    return { projectId, collectionId, doc: res.data };
-  } catch (e: any) {
-    return rejectWithValue(e.message || "Update error");
+export const updateDocument = createAsyncThunk(
+  "documents/update",
+  async (
+    {
+      projectId,
+      collectionId,
+      id,
+      data,
+    }: {
+      projectId: string;
+      collectionId: string;
+      id: string;
+      data: Record<string, any>;
+    },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.documents.update(
+        projectId,
+        collectionId,
+        id,
+        data
+      );
+      if (response.success && response.data) {
+        return { projectId, collectionId, document: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to update document");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to update document");
+    }
   }
-});
+);
 
-export const deleteDocument = createAsyncThunk<
-  { projectId: string; collectionId: string; id: string },
-  { projectId: string; collectionId: string; id: string },
-  { state: RootState }
->("documents/delete", async ({ projectId, collectionId, id }, { getState, rejectWithValue }) => {
-  try {
-    const sdk = buildKrapiFromState(getState());
-    const res = await sdk.documents.delete(projectId, collectionId, id);
-    if (!res.success) return rejectWithValue("Failed to delete document");
-    return { projectId, collectionId, id };
-  } catch (e: any) {
-    return rejectWithValue(e.message || "Delete error");
+export const deleteDocument = createAsyncThunk(
+  "documents/delete",
+  async (
+    {
+      projectId,
+      collectionId,
+      id,
+    }: { projectId: string; collectionId: string; id: string },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.documents.delete(
+        projectId,
+        collectionId,
+        id
+      );
+      if (response.success) {
+        return { projectId, collectionId, id };
+      } else {
+        return rejectWithValue(response.error || "Failed to delete document");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to delete document");
+    }
   }
-});
+);
 
+// Initial state
+const initialState: DocumentsState = {
+  byKey: {},
+  loading: false,
+  error: null,
+};
+
+// Slice
 const documentsSlice = createSlice({
   name: "documents",
   initialState,
-  reducers: {},
-  extraReducers: (builder) => {
+  reducers: {
+    clearDocuments: (state: DocumentsState) => {
+      state.byKey = {};
+      state.error = null;
+    },
+    clearCollectionDocuments: (
+      state: DocumentsState,
+      action: PayloadAction<{ projectId: string; collectionId: string }>
+    ) => {
+      const { projectId, collectionId } = action.payload;
+      const key = getDocumentsKey(projectId, collectionId);
+      delete state.byKey[key];
+    },
+  },
+  extraReducers: (builder: ActionReducerMapBuilder<DocumentsState>) => {
     builder
-      .addCase(fetchDocuments.pending, (state, action) => {
-        const { projectId, collectionId } = action.meta.arg;
-        const key = keyOf(projectId, collectionId);
-        state.byKey[key] ||= { items: [], loading: false, error: null };
-        state.byKey[key].loading = true;
-        state.byKey[key].error = null;
+      .addCase(fetchDocuments.pending, (state: DocumentsState) => {
+        state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchDocuments.fulfilled, (state, action) => {
-        const { projectId, collectionId, data } = action.payload;
-        const key = keyOf(projectId, collectionId);
-        state.byKey[key] = { items: data, loading: false, error: null };
-      })
-      .addCase(fetchDocuments.rejected, (state, action) => {
-        const { projectId, collectionId } = action.meta.arg;
-        const key = keyOf(projectId, collectionId);
-        state.byKey[key] ||= { items: [], loading: false, error: null };
-        state.byKey[key].loading = false;
-        state.byKey[key].error = (action.payload as string) || "Failed";
-      })
-      .addCase(createDocument.fulfilled, (state, action) => {
-        const { projectId, collectionId, doc } = action.payload;
-        const key = keyOf(projectId, collectionId);
-        state.byKey[key]?.items.push(doc);
-      })
-      .addCase(updateDocument.fulfilled, (state, action) => {
-        const { projectId, collectionId, doc } = action.payload;
-        const key = keyOf(projectId, collectionId);
-        const bucket = state.byKey[key];
-        if (!bucket) return;
-        bucket.items = bucket.items.map((d) => (d.id === doc.id ? doc : d));
-      })
-      .addCase(deleteDocument.fulfilled, (state, action) => {
-        const { projectId, collectionId, id } = action.payload;
-        const key = keyOf(projectId, collectionId);
-        const bucket = state.byKey[key];
-        if (!bucket) return;
-        bucket.items = bucket.items.filter((d) => d.id !== id);
-      });
+      .addCase(
+        fetchDocuments.fulfilled,
+        (state: DocumentsState, action: any) => {
+          const { projectId, collectionId, documents } = action.payload;
+          const key = getDocumentsKey(projectId, collectionId);
+          state.byKey[key] = documents;
+          state.loading = false;
+          state.error = null;
+        }
+      )
+      .addCase(
+        fetchDocuments.rejected,
+        (state: DocumentsState, action: any) => {
+          state.loading = false;
+          state.error = action.payload || "Failed to fetch documents";
+        }
+      )
+      .addCase(
+        createDocument.fulfilled,
+        (state: DocumentsState, action: any) => {
+          const { projectId, collectionId, document } = action.payload;
+          const key = getDocumentsKey(projectId, collectionId);
+          if (!state.byKey[key]) {
+            state.byKey[key] = [];
+          }
+          state.byKey[key].push(document);
+          state.loading = false;
+          state.error = null;
+        }
+      )
+      .addCase(
+        updateDocument.fulfilled,
+        (state: DocumentsState, action: any) => {
+          const { projectId, collectionId, document } = action.payload;
+          const key = getDocumentsKey(projectId, collectionId);
+          if (state.byKey[key]) {
+            state.byKey[key] = state.byKey[key].map((d: Document) =>
+              d.id === document.id ? document : d
+            );
+          }
+          state.loading = false;
+          state.error = null;
+        }
+      )
+      .addCase(
+        deleteDocument.fulfilled,
+        (state: DocumentsState, action: any) => {
+          const { projectId, collectionId, id } = action.payload;
+          const key = getDocumentsKey(projectId, collectionId);
+          if (state.byKey[key]) {
+            state.byKey[key] = state.byKey[key].filter(
+              (d: Document) => d.id !== id
+            );
+          }
+          state.loading = false;
+          state.error = null;
+        }
+      );
   },
 });
 
+export const { clearDocuments, clearCollectionDocuments } =
+  documentsSlice.actions;
 export default documentsSlice.reducer;

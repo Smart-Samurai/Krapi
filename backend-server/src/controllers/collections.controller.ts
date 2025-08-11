@@ -24,16 +24,7 @@ export class CollectionsController {
     try {
       const { projectId } = req.params;
 
-      // Verify project exists
-      const project = await this.db.getProjectById(projectId);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
-        return;
-      }
-
+      // Use the database service directly for now
       const collections = await this.db.getProjectCollections(projectId);
 
       res.status(200).json({
@@ -89,7 +80,7 @@ export class CollectionsController {
     try {
       const { projectId } = req.params;
       const { name, description, fields = [], indexes = [] } = req.body;
-      
+
       console.log("Creating collection:", { projectId, name, user: req.user });
 
       // Verify project exists
@@ -139,7 +130,6 @@ export class CollectionsController {
         changes: { name, fields: fields.length },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        created_at: new Date().toISOString(),
       });
 
       res.status(201).json({
@@ -227,7 +217,6 @@ export class CollectionsController {
           changes,
           performed_by: req.user?.id || "unknown",
           session_id: req.session?.id,
-          created_at: new Date().toISOString(),
         });
       }
 
@@ -294,7 +283,6 @@ export class CollectionsController {
         changes: { name: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
@@ -361,7 +349,7 @@ export class CollectionsController {
           total,
           totalPages: totalPages,
           hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1
+          hasPrev: pageNum > 1,
         },
       } as PaginatedResponse<Document>);
       return;
@@ -463,7 +451,6 @@ export class CollectionsController {
         changes: { collection: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        created_at: new Date().toISOString(),
       });
 
       res.status(201).json({
@@ -558,7 +545,6 @@ export class CollectionsController {
         changes: { collection: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
@@ -622,7 +608,6 @@ export class CollectionsController {
         changes: { collection: collectionName },
         performed_by: req.user?.id || "unknown",
         session_id: req.session?.id,
-        created_at: new Date().toISOString(),
       });
 
       res.status(200).json({
@@ -692,7 +677,9 @@ export class CollectionsController {
         }
         const validation = this.validateDocument(doc, collection.fields);
         if (!validation.valid) {
-          validationErrors.push(`Document at index ${index}: ${validation.error}`);
+          validationErrors.push(
+            `Document at index ${index}: ${validation.error}`
+          );
         }
       });
 
@@ -728,7 +715,6 @@ export class CollectionsController {
             changes: { collection: collectionName, batch: true },
             performed_by: req.user?.id || "unknown",
             session_id: req.session?.id,
-            created_at: new Date().toISOString(),
           });
         } catch (error) {
           errors.push({
@@ -812,16 +798,25 @@ export class CollectionsController {
           return;
         }
         if (!update.id) {
-          validationErrors.push(`Update at index ${index}: Document ID is required`);
+          validationErrors.push(
+            `Update at index ${index}: Document ID is required`
+          );
           return;
         }
         if (!update.data || typeof update.data !== "object") {
-          validationErrors.push(`Update at index ${index}: Data object is required`);
+          validationErrors.push(
+            `Update at index ${index}: Data object is required`
+          );
           return;
         }
-        const validation = this.validateDocument(update.data, collection.fields);
+        const validation = this.validateDocument(
+          update.data,
+          collection.fields
+        );
         if (!validation.valid) {
-          validationErrors.push(`Update at index ${index}: ${validation.error}`);
+          validationErrors.push(
+            `Update at index ${index}: ${validation.error}`
+          );
         }
       });
 
@@ -875,7 +870,6 @@ export class CollectionsController {
               changes: { collection: collectionName, batch: true },
               performed_by: req.user?.id || "unknown",
               session_id: req.session?.id,
-              created_at: new Date().toISOString(),
             });
           } else {
             errors.push({
@@ -997,7 +991,6 @@ export class CollectionsController {
               changes: { collection: collectionName, batch: true },
               performed_by: req.user?.id || "unknown",
               session_id: req.session?.id,
-              created_at: new Date().toISOString(),
             });
           } else {
             errors.push({

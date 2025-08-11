@@ -182,6 +182,9 @@ export interface FileRecord {
   path: string;
   uploaded_by?: string;
   created_at: string;
+  metadata?: Record<string, any>;
+  updated_at?: string;
+  active?: boolean;
 }
 
 // Project User Types
@@ -312,6 +315,8 @@ export interface QueryOptions {
   filter?: Record<string, unknown>;
   search?: string;
   fields?: string[];
+  offset?: number; // Add offset for backward compatibility
+  active?: boolean; // Add active for user filtering
 }
 
 // Access Scopes
@@ -368,6 +373,7 @@ export interface ApiKey {
   last_used_at?: string;
   created_at: string;
   is_active: boolean;
+  user_id?: string; // Add for backward compatibility
 }
 
 // Scope validation helpers
@@ -375,4 +381,54 @@ export interface ScopeRequirement {
   scopes: Scope[];
   requireAll?: boolean; // If true, all scopes required. If false, any scope is sufficient
   projectSpecific?: boolean; // If true, scope must be for the specific project in the request
+}
+
+// Add missing types that are referenced in the compilation errors
+export interface ProjectStats {
+  storage_used: number;
+  api_calls_count: number;
+  last_api_call?: string;
+  collections_count: number;
+  documents_count: number;
+  users_count: number;
+}
+
+export interface FileInfo {
+  id: string;
+  project_id: string;
+  filename: string;
+  original_name: string;
+  mime_type: string;
+  size: number;
+  url: string;
+  uploaded_by?: string;
+  relations?: FileRelation[];
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, any>;
+  active?: boolean;
+}
+
+export interface FileRelation {
+  type: "user_avatar" | "document_attachment" | "custom";
+  target_id: string;
+  target_type: string;
+  metadata?: Record<string, any>;
+}
+
+export interface StorageStats {
+  total_size: number;
+  file_count: number;
+  storage_limit: number;
+  usage_percentage: number;
+}
+
+export interface CreateChangelogEntry {
+  project_id?: string; // Optional for admin operations
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  changes?: Record<string, any>;
+  performed_by: string;
+  session_id?: string;
 }

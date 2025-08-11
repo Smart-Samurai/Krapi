@@ -1,7 +1,11 @@
 /**
  * KRAPI TypeScript SDK
  *
- * A type-safe client SDK for interacting with the KRAPI backend
+ * A type-safe SDK for building KRAPI applications
+ *
+ * - ClientSDK: For frontend applications (HTTP-based)
+ * - BackendSDK: For backend applications (direct database access)
+ * - Shared interfaces: Common contracts both implement
  */
 
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from "axios";
@@ -27,42 +31,47 @@ import {
   EmailTemplate,
   EmailSendRequest,
   ChangelogEntry,
+  CreateChangelogEntry,
 } from "./types";
 
+// Export shared interfaces
+export * from "./interfaces";
+
+// Export types
 export * from "./types";
 
 /**
- * KRAPI SDK Client
+ * KRAPI Client SDK
  *
- * Main SDK class for interacting with the KRAPI backend API.
+ * Frontend SDK for interacting with the KRAPI backend API.
  * Supports both session-based and API key authentication.
  *
  * @example
  * ```typescript
  * // Initialize with session token
- * const sdk = new KrapiSDK({
- *   baseUrl: 'http://localhost:3468/krapi/k1',
+ * const sdk = new ClientSDK({
+ *   baseUrl: 'http://localhost:3470',
  *   sessionToken: 'your-session-token'
  * });
  *
  * // Initialize with API key
- * const sdk = new KrapiSDK({
- *   baseUrl: 'http://localhost:3468/krapi/k1',
+ * const sdk = new ClientSDK({
+ *   baseUrl: 'http://localhost:3470',
  *   apiKey: 'your-api-key'
  * });
  * ```
  */
-export class KrapiSDK {
+export class ClientSDK {
   private client: AxiosInstance;
   private sessionToken?: string;
   private apiKey?: string;
-  private baseURL: string;
+  private _baseURL: string;
 
   /**
-   * Creates a new instance of the KRAPI SDK
+   * Creates a new instance of the KRAPI Client SDK
    *
    * @param config - SDK configuration object
-   * @param config.baseUrl - The base URL of the KRAPI backend (e.g., 'http://localhost:3468/krapi/k1')
+   * @param config.baseUrl - The base URL of the KRAPI backend (e.g., 'http://localhost:3470')
    * @param config.sessionToken - Optional session token for authentication
    * @param config.authToken - Alternative name for sessionToken (for backward compatibility)
    * @param config.apiKey - Optional API key for authentication
@@ -81,7 +90,7 @@ export class KrapiSDK {
 
     this.sessionToken = config.sessionToken || config.authToken;
     this.apiKey = config.apiKey;
-    this.baseURL = config.baseUrl;
+    this._baseURL = config.baseUrl;
 
     this.client = axios.create({
       baseURL: config.baseUrl,
@@ -164,6 +173,11 @@ export class KrapiSDK {
   clearAuth() {
     this.sessionToken = undefined;
     this.apiKey = undefined;
+  }
+
+  // Get base URL
+  get baseURL(): string {
+    return this._baseURL;
   }
 
   // Auth methods
@@ -375,6 +389,34 @@ export class KrapiSDK {
       const response = await this.client.post("/admin/master-api-keys", data);
       return response.data;
     },
+
+    // Get system statistics
+    getSystemStats: async (): Promise<
+      ApiResponse<{
+        projects: { total: number; active: number };
+        users: { total: number; active: number };
+        sessions: { active: number };
+        storage: { used_bytes: number; used_mb: number; used_gb: number };
+        database: { collections: number; documents: number };
+      }>
+    > => {
+      const response = await this.client.get("/admin/system-stats");
+      return response.data;
+    },
+
+    // Get system activity logs
+    getActivityLogs: async (options?: {
+      limit?: number;
+      offset?: number;
+      entity_type?: string;
+      action?: string;
+      user_id?: string;
+    }): Promise<ApiResponse<any[]>> => {
+      const response = await this.client.get("/admin/activity-logs", {
+        params: options,
+      });
+      return response.data;
+    },
   };
 
   // Project Methods
@@ -397,7 +439,10 @@ export class KrapiSDK {
     create: async (projectData: {
       name: string;
       description?: string;
-      settings?: ProjectSettings;
+      settings?: ProjectSettings & {
+        created_by?: string;
+        project_url?: string;
+      };
     }): Promise<ApiResponse<Project>> => {
       const response = await this.client.post("/projects", projectData);
       return response.data;
@@ -508,6 +553,18 @@ export class KrapiSDK {
     ): Promise<PaginatedResponse<Document>> => {
       const response = await this.client.get(
         `/projects/${projectId}/collections/${collectionName}/documents`,
+        { params: options }
+      );
+      return response.data;
+    },
+
+    // Get documents by collection ID (for internal use)
+    getByTable: async (
+      collectionId: string,
+      options?: QueryOptions
+    ): Promise<PaginatedResponse<Document>> => {
+      const response = await this.client.get(
+        `/collections/${collectionId}/documents`,
         { params: options }
       );
       return response.data;
@@ -671,7 +728,7 @@ export class KrapiSDK {
 
     // Get file URL
     getFileUrl: (projectId: string, fileId: string): string => {
-      return `${this.baseURL}/projects/${projectId}/storage/files/${fileId}/download`;
+      return `${this._baseURL}/projects/${projectId}/storage/files/${fileId}/download`;
     },
   };
 
@@ -1026,6 +1083,14 @@ export class KrapiSDK {
 
   // Changelog Methods
   changelog = {
+    // Create changelog entry
+    create: async (
+      entry: CreateChangelogEntry
+    ): Promise<ApiResponse<ChangelogEntry>> => {
+      const response = await this.client.post("/changelog", entry);
+      return response.data;
+    },
+
     // Get changelog entries
     getEntries: async (
       projectId: string,
@@ -1069,7 +1134,7 @@ export class KrapiSDK {
         version: string;
       }>
     > => {
-      const response = await this.client.get("/../../health");
+      const response = await this.client.get("/health");
       return response.data;
     },
 
@@ -1197,8 +1262,24 @@ export class KrapiSDK {
       const response = await this.client.post("/testing/integration-tests");
       return response.data;
     },
+
+    /**
+     * Check database schema
+     * @returns Database schema information
+     */
+    checkSchema: async (): Promise<ApiResponse<any[]>> => {
+      const response = await this.client.get("/testing/check-schema");
+      return response.data;
+    },
   };
 }
 
-// Export as both names for backward compatibility
-export { KrapiSDK as KrapiClient };
+// Export BackendSDK for backend applications
+export { BackendSDK } from "./backend-sdk";
+
+// Export for backward compatibility
+export { ClientSDK as KrapiSDK };
+export { ClientSDK as KrapiClient };
+
+// Export the main SDK class
+export default ClientSDK;

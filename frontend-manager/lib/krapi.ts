@@ -8,7 +8,9 @@ import type { AdminRole, AccessLevel, ApiKey, ApiResponse } from "@krapi/sdk";
  */
 export function createDefaultKrapi(baseUrl?: string): KrapiSDK {
   const url =
-    baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+    baseUrl ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:3470/krapi/k1";
 
   return new KrapiSDK({
     baseUrl: url,
@@ -23,7 +25,9 @@ export function createKrapiWithSession(
   baseUrl?: string
 ): KrapiSDK {
   const url =
-    baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+    baseUrl ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:3470/krapi/k1";
 
   return new KrapiSDK({
     baseUrl: url,
@@ -39,7 +43,9 @@ export function createKrapiWithApiKey(
   baseUrl?: string
 ): KrapiSDK {
   const url =
-    baseUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470";
+    baseUrl ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:3470/krapi/k1";
 
   return new KrapiSDK({
     baseUrl: url,

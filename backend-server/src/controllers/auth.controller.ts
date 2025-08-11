@@ -1,7 +1,13 @@
 import { Request, Response } from "express";
 import { AuthService } from "@/services/auth.service";
 import { DatabaseService } from "@/services/database.service";
-import { AuthenticatedRequest, ApiResponse, SessionType } from "@/types";
+import {
+  AuthenticatedRequest,
+  ApiResponse,
+  SessionType,
+  Scope,
+  AdminPermission,
+} from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
 /**
@@ -37,30 +43,32 @@ export class AuthController {
     try {
       const { api_key } = req.body;
 
-      // This endpoint now uses API keys instead of a single master key
-      const apiKey = await this.db.getApiKey(api_key);
-
-      if (
-        !apiKey ||
-        !apiKey.is_active ||
-        (apiKey.type !== "master" && apiKey.type !== "admin")
-      ) {
+      // Get admin user by API key
+      const adminUser = await this.db.getAdminUserByApiKey(api_key);
+      if (!adminUser || !adminUser.active) {
         res.status(401).json({
           success: false,
-          error: "Invalid API key",
+          error: "Invalid or inactive API key",
         } as ApiResponse);
         return;
       }
 
-      // Create session with API key scopes
+      // Create session
+      const sessionToken = `admin_${uuidv4().replace(/-/g, "")}`;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
       const session = await this.db.createSession({
-        token: `tok_${uuidv4().replace(/-/g, "")}`,
+        token: sessionToken,
+        user_id: adminUser.id,
+        project_id: null,
         type: SessionType.ADMIN,
-        user_id: apiKey.owner_id,
-        scopes: apiKey.scopes,
-        metadata: { api_key_id: apiKey.id },
+        scopes: this.mapAdminPermissionsToScopes(adminUser.permissions || []),
+        metadata: {
+          role: adminUser.role,
+          access_level: adminUser.access_level,
+        },
         created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: expiresAt.toISOString(),
         consumed: false,
       });
 
@@ -75,9 +83,15 @@ export class AuthController {
       res.status(200).json({
         success: true,
         data: {
-          session_token: session.token,
-          expires_at: session.expires_at,
-          scopes: session.scopes,
+          session_token: sessionToken,
+          expires_at: expiresAt.toISOString(),
+          user: {
+            id: adminUser.id,
+            username: adminUser.username,
+            email: adminUser.email,
+            role: adminUser.role,
+            access_level: adminUser.access_level,
+          },
         },
       } as ApiResponse);
       return;
@@ -97,20 +111,31 @@ export class AuthController {
       const { projectId } = req.params;
       const { api_key } = req.body;
 
+      // Get project by API key
       const project = await this.db.getProjectByApiKey(api_key);
-
-      if (!project || project.id !== projectId || !project.active) {
+      if (!project || !project.active) {
         res.status(401).json({
           success: false,
-          error: "Invalid API key or project",
+          error: "Invalid or inactive project API key",
         } as ApiResponse);
         return;
       }
 
-      // Create project session with default project scopes
-      const session = await this.authService.createProjectSessionWithScopes(
-        projectId
-      );
+      // Create session
+      const sessionToken = `project_${uuidv4().replace(/-/g, "")}`;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      const session = await this.db.createSession({
+        token: sessionToken,
+        user_id: null,
+        project_id: project.id,
+        type: SessionType.PROJECT,
+        scopes: [Scope.DOCUMENTS_READ, Scope.DOCUMENTS_WRITE],
+        metadata: { role: "user" },
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+        consumed: false,
+      });
 
       // Log session creation
       await this.authService.logAuthAction(
@@ -123,9 +148,13 @@ export class AuthController {
       res.status(200).json({
         success: true,
         data: {
-          session_token: session.token,
-          expires_at: session.expires_at,
-          scopes: session.scopes,
+          session_token: sessionToken,
+          expires_at: expiresAt.toISOString(),
+          project: {
+            id: project.id,
+            name: project.name,
+            description: project.description,
+          },
         },
       } as ApiResponse);
       return;
@@ -139,44 +168,71 @@ export class AuthController {
     }
   };
 
-  // Admin login
+  // Admin login with username/password
   adminLogin = async (req: Request, res: Response): Promise<void> => {
     try {
       const { username, password } = req.body;
 
-      const user = await this.authService.authenticateAdmin(username, password);
-
-      if (!user) {
-        res.status(401).json({
+      if (!username || !password) {
+        res.status(400).json({
           success: false,
-          error: "Invalid credentials",
+          error: "Username and password are required",
         } as ApiResponse);
         return;
       }
 
-      // Create session with scopes based on role
-      const session = await this.authService.createAdminSessionWithScopes(user);
+      // Verify admin credentials
+      const adminUser = await this.db.verifyAdminPassword(username, password);
+      if (!adminUser || !adminUser.active) {
+        res.status(401).json({
+          success: false,
+          error: "Invalid credentials or inactive account",
+        } as ApiResponse);
+        return;
+      }
+
+      // Create session
+      const sessionToken = `admin_${uuidv4().replace(/-/g, "")}`;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      const session = await this.db.createSession({
+        token: sessionToken,
+        user_id: adminUser.id,
+        project_id: null,
+        type: SessionType.ADMIN,
+        scopes: this.mapAdminPermissionsToScopes(adminUser.permissions || []),
+        metadata: {
+          role: adminUser.role,
+          access_level: adminUser.access_level,
+        },
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+        consumed: false,
+      });
 
       // Update last login
-      await this.db.updateAdminUser(user.id, {
-        last_login: new Date().toISOString(),
-      });
+      await this.db.updateLoginInfo(adminUser.id);
+
+      // Log login
+      await this.authService.logAuthAction(
+        "login",
+        "admin",
+        undefined,
+        session.id
+      );
 
       res.status(200).json({
         success: true,
         data: {
+          session_token: sessionToken,
+          expires_at: expiresAt.toISOString(),
           user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            access_level: user.access_level,
-            permissions: user.permissions,
-            scopes: session.scopes,
+            id: adminUser.id,
+            username: adminUser.username,
+            email: adminUser.email,
+            role: adminUser.role,
+            access_level: adminUser.access_level,
           },
-          token: session.token,
-          session_token: session.token,
-          expires_at: session.expires_at,
         },
       } as ApiResponse);
       return;
@@ -184,24 +240,19 @@ export class AuthController {
       console.error("Admin login error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to authenticate",
+        error: "Login failed",
       } as ApiResponse);
       return;
     }
   };
 
-  // Validate session (for checking if a session is still valid)
+  // Validate session
   validateSession = async (req: Request, res: Response): Promise<void> => {
     try {
       const { session_token } = req.body;
 
       const session = await this.db.getSessionByToken(session_token);
-
-      if (
-        !session ||
-        session.consumed ||
-        new Date(session.expires_at) < new Date()
-      ) {
+      if (!session) {
         res.status(401).json({
           success: false,
           error: "Invalid or expired session",
@@ -415,71 +466,73 @@ export class AuthController {
         return;
       }
 
-      const apiKey = await this.db.getApiKey(api_key);
+      const adminUser = await this.db.getAdminUserByApiKey(api_key);
 
-      if (!apiKey || !apiKey.is_active) {
+      if (!adminUser) {
         res.status(401).json({
           success: false,
-          error: "Invalid or inactive API key",
-        } as ApiResponse);
+          error: "Invalid API key",
+        });
         return;
       }
 
-      // Check if API key is expired
-      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+      if (!adminUser.active) {
         res.status(401).json({
           success: false,
-          error: "API key expired",
-        } as ApiResponse);
+          error: "Account is deactivated",
+        });
         return;
       }
 
-      // Get the admin user
-      const user = await this.db.getAdminUserById(apiKey.owner_id);
+      // Generate session token
+      const sessionToken = `admin_${uuidv4().replace(/-/g, "")}`;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      if (!user || !user.active) {
-        res.status(401).json({
-          success: false,
-          error: "User not found or inactive",
-        } as ApiResponse);
-        return;
-      }
-
-      // Create session with API key scopes
+      // Create session
       const session = await this.db.createSession({
-        token: `tok_${uuidv4().replace(/-/g, "")}`,
+        token: sessionToken,
+        user_id: adminUser.id,
+        project_id: null,
         type: SessionType.ADMIN,
-        user_id: user.id,
-        scopes: apiKey.scopes,
-        metadata: { api_key_id: apiKey.id },
+        scopes: this.mapAdminPermissionsToScopes(adminUser.permissions || []),
+        metadata: {
+          role: adminUser.role,
+          access_level: adminUser.access_level,
+        },
         created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+        expires_at: expiresAt.toISOString(),
         consumed: false,
       });
 
-      // Update last login
-      await this.db.updateAdminUser(user.id, {
-        last_login: new Date().toISOString(),
-      });
+      if (!session) {
+        res.status(500).json({
+          success: false,
+          error: "Failed to create session",
+        });
+        return;
+      }
 
-      res.status(200).json({
+      // Update login info
+      await this.db.updateLoginInfo(adminUser.id);
+
+      // Log the action
+      await this.authService.logAuthAction("login", adminUser.id);
+
+      res.json({
         success: true,
         data: {
+          token: sessionToken,
+          expires_at: expiresAt.toISOString(),
           user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            access_level: user.access_level,
-            permissions: user.permissions,
-            scopes: apiKey.scopes,
+            id: adminUser.id,
+            username: adminUser.username,
+            email: adminUser.email,
+            role: adminUser.role,
+            access_level: adminUser.access_level,
+            permissions: adminUser.permissions,
           },
-          token: session.token,
-          session_token: session.token,
-          expires_at: session.expires_at,
         },
-      } as ApiResponse);
-      return;
+      });
     } catch (error) {
       console.error("Admin API login error:", error);
       res.status(500).json({
@@ -537,6 +590,32 @@ export class AuthController {
       return;
     }
   };
+
+  private mapAdminPermissionsToScopes(permissions: AdminPermission[]): Scope[] {
+    const permissionToScopeMap: Record<AdminPermission, Scope> = {
+      "users.create": Scope.ADMIN_WRITE,
+      "users.read": Scope.ADMIN_READ,
+      "users.update": Scope.ADMIN_WRITE,
+      "users.delete": Scope.ADMIN_WRITE,
+      "projects.create": Scope.PROJECTS_WRITE,
+      "projects.read": Scope.PROJECTS_READ,
+      "projects.update": Scope.PROJECTS_WRITE,
+      "projects.delete": Scope.PROJECTS_DELETE,
+      "collections.create": Scope.COLLECTIONS_WRITE,
+      "collections.read": Scope.COLLECTIONS_READ,
+      "collections.write": Scope.COLLECTIONS_WRITE,
+      "collections.delete": Scope.COLLECTIONS_DELETE,
+      "storage.upload": Scope.STORAGE_WRITE,
+      "storage.read": Scope.STORAGE_READ,
+      "storage.delete": Scope.STORAGE_DELETE,
+      "settings.read": Scope.ADMIN_READ,
+      "settings.update": Scope.ADMIN_WRITE,
+    };
+
+    return permissions.map(
+      (permission) => permissionToScopeMap[permission] || Scope.ADMIN_READ
+    );
+  }
 }
 
 export default new AuthController();

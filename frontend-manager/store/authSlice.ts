@@ -1,4 +1,9 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  createAsyncThunk,
+  PayloadAction,
+  ActionReducerMapBuilder,
+} from "@reduxjs/toolkit";
 import { KrapiSDK, AdminUser, createDefaultKrapi } from "@/lib/krapi";
 import { toast } from "sonner";
 
@@ -38,7 +43,7 @@ const getCookie = (name: string): string | null => {
 // Async thunks
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
-  async (_, { dispatch }) => {
+  async (_: void, { dispatch }: { dispatch: any }) => {
     const storedToken =
       getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
@@ -129,7 +134,7 @@ export const validateSession = createAsyncThunk(
   "auth/validateSession",
   async (
     { client, token }: { client: KrapiSDK; token: string },
-    { dispatch }
+    { dispatch }: { dispatch: any }
   ) => {
     try {
       const response = await client.auth.getCurrentUser();
@@ -162,7 +167,10 @@ export const validateSession = createAsyncThunk(
 
 export const validateApiKey = createAsyncThunk(
   "auth/validateApiKey",
-  async ({ client, key }: { client: KrapiSDK; key: string }, { dispatch }) => {
+  async (
+    { client, key }: { client: KrapiSDK; key: string },
+    { dispatch }: { dispatch: any }
+  ) => {
     try {
       const response = await client.auth.adminApiLogin(key);
       if (response.success && response.data) {
@@ -194,7 +202,7 @@ export const login = createAsyncThunk(
   "auth/login",
   async (
     { username, password }: { username: string; password: string },
-    { getState }
+    { getState }: { getState: any }
   ) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
@@ -228,7 +236,7 @@ export const login = createAsyncThunk(
 
 export const loginWithApiKey = createAsyncThunk(
   "auth/loginWithApiKey",
-  async (apiKey: string, { getState }) => {
+  async (apiKey: string, { getState }: { getState: any }) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
 
@@ -263,7 +271,7 @@ export const loginWithApiKey = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   "auth/logout",
-  async (_, { getState }) => {
+  async (_: void, { getState }: { getState: any }) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
 
@@ -309,7 +317,7 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    clearAuthData: (state) => {
+    clearAuthData: (state: AuthState) => {
       state.user = null;
       state.scopes = [];
       state.sessionToken = null;
@@ -320,25 +328,25 @@ const authSlice = createSlice({
       localStorage.removeItem("user_scopes");
       removeCookie("session_token");
     },
-    setError: (state, action: PayloadAction<string>) => {
+    setError: (state: AuthState, action: PayloadAction<string>) => {
       state.error = action.payload;
       state.loading = false;
     },
-    clearError: (state) => {
+    clearError: (state: AuthState) => {
       state.error = null;
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
+    setLoading: (state: AuthState, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: (builder: ActionReducerMapBuilder<AuthState>) => {
     builder
       // Initialize auth
-      .addCase(initializeAuth.pending, (state) => {
+      .addCase(initializeAuth.pending, (state: AuthState) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(initializeAuth.fulfilled, (state, action) => {
+      .addCase(initializeAuth.fulfilled, (state: AuthState, action: any) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes || [];
         state.sessionToken = action.payload.sessionToken || null;
@@ -346,51 +354,51 @@ const authSlice = createSlice({
         state.loading = false;
         state.isInitialized = true;
       })
-      .addCase(initializeAuth.rejected, (state, action) => {
+      .addCase(initializeAuth.rejected, (state: AuthState, action: any) => {
         state.loading = false;
         state.error = action.error.message || "Initialization failed";
         state.isInitialized = true;
       })
 
       // Validate session
-      .addCase(validateSession.pending, (state) => {
+      .addCase(validateSession.pending, (state: AuthState) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(validateSession.fulfilled, (state, action) => {
+      .addCase(validateSession.fulfilled, (state: AuthState, action: any) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.loading = false;
         state.error = null;
       })
-      .addCase(validateSession.rejected, (state, action) => {
+      .addCase(validateSession.rejected, (state: AuthState, action: any) => {
         state.loading = false;
         state.error = action.error.message || "Session validation failed";
       })
 
       // Validate API key
-      .addCase(validateApiKey.pending, (state) => {
+      .addCase(validateApiKey.pending, (state: AuthState) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(validateApiKey.fulfilled, (state, action) => {
+      .addCase(validateApiKey.fulfilled, (state: AuthState, action: any) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
         state.loading = false;
         state.error = null;
       })
-      .addCase(validateApiKey.rejected, (state, action) => {
+      .addCase(validateApiKey.rejected, (state: AuthState, action: any) => {
         state.loading = false;
         state.error = action.error.message || "API key validation failed";
       })
 
       // Login
-      .addCase(login.pending, (state) => {
+      .addCase(login.pending, (state: AuthState) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(login.fulfilled, (state: AuthState, action: any) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
@@ -398,18 +406,18 @@ const authSlice = createSlice({
         state.error = null;
         toast.success("Login successful");
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(login.rejected, (state: AuthState, action: any) => {
         state.loading = false;
         state.error = action.error.message || "Login failed";
         toast.error(action.error.message || "Invalid credentials");
       })
 
       // Login with API key
-      .addCase(loginWithApiKey.pending, (state) => {
+      .addCase(loginWithApiKey.pending, (state: AuthState) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(loginWithApiKey.fulfilled, (state, action) => {
+      .addCase(loginWithApiKey.fulfilled, (state: AuthState, action: any) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
@@ -418,17 +426,17 @@ const authSlice = createSlice({
         state.error = null;
         toast.success("API key login successful");
       })
-      .addCase(loginWithApiKey.rejected, (state, action) => {
+      .addCase(loginWithApiKey.rejected, (state: AuthState, action: any) => {
         state.loading = false;
         state.error = action.error.message || "API key login failed";
         toast.error(action.error.message || "Invalid API key");
       })
 
       // Logout
-      .addCase(logout.pending, (state) => {
+      .addCase(logout.pending, (state: AuthState) => {
         state.loading = true;
       })
-      .addCase(logout.fulfilled, (state) => {
+      .addCase(logout.fulfilled, (state: AuthState) => {
         state.user = null;
         state.scopes = [];
         state.sessionToken = null;
@@ -436,7 +444,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = null;
       })
-      .addCase(logout.rejected, (state, action) => {
+      .addCase(logout.rejected, (state: AuthState, action: any) => {
         state.loading = false;
         state.error = action.error.message || "Logout failed";
       });

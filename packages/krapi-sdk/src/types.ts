@@ -83,6 +83,7 @@ export interface ProjectSettings {
   auth?: AuthConfig;
   storage?: StorageConfig;
   email?: EmailConfig;
+  isTestProject?: boolean;
 }
 
 export interface StorageConfig {
@@ -417,4 +418,14 @@ export interface ChangelogEntry {
   resource_id: string;
   changes?: Record<string, any>;
   created_at: string;
+}
+
+export interface CreateChangelogEntry {
+  project_id?: string; // Optional for admin operations
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  changes?: Record<string, any>;
+  performed_by: string;
+  session_id?: string;
 }

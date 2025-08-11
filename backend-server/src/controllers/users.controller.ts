@@ -17,10 +17,10 @@ export class UsersController {
       const { projectId } = req.params;
       const { page = 1, limit = 50, search, active } = req.query;
 
-      const offset = (Number(page) - 1) * Number(limit);
+      // Use the database service directly
       const result = await this.db.getProjectUsers(projectId, {
         limit: Number(limit),
-        offset,
+        offset: (Number(page) - 1) * Number(limit),
         search: search as string,
         active:
           active === "true" ? true : active === "false" ? false : undefined,
@@ -33,9 +33,7 @@ export class UsersController {
           page: Number(page),
           limit: Number(limit),
           total: result.total,
-          totalPages: Math.ceil(result.total / Number(limit)),
-          hasNext: Number(page) < Math.ceil(result.total / Number(limit)),
-          hasPrev: Number(page) > 1,
+          pages: Math.ceil(result.total / Number(limit)),
         },
       } as ApiResponse);
     } catch (error) {
@@ -52,6 +50,7 @@ export class UsersController {
     try {
       const { projectId, userId } = req.params;
 
+      // Use the database service directly
       const user = await this.db.getProjectUser(projectId, userId);
 
       if (!user) {
@@ -444,7 +443,10 @@ export class UsersController {
   // Reset password with token
   resetPassword = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { token, new_password } = req.body as { token?: string; new_password?: string };
+      const { token, new_password } = req.body as {
+        token?: string;
+        new_password?: string;
+      };
 
       if (!token || !new_password) {
         res.status(400).json({

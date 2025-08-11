@@ -53,7 +53,12 @@ import {
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import { fetchUsers, createUser, updateUser, deleteUser } from "@/store/usersSlice";
+import {
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+} from "@/store/usersSlice";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.USERS_READ]: "Read Users",
@@ -108,7 +113,7 @@ export default function UsersPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        createUser({ projectId, payload: { ...formData } as any })
+        createUser({ projectId, data: { ...formData } })
       );
       if (createUser.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);

@@ -71,7 +71,7 @@ interface DiagnosticResult {
 }
 
 export default function TestAccessPage() {
-  const { krapi, user, hasScope } = useReduxAuth();
+  const { krapi, user: _user, hasScope } = useReduxAuth();
   const [loading, setLoading] = useState(false);
   const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
   const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(

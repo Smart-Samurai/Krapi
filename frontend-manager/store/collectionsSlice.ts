@@ -1,112 +1,244 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import type { RootState } from "./index";
-import type { Collection } from "@/lib/krapi";
-import { buildKrapiFromState } from "./helpers";
+import {
+  createSlice,
+  createAsyncThunk,
+  PayloadAction,
+  ActionReducerMapBuilder,
+} from "@reduxjs/toolkit";
+import { Collection, createDefaultKrapi } from "@/lib/krapi";
 
-interface CollectionsState {
-  byProjectId: Record<string, { items: Collection[]; loading: boolean; error: string | null }>;
+// Types
+interface CollectionsBucket {
+  items: Collection[];
+  loading: boolean;
+  error: string | null;
 }
 
+export interface CollectionsState {
+  byProjectId: Record<string, CollectionsBucket>;
+}
+
+// Async thunks
+export const fetchCollections = createAsyncThunk(
+  "collections/fetchAll",
+  async (
+    { projectId }: { projectId: string },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.collections.getAll(projectId);
+      if (response.success && response.data) {
+        return { projectId, collections: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to fetch collections");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to fetch collections");
+    }
+  }
+);
+
+export const createCollection = createAsyncThunk(
+  "collections/create",
+  async (
+    {
+      projectId,
+      data,
+    }: {
+      projectId: string;
+      data: {
+        name: string;
+        description?: string;
+        fields: any[];
+        indexes?: any[];
+      };
+    },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.collections.create(projectId, data);
+      if (response.success && response.data) {
+        return { projectId, collection: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to create collection");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to create collection");
+    }
+  }
+);
+
+export const updateCollection = createAsyncThunk(
+  "collections/update",
+  async (
+    {
+      projectId,
+      collectionId,
+      updates,
+    }: {
+      projectId: string;
+      collectionId: string;
+      updates: Partial<Collection>;
+    },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.collections.update(
+        projectId,
+        collectionId,
+        updates
+      );
+      if (response.success && response.data) {
+        return { projectId, collection: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to update collection");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to update collection");
+    }
+  }
+);
+
+export const deleteCollection = createAsyncThunk(
+  "collections/delete",
+  async (
+    { projectId, collectionId }: { projectId: string; collectionId: string },
+    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+  ) => {
+    try {
+      const client = createDefaultKrapi();
+      const response = await client.collections.delete(projectId, collectionId);
+      if (response.success) {
+        return { projectId, collectionId };
+      } else {
+        return rejectWithValue(response.error || "Failed to delete collection");
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to delete collection");
+    }
+  }
+);
+
+// Initial state
 const initialState: CollectionsState = {
   byProjectId: {},
 };
 
-export const fetchCollections = createAsyncThunk<Collection[], { projectId: string }, { state: RootState }>(
-  "collections/fetchAll",
-  async ({ projectId }, { getState, rejectWithValue }) => {
-    try {
-      const sdk = buildKrapiFromState(getState());
-      const res = await sdk.collections.getAll(projectId);
-      if (!res.success || !res.data) return rejectWithValue(res.error || "Failed to fetch collections");
-      return res.data;
-    } catch (e: any) {
-      return rejectWithValue(e.message || "Fetch error");
-    }
-  }
-);
-
-export const createCollection = createAsyncThunk<Collection, { projectId: string; payload: { name: string; description?: string; fields: any[] } }, { state: RootState }>(
-  "collections/create",
-  async ({ projectId, payload }, { getState, rejectWithValue }) => {
-    try {
-      const sdk = buildKrapiFromState(getState());
-      const res = await sdk.collections.create(projectId, payload as any);
-      if (!res.success || !res.data) return rejectWithValue(res.error || "Failed to create collection");
-      return res.data;
-    } catch (e: any) {
-      return rejectWithValue(e.message || "Create error");
-    }
-  }
-);
-
-export const updateCollection = createAsyncThunk<Collection, { projectId: string; name: string; updates: Partial<Collection> }, { state: RootState }>(
-  "collections/update",
-  async ({ projectId, name, updates }, { getState, rejectWithValue }) => {
-    try {
-      const sdk = buildKrapiFromState(getState());
-      const res = await sdk.collections.update(projectId, name, updates);
-      if (!res.success || !res.data) return rejectWithValue(res.error || "Failed to update collection");
-      return res.data;
-    } catch (e: any) {
-      return rejectWithValue(e.message || "Update error");
-    }
-  }
-);
-
-export const deleteCollection = createAsyncThunk<string, { projectId: string; name: string }, { state: RootState }>(
-  "collections/delete",
-  async ({ projectId, name }, { getState, rejectWithValue }) => {
-    try {
-      const sdk = buildKrapiFromState(getState());
-      const res = await sdk.collections.delete(projectId, name);
-      if (!res.success) return rejectWithValue(res.error || "Failed to delete collection");
-      return name;
-    } catch (e: any) {
-      return rejectWithValue(e.message || "Delete error");
-    }
-  }
-);
-
+// Slice
 const collectionsSlice = createSlice({
   name: "collections",
   initialState,
-  reducers: {},
-  extraReducers: (builder) => {
+  reducers: {
+    clearCollections: (state: CollectionsState) => {
+      state.byProjectId = {};
+    },
+    clearProjectCollections: (
+      state: CollectionsState,
+      action: PayloadAction<string>
+    ) => {
+      delete state.byProjectId[action.payload];
+    },
+  },
+  extraReducers: (builder: ActionReducerMapBuilder<CollectionsState>) => {
     builder
-      .addCase(fetchCollections.pending, (state, action) => {
-        const { projectId } = action.meta.arg as { projectId: string };
-        state.byProjectId[projectId] ||= { items: [], loading: false, error: null };
-        state.byProjectId[projectId].loading = true;
-        state.byProjectId[projectId].error = null;
-      })
-      .addCase(fetchCollections.fulfilled, (state, action) => {
-        // projectId not in payload; recover from meta
-        const { projectId } = action.meta.arg as { projectId: string };
-        state.byProjectId[projectId] = { items: action.payload, loading: false, error: null };
-      })
-      .addCase(fetchCollections.rejected, (state, action) => {
-        const { projectId } = action.meta.arg as { projectId: string };
-        state.byProjectId[projectId] ||= { items: [], loading: false, error: null };
-        state.byProjectId[projectId].loading = false;
-        state.byProjectId[projectId].error = (action.payload as string) || "Failed";
-      })
-      .addCase(createCollection.fulfilled, (state, action) => {
-        const { projectId } = (action.meta.arg as any);
-        state.byProjectId[projectId]?.items.push(action.payload);
-      })
-      .addCase(updateCollection.fulfilled, (state, action) => {
-        const { projectId, name } = (action.meta.arg as any);
-        const bucket = state.byProjectId[projectId];
-        if (!bucket) return;
-        bucket.items = bucket.items.map((c) => (c.name === name ? action.payload : c));
-      })
-      .addCase(deleteCollection.fulfilled, (state, action) => {
-        const { projectId } = (action.meta.arg as any);
-        const bucket = state.byProjectId[projectId];
-        if (!bucket) return;
-        bucket.items = bucket.items.filter((c) => c.name !== action.payload);
-      });
+      .addCase(
+        fetchCollections.pending,
+        (state: CollectionsState, action: any) => {
+          // Initialize bucket if it doesn't exist
+          if (!state.byProjectId[action.meta.arg.projectId]) {
+            state.byProjectId[action.meta.arg.projectId] = {
+              items: [],
+              loading: true,
+              error: null,
+            };
+          } else {
+            state.byProjectId[action.meta.arg.projectId].loading = true;
+            state.byProjectId[action.meta.arg.projectId].error = null;
+          }
+        }
+      )
+      .addCase(
+        fetchCollections.fulfilled,
+        (state: CollectionsState, action: any) => {
+          const { projectId, collections } = action.payload;
+          if (!state.byProjectId[projectId]) {
+            state.byProjectId[projectId] = {
+              items: [],
+              loading: false,
+              error: null,
+            };
+          }
+          state.byProjectId[projectId].items = collections;
+          state.byProjectId[projectId].loading = false;
+          state.byProjectId[projectId].error = null;
+        }
+      )
+      .addCase(
+        fetchCollections.rejected,
+        (state: CollectionsState, action: any) => {
+          const projectId = action.meta.arg.projectId;
+          if (!state.byProjectId[projectId]) {
+            state.byProjectId[projectId] = {
+              items: [],
+              loading: false,
+              error: null,
+            };
+          }
+          state.byProjectId[projectId].loading = false;
+          state.byProjectId[projectId].error =
+            action.payload || "Failed to fetch collections";
+        }
+      )
+      .addCase(
+        createCollection.fulfilled,
+        (state: CollectionsState, action: any) => {
+          const { projectId, collection } = action.payload;
+          if (!state.byProjectId[projectId]) {
+            state.byProjectId[projectId] = {
+              items: [],
+              loading: false,
+              error: null,
+            };
+          }
+          state.byProjectId[projectId].items.push(collection);
+          state.byProjectId[projectId].loading = false;
+          state.byProjectId[projectId].error = null;
+        }
+      )
+      .addCase(
+        updateCollection.fulfilled,
+        (state: CollectionsState, action: any) => {
+          const { projectId, collection } = action.payload;
+          if (state.byProjectId[projectId]) {
+            const idx = state.byProjectId[projectId].items.findIndex(
+              (c: Collection) => c.id === collection.id
+            );
+            if (idx !== -1) {
+              state.byProjectId[projectId].items[idx] = collection;
+            }
+          }
+          if (state.byProjectId[projectId]) {
+            state.byProjectId[projectId].loading = false;
+            state.byProjectId[projectId].error = null;
+          }
+        }
+      )
+      .addCase(
+        deleteCollection.fulfilled,
+        (state: CollectionsState, action: any) => {
+          const { projectId, collectionId } = action.payload;
+          if (state.byProjectId[projectId]) {
+            state.byProjectId[projectId].items = state.byProjectId[
+              projectId
+            ].items.filter((c: Collection) => c.id !== collectionId);
+          }
+        }
+      );
   },
 });
 
+export const { clearCollections, clearProjectCollections } =
+  collectionsSlice.actions;
 export default collectionsSlice.reducer;

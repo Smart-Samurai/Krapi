@@ -24,6 +24,7 @@ import {
   FileText,
   KeyRound,
   Mail,
+  HardDrive,
 } from "lucide-react";
 
 export function AppSidebar() {
@@ -157,6 +158,11 @@ function ProjectSidebar() {
       title: "Files",
       icon: FileText,
       href: `/projects/${projectId}/files`,
+    },
+    {
+      title: "Storage",
+      icon: HardDrive,
+      href: `/projects/${projectId}/storage`,
     },
     {
       title: "API Keys",

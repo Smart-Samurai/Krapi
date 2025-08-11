@@ -1,13 +1,8 @@
 import { Request, Response } from "express";
-import { DatabaseService } from "@/services/database.service";
+import { backendSDK } from "@/lib/backend-sdk";
+import { ApiResponse } from "@/types";
 
 export class EmailController {
-  private db: DatabaseService;
-
-  constructor() {
-    this.db = DatabaseService.getInstance();
-  }
-
   // Get email configuration
   getEmailConfig = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -21,22 +16,22 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
-      const config = await this.db.getEmailConfig(projectId);
+      const config = await backendSDK.email.getConfig(projectId);
 
       res.status(200).json({
         success: true,
         data: config,
-      });
+      } as ApiResponse);
     } catch (error) {
       console.error("Error getting email config:", error);
       res.status(500).json({
         success: false,
         error: "Failed to get email configuration",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -50,22 +45,22 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
-      const updated = await this.db.updateEmailConfig(projectId, configData);
+      const config = await backendSDK.email.updateConfig(projectId, configData);
 
       res.status(200).json({
         success: true,
-        data: updated,
-      });
+        data: config,
+      } as ApiResponse);
     } catch (error) {
       console.error("Error updating email config:", error);
       res.status(500).json({
         success: false,
         error: "Failed to update email configuration",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -79,7 +74,7 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
@@ -87,22 +82,22 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Email address is required",
-        });
+        } as ApiResponse);
         return;
       }
 
-      const result = await this.db.testEmailConfig(projectId, email);
+      const result = await backendSDK.email.testConfig(projectId);
 
       res.status(200).json({
-        success: result.success,
-        message: result.message,
-      });
+        success: true,
+        data: result,
+      } as ApiResponse);
     } catch (error) {
       console.error("Error testing email config:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to send test email",
-      });
+        error: "Failed to test email configuration",
+      } as ApiResponse);
     }
   };
 
@@ -122,7 +117,7 @@ export class EmailController {
         return;
       }
 
-      const templates = await this.db.getEmailTemplates(projectId);
+      const templates = await backendSDK.email.getTemplates(projectId);
 
       res.status(200).json({
         success: true,
@@ -158,20 +153,19 @@ export class EmailController {
         return;
       }
 
-      const template = await this.db.getEmailTemplate(projectId, templateId);
+      const result = await backendSDK.email.getTemplate(templateId);
 
-      if (!template) {
+      if (result) {
+        res.status(200).json({
+          success: true,
+          data: result,
+        });
+      } else {
         res.status(404).json({
           success: false,
           error: "Email template not found",
         });
-        return;
       }
-
-      res.status(200).json({
-        success: true,
-        data: template,
-      });
     } catch (error) {
       console.error("Error getting email template:", error);
       res.status(500).json({
@@ -195,14 +189,11 @@ export class EmailController {
         return;
       }
 
-      const template = await this.db.createEmailTemplate(
-        projectId,
-        templateData
-      );
+      const result = await backendSDK.email.createTemplate(templateData);
 
       res.status(201).json({
         success: true,
-        data: template,
+        data: result,
       });
     } catch (error) {
       console.error("Error creating email template:", error);
@@ -235,16 +226,22 @@ export class EmailController {
         return;
       }
 
-      const template = await this.db.updateEmailTemplate(
-        projectId,
+      const result = await backendSDK.email.updateTemplate(
         templateId,
         templateData
       );
 
-      res.status(200).json({
-        success: true,
-        data: template,
-      });
+      if (result) {
+        res.status(200).json({
+          success: true,
+          data: result,
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Email template not found",
+        });
+      }
     } catch (error) {
       console.error("Error updating email template:", error);
       res.status(500).json({
@@ -275,12 +272,19 @@ export class EmailController {
         return;
       }
 
-      await this.db.deleteEmailTemplate(projectId, templateId);
+      const deleted = await backendSDK.email.deleteTemplate(templateId);
 
-      res.status(200).json({
-        success: true,
-        message: "Email template deleted successfully",
-      });
+      if (deleted) {
+        res.status(200).json({
+          success: true,
+          message: "Email template deleted successfully",
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Email template not found or could not be deleted",
+        });
+      }
     } catch (error) {
       console.error("Error deleting email template:", error);
       res.status(500).json({
@@ -304,12 +308,19 @@ export class EmailController {
         return;
       }
 
-      const result = await this.db.sendEmail(projectId, emailData);
+      const result = await backendSDK.email.sendEmail(emailData);
 
-      res.status(200).json({
-        success: result.success,
-        message: result.message,
-      });
+      if (result) {
+        res.status(200).json({
+          success: true,
+          message: "Email sent successfully",
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: "Failed to send email",
+        });
+      }
     } catch (error) {
       console.error("Error sending email:", error);
       res.status(500).json({

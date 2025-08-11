@@ -1,28 +1,48 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-interface UiState {
+// Types
+export interface UIState {
+  isBusy: boolean;
+  busyCount: number;
   globalBusyCount: number;
 }
 
-const initialState: UiState = {
+// Initial state
+const initialState: UIState = {
+  isBusy: false,
+  busyCount: 0,
   globalBusyCount: 0,
 };
 
+// Slice
 const uiSlice = createSlice({
   name: "ui",
   initialState,
   reducers: {
-    beginBusy(state) {
+    beginBusy: (state: UIState) => {
+      state.busyCount += 1;
+      state.globalBusyCount += 1;
+      state.isBusy = true;
+    },
+    endBusy: (state: UIState) => {
+      state.busyCount = Math.max(0, state.busyCount - 1);
+      state.globalBusyCount = Math.max(0, state.globalBusyCount - 1);
+      state.isBusy = state.busyCount > 0;
+    },
+    resetBusy: (state: UIState) => {
+      state.busyCount = 0;
+      state.globalBusyCount = 0;
+      state.isBusy = false;
+    },
+    beginGlobalBusy: (state: UIState) => {
       state.globalBusyCount += 1;
     },
-    endBusy(state) {
+    endGlobalBusy: (state: UIState) => {
       state.globalBusyCount = Math.max(0, state.globalBusyCount - 1);
-    },
-    resetBusy(state) {
-      state.globalBusyCount = 0;
     },
   },
 });
 
-export const { beginBusy, endBusy, resetBusy } = uiSlice.actions;
+export const { beginBusy, endBusy, resetBusy, beginGlobalBusy, endGlobalBusy } =
+  uiSlice.actions;
 export default uiSlice.reducer;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Project } from "@/lib/krapi";
@@ -15,7 +15,15 @@ import {
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Database, Users, FileText, Activity, ArrowRight, Edit, Mail } from "lucide-react";
+import {
+  Database,
+  Users,
+  FileText,
+  Activity,
+  ArrowRight,
+  Edit,
+  Mail,
+} from "lucide-react";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
@@ -29,10 +37,15 @@ export default function ProjectDetailPage() {
 
   const projectsState = useAppSelector((s) => s.projects);
   const project = projectsState.items.find((p) => p.id === projectId) || null;
-  const collectionsBucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
-  const collections = collectionsBucket?.items || [];
-  const isLoading = projectsState.loading || collectionsBucket?.loading || false;
-
+  const collectionsBucket = useAppSelector(
+    (s) => s.collections.byProjectId[projectId]
+  );
+  const collections = useMemo(
+    () => collectionsBucket?.items || [],
+    [collectionsBucket?.items]
+  );
+  const isLoading =
+    projectsState.loading || collectionsBucket?.loading || false;
 
   const [stats, setStats] = useState({
     collections: 0,
@@ -82,7 +95,9 @@ export default function ProjectDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{project.name}</h1>
-          <p className="text-muted-foreground">Project overview and quick actions</p>
+          <p className="text-muted-foreground">
+            Project overview and quick actions
+          </p>
         </div>
         <Button asChild>
           <Link href={`/projects/${projectId}/settings`}>
@@ -113,33 +128,39 @@ export default function ProjectDetailPage() {
           </CardHeader>
           <CardContent className="grid gap-2">
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/collections`}>
-                <Database className="mr-2 h-4 w-4" /> Collections <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href={`/projects/${projectId}/collections` as any}>
+                <Database className="mr-2 h-4 w-4" /> Collections{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/documents`}>
-                <FileText className="mr-2 h-4 w-4" /> Documents <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href={`/projects/${projectId}/documents` as any}>
+                <FileText className="mr-2 h-4 w-4" /> Documents{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href={`/projects/${projectId}/users`}>
-                <Users className="mr-2 h-4 w-4" /> Users <ArrowRight className="ml-2 h-4 w-4" />
+                <Users className="mr-2 h-4 w-4" /> Users{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href={`/projects/${projectId}/files`}>
-                <FileText className="mr-2 h-4 w-4" /> Files <ArrowRight className="ml-2 h-4 w-4" />
+                <FileText className="mr-2 h-4 w-4" /> Files{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/email`}>
-                <Mail className="mr-2 h-4 w-4" /> Email <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href={`/projects/${projectId}/email` as any}>
+                <Mail className="mr-2 h-4 w-4" /> Email{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/mcp`}>
-                <Activity className="mr-2 h-4 w-4" /> MCP <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href={`/projects/${projectId}/mcp` as any}>
+                <Activity className="mr-2 h-4 w-4" /> MCP{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </CardContent>

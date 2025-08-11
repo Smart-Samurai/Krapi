@@ -5,7 +5,12 @@ import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import { fetchCollections, createCollection, updateCollection, deleteCollection as deleteCollectionThunk } from "@/store/collectionsSlice";
+import {
+  fetchCollections,
+  createCollection,
+  updateCollection,
+  deleteCollection,
+} from "@/store/collectionsSlice";
 import type { Collection, CollectionField } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +50,20 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, Database, FileText, Calendar, Hash, Code, Type, Code2, BookOpen, Link as LinkIcon } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Database,
+  FileText,
+  Calendar,
+  Hash,
+  Code,
+  Type,
+  Code2,
+  BookOpen,
+  Link as LinkIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 import { toast } from "sonner";
@@ -94,11 +112,13 @@ const fieldTypeLabels: Record<FieldType, string> = {
 export default function CollectionsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
+  const _krapi = useKrapi();
   const dispatch = useAppDispatch();
-  const bucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
-  const collections = bucket?.items || [];
-  const isLoading = bucket?.loading || false;
+  const collectionsBucket = useAppSelector(
+    (s) => s.collections.byProjectId[projectId]
+  );
+  const collections = collectionsBucket?.items || [];
+  const isLoading = collectionsBucket?.loading || false;
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -122,13 +142,18 @@ export default function CollectionsPage() {
     loadCollections();
   }, [loadCollections]);
 
-
-
   const handleCreateCollection = async () => {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        createCollection({ projectId, payload: { name: formData.name, description: formData.description, fields: formData.fields } })
+        createCollection({
+          projectId,
+          data: {
+            name: formData.name,
+            description: formData.description,
+            fields: formData.fields,
+          },
+        })
       );
       if (createCollection.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
@@ -152,7 +177,14 @@ export default function CollectionsPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        updateCollection({ projectId, name: editingCollection.name, updates: { description: formData.description, fields: formData.fields } })
+        updateCollection({
+          projectId,
+          collectionId: editingCollection.id,
+          updates: {
+            description: formData.description,
+            fields: formData.fields,
+          },
+        })
       );
       if (updateCollection.fulfilled.match(action)) {
         setIsEditDialogOpen(false);
@@ -173,16 +205,20 @@ export default function CollectionsPage() {
   };
 
   const handleDeleteCollection = async (collectionId: string) => {
-    if (!confirm(
-      "Are you sure you want to delete this collection? This action cannot be undone."
-    )) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this collection? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     try {
       dispatch(beginBusy());
-      const action = await dispatch(deleteCollectionThunk({ projectId, name: collectionId }));
-      if (deleteCollectionThunk.fulfilled.match(action)) {
+      const action = await dispatch(
+        deleteCollection({ projectId, collectionId })
+      );
+      if (deleteCollection.fulfilled.match(action)) {
         loadCollections();
         toast.success("Collection deleted successfully");
       } else {
@@ -259,7 +295,7 @@ export default function CollectionsPage() {
         <div>
           <h1 className="text-3xl font-bold">Collections</h1>
           <p className="text-muted-foreground">
-            Manage your project's data collections and their fields
+            Manage your project&apos;s data collections and their fields
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -321,7 +357,7 @@ export default function CollectionsPage() {
                   </div>
                   <div className="space-y-3">
                     {formData.fields.map((field, index) => {
-                      const Icon = fieldTypeIcons[field.type];
+                      const _Icon = fieldTypeIcons[field.type];
                       return (
                         <div
                           key={index}
@@ -782,7 +818,7 @@ response = requests.delete(
               </div>
               <div className="space-y-3">
                 {formData.fields.map((field, index) => {
-                  const Icon = fieldTypeIcons[field.type];
+                  const _Icon = fieldTypeIcons[field.type];
                   return (
                     <div
                       key={index}

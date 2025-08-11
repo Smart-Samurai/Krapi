@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 import { fetchCollections } from "@/store/collectionsSlice";
-import { fetchDocuments, createDocument, updateDocument, deleteDocument } from "@/store/documentsSlice";
+import {
+  fetchDocuments,
+  createDocument,
+  updateDocument,
+  deleteDocument,
+} from "@/store/documentsSlice";
 import type { Document, Collection } from "@/lib/krapi";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +50,20 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, Database, FileText, Search, Filter, ArrowUpDown, MoreHorizontal, Eye, Code2, BookOpen } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Database,
+  FileText,
+  Search,
+  Filter,
+  ArrowUpDown,
+  MoreHorizontal,
+  Eye,
+  Code2,
+  BookOpen,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,14 +76,21 @@ import {
 export default function DocumentsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
-  const collectionsBucket = useAppSelector((s) => s.collections.byProjectId[projectId]);
-  const collections = (collectionsBucket?.items || []) as Collection[];
-  const documentsBucket = useAppSelector((s) => (selectedCollection ? s.documents.byKey[`${projectId}:${selectedCollection}`] : undefined));
-  const documents = documentsBucket?.items || [];
-  const isLoading = (collectionsBucket?.loading || false) || (documentsBucket?.loading || false);
+  const collectionsBucket = useAppSelector(
+    (s) => s.collections.byProjectId[projectId]
+  );
+  const collections = collectionsBucket?.items || [];
+  const documents = useAppSelector((s) =>
+    selectedCollection
+      ? s.documents.byKey[`${projectId}:${selectedCollection}`] || []
+      : []
+  );
+  const isLoading =
+    collectionsBucket?.loading ||
+    false ||
+    useAppSelector((s) => s.documents.loading);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -109,15 +134,16 @@ export default function DocumentsPage() {
     loadDocuments();
   }, [loadDocuments]);
 
-
-    
-
   const handleCreateDocument = async () => {
     if (!selectedCollection) return;
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        createDocument({ projectId, collectionId: selectedCollection, data: formData.data })
+        createDocument({
+          projectId,
+          collectionId: selectedCollection,
+          data: formData.data,
+        })
       );
       if (createDocument.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
@@ -141,7 +167,12 @@ export default function DocumentsPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        updateDocument({ projectId, collectionId: selectedCollection, id: editingDocument.id, data: formData.data })
+        updateDocument({
+          projectId,
+          collectionId: selectedCollection,
+          id: editingDocument.id,
+          data: formData.data,
+        })
       );
 
       if (updateDocument.fulfilled.match(action)) {
@@ -172,7 +203,13 @@ export default function DocumentsPage() {
 
     try {
       dispatch(beginBusy());
-      const action = await dispatch(deleteDocument({ projectId, collectionId: selectedCollection, id: documentId }));
+      const action = await dispatch(
+        deleteDocument({
+          projectId,
+          collectionId: selectedCollection,
+          id: documentId,
+        })
+      );
       if (deleteDocument.fulfilled.match(action)) {
         loadDocuments();
       } else {
@@ -495,7 +532,7 @@ search_results = response.json()`}
                       <h4 className="font-medium mb-2">Sorting:</h4>
                       <ul className="space-y-1 text-muted-foreground">
                         <li>• orderBy - Field to sort by</li>
-                        <li>• order - 'asc' or 'desc'</li>
+                        <li>• order - &apos;asc&apos; or &apos;desc&apos;</li>
                       </ul>
                     </div>
                     <div>
