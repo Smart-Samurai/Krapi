@@ -1,4 +1,5 @@
 import { Router, IRouter } from "express";
+
 import { TestingController } from "@/controllers/testing.controller";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
 import { Scope } from "@/types";

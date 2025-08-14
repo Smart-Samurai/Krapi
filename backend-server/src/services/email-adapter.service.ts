@@ -1,12 +1,14 @@
-import { EmailService } from "./email.service";
-import { DatabaseService } from "./database.service";
 import {
   EmailTemplate,
   EmailSendRequest,
   EmailConfig,
   ApiResponse,
 } from "@krapi/sdk";
+
 import { TypeMapper } from "../lib/type-mapper";
+
+import { DatabaseService } from "./database.service";
+import { EmailService } from "./email.service";
 
 // Local interface definition since backend interfaces are not exported from main SDK
 interface IEmailServiceBackend {
@@ -62,7 +64,7 @@ export class EmailAdapterService implements IEmailServiceBackend {
           request.template_id
         );
         if (template) {
-          projectId = template.project_id;
+          projectId = template.project_id as string;
         }
       }
 
@@ -102,7 +104,16 @@ export class EmailAdapterService implements IEmailServiceBackend {
     try {
       const templates = await this.db.getEmailTemplates(projectId);
       const mappedTemplates = templates.map((template) =>
-        TypeMapper.mapEmailTemplate(template)
+        TypeMapper.mapEmailTemplate(template as {
+          id: string;
+          project_id: string;
+          name: string;
+          subject: string;
+          body: string;
+          variables?: string[];
+          created_at: string;
+          updated_at: string;
+        })
       );
       return { success: true, data: mappedTemplates };
     } catch (error) {
@@ -149,7 +160,16 @@ export class EmailAdapterService implements IEmailServiceBackend {
         }
       );
 
-      const mappedTemplate = TypeMapper.mapEmailTemplate(newTemplate);
+      const mappedTemplate = TypeMapper.mapEmailTemplate(newTemplate as {
+        id: string;
+        project_id: string;
+        name: string;
+        subject: string;
+        body: string;
+        variables?: string[];
+        created_at: string;
+        updated_at: string;
+      });
       return { success: true, data: mappedTemplate };
     } catch (error) {
       console.error("Create email template error:", error);
@@ -193,7 +213,16 @@ export class EmailAdapterService implements IEmailServiceBackend {
         };
       }
 
-      const mappedTemplate = TypeMapper.mapEmailTemplate(updatedTemplate);
+      const mappedTemplate = TypeMapper.mapEmailTemplate(updatedTemplate as {
+        id: string;
+        project_id: string;
+        name: string;
+        subject: string;
+        body: string;
+        variables?: string[];
+        created_at: string;
+        updated_at: string;
+      });
       return { success: true, data: mappedTemplate };
     } catch (error) {
       console.error("Update email template error:", error);

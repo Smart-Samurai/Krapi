@@ -4,6 +4,17 @@
   "ignore": ["src/**/*.spec.ts", "src/**/*.test.ts"],
   "exec": "ts-node -r tsconfig-paths/register ./src/app.ts",
   "env": {
-    "NODE_ENV": "development"
+    "NODE_ENV": "development",
+    "DB_HOST": "localhost",
+    "DB_PORT": "5420",
+    "DB_NAME": "krapi",
+    "DB_USER": "postgres",
+    "DB_PASSWORD": "postgres",
+    "JWT_SECRET": "default-secret-change-this",
+    "JWT_EXPIRES_IN": "7d",
+    "SESSION_EXPIRES_IN": "1h",
+    "DEFAULT_ADMIN_PASSWORD": "admin123",
+    "PORT": "3470",
+    "HOST": "localhost"
   }
 }

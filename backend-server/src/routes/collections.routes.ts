@@ -1,4 +1,5 @@
 import { Router, IRouter } from "express";
+
 import { CollectionsController } from "@/controllers/collections.controller";
 import {
   authenticate,

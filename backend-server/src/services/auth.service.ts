@@ -1,7 +1,11 @@
-import jwt from "jsonwebtoken";
+import crypto from "crypto";
+
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
 // UUID import removed - not used
 import { DatabaseService } from "./database.service";
+
 import {
   AdminUser,
   AdminRole,
@@ -80,10 +84,10 @@ export class AuthService {
 
   // Admin Authentication
   async authenticateAdmin(
-    email: string,
+    username: string,
     password: string
   ): Promise<AdminUser | null> {
-    const user = await this.db.getAdminUserByEmail(email);
+    const user = await this.db.getAdminUserByUsername(username);
     if (!user || !user.active) return null;
 
     const isValid = await bcrypt.compare(password, user.password_hash);
@@ -210,7 +214,7 @@ export class AuthService {
    * Generate secure token
    */
   private generateSecureToken(): string {
-    return `tok_${require("crypto").randomBytes(32).toString("hex")}`;
+    return `tok_${crypto.randomBytes(32).toString("hex")}`;
   }
 
   // Validate Session Token (without consuming)
@@ -290,6 +294,16 @@ export class AuthService {
     return bcrypt.hash(password, 10);
   }
 
+  // Verify Password
+  async verifyPassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
+  }
+
+  // Generate API Key
+  generateApiKey(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
   // Get Project Permissions
   private getProjectPermissions(project: Project): string[] {
     const permissions = [
@@ -316,7 +330,7 @@ export class AuthService {
 
   // Log authentication action
   async logAuthAction(
-    action: "login" | "logout" | "session_created",
+    action: "login" | "logout" | "session_created" | "password_change" | "api_key_regenerated",
     userId: string,
     projectId?: string,
     sessionId?: string

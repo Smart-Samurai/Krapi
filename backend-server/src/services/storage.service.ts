@@ -1,4 +1,7 @@
 import { DatabaseService } from "./database.service";
+import * as fs from "fs";
+import * as path from "path";
+
 import { FileInfo, StorageStats } from "@/types";
 
 /**
@@ -21,19 +24,42 @@ export class StorageService {
     return StorageService.instance;
   }
 
-  async uploadFile(file: any, metadata?: any): Promise<FileInfo> {
-    // Implementation for file upload
-    // This would typically handle file storage to disk/S3/etc.
-    // For now, we'll create a file record in the database
+  async uploadFile(file: File | Buffer, metadata?: Record<string, unknown>): Promise<FileInfo> {
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    await fs.promises.mkdir(uploadsDir, { recursive: true });
+
+    // Generate unique filename
+    const originalName = (file as { originalname?: string; name?: string })?.originalname || (file as { name?: string })?.name || "unknown";
+    const fileExtension = path.extname(originalName);
+    const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExtension}`;
+    const filePath = path.join(uploadsDir, uniqueFilename);
+
+          // Save file to disk
+      if (file instanceof Buffer) {
+        await fs.promises.writeFile(filePath, file);
+      } else {
+        // Handle File object (from multer)
+        if ('arrayBuffer' in file && typeof file.arrayBuffer === 'function') {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          await fs.promises.writeFile(filePath, buffer);
+        } else {
+          // Fallback for other file types
+          const buffer = Buffer.from(file as any);
+          await fs.promises.writeFile(filePath, buffer);
+        }
+      }
+
+    // Create file record in database
     const fileRecord = await this.db.createFile({
-      project_id: metadata?.projectId || "default",
-      filename: file.originalname || file.name || "unknown",
-      original_name: file.originalname || file.name || "unknown",
-      mime_type: file.mimetype || "application/octet-stream",
-      size: file.size || 0,
-      path: metadata?.path || "/uploads/",
+      project_id: (metadata as { projectId?: string })?.projectId || "default",
+      filename: uniqueFilename,
+      original_name: originalName,
+      mime_type: (file as { mimetype?: string })?.mimetype || "application/octet-stream",
+      size: (file as { size?: number })?.size || 0,
+      path: "/uploads/",
       metadata: metadata || {},
-      uploaded_by: metadata?.uploadedBy || "system",
+      uploaded_by: (metadata as { uploadedBy?: string })?.uploadedBy || "system",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       active: true,
@@ -46,7 +72,7 @@ export class StorageService {
       original_name: fileRecord.original_name,
       mime_type: fileRecord.mime_type,
       size: fileRecord.size,
-      url: `${metadata?.baseUrl || ""}${fileRecord.path}${fileRecord.filename}`,
+      url: `${(metadata as { baseUrl?: string })?.baseUrl || ""}${fileRecord.path}${fileRecord.filename}`,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
       updated_at: fileRecord.updated_at,
@@ -61,15 +87,19 @@ export class StorageService {
       throw new Error("File not found");
     }
 
-    // In a real implementation, this would read the file from storage
-    // For now, we'll return a mock buffer
-    const buffer = Buffer.from("Mock file content");
-
-    return {
-      buffer,
-      filename: fileRecord.filename,
-      mime_type: fileRecord.mime_type,
-    };
+    // Read file from filesystem
+    const filePath = path.join(process.cwd(), 'uploads', fileRecord.path, fileRecord.filename);
+    
+    try {
+      const buffer = await fs.promises.readFile(filePath);
+      return {
+        buffer,
+        filename: fileRecord.filename,
+        mime_type: fileRecord.mime_type,
+      };
+    } catch (error) {
+      throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async deleteFile(fileId: string): Promise<boolean> {

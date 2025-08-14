@@ -1,7 +1,9 @@
-import { Pool } from "pg";
 import bcrypt from "bcryptjs";
+import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
-import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
+
+import { MigrationService } from "./migration.service";
+
 import {
   AdminUser,
   AdminRole,
@@ -22,20 +24,20 @@ import {
   ApiKey,
   Scope,
 } from "@/types";
-import { MigrationService } from "./migration.service";
+import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
 export class DatabaseService {
   private pool: Pool;
   private static instance: DatabaseService;
-  private isConnected: boolean = false;
-  private connectionAttempts: number = 0;
-  private maxConnectionAttempts: number = 10;
+  private isConnected = false;
+  private connectionAttempts = 0;
+  private maxConnectionAttempts = 10;
   private migrationService: MigrationService;
   private readyPromise: Promise<void>;
   private readyResolve!: () => void;
   private readyReject!: (error: Error) => void;
   private lastHealthCheck: Date | null = null;
-  private healthCheckInterval: number = 60000; // 1 minute
+  private healthCheckInterval = 60000; // 1 minute
 
   private constructor() {
     // Create the ready promise
@@ -85,6 +87,18 @@ export class DatabaseService {
     return this.pool.connect();
   }
 
+  // Public method to execute queries
+  async query(
+    sql: string,
+    params?: unknown[]
+  ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
+    const result = await this.pool.query(sql, params);
+    return {
+      rows: result.rows || [],
+      rowCount: result.rowCount || 0,
+    };
+  }
+
   async runSchemaFixes(): Promise<void> {
     if (!this.migrationService) {
       throw new Error("Migration service not initialized");
@@ -101,7 +115,16 @@ export class DatabaseService {
   async checkHealth(): Promise<{
     healthy: boolean;
     message: string;
-    details?: any;
+    details?: {
+      missingTables?: string[];
+      lastCheck?: Date;
+      connectionPool?: {
+        totalCount: number;
+        idleCount: number;
+        waitingCount: number;
+      };
+      error?: string;
+    };
   }> {
     try {
       // Check connection
@@ -597,7 +620,7 @@ export class DatabaseService {
 
       // Check if it's a specific PostgreSQL error
       if (error instanceof Error && "code" in error) {
-        const pgError = error as any;
+        const pgError = error as Error & { code: string };
 
         // If it's a "column does not exist" error, it might mean tables are partially created
         if (pgError.code === "42703") {
@@ -663,7 +686,7 @@ export class DatabaseService {
 
       if (result.rows.length === 0) {
         // Create default master admin with API key
-        const hashedPassword = await bcrypt.hash("admin123", 10);
+        const hashedPassword = await this.hashPassword("admin123");
         masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
         const adminResult = await this.pool.query(
@@ -680,14 +703,13 @@ export class DatabaseService {
           ]
         );
         adminId = adminResult.rows[0].id;
-        console.log("Default master admin created");
       } else {
         adminId = result.rows[0].id;
 
         // Ensure default admin has correct password and generate API key if missing
         const defaultPassword =
           process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
-        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+        const hashedPassword = await this.hashPassword(defaultPassword);
 
         // Check if admin has API key
         const adminResult = await this.pool.query(
@@ -714,7 +736,6 @@ export class DatabaseService {
              WHERE username = $2`,
             [hashedPassword, "admin"]
           );
-          console.log("Default master admin password reset to default");
         }
       }
 
@@ -737,11 +758,6 @@ export class DatabaseService {
             ["master"], // Master scope gives full access
             true,
           ]
-        );
-
-        console.log(`Master API Key: ${masterApiKey}`);
-        console.log(
-          "⚠️  Save this API key securely - it will not be shown again!"
         );
       }
 
@@ -789,7 +805,11 @@ export class DatabaseService {
       database: { status: boolean; message: string };
       tables: { status: boolean; message: string; missing?: string[] };
       defaultAdmin: { status: boolean; message: string };
-      initialization: { status: boolean; message: string; details?: any };
+      initialization: {
+        status: boolean;
+        message: string;
+        details?: Record<string, unknown>;
+      };
     };
     timestamp: string;
   }> {
@@ -976,7 +996,6 @@ export class DatabaseService {
 
       // Fix default admin
       if (!health.checks.defaultAdmin.status) {
-        console.log("Repairing: Fixing default admin...");
         await this.seedDefaultData();
         actions.push("Fixed default admin user");
       }
@@ -1230,13 +1249,39 @@ export class DatabaseService {
     return result.rows.map((row) => this.mapAdminUser(row));
   }
 
+  async updateAdminUserPassword(
+    id: string,
+    passwordHash: string
+  ): Promise<AdminUser | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "UPDATE admin_users SET password_hash = $1 WHERE id = $2 RETURNING *",
+      [passwordHash, id]
+    );
+
+    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+  }
+
+  async updateAdminUserApiKey(
+    id: string,
+    apiKey: string
+  ): Promise<AdminUser | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "UPDATE admin_users SET api_key = $1 WHERE id = $2 RETURNING *",
+      [apiKey, id]
+    );
+
+    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+  }
+
   async updateAdminUser(
     id: string,
     data: Partial<AdminUser>
   ): Promise<AdminUser | null> {
     await this.ensureReady();
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramCount = 1;
 
     if (data.email !== undefined) {
@@ -1336,7 +1381,7 @@ export class DatabaseService {
     try {
       const apiKey = data.api_key || `pk_${uuidv4().replace(/-/g, "")}`;
 
-      const rows = await this.queryWithRetry<any>(
+      const rows = await this.queryWithRetry<Record<string, unknown>>(
         `INSERT INTO projects (name, description, project_url, api_key, is_active, created_by, settings) 
          VALUES ($1, $2, $3, $4, $5, $6, $7) 
          RETURNING *`,
@@ -1457,7 +1502,7 @@ export class DatabaseService {
       updates.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(id);
 
-      const rows = await this.queryWithRetry<any>(
+      const rows = await this.queryWithRetry<Record<string, unknown>>(
         `UPDATE projects SET ${updates.join(
           ", "
         )} WHERE id = $${paramCount} RETURNING *`,
@@ -1518,11 +1563,11 @@ export class DatabaseService {
 
   async updateProjectStats(
     projectId: string,
-    storageChange: number = 0,
-    apiCall: boolean = false
+    storageChange = 0,
+    apiCall = false
   ): Promise<void> {
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramCount = 1;
 
     if (storageChange !== 0) {
@@ -1553,7 +1598,7 @@ export class DatabaseService {
       password: string;
       phone?: string;
       scopes?: string[];
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }
   ): Promise<ProjectUser> {
     await this.ensureReady();
@@ -1587,6 +1632,16 @@ export class DatabaseService {
     const result = await this.pool.query(
       "SELECT * FROM project_users WHERE project_id = $1 AND id = $2",
       [projectId, userId]
+    );
+
+    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+  }
+
+  async getProjectUserById(userId: string): Promise<ProjectUser | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "SELECT * FROM project_users WHERE id = $1",
+      [userId]
     );
 
     return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
@@ -1631,7 +1686,7 @@ export class DatabaseService {
     const { limit = 100, offset = 0, search, active } = options || {};
 
     let whereClause = "WHERE project_id = $1";
-    const params: any[] = [projectId];
+    const params: unknown[] = [projectId];
     let paramCount = 1;
 
     if (active !== undefined) {
@@ -1671,7 +1726,7 @@ export class DatabaseService {
   ): Promise<ProjectUser | null> {
     await this.ensureReady();
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramCount = 1;
 
     if (updates.username !== undefined) {
@@ -1837,6 +1892,15 @@ export class DatabaseService {
     const result = await this.pool.query(
       "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, collectionName]
+    );
+
+    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+  }
+
+  async getCollectionById(collectionId: string): Promise<Collection | null> {
+    const result = await this.pool.query(
+      "SELECT * FROM collections WHERE id = $1",
+      [collectionId]
     );
 
     return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
@@ -2077,6 +2141,15 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
   }
 
+  async getDocumentById(documentId: string): Promise<Document | null> {
+    const result = await this.pool.query(
+      "SELECT * FROM documents WHERE id = $1",
+      [documentId]
+    );
+
+    return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
+  }
+
   async getDocuments(
     projectId: string,
     collectionName: string,
@@ -2237,8 +2310,8 @@ export class DatabaseService {
     data: Omit<Session, "id" | "createdAt" | "lastActivity">
   ): Promise<Session> {
     const result = await this.pool.query(
-      `INSERT INTO sessions (token, user_id, project_id, type, scopes, metadata, expires_at, is_active) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      `INSERT INTO sessions (token, user_id, project_id, type, scopes, metadata, created_at, expires_at, consumed, is_active) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
        RETURNING *`,
       [
         data.token,
@@ -2247,8 +2320,10 @@ export class DatabaseService {
         data.type,
         data.scopes || [],
         data.metadata || {},
+        data.created_at,
         data.expires_at,
-        !data.consumed,
+        data.consumed || false,
+        true, // is_active
       ]
     );
 
@@ -2299,7 +2374,7 @@ export class DatabaseService {
     updates: { consumed?: boolean; last_activity?: boolean }
   ): Promise<Session | null> {
     const setClauses: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramCount = 1;
 
     if (updates.consumed !== undefined) {
@@ -2346,7 +2421,7 @@ export class DatabaseService {
       email: "admin@krapi.local",
       password_hash: await this.hashPassword("admin123"),
       role: "master_admin" as AdminRole,
-      access_level: "full" as any,
+      access_level: "full" as AccessLevel,
       permissions: [
         "users.create",
         "users.read",
@@ -2377,7 +2452,6 @@ export class DatabaseService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    const bcrypt = require("bcryptjs");
     return await bcrypt.hash(password, 12);
   }
 
@@ -2421,7 +2495,7 @@ export class DatabaseService {
 
   async getProjectChangelog(
     projectId: string,
-    limit: number = 100
+    limit = 100
   ): Promise<ChangelogEntry[]> {
     const result = await this.pool.query(
       `SELECT c.*, au.username 
@@ -2548,7 +2622,7 @@ export class DatabaseService {
   ): Promise<ApiKey | null> {
     await this.ensureReady();
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramCount = 1;
 
     if (data.name !== undefined) {
@@ -2744,18 +2818,26 @@ export class DatabaseService {
   }
 
   // Email Configuration Methods
-  async getEmailConfig(projectId: string): Promise<any> {
+  async getEmailConfig(
+    projectId: string
+  ): Promise<Record<string, unknown> | null> {
     await this.ensureReady();
     const query = `
-      SELECT settings->>'email_config' as email_config FROM projects 
+      SELECT settings->>'email_config' as email_config
+      FROM projects 
       WHERE id = $1
     `;
-    const result = await this.queryWithRetry(query, [projectId]);
+    const result = await this.queryWithRetry<{ email_config: string }>(query, [
+      projectId,
+    ]);
     const emailConfig = result[0]?.email_config;
     return emailConfig ? JSON.parse(emailConfig) : null;
   }
 
-  async updateEmailConfig(projectId: string, config: any): Promise<any> {
+  async updateEmailConfig(
+    projectId: string,
+    config: Record<string, unknown>
+  ): Promise<Record<string, unknown> | null> {
     await this.ensureReady();
     const query = `
       UPDATE projects 
@@ -2767,7 +2849,7 @@ export class DatabaseService {
       WHERE id = $1
       RETURNING settings->>'email_config' as email_config
     `;
-    const result = await this.queryWithRetry(query, [
+    const result = await this.queryWithRetry<{ email_config: string }>(query, [
       projectId,
       JSON.stringify(config),
     ]);
@@ -2779,16 +2861,76 @@ export class DatabaseService {
     projectId: string,
     email: string
   ): Promise<{ success: boolean; message: string }> {
-    // This would integrate with an email service like nodemailer
-    // For now, return a mock response
-    return {
-      success: true,
-      message: `Test email would be sent to ${email}`,
-    };
+    try {
+      await this.ensureReady();
+
+      // Get the project to check if email is configured
+      const project = await this.getProjectById(projectId);
+      if (!project) {
+        return {
+          success: false,
+          message: "Project not found",
+        };
+      }
+
+      // Check if email configuration exists
+      const emailConfig = project.settings?.email_config;
+      if (!emailConfig) {
+        return {
+          success: false,
+          message: "Email configuration not found for this project",
+        };
+      }
+
+      // Test the email configuration by creating a test transporter
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.smtp_host,
+        port: emailConfig.smtp_port,
+        secure: emailConfig.smtp_secure,
+        auth: {
+          user: emailConfig.smtp_username,
+          pass: emailConfig.smtp_password,
+        },
+      });
+
+      // Verify the connection
+      await transporter.verify();
+
+      // Send a test email
+      const testResult = await transporter.sendMail({
+        from: `"${emailConfig.from_name}" <${emailConfig.from_email}>`,
+        to: email,
+        subject: "KRAPI Email Configuration Test",
+        html: `
+          <h2>Email Configuration Test</h2>
+          <p>This is a test email to verify your KRAPI email configuration.</p>
+          <p>If you received this email, your configuration is working correctly.</p>
+          <p>Sent at: ${new Date().toISOString()}</p>
+        `,
+        text: "This is a test email to verify your KRAPI email configuration.",
+      });
+
+      return {
+        success: true,
+        message: `Test email sent successfully to ${email}. Message ID: ${testResult.messageId}`,
+      };
+    } catch (error) {
+      console.error("Test email config error:", error);
+      return {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to test email configuration",
+      };
+    }
   }
 
   // Email Template Methods
-  async getEmailTemplates(projectId: string): Promise<any[]> {
+  async getEmailTemplates(
+    projectId: string
+  ): Promise<Record<string, unknown>[]> {
     await this.ensureReady();
     const query = `
       SELECT * FROM email_templates 
@@ -2799,7 +2941,10 @@ export class DatabaseService {
     return result;
   }
 
-  async getEmailTemplate(projectId: string, templateId: string): Promise<any> {
+  async getEmailTemplate(
+    projectId: string,
+    templateId: string
+  ): Promise<Record<string, unknown> | null> {
     await this.ensureReady();
     const query = `
       SELECT * FROM email_templates 
@@ -2811,10 +2956,15 @@ export class DatabaseService {
 
   async createEmailTemplate(
     projectId: string,
-    templateData: any
-  ): Promise<any> {
+    templateData: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     await this.ensureReady();
-    const { name, subject, body, variables } = templateData;
+    const { name, subject, body, variables } = templateData as {
+      name: string;
+      subject: string;
+      body: string;
+      variables?: string[];
+    };
     const query = `
       INSERT INTO email_templates (project_id, name, subject, body, variables, created_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
@@ -2833,10 +2983,15 @@ export class DatabaseService {
   async updateEmailTemplate(
     projectId: string,
     templateId: string,
-    templateData: any
-  ): Promise<any> {
+    templateData: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     await this.ensureReady();
-    const { name, subject, body, variables } = templateData;
+    const { name, subject, body, variables } = templateData as {
+      name: string;
+      subject: string;
+      body: string;
+      variables?: string[];
+    };
     const query = `
       UPDATE email_templates 
       SET name = $3, subject = $4, body = $5, variables = $6, updated_at = NOW()
@@ -2851,7 +3006,7 @@ export class DatabaseService {
       body,
       JSON.stringify(variables || []),
     ]);
-    return result[0] || null;
+    return result[0];
   }
 
   async deleteEmailTemplate(
@@ -2869,14 +3024,83 @@ export class DatabaseService {
 
   async sendEmail(
     projectId: string,
-    emailData: any
+    emailData: Record<string, unknown>
   ): Promise<{ success: boolean; message: string }> {
-    // This would integrate with an email service like nodemailer
-    // For now, return a mock response
-    return {
-      success: true,
-      message: `Email would be sent to ${emailData.to}`,
-    };
+    try {
+      await this.ensureReady();
+
+      // Get the project to check if email is configured
+      const project = await this.getProjectById(projectId);
+      if (!project) {
+        return {
+          success: false,
+          message: "Project not found",
+        };
+      }
+
+      // Check if email configuration exists
+      const emailConfig = project.settings?.email_config;
+      if (!emailConfig) {
+        return {
+          success: false,
+          message: "Email configuration not found for this project",
+        };
+      }
+
+      // Validate required email data
+      const { to, subject, body } = emailData;
+      if (!to || !subject || !body) {
+        return {
+          success: false,
+          message: "To, subject, and body are required for sending emails",
+        };
+      }
+
+      // Create transporter and send email
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.smtp_host,
+        port: emailConfig.smtp_port,
+        secure: emailConfig.smtp_secure,
+        auth: {
+          user: emailConfig.smtp_username,
+          pass: emailConfig.smtp_password,
+        },
+      });
+
+      const result = await transporter.sendMail({
+        from: `"${emailConfig.from_name}" <${emailConfig.from_email}>`,
+        to: Array.isArray(to) ? (to as string[]).join(", ") : (to as string),
+        subject: subject as string,
+        html: body as string,
+        text: (emailData.text as string) || (body as string),
+        cc: emailData.cc as string | string[] | undefined,
+        bcc: emailData.bcc as string | string[] | undefined,
+        replyTo: emailData.replyTo as string | undefined,
+        attachments: emailData.attachments as
+          | Array<{
+              filename?: string;
+              content?: string | Buffer;
+              path?: string;
+              contentType?: string;
+            }>
+          | undefined,
+      });
+
+      return {
+        success: true,
+        message: `Email sent successfully. Message ID: ${
+          (result as { messageId?: string }).messageId || "unknown"
+        }`,
+      };
+    } catch (error) {
+      console.error("Send email error:", error);
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Failed to send email",
+      };
+    }
   }
 
   // Additional API Key Methods
@@ -2960,7 +3184,7 @@ export class DatabaseService {
     await this.ensureReady();
 
     let query = `SELECT * FROM changelog WHERE 1=1`;
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramCount = 0;
 
     if (options.filters?.entity_type) {
@@ -3039,7 +3263,7 @@ export class DatabaseService {
       is_verified: row.is_verified as boolean,
       is_active: row.is_active as boolean,
       scopes: (row.scopes as string[]) || [],
-      metadata: (row.metadata as Record<string, any>) || {},
+      metadata: (row.metadata as Record<string, unknown>) || {},
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       last_login: row.last_login as string | undefined,
@@ -3141,10 +3365,10 @@ export class DatabaseService {
   }
 
   // Enhanced query method with retry logic
-  private async queryWithRetry<T = any>(
+  private async queryWithRetry<T = Record<string, unknown>>(
     queryText: string,
-    values?: any[],
-    retries: number = 3
+    values?: unknown[],
+    retries = 3
   ): Promise<T[]> {
     let lastError: Error | null = null;
 
@@ -3251,7 +3475,7 @@ export class DatabaseService {
     const { limit = 50, offset = 0, entityType, action } = options;
 
     let whereClause = "WHERE project_id = $1";
-    const params: any[] = [projectId];
+    const params: unknown[] = [projectId];
     let paramCount = 1;
 
     if (entityType) {
@@ -3287,10 +3511,10 @@ export class DatabaseService {
   }
 
   async getProjectSettings(projectId: string): Promise<{
-    emailConfig: any;
-    storageConfig: any;
-    apiConfig: any;
-    generalConfig: any;
+    emailConfig: Record<string, unknown>;
+    storageConfig: Record<string, unknown>;
+    apiConfig: Record<string, unknown>;
+    generalConfig: Record<string, unknown>;
   }> {
     await this.ensureReady();
 
@@ -3301,7 +3525,7 @@ export class DatabaseService {
     }
 
     // Return default settings for now
-    // TODO: Implement actual settings storage
+    // Future enhancement: Implement persistent settings storage in database
     return {
       emailConfig: {
         enabled: false,

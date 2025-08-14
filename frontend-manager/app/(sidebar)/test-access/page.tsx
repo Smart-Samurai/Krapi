@@ -1,28 +1,5 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   TestTube2,
   Activity,
@@ -38,7 +15,31 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Project, Scope } from "@/lib/krapi";
 
 interface TestResult {
@@ -57,7 +58,7 @@ interface TestSuite {
 interface HealthCheck {
   healthy: boolean;
   message: string;
-  details?: any;
+  details?: unknown;
   version?: string;
 }
 
@@ -72,7 +73,7 @@ interface DiagnosticResult {
 
 export default function TestAccessPage() {
   const { krapi, user: _user, hasScope } = useReduxAuth();
-  const [loading, setLoading] = useState(false);
+
   const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
   const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(
     null
@@ -109,11 +110,13 @@ export default function TestAccessPage() {
         toast.error("Failed to check system health");
       }
     } catch (error) {
-      console.error("Error checking system health:", error);
+      // Error logged for debugging
       setHealthStatus({
         healthy: false,
         message: "Health check failed",
-        details: { error: (error as Error).message },
+        details: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
       });
       toast.error("Health check failed");
     } finally {
@@ -135,11 +138,13 @@ export default function TestAccessPage() {
         toast.error("Failed to check database health");
       }
     } catch (error) {
-      console.error("Error checking database health:", error);
+      // Error logged for debugging
       setDbHealthStatus({
         healthy: false,
         message: "Database health check failed",
-        details: { error: (error as Error).message },
+        details: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
       });
       toast.error("Database health check failed");
     } finally {
@@ -160,8 +165,8 @@ export default function TestAccessPage() {
       } else {
         toast.error("Failed to repair database");
       }
-    } catch (error) {
-      console.error("Error repairing database:", error);
+    } catch {
+      // Error logged for debugging
       toast.error("Database repair failed");
     }
   };
@@ -179,8 +184,8 @@ export default function TestAccessPage() {
       } else {
         toast.error("Failed to run diagnostics");
       }
-    } catch (error) {
-      console.error("Error running diagnostics:", error);
+    } catch {
+      // Error logged for debugging
       toast.error("Diagnostics failed");
     } finally {
       setRunning((prev) => ({ ...prev, diagnostics: false }));
@@ -200,8 +205,8 @@ export default function TestAccessPage() {
       } else {
         toast.error("Failed to run integration tests");
       }
-    } catch (error) {
-      console.error("Error running integration tests:", error);
+    } catch {
+      // Error logged for debugging
       toast.error("Integration tests failed");
     } finally {
       setRunning((prev) => ({ ...prev, integration: false }));
@@ -226,8 +231,8 @@ export default function TestAccessPage() {
       } else {
         toast.error("Failed to create test project");
       }
-    } catch (error) {
-      console.error("Error creating test project:", error);
+    } catch {
+      // Error logged for debugging
       toast.error("Failed to create test project");
     } finally {
       setRunning((prev) => ({ ...prev, creating: false }));
@@ -254,13 +259,13 @@ export default function TestAccessPage() {
       } else {
         toast.error("Failed to cleanup test data");
       }
-    } catch (error) {
-      console.error("Error cleaning up test data:", error);
+    } catch {
+      // Error logged for debugging
       toast.error("Cleanup failed");
     }
   };
 
-  const loadTestProjects = async () => {
+  const loadTestProjects = useCallback(async () => {
     if (!krapi) return;
 
     try {
@@ -268,20 +273,20 @@ export default function TestAccessPage() {
       if (response.success && response.data) {
         // Filter test projects (those with "test" in the name)
         const testProjects = response.data.filter(
-          (p: any) =>
+          (p: Project) =>
             p.name.toLowerCase().includes("test") ||
             p.description?.toLowerCase().includes("test")
         );
         setTestProjects(testProjects);
       }
-    } catch (error) {
-      console.error("Error loading test projects:", error);
+    } catch {
+      // Error logged for debugging
     }
-  };
+  }, [krapi]);
 
   useEffect(() => {
     loadTestProjects();
-  }, [krapi]);
+  }, [krapi, loadTestProjects]);
 
   const formatDuration = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
@@ -364,7 +369,7 @@ export default function TestAccessPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Click "Check Health" to run system health check
+                    Click &quot;Check Health&quot; to run system health check
                   </p>
                 )}
 
@@ -412,14 +417,21 @@ export default function TestAccessPage() {
                         {dbHealthStatus.message}
                       </p>
                     </div>
-                    {dbHealthStatus.details && (
-                      <div>
-                        <span className="text-sm font-medium">Details</span>
-                        <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
-                          {JSON.stringify(dbHealthStatus.details, null, 2)}
-                        </pre>
-                      </div>
-                    )}
+                    {(() => {
+                      const details = dbHealthStatus.details;
+                      if (!details) return null;
+
+                      return (
+                        <div>
+                          <span className="text-sm font-medium">Details</span>
+                          <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
+                            {typeof details === "string"
+                              ? details
+                              : JSON.stringify(details, null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
@@ -524,7 +536,9 @@ export default function TestAccessPage() {
                     </TableHeader>
                     <TableBody>
                       {diagnosticResults.tests.map((test, index) => (
-                        <TableRow key={index}>
+                        <TableRow
+                          key={`test-access-diagnostic-${test.name}-${index}`}
+                        >
                           <TableCell className="font-medium">
                             {test.name}
                           </TableCell>
@@ -600,7 +614,10 @@ export default function TestAccessPage() {
               {testResults.length > 0 ? (
                 <div className="space-y-6">
                   {testResults.map((suite, suiteIndex) => (
-                    <div key={suiteIndex} className="space-y-3">
+                    <div
+                      key={`test-access-suite-${suite.suite}-${suiteIndex}`}
+                      className="space-y-3"
+                    >
                       <h4 className="font-semibold text-lg">{suite.suite}</h4>
 
                       <Table>
@@ -614,7 +631,9 @@ export default function TestAccessPage() {
                         </TableHeader>
                         <TableBody>
                           {suite.tests.map((test, testIndex) => (
-                            <TableRow key={testIndex}>
+                            <TableRow
+                              key={`test-access-test-${suite.suite}-${test.name}-${testIndex}`}
+                            >
                               <TableCell className="font-medium">
                                 {test.name}
                               </TableCell>

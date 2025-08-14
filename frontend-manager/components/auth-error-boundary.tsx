@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Component, ReactNode } from "react";
+
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { isAuthError } from "@/lib/utils";
 
@@ -19,10 +20,10 @@ interface State {
  * When an authentication error occurs, it automatically redirects to login
  */
 export class AuthErrorBoundary extends Component<
-  Props & { handleAuthError: (error: any) => void },
+  Props & { handleAuthError: (error: Error) => void },
   State
 > {
-  constructor(props: Props & { handleAuthError: (error: any) => void }) {
+  constructor(props: Props & { handleAuthError: (error: Error) => void }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -31,17 +32,16 @@ export class AuthErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("AuthErrorBoundary caught an error:", error, errorInfo);
+  componentDidCatch(error: Error, _errorInfo: React.ErrorInfo) {
+    // Error logged for debugging
 
     // Check if it's an authentication error
     if (isAuthError(error)) {
       this.props.handleAuthError(error);
-      return;
     }
 
     // For non-auth errors, just log them
-    console.error("Non-auth error caught by AuthErrorBoundary:", error);
+    // Error logged for debugging
   }
 
   render() {

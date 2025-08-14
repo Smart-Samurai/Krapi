@@ -1,6 +1,9 @@
+import bcrypt from "bcryptjs";
+
 import { AuthService } from "./auth.service";
 import { DatabaseService } from "./database.service";
-import { AdminUser, ProjectUser } from "@/types";
+
+import { AdminUser, ProjectUser, SessionType } from "@/types";
 
 /**
  * Auth Adapter Service
@@ -38,7 +41,7 @@ export class AuthAdapterService {
 
     const session = result.session;
 
-    if (session.type === "admin") {
+    if (session.type === SessionType.ADMIN) {
       const adminUser = await this.db.getAdminUserById(session.user_id);
       if (!adminUser) {
         return { valid: false };
@@ -49,7 +52,7 @@ export class AuthAdapterService {
         user: adminUser,
         scopes: adminUser.permissions || [],
       };
-    } else if (session.type === "project" && session.project_id) {
+    } else if (session.type === SessionType.PROJECT && session.project_id) {
       const projectUser = await this.db.getProjectUser(
         session.project_id,
         session.user_id
@@ -94,7 +97,6 @@ export class AuthAdapterService {
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     // Use bcrypt directly since AuthService doesn't expose this method
-    const bcrypt = require("bcryptjs");
     return await bcrypt.compare(password, hash);
   }
 
@@ -103,14 +105,14 @@ export class AuthAdapterService {
       // AdminUser
       return this.authService.generateJWT({
         id: user.id,
-        type: "admin",
+        type: SessionType.ADMIN,
         permissions: user.permissions,
       });
     } else {
       // ProjectUser
       return this.authService.generateJWT({
         id: user.id,
-        type: "project",
+        type: SessionType.PROJECT,
         projectId: user.project_id,
         permissions: user.scopes,
       });

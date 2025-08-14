@@ -1,8 +1,18 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import {
+  Database,
+  HardDrive,
+  Upload,
+  FileText,
+  Activity,
+  Info,
+} from "lucide-react";
 import { useParams } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import React, { useCallback, useEffect, useState } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,21 +20,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Database,
-  HardDrive,
-  Upload,
-  Download,
-  Trash2,
-  FileText,
-  Activity,
-  Info,
-} from "lucide-react";
 import { createDefaultKrapi } from "@/lib/krapi";
 
 interface StorageStats {
@@ -39,13 +36,12 @@ const formatFileSize = (bytes: number): string => {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))  } ${  sizes[i]}`;
 };
 
 export default function StoragePage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const dispatch = useAppDispatch();
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,8 +58,8 @@ export default function StoragePage() {
       } else {
         setError(response.error || "Failed to load storage statistics");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load storage statistics");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load storage statistics");
     } finally {
       setLoading(false);
     }
@@ -102,7 +98,7 @@ export default function StoragePage() {
         <div>
           <h1 className="text-3xl font-bold">Storage Management</h1>
           <p className="text-muted-foreground">
-            Monitor and manage your project's storage usage
+            Monitor and manage your project&apos;s storage usage
           </p>
         </div>
         <Button onClick={loadStorageStats}>

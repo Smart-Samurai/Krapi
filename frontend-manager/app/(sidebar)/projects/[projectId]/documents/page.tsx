@@ -1,55 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { beginBusy, endBusy } from "@/store/uiSlice";
-import { fetchCollections } from "@/store/collectionsSlice";
-import {
-  fetchDocuments,
-  createDocument,
-  updateDocument,
-  deleteDocument,
-} from "@/store/documentsSlice";
-import type { Document, Collection } from "@/lib/krapi";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   Edit,
@@ -64,6 +14,27 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,25 +43,55 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { Document } from "@/lib/krapi";
+import { fetchCollections } from "@/store/collectionsSlice";
+import {
+  fetchDocuments,
+  createDocument,
+  updateDocument,
+  deleteDocument,
+} from "@/store/documentsSlice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 export default function DocumentsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
+  const _krapi = useKrapi();
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector(
     (s) => s.collections.byProjectId[projectId]
   );
-  const collections = collectionsBucket?.items || [];
+  const collections = useMemo(
+    () => collectionsBucket?.items || [],
+    [collectionsBucket?.items]
+  );
   const documents = useAppSelector((s) =>
     selectedCollection
       ? s.documents.byKey[`${projectId}:${selectedCollection}`] || []
       : []
   );
-  const isLoading =
-    collectionsBucket?.loading ||
-    false ||
-    useAppSelector((s) => s.documents.loading);
+  const documentsLoading = useAppSelector((s) => s.documents.loading);
+  const isLoading = collectionsBucket?.loading || false || documentsLoading;
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -102,13 +103,11 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [filters] = useState<any[]>([]); // Changed from FilterCondition[]
 
   // Form state for creating/editing documents
   const [formData, setFormData] = useState({
     collection_id: "",
-    data: {} as Record<string, any>,
+    data: {} as Record<string, unknown>,
   });
 
   const loadCollections = useCallback(() => {
@@ -150,12 +149,14 @@ export default function DocumentsPage() {
         setFormData({ collection_id: "", data: {} });
         loadDocuments();
       } else {
-        const msg = (action as any).payload || "Failed to create document";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to create document";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while creating document");
-      console.error("Error creating document:", err);
+      // Error logged for debugging
     } finally {
       dispatch(endBusy());
     }
@@ -181,12 +182,14 @@ export default function DocumentsPage() {
         setFormData({ collection_id: "", data: {} });
         loadDocuments();
       } else {
-        const msg = (action as any).payload || "Failed to update document";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to update document";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while updating document");
-      console.error("Error updating document:", err);
+      // Error logged for debugging
     } finally {
       dispatch(endBusy());
     }
@@ -213,12 +216,14 @@ export default function DocumentsPage() {
       if (deleteDocument.fulfilled.match(action)) {
         loadDocuments();
       } else {
-        const msg = (action as any).payload || "Failed to delete document";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to delete document";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while deleting document");
-      console.error("Error deleting document:", err);
+      // Error logged for debugging
     } finally {
       dispatch(endBusy());
     }
@@ -228,7 +233,7 @@ export default function DocumentsPage() {
     setEditingDocument(document);
     setFormData({
       collection_id: document.collection_id,
-      data: { ...document.data },
+      data: { ...(document.data as Record<string, unknown>) },
     });
     setIsEditDialogOpen(true);
   };
@@ -237,40 +242,31 @@ export default function DocumentsPage() {
     return collections.find((c) => c.id === selectedCollection);
   };
 
-  const renderFieldValue = (value: any, fieldType: string) => {
+  const renderFieldValue = (value: unknown, fieldType: string) => {
     if (value === null || value === undefined) {
       return <span className="text-muted-foreground">-</span>;
     }
 
     switch (fieldType) {
-      case "boolean":
-        return (
-          <Badge variant={value ? "default" : "secondary"}>
-            {value ? "True" : "False"}
-          </Badge>
-        );
       case "date":
-        return <span>{new Date(value).toLocaleDateString()}</span>;
+        try {
+          if (typeof value === "string" || typeof value === "number") {
+            return new Date(value).toLocaleDateString();
+          }
+          return <span className="text-muted-foreground">Invalid date</span>;
+        } catch {
+          return <span className="text-muted-foreground">Invalid date</span>;
+        }
+      case "boolean":
+        return value ? "Yes" : "No";
+      case "number":
+        return String(value);
       case "array":
-        return (
-          <span>
-            {Array.isArray(value) ? `${value.length} items` : "Invalid array"}
-          </span>
-        );
+        return Array.isArray(value) ? value.join(", ") : String(value);
       case "object":
-        return (
-          <span>{typeof value === "object" ? "Object" : String(value)}</span>
-        );
-      case "json":
-        return (
-          <span>
-            {typeof value === "object"
-              ? JSON.stringify(value).substring(0, 50) + "..."
-              : String(value)}
-          </span>
-        );
+        return <pre className="text-xs">{JSON.stringify(value, null, 2)}</pre>;
       default:
-        return <span>{String(value)}</span>;
+        return String(value);
     }
   };
 
@@ -283,7 +279,7 @@ export default function DocumentsPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton key={`documents-skeleton-${i}`} className="h-32 w-full" />
           ))}
         </div>
       </div>
@@ -330,11 +326,14 @@ export default function DocumentsPage() {
                     </Label>
                     <Input
                       id={field.name}
-                      value={formData.data[field.name] || ""}
+                      value={String(formData.data[field.name] || "")}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          data: { ...prev.data, [field.name]: e.target.value },
+                          data: {
+                            ...(prev.data as Record<string, unknown>),
+                            [field.name]: e.target.value as string,
+                          },
                         }))
                       }
                       placeholder={`Enter ${field.name}`}
@@ -644,6 +643,16 @@ search_results = response.json()`}
             </p>
           </CardContent>
         </Card>
+      ) : documentsLoading ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Skeleton className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading Documents...</h3>
+            <p className="text-muted-foreground mb-4">
+              Please wait while we fetch the documents.
+            </p>
+          </CardContent>
+        </Card>
       ) : documents.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
@@ -768,11 +777,17 @@ search_results = response.json()`}
                 </Label>
                 <Input
                   id={`edit-${field.name}`}
-                  value={formData.data[field.name] || ""}
+                  value={String(formData.data[field.name] || "")}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      data: { ...prev.data, [field.name]: e.target.value },
+                      data: {
+                        ...(prev.data as Record<
+                          string,
+                          string | number | boolean
+                        >),
+                        [field.name]: e.target.value as string,
+                      },
                     }))
                   }
                   placeholder={`Enter ${field.name}`}

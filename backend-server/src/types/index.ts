@@ -99,6 +99,41 @@ export interface RateLimitConfig {
   max_requests: number;
 }
 
+export interface SystemSettings {
+  general: {
+    siteName: string;
+    siteUrl: string;
+    adminEmail: string;
+    timezone: string;
+    defaultLanguage: string;
+  };
+  security: {
+    requireTwoFactor: boolean;
+    sessionTimeout: number;
+    passwordMinLength: number;
+    passwordRequireUppercase: boolean;
+    passwordRequireNumbers: boolean;
+    passwordRequireSymbols: boolean;
+    maxLoginAttempts: number;
+  };
+  email: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUsername: string;
+    smtpPassword: string;
+    smtpSecure: boolean;
+    fromEmail: string;
+    fromName: string;
+  };
+  database: {
+    connectionPoolSize: number;
+    queryTimeout: number;
+    enableQueryLogging: boolean;
+    backupSchedule: string;
+    backupRetentionDays: number;
+  };
+}
+
 // Collection Types (formerly Table/Schema Types)
 export interface Collection {
   id: string;
@@ -182,7 +217,7 @@ export interface FileRecord {
   path: string;
   uploaded_by?: string;
   created_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   updated_at?: string;
   active?: boolean;
 }
@@ -199,7 +234,7 @@ export interface ProjectUser {
   is_verified: boolean;
   is_active: boolean;
   scopes: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   last_login?: string;
@@ -239,7 +274,7 @@ export interface Session {
   project_id?: string;
   type: SessionType;
   scopes: Scope[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   expires_at: string;
   last_activity?: string;
@@ -368,7 +403,7 @@ export interface ApiKey {
   owner_id: string; // admin_user_id or project_id
   scopes: Scope[];
   project_ids?: string[]; // For admin keys with limited project access
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   expires_at?: string;
   last_used_at?: string;
   created_at: string;
@@ -405,7 +440,7 @@ export interface FileInfo {
   relations?: FileRelation[];
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   active?: boolean;
 }
 
@@ -413,7 +448,7 @@ export interface FileRelation {
   type: "user_avatar" | "document_attachment" | "custom";
   target_id: string;
   target_type: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface StorageStats {
@@ -428,7 +463,7 @@ export interface CreateChangelogEntry {
   entity_type: string;
   entity_id: string;
   action: string;
-  changes?: Record<string, any>;
+  changes?: Record<string, unknown>;
   performed_by: string;
   session_id?: string;
 }

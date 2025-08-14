@@ -1,17 +1,26 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import "@testing-library/jest-dom";
 
 // Setup environment polyfills
 if (typeof global !== "undefined") {
   // Only polyfill if not already available
   if (typeof global.TextEncoder === "undefined") {
-    // Use require to avoid type conflicts
-    const {
-      TextEncoder: NodeTextEncoder,
-      TextDecoder: NodeTextDecoder,
-    } = require("util");
-    global.TextEncoder = NodeTextEncoder;
-    global.TextDecoder = NodeTextDecoder;
+    // Use dynamic import to avoid type conflicts
+    import("util").then(
+      ({ TextEncoder: NodeTextEncoder, TextDecoder: NodeTextDecoder }) => {
+        (
+          global as {
+            TextEncoder: typeof NodeTextEncoder;
+            TextDecoder: typeof NodeTextDecoder;
+          }
+        ).TextEncoder = NodeTextEncoder;
+        (
+          global as {
+            TextEncoder: typeof NodeTextEncoder;
+            TextDecoder: typeof NodeTextDecoder;
+          }
+        ).TextDecoder = NodeTextDecoder;
+      }
+    );
   }
 }
 
@@ -23,12 +32,16 @@ const originalError = console.error;
 const originalWarn = console.warn;
 
 beforeEach(() => {
+  // eslint-disable-next-line no-console
   console.error = jest.fn();
+  // eslint-disable-next-line no-console
   console.warn = jest.fn();
 });
 
 afterEach(() => {
+  // eslint-disable-next-line no-console
   console.error = originalError;
+  // eslint-disable-next-line no-console
   console.warn = originalWarn;
 });
 

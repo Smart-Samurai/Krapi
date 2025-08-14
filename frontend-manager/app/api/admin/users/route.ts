@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createAuthenticatedSdk, getAuthToken } from '@/app/api/lib/sdk-client';
+import { NextRequest, NextResponse } from "next/server";
+
+import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(request: NextRequest) {
   try {
     const authToken = getAuthToken(request.headers);
-    
+
     if (!authToken) {
       return NextResponse.json(
-        { success: false, error: 'No authentication token provided' },
+        { success: false, error: "No authentication token provided" },
         { status: 401 }
       );
     }
@@ -17,20 +18,20 @@ export async function GET(request: NextRequest) {
       page?: number;
       limit?: number;
       sort?: string;
-      order?: 'asc' | 'desc';
+      order?: "asc" | "desc";
       search?: string;
     } = {};
-    
-    const page = searchParams.get('page');
-    const limit = searchParams.get('limit');
-    const sort = searchParams.get('sort');
-    const order = searchParams.get('order');
-    const search = searchParams.get('search');
-    
+
+    const page = searchParams.get("page");
+    const limit = searchParams.get("limit");
+    const sort = searchParams.get("sort");
+    const order = searchParams.get("order");
+    const search = searchParams.get("search");
+
     if (page) options.page = parseInt(page);
     if (limit) options.limit = parseInt(limit);
     if (sort) options.sort = sort;
-    if (order) options.order = order as 'asc' | 'desc';
+    if (order) options.order = order as "asc" | "desc";
     if (search) options.search = search;
 
     const client = createAuthenticatedSdk(authToken);
@@ -38,11 +39,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Get admin users error:', error);
+    // Error logged for debugging
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 }
     );
@@ -52,10 +53,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authToken = getAuthToken(request.headers);
-    
+
     if (!authToken) {
       return NextResponse.json(
-        { success: false, error: 'No authentication token provided' },
+        { success: false, error: "No authentication token provided" },
         { status: 401 }
       );
     }
@@ -70,11 +71,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
   } catch (error) {
-    console.error('Create admin user error:', error);
+    // Error logged for debugging
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 }
     );

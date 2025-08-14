@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import { DatabaseService } from "@/services/database.service";
 import { AuthenticatedRequest, ApiResponse, ChangeAction } from "@/types";
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
@@ -194,7 +195,7 @@ export class ProjectController {
       res.status(201).json({
         success: true,
         data: project,
-        message: "Project created successfully. API Key: " + project.api_key,
+        message: `Project created successfully. API Key: ${  project.api_key}`,
       } as ApiResponse);
       return;
     } catch (error) {

@@ -1,6 +1,7 @@
-import multer from "multer";
 import path from "path";
-import { Request } from "express";
+
+import { Request, RequestHandler } from "express";
+import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 
 // Configure storage
@@ -56,18 +57,13 @@ export const uploadMiddleware = multer({
 });
 
 // Single file upload
-export const uploadSingle: multer.Multer = uploadMiddleware.single(
-  "file"
-) as any;
+export const uploadSingle: RequestHandler = uploadMiddleware.single("file");
 
 // Multiple files upload
-export const uploadMultiple: multer.Multer = uploadMiddleware.array(
-  "files",
-  10
-) as any;
+export const uploadMultiple: RequestHandler = uploadMiddleware.array("files", 10);
 
 // Fields upload (different field names)
-export const uploadFields: multer.Multer = uploadMiddleware.fields([
+export const uploadFields: RequestHandler = uploadMiddleware.fields([
   { name: "avatar", maxCount: 1 },
   { name: "documents", maxCount: 10 },
-]) as any;
+]);

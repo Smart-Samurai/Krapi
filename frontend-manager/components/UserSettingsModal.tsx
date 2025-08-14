@@ -1,22 +1,23 @@
 "use client";
 
+import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import React, { useState } from "react";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { useNotification } from "@/hooks/useNotification";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { useNotification } from "@/hooks/useNotification";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ export default function UserSettingsModal({
       } else {
         showError(response.error || "Failed to change password");
       }
-    } catch (error) {
+    } catch {
       showError("Failed to change password");
     } finally {
       setIsChangingPassword(false);

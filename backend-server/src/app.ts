@@ -93,16 +93,19 @@
  *    - Use appropriate scopes when creating API keys for limited access
  */
 
-import express, { Express, Request, Response } from "express";
+import { BackendSDK } from "@krapi/sdk";
+import compression from "compression";
 import cors from "cors";
+import dotenv from "dotenv";
+import express, { Express, Request, Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
-import compression from "compression";
-import dotenv from "dotenv";
-import rateLimit from "express-rate-limit";
-import routes from "./routes";
-import { DatabaseService } from "./services/database.service";
+
+import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
+import { DatabaseService } from "./services/database.service";
+
 // Types imported but used in route files
 
 // Load environment variables
@@ -179,13 +182,38 @@ app.get("/health", async (req: Request, res: Response) => {
   }
 });
 
+// Initialize BackendSDK with database connection
+const backendSDK = new BackendSDK({
+  databaseConnection: {
+    query: async (sql: string, params?: unknown[]) => {
+      const result = await db.query(sql, params);
+      return {
+        rows: result.rows || [],
+        rowCount: result.rowCount || 0,
+      };
+    },
+    connect: async () => {
+      await db.waitForReady();
+    },
+    end: async () => {
+      await db.close();
+    },
+  },
+  logger: console,
+  enableAutoFix: true,
+  enableHealthChecks: true,
+});
+
+// Initialize the router with the BackendSDK
+initializeBackendSDK(backendSDK);
+
 // Mount routes
 app.use("/krapi/k1", routes);
 
 // Global error handler
 app.use(
   (
-    err: any,
+    err: Error,
     req: express.Request,
     res: express.Response,
     _next: express.NextFunction
@@ -193,10 +221,11 @@ app.use(
     console.error("Global error handler:", err);
 
     if (err.name === "ValidationError") {
+      const validationError = err as Error & { details?: unknown };
       res.status(400).json({
         success: false,
         error: "Validation error",
-        details: err.details,
+        details: validationError.details,
       });
       return;
     }
@@ -217,10 +246,17 @@ app.use(
 );
 
 // Error handling middleware
-app.use((err: any, req: any, res: any, _next: any) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something went wrong!" });
-});
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    console.error(err.stack);
+    res.status(500).json({ error: "Something went wrong!" });
+  }
+);
 
 // Start server
 const PORT = parseInt(process.env.PORT || "3470");
@@ -277,7 +313,9 @@ async function startServer() {
     const server = app.listen(PORT, () => {
       console.log(`🚀 KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
       console.log(`📚 API Base URL: http://${HOST}:${PORT}/krapi/k1`);
-      console.log(`🔐 Default admin: admin@krapi.com / admin123`);
+      console.log(
+        `🔐 Default admin credentials available in environment or database`
+      );
 
       // Schedule session cleanup
       setInterval(async () => {

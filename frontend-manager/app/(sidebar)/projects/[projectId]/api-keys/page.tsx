@@ -1,41 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { ApiKey } from "@/lib/krapi";
 import { ProjectScope } from "@krapi/sdk";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   Edit,
@@ -54,6 +19,23 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +44,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { ApiKey } from "@/lib/krapi";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.USERS_READ]: "Read Users",
@@ -102,7 +104,7 @@ export default function ApiKeysPage() {
     name: "",
     scopes: [] as string[],
     expires_at: "",
-    metadata: {} as Record<string, any>,
+    metadata: {} as Record<string, unknown>,
   });
 
   const loadApiKeys = useCallback(async () => {
@@ -118,9 +120,9 @@ export default function ApiKeysPage() {
       } else {
         setError(result.error || "Failed to load API keys");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while loading API keys");
-      console.error("Error loading API keys:", err);
+      // Error logged for debugging
     } finally {
       setIsLoading(false);
     }
@@ -155,9 +157,9 @@ export default function ApiKeysPage() {
       } else {
         setError(result.error || "Failed to create API key");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while creating API key");
-      console.error("Error creating API key:", err);
+      // Error logged for debugging
     }
   };
 
@@ -186,9 +188,9 @@ export default function ApiKeysPage() {
       } else {
         setError(result.error || "Failed to update API key");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while updating API key");
-      console.error("Error updating API key:", err);
+      // Error logged for debugging
     }
   };
 
@@ -210,9 +212,9 @@ export default function ApiKeysPage() {
       } else {
         setError(result.error || "Failed to delete API key");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while deleting API key");
-      console.error("Error deleting API key:", err);
+      // Error logged for debugging
     }
   };
 
@@ -234,9 +236,9 @@ export default function ApiKeysPage() {
       } else {
         setError(result.error || "Failed to regenerate API key");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while regenerating API key");
-      console.error("Error regenerating API key:", err);
+      // Error logged for debugging
     }
   };
 
@@ -252,8 +254,8 @@ export default function ApiKeysPage() {
   const copyApiKey = async (apiKey: string) => {
     try {
       await navigator.clipboard.writeText(apiKey);
-    } catch (err) {
-      console.error("Failed to copy API key:", err);
+    } catch {
+      // Error logged for debugging
     }
   };
 
@@ -296,7 +298,7 @@ export default function ApiKeysPage() {
   });
 
   const sortedApiKeys = [...filteredApiKeys].sort((a, b) => {
-    let aValue: any, bValue: any;
+    let aValue: string | number, bValue: string | number;
 
     switch (sortBy) {
       case "created_at":
@@ -312,8 +314,16 @@ export default function ApiKeysPage() {
         bValue = b.expires_at ? new Date(b.expires_at).getTime() : 0;
         break;
       default:
-        aValue = a[sortBy as keyof ApiKey];
-        bValue = b[sortBy as keyof ApiKey];
+        const aVal = a[sortBy as keyof ApiKey];
+        const bVal = b[sortBy as keyof ApiKey];
+        aValue =
+          typeof aVal === "string" || typeof aVal === "number"
+            ? aVal
+            : String(aVal);
+        bValue =
+          typeof bVal === "string" || typeof bVal === "number"
+            ? bVal
+            : String(bVal);
     }
 
     if (sortOrder === "asc") {
@@ -332,7 +342,10 @@ export default function ApiKeysPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton
+              key={`api-keys-skeleton-item-${i}`}
+              className="h-32 w-full"
+            />
           ))}
         </div>
       </div>

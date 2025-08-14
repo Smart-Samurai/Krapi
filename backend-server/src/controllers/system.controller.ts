@@ -1,0 +1,277 @@
+import { Request, Response } from "express";
+import { DatabaseService } from "../services/database.service";
+import { EmailService } from "../services/email.service";
+import { ApiResponse, SystemSettings } from "@/types";
+
+export class SystemController {
+  private db: DatabaseService;
+  private emailService: EmailService;
+
+  constructor() {
+    this.db = DatabaseService.getInstance();
+    this.emailService = EmailService.getInstance();
+  }
+
+  /**
+   * Get system settings
+   * GET /krapi/k1/system/settings
+   */
+  getSettings = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Get system settings from database or return defaults
+      const settings: SystemSettings = {
+        general: {
+          siteName: "KRAPI Manager",
+          siteUrl: process.env.SITE_URL || "http://localhost:3469",
+          adminEmail: process.env.ADMIN_EMAIL || "admin@krapi.com",
+          timezone: process.env.TIMEZONE || "UTC",
+          defaultLanguage: process.env.DEFAULT_LANGUAGE || "en",
+        },
+        security: {
+          requireTwoFactor: process.env.REQUIRE_2FA === "true",
+          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
+          passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || "8"),
+          passwordRequireUppercase: process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
+          passwordRequireNumbers: process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
+          passwordRequireSymbols: process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
+          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
+        },
+        email: {
+          smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
+          smtpPort: parseInt(process.env.SMTP_PORT || "587"),
+          smtpUsername: process.env.SMTP_USERNAME || "",
+          smtpPassword: process.env.SMTP_PASSWORD || "",
+          smtpSecure: process.env.SMTP_SECURE === "true",
+          fromEmail: process.env.FROM_EMAIL || "noreply@krapi.com",
+          fromName: process.env.FROM_NAME || "KRAPI",
+        },
+        database: {
+          connectionPoolSize: parseInt(process.env.DB_POOL_SIZE || "20"),
+          queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || "30000"),
+          enableQueryLogging: process.env.DB_ENABLE_LOGGING === "true",
+          backupSchedule: (process.env.DB_BACKUP_SCHEDULE as any) || "daily",
+          backupRetentionDays: parseInt(process.env.DB_BACKUP_RETENTION || "30"),
+        },
+      };
+
+      res.status(200).json({
+        success: true,
+        data: settings,
+      } as ApiResponse<SystemSettings>);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+
+  /**
+   * Update system settings
+   * PUT /krapi/k1/system/settings
+   */
+  updateSettings = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const updates = req.body as Partial<SystemSettings>;
+
+      // Validate and update environment variables or database
+      if (updates.general) {
+        if (updates.general.siteName) {
+          process.env.SITE_NAME = updates.general.siteName;
+        }
+        if (updates.general.siteUrl) {
+          process.env.SITE_URL = updates.general.siteUrl;
+        }
+        if (updates.general.adminEmail) {
+          process.env.ADMIN_EMAIL = updates.general.adminEmail;
+        }
+        if (updates.general.timezone) {
+          process.env.TIMEZONE = updates.general.timezone;
+        }
+        if (updates.general.defaultLanguage) {
+          process.env.DEFAULT_LANGUAGE = updates.general.defaultLanguage;
+        }
+      }
+
+      if (updates.security) {
+        if (updates.security.sessionTimeout) {
+          process.env.SESSION_TIMEOUT = updates.security.sessionTimeout.toString();
+        }
+        if (updates.security.passwordMinLength) {
+          process.env.PASSWORD_MIN_LENGTH = updates.security.passwordMinLength.toString();
+        }
+        if (updates.security.maxLoginAttempts) {
+          process.env.MAX_LOGIN_ATTEMPTS = updates.security.maxLoginAttempts.toString();
+        }
+      }
+
+      if (updates.email) {
+        if (updates.email.smtpHost) {
+          process.env.SMTP_HOST = updates.email.smtpHost;
+        }
+        if (updates.email.smtpPort) {
+          process.env.SMTP_PORT = updates.email.smtpPort.toString();
+        }
+        if (updates.email.smtpUsername) {
+          process.env.SMTP_USERNAME = updates.email.smtpUsername;
+        }
+        if (updates.email.smtpPassword) {
+          process.env.SMTP_PASSWORD = updates.email.smtpPassword;
+        }
+        if (updates.email.fromEmail) {
+          process.env.FROM_EMAIL = updates.email.fromEmail;
+        }
+        if (updates.email.fromName) {
+          process.env.FROM_NAME = updates.email.fromName;
+        }
+      }
+
+      if (updates.database) {
+        if (updates.database.connectionPoolSize) {
+          process.env.DB_POOL_SIZE = updates.database.connectionPoolSize.toString();
+        }
+        if (updates.database.queryTimeout) {
+          process.env.DB_QUERY_TIMEOUT = updates.database.queryTimeout.toString();
+        }
+      }
+
+      // Return updated settings
+      const updatedSettings: SystemSettings = {
+        general: {
+          siteName: process.env.SITE_NAME || "KRAPI Manager",
+          siteUrl: process.env.SITE_URL || "http://localhost:3469",
+          adminEmail: process.env.ADMIN_EMAIL || "admin@krapi.com",
+          timezone: process.env.TIMEZONE || "UTC",
+          defaultLanguage: process.env.DEFAULT_LANGUAGE || "en",
+        },
+        security: {
+          requireTwoFactor: process.env.REQUIRE_2FA === "true",
+          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
+          passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || "8"),
+          passwordRequireUppercase: process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
+          passwordRequireNumbers: process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
+          passwordRequireSymbols: process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
+          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
+        },
+        email: {
+          smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
+          smtpPort: parseInt(process.env.SMTP_PORT || "587"),
+          smtpUsername: process.env.SMTP_USERNAME || "",
+          smtpPassword: process.env.SMTP_PASSWORD || "",
+          smtpSecure: process.env.SMTP_SECURE === "true",
+          fromEmail: process.env.FROM_EMAIL || "noreply@krapi.com",
+          fromName: process.env.FROM_NAME || "KRAPI",
+        },
+        database: {
+          connectionPoolSize: parseInt(process.env.DB_POOL_SIZE || "20"),
+          queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || "30000"),
+          enableQueryLogging: process.env.DB_ENABLE_LOGGING === "true",
+          backupSchedule: (process.env.DB_BACKUP_SCHEDULE as any) || "daily",
+          backupRetentionDays: parseInt(process.env.DB_BACKUP_RETENTION || "30"),
+        },
+      };
+      
+      res.status(200).json({
+        success: true,
+        data: updatedSettings,
+        message: "Settings updated successfully",
+      } as ApiResponse<SystemSettings>);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+
+  /**
+   * Test email configuration
+   * POST /krapi/k1/system/test-email
+   */
+  testEmailConfig = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const config = req.body;
+
+      // Test the email configuration
+      const testResult = await this.emailService.testEmailConfig(config);
+
+      if (testResult.success) {
+        res.status(200).json({
+          success: true,
+          data: { success: true },
+          message: "Email configuration test successful",
+        } as ApiResponse<{ success: boolean }>);
+      } else {
+        res.status(400).json({
+          success: false,
+          error: testResult.error || "Email configuration test failed",
+        } as ApiResponse);
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+
+  /**
+   * Get system information
+   * GET /krapi/k1/system/info
+   */
+  getSystemInfo = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const systemInfo = {
+        version: "2.0.0",
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        uptime: process.uptime(),
+        memoryUsage: process.memoryUsage(),
+        environment: process.env.NODE_ENV || "development",
+        timestamp: new Date().toISOString(),
+      };
+
+      res.status(200).json({
+        success: true,
+        data: systemInfo,
+      } as ApiResponse);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+
+  /**
+   * Get database health status
+   * GET /krapi/k1/system/database-health
+   */
+  getDatabaseHealth = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Check database connection
+      const health = await this.db.checkHealth();
+      const isHealthy = health.healthy;
+
+      const healthStatus = {
+        isHealthy,
+        timestamp: new Date().toISOString(),
+        database: "PostgreSQL",
+        connection: isHealthy ? "connected" : "disconnected",
+      };
+
+      res.status(200).json({
+        success: true,
+        data: healthStatus,
+      } as ApiResponse);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+}
+
+export default new SystemController();

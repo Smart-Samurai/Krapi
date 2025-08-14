@@ -35,7 +35,10 @@ export const fetchEmailConfig = createAsyncThunk(
   "email/fetchConfig",
   async (
     { projectId }: { projectId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -47,8 +50,10 @@ export const fetchEmailConfig = createAsyncThunk(
           response.error || "Failed to fetch email config"
         );
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch email config");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch email config"
+      );
     }
   }
 );
@@ -57,7 +62,10 @@ export const updateEmailConfig = createAsyncThunk(
   "email/updateConfig",
   async (
     { projectId, config }: { projectId: string; config: EmailConfig },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -69,8 +77,10 @@ export const updateEmailConfig = createAsyncThunk(
           response.error || "Failed to update email config"
         );
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to update email config");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update email config"
+      );
     }
   }
 );
@@ -79,7 +89,10 @@ export const testEmailConfig = createAsyncThunk(
   "email/testConfig",
   async (
     { projectId, email }: { projectId: string; email: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -89,8 +102,10 @@ export const testEmailConfig = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to test email config");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to test email config");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to test email config"
+      );
     }
   }
 );
@@ -99,7 +114,10 @@ export const fetchEmailTemplates = createAsyncThunk(
   "email/fetchTemplates",
   async (
     { projectId }: { projectId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -109,8 +127,10 @@ export const fetchEmailTemplates = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to fetch templates");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch templates");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch templates"
+      );
     }
   }
 );
@@ -130,7 +150,10 @@ export const createEmailTemplate = createAsyncThunk(
         variables: string[];
       };
     },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -140,8 +163,10 @@ export const createEmailTemplate = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to create template");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to create template");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to create template"
+      );
     }
   }
 );
@@ -163,7 +188,10 @@ export const updateEmailTemplate = createAsyncThunk(
         variables: string[];
       }>;
     },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -177,8 +205,10 @@ export const updateEmailTemplate = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to update template");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to update template");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update template"
+      );
     }
   }
 );
@@ -187,7 +217,10 @@ export const deleteEmailTemplate = createAsyncThunk(
   "email/deleteTemplate",
   async (
     { projectId, templateId }: { projectId: string; templateId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -197,8 +230,10 @@ export const deleteEmailTemplate = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to delete template");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to delete template");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to delete template"
+      );
     }
   }
 );

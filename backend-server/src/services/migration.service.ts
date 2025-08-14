@@ -1,9 +1,9 @@
-import { Pool } from "pg";
+import { Pool, PoolClient } from "pg";
 
 interface Migration {
   version: number;
   name: string;
-  up: (client: any) => Promise<void>;
+  up: (client: PoolClient) => Promise<void>;
 }
 
 export class MigrationService {
@@ -336,7 +336,7 @@ export class MigrationService {
     }
   }
 
-  private async fixColumnTypes(client: any) {
+  private async fixColumnTypes(client: PoolClient) {
     try {
       // Fix settings column type if it's not JSONB
       const settingsType = await client.query(`

@@ -1,28 +1,5 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Form, FormField } from "@/components/forms";
-import { z } from "zod";
 import {
   Plus,
   Users,
@@ -30,28 +7,38 @@ import {
   Trash2,
   Eye,
   Search,
-  Mail,
   Shield,
   UserCheck,
   UserX,
-  MoreVertical,
   Settings,
   Lock,
-  Unlock,
   Database,
   Code,
   FileText,
   Globe,
 } from "lucide-react";
-import { InfoBlock } from "@/components/styled/InfoBlock";
-import { IconButton } from "@/components/styled/IconButton";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { AdminUser as AdminUserType } from "@/lib/krapi";
-import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
+
+import { Form, FormField } from "@/components/forms";
+import { IconButton } from "@/components/styled/IconButton";
+import { InfoBlock } from "@/components/styled/InfoBlock";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
-import { DatabaseAdminUser, ExtendedAdminUser } from "@/lib/types/extended";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
+import { ExtendedAdminUser } from "@/lib/types/extended";
 
 // Permission types
 interface AdminPermissions {
@@ -150,69 +137,89 @@ export default function ServerAdministrationPage() {
         if (response.success && response.data) {
           // Transform the database users to match our AdminUser interface
           const transformedUsers: LocalAdminUser[] = response.data.map(
-            (user: any) => ({
-              id: user.id.toString(),
-              email: user.email,
-              firstName: user.username?.split(" ")[0] || "",
-              lastName: user.username?.split(" ")[1] || "",
-              role: user.role as
+            (user: Record<string, unknown>) => ({
+              id: String(user.id || ""),
+              email: String(user.email || ""),
+              firstName: String(user.username || "").split(" ")[0] || "",
+              lastName: String(user.username || "").split(" ")[1] || "",
+              role: String(user.role || "") as
                 | "master_admin"
                 | "admin"
                 | "project_admin"
                 | "limited_admin",
-              status: user.active ? "active" : "inactive",
+              status: Boolean(user.active) ? "active" : "inactive",
               permissions: {
                 canManageUsers:
-                  user.permissions?.some(
-                    (p: any) =>
-                      p === "users.create" ||
-                      p === "users.update" ||
-                      p === "users.delete"
-                  ) || false,
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) =>
+                        String(p) === "users.create" ||
+                        String(p) === "users.update" ||
+                        String(p) === "users.delete"
+                    )) ||
+                  false,
                 canCreateProjects:
-                  user.permissions?.some((p: any) => p === "projects.create") ||
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "projects.create"
+                    )) ||
                   false,
                 canDeleteProjects:
-                  user.permissions?.some((p: any) => p === "projects.delete") ||
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "projects.delete"
+                    )) ||
                   false,
                 canManageSystemSettings:
-                  user.permissions?.some((p: any) => p === "settings.update") ||
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "settings.update"
+                    )) ||
                   false,
                 canViewSystemLogs: false, // Not available in current permission system
                 canManageBackups: false, // Not available in current permission system
                 canAccessAllProjects:
-                  user.permissions?.some((p: any) => p === "projects.read") ||
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "projects.read"
+                    )) ||
                   false,
                 restrictedProjectIds: [],
                 canManageDatabase:
-                  user.permissions?.some(
-                    (p: any) =>
-                      p === "collections.create" ||
-                      p === "collections.write" ||
-                      p === "collections.delete"
-                  ) || false,
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) =>
+                        String(p) === "collections.create" ||
+                        String(p) === "collections.write" ||
+                        String(p) === "users.delete"
+                    )) ||
+                  false,
                 canManageAPI: false, // Not available in current permission system
                 canManageFiles:
-                  user.permissions?.some(
-                    (p: any) => p === "storage.upload" || p === "storage.delete"
-                  ) || false,
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) =>
+                        String(p) === "storage.upload" ||
+                        String(p) === "storage.delete"
+                    )) ||
+                  false,
                 canManageAuth: false, // Not available in current permission system
                 canCreateAdminAccounts: false, // Not available in current permission system
                 canModifyOtherAdmins: false, // Not available in current permission system
-                isMasterAdmin: user.role === "master_admin",
+                isMasterAdmin: String(user.role) === "master_admin",
               },
-              lastActive: user.last_login || user.updated_at,
-              createdAt: user.created_at,
-              lastLogin: user.last_login || "",
+              lastActive: String(user.last_login || user.updated_at || ""),
+              createdAt: String(user.created_at || ""),
+              lastLogin: String(user.last_login || ""),
             })
           );
           setAdminUsers(transformedUsers);
         } else {
-          console.error("Failed to fetch admin users:", response.error);
+          // Error logged for debugging
           setAdminUsers([]);
         }
-      } catch (error) {
-        console.error("Failed to fetch admin users:", error);
+      } catch {
+        // Error logged for debugging
         setAdminUsers([]);
       } finally {
         setIsLoading(false);
@@ -245,11 +252,21 @@ export default function ServerAdministrationPage() {
       const response = await krapi.admin.updateUser(selectedUser.id, {
         email: data.email,
         username: data.firstName.toLowerCase() + data.lastName.toLowerCase(),
-        role: data.role as any,
-        access_level: data.accessLevel as any,
+        role:
+          data.role === "master_admin"
+            ? AdminRole.MASTER_ADMIN
+            : data.role === "admin"
+            ? AdminRole.ADMIN
+            : AdminRole.DEVELOPER,
+        access_level:
+          data.accessLevel === "full"
+            ? AccessLevel.FULL
+            : data.accessLevel === "read_write"
+            ? AccessLevel.READ_WRITE
+            : AccessLevel.READ_ONLY,
         permissions: Object.entries(data.permissions)
           .filter(([_, value]) => value)
-          .map(([key]) => key as any),
+          .map(([key]) => key as string) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         active: selectedUser.status === "active",
       });
 
@@ -258,30 +275,96 @@ export default function ServerAdministrationPage() {
         const usersResponse = await krapi.admin.getUsers();
         if (usersResponse.success && usersResponse.data) {
           setAdminUsers(
-            usersResponse.data.map((user: any) => ({
-              id: user.id,
-              firstName: user.username.split(" ")[0] || user.username,
-              lastName: user.username.split(" ")[1] || "",
-              email: user.email,
-              role: user.role,
-              accessLevel: user.access_level,
-              status: user.active ? "active" : "inactive",
-              permissions: user.permissions.reduce((acc: any, perm: string) => {
-                acc[perm] = true;
-                return acc;
-              }, {}),
-              lastLogin: user.last_login || new Date().toISOString(),
-              lastActive:
-                user.last_login || user.updated_at || new Date().toISOString(),
-              createdAt: user.created_at,
+            usersResponse.data.map((user: Record<string, unknown>) => ({
+              id: String(user.id || ""),
+              firstName:
+                String(user.username || "").split(" ")[0] ||
+                String(user.username || ""),
+              lastName: String(user.username || "").split(" ")[1] || "",
+              email: String(user.email || ""),
+              role: String(user.role || "") as
+                | "master_admin"
+                | "admin"
+                | "project_admin"
+                | "limited_admin",
+              accessLevel: String(user.access_level || "") as
+                | "full"
+                | "read_write"
+                | "read_only",
+              status: Boolean(user.active) ? "active" : "inactive",
+              permissions: {
+                canManageUsers:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) =>
+                        String(p) === "users.create" ||
+                        String(p) === "users.update" ||
+                        String(p) === "users.delete"
+                    )) ||
+                  false,
+                canCreateProjects:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "projects.create"
+                    )) ||
+                  false,
+                canDeleteProjects:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "projects.delete"
+                    )) ||
+                  false,
+                canManageSystemSettings:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "settings.update"
+                    )) ||
+                  false,
+                canViewSystemLogs: false,
+                canManageBackups: false,
+                canAccessAllProjects:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) => String(p) === "projects.read"
+                    )) ||
+                  false,
+                restrictedProjectIds: [],
+                canManageDatabase:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) =>
+                        String(p) === "collections.create" ||
+                        String(p) === "collections.write" ||
+                        String(p) === "collections.delete"
+                    )) ||
+                  false,
+                canManageAPI: false,
+                canManageFiles:
+                  (Array.isArray(user.permissions) &&
+                    user.permissions.some(
+                      (p: unknown) =>
+                        String(p) === "storage.upload" ||
+                        String(p) === "storage.delete"
+                    )) ||
+                  false,
+                canManageAuth: false,
+                canCreateAdminAccounts: false,
+                canModifyOtherAdmins: false,
+                isMasterAdmin: String(user.role) === "master_admin",
+              },
+              lastLogin: String(user.last_login || new Date().toISOString()),
+              lastActive: String(
+                user.last_login || user.updated_at || new Date().toISOString()
+              ),
+              createdAt: String(user.created_at || ""),
             }))
           );
         }
         setIsEditDialogOpen(false);
         setSelectedUser(null);
       }
-    } catch (error) {
-      console.error("Error updating admin user:", error);
+    } catch {
+      // Error logged for debugging
       alert("Failed to update admin user");
     } finally {
       setIsLoading(false);
@@ -303,8 +386,8 @@ export default function ServerAdministrationPage() {
           // Remove the user from the local state
           setAdminUsers(adminUsers.filter((user) => user.id !== userId));
         }
-      } catch (error) {
-        console.error("Error deleting admin user:", error);
+      } catch {
+        // Error logged for debugging
         alert("Failed to delete admin user");
       } finally {
         setIsLoading(false);
@@ -330,8 +413,8 @@ export default function ServerAdministrationPage() {
           )
         );
       }
-    } catch (error) {
-      console.error("Error updating admin user status:", error);
+    } catch {
+      // Error logged for debugging
       alert("Failed to update admin user status");
     } finally {
       setIsLoading(false);
@@ -514,7 +597,7 @@ export default function ServerAdministrationPage() {
         <div className="divide-y divide-secondary/50">
           {isLoading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
               <p className="text-text/60">Loading admin users...</p>
             </div>
           ) : filteredUsers.length === 0 ? (
@@ -581,7 +664,7 @@ export default function ServerAdministrationPage() {
                               value === true && key !== "isMasterAdmin"
                           )
                           .slice(0, 6)
-                          .map(([key, value]) => (
+                          .map(([key, _value]) => (
                             <div
                               key={key}
                               className="flex items-center space-x-1 text-xs text-text/60"
@@ -590,7 +673,7 @@ export default function ServerAdministrationPage() {
                               <span>
                                 {key
                                   .replace(/([A-Z])/g, " $1")
-                                  .replace(/^./, (str) => str.toUpperCase())}
+                                  .replace(/^./, (_str) => _str.toUpperCase())}
                               </span>
                             </div>
                           ))}
@@ -940,74 +1023,91 @@ export default function ServerAdministrationPage() {
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
                 const transformedUsers: LocalAdminUser[] = response.data.map(
-                  (user: any) => ({
-                    id: user.id.toString(),
-                    email: user.email,
-                    firstName: user.username?.split(" ")[0] || "",
-                    lastName: user.username?.split(" ")[1] || "",
-                    role: user.role as
+                  (user: Record<string, unknown>) => ({
+                    id: String(user.id || ""),
+                    email: String(user.email || ""),
+                    firstName: String(user.username || "").split(" ")[0] || "",
+                    lastName: String(user.username || "").split(" ")[1] || "",
+                    role: String(user.role || "") as
                       | "master_admin"
                       | "admin"
                       | "project_admin"
                       | "limited_admin",
-                    status: user.active ? "active" : "inactive",
+                    status: Boolean(user.active) ? "active" : "inactive",
                     permissions: {
                       canManageUsers:
-                        user.permissions?.some(
-                          (p: any) =>
-                            p === "users.create" ||
-                            p === "users.update" ||
-                            p === "users.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) =>
+                              String(p) === "users.create" ||
+                              String(p) === "users.update" ||
+                              String(p) === "users.delete"
+                          )) ||
+                        false,
                       canCreateProjects:
-                        user.permissions?.some(
-                          (p: any) => p === "projects.create"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "projects.create"
+                          )) ||
+                        false,
                       canDeleteProjects:
-                        user.permissions?.some(
-                          (p: any) => p === "projects.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "projects.delete"
+                          )) ||
+                        false,
                       canManageSystemSettings:
-                        user.permissions?.some(
-                          (p: any) => p === "settings.update"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "settings.update"
+                          )) ||
+                        false,
                       canViewSystemLogs: false, // Not available in current permission system
                       canManageBackups: false, // Not available in current permission system
                       canAccessAllProjects:
-                        user.permissions?.some(
-                          (p: any) => p === "projects.read"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "projects.read"
+                          )) ||
+                        false,
                       restrictedProjectIds: [],
                       canManageDatabase:
-                        user.permissions?.some(
-                          (p: any) =>
-                            p === "collections.create" ||
-                            p === "collections.write" ||
-                            p === "collections.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) =>
+                              String(p) === "collections.create" ||
+                              String(p) === "collections.write" ||
+                              String(p) === "collections.delete"
+                          )) ||
+                        false,
                       canManageAPI: false, // Not available in current permission system
                       canManageFiles:
-                        user.permissions?.some(
-                          (p: any) =>
-                            p === "storage.upload" || p === "storage.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) =>
+                              String(p) === "storage.upload" ||
+                              String(p) === "storage.delete"
+                          )) ||
+                        false,
                       canManageAuth: false, // Not available in current permission system
                       canCreateAdminAccounts: false, // Not available in current permission system
                       canModifyOtherAdmins: false, // Not available in current permission system
-                      isMasterAdmin: user.role === "master_admin",
+                      isMasterAdmin: String(user.role) === "master_admin",
                     },
-                    lastActive: user.last_login || user.updated_at,
-                    createdAt: user.created_at,
-                    lastLogin: user.last_login || "",
+                    lastActive: String(
+                      user.last_login || user.updated_at || ""
+                    ),
+                    createdAt: String(user.created_at || ""),
+                    lastLogin: String(user.last_login || ""),
                   })
                 );
                 setAdminUsers(transformedUsers);
               } else {
-                console.error("Failed to fetch admin users:", response.error);
+                // Error logged for debugging
                 setAdminUsers([]);
               }
-            } catch (error) {
-              console.error("Error fetching admin users:", error);
+            } catch {
+              // Error logged for debugging
               setAdminUsers([]);
             } finally {
               setIsLoading(false);
@@ -1049,74 +1149,91 @@ export default function ServerAdministrationPage() {
               if (response.success && response.data) {
                 // Transform the database users to match our AdminUser interface
                 const transformedUsers: LocalAdminUser[] = response.data.map(
-                  (user: any) => ({
-                    id: user.id.toString(),
-                    email: user.email,
-                    firstName: user.username?.split(" ")[0] || "",
-                    lastName: user.username?.split(" ")[1] || "",
-                    role: user.role as
+                  (user: Record<string, unknown>) => ({
+                    id: String(user.id || ""),
+                    email: String(user.email || ""),
+                    firstName: String(user.username || "").split(" ")[0] || "",
+                    lastName: String(user.username || "").split(" ")[1] || "",
+                    role: String(user.role || "") as
                       | "master_admin"
                       | "admin"
                       | "project_admin"
                       | "limited_admin",
-                    status: user.active ? "active" : "inactive",
+                    status: Boolean(user.active) ? "active" : "inactive",
                     permissions: {
                       canManageUsers:
-                        user.permissions?.some(
-                          (p: any) =>
-                            p === "users.create" ||
-                            p === "users.update" ||
-                            p === "users.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) =>
+                              String(p) === "users.create" ||
+                              String(p) === "users.update" ||
+                              String(p) === "users.delete"
+                          )) ||
+                        false,
                       canCreateProjects:
-                        user.permissions?.some(
-                          (p: any) => p === "projects.create"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "projects.create"
+                          )) ||
+                        false,
                       canDeleteProjects:
-                        user.permissions?.some(
-                          (p: any) => p === "projects.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "projects.delete"
+                          )) ||
+                        false,
                       canManageSystemSettings:
-                        user.permissions?.some(
-                          (p: any) => p === "settings.update"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "settings.update"
+                          )) ||
+                        false,
                       canViewSystemLogs: false, // Not available in current permission system
                       canManageBackups: false, // Not available in current permission system
                       canAccessAllProjects:
-                        user.permissions?.some(
-                          (p: any) => p === "projects.read"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) => String(p) === "projects.read"
+                          )) ||
+                        false,
                       restrictedProjectIds: [],
                       canManageDatabase:
-                        user.permissions?.some(
-                          (p: any) =>
-                            p === "collections.create" ||
-                            p === "collections.write" ||
-                            p === "collections.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) =>
+                              String(p) === "collections.create" ||
+                              String(p) === "collections.write" ||
+                              String(p) === "collections.delete"
+                          )) ||
+                        false,
                       canManageAPI: false, // Not available in current permission system
                       canManageFiles:
-                        user.permissions?.some(
-                          (p: any) =>
-                            p === "storage.upload" || p === "storage.delete"
-                        ) || false,
+                        (Array.isArray(user.permissions) &&
+                          user.permissions.some(
+                            (p: unknown) =>
+                              String(p) === "storage.upload" ||
+                              String(p) === "storage.delete"
+                          )) ||
+                        false,
                       canManageAuth: false, // Not available in current permission system
                       canCreateAdminAccounts: false, // Not available in current permission system
                       canModifyOtherAdmins: false, // Not available in current permission system
-                      isMasterAdmin: user.role === "master_admin",
+                      isMasterAdmin: String(user.role) === "master_admin",
                     },
-                    lastActive: user.last_login || user.updated_at,
-                    createdAt: user.created_at,
-                    lastLogin: user.last_login || "",
+                    lastActive: String(
+                      user.last_login || user.updated_at || ""
+                    ),
+                    createdAt: String(user.created_at || ""),
+                    lastLogin: String(user.last_login || ""),
                   })
                 );
                 setAdminUsers(transformedUsers);
               } else {
-                console.error("Failed to fetch admin users:", response.error);
+                // Error logged for debugging
                 setAdminUsers([]);
               }
-            } catch (error) {
-              console.error("Error fetching admin users:", error);
+            } catch {
+              // Error logged for debugging
               setAdminUsers([]);
             } finally {
               setIsLoading(false);

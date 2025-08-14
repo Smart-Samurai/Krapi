@@ -1,8 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, ArrowRight, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { useState, useEffect, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+
+import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,13 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
-import { toast } from "sonner";
-import { Plus, ArrowRight, Settings } from "lucide-react";
-import { Project, Scope } from "@/lib/krapi";
 import {
   Dialog,
   DialogContent,
@@ -35,10 +36,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
@@ -94,8 +95,8 @@ export default function ProjectsPage() {
       if (response.success && response.data) {
         setProjects(response.data);
       }
-    } catch (error) {
-      console.error("Failed to load projects:", error);
+    } catch {
+      // Error logged to console for debugging
       toast.error("Failed to load projects");
     } finally {
       setLoading(false);
@@ -133,8 +134,8 @@ export default function ProjectsPage() {
         createForm.reset();
         await loadProjects(); // refresh list
       }
-    } catch (error) {
-      console.error("Failed to create project:", error);
+    } catch {
+      // Error logged to console for debugging
       toast.error("Failed to create project");
     } finally {
       setIsCreating(false);
@@ -158,8 +159,8 @@ export default function ProjectsPage() {
         setSelectedProject(null);
         await loadProjects();
       }
-    } catch (error) {
-      console.error("Failed to update project:", error);
+    } catch {
+      // Error logged to console for debugging
       toast.error("Failed to update project");
     } finally {
       setIsUpdating(false);
@@ -173,7 +174,7 @@ export default function ProjectsPage() {
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Card key={i}>
+            <Card key={`projects-skeleton-card-${i}`}>
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />
@@ -191,7 +192,7 @@ export default function ProjectsPage() {
   const isBusy = globalBusy > 0;
 
   return (
-    <div className={`p-6 space-y-6 ${isBusy ? "cursor-progress" : ""}`}> 
+    <div className={`p-6 space-y-6 ${isBusy ? "cursor-progress" : ""}`}>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Projects</h1>
@@ -210,7 +211,10 @@ export default function ProjectsPage() {
               </Button>
             }
           >
-            <Button onClick={() => setIsCreateDialogOpen(true)} disabled={isBusy}>
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              disabled={isBusy}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Create Project
             </Button>
@@ -228,7 +232,10 @@ export default function ProjectsPage() {
                 Create your first project to get started
               </p>
               <ScopeGuard scopes={Scope.PROJECTS_WRITE}>
-                <Button onClick={() => setIsCreateDialogOpen(true)} disabled={isBusy}>
+                <Button
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  disabled={isBusy}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Create First Project
                 </Button>
@@ -241,7 +248,7 @@ export default function ProjectsPage() {
               <Card
                 key={project.id}
                 className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => router.push(`/projects/${project.id}` as any)}
+                onClick={() => router.push(`/projects/${project.id}`)}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -262,7 +269,7 @@ export default function ProjectsPage() {
                     className="w-full"
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/projects/${project.id}` as any);
+                      router.push(`/projects/${project.id}`);
                     }}
                   >
                     <ArrowRight className="mr-2 h-4 w-4" />

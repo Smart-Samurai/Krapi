@@ -1,12 +1,4 @@
 import {
-  ProjectUser as BackendProjectUser,
-  AdminUser as BackendAdminUser,
-  ProjectSettings as BackendProjectSettings,
-  EmailConfig as BackendEmailConfig,
-  FileInfo as BackendFileInfo,
-  StorageStats as BackendStorageStats,
-} from "@/types";
-import {
   ProjectUser as SDKProjectUser,
   AdminUser as SDKAdminUser,
   ProjectSettings as SDKProjectSettings,
@@ -17,6 +9,15 @@ import {
   AdminRole as SDKAdminRole,
   AccessLevel as SDKAccessLevel,
 } from "@krapi/sdk";
+
+import {
+  ProjectUser as BackendProjectUser,
+  AdminUser as BackendAdminUser,
+  ProjectSettings as BackendProjectSettings,
+  EmailConfig as BackendEmailConfig,
+  FileInfo as BackendFileInfo,
+  StorageStats as BackendStorageStats,
+} from "@/types";
 
 /**
  * Type Mapper Utility
@@ -127,7 +128,16 @@ export class TypeMapper {
     };
   }
 
-  static mapEmailTemplate(backendTemplate: any): SDKEmailTemplate {
+  static mapEmailTemplate(backendTemplate: {
+    id: string;
+    project_id: string;
+    name: string;
+    subject: string;
+    body: string;
+    variables?: string[];
+    created_at: string;
+    updated_at: string;
+  }): SDKEmailTemplate {
     return {
       id: backendTemplate.id,
       project_id: backendTemplate.project_id,

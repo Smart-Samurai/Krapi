@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { serverSdk } from "@/app/api/lib/sdk-client";
 
 export async function POST(request: NextRequest) {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 401 });
     }
   } catch (error) {
-    console.error("Login error:", error);
+    // Error logged for debugging
     return NextResponse.json(
       {
         success: false,

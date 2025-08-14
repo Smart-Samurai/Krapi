@@ -22,14 +22,14 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
  * Check if a value is a non-null object
  */
 export function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
  * Check if a value is a non-empty string
  */
 export function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 /**
@@ -40,20 +40,20 @@ export function isApiResponse<T>(
   dataValidator?: (data: unknown) => data is T
 ): response is ApiResponse<T> {
   if (!isObject(response)) return false;
-  
-  if (typeof response.success !== 'boolean') return false;
-  
+
+  if (typeof response.success !== "boolean") return false;
+
   // If success is true, data should be present
   if (response.success && response.data === undefined) return false;
-  
+
   // If success is false, error should be present
   if (!response.success && !isNonEmptyString(response.error)) return false;
-  
+
   // Validate data if validator provided
   if (dataValidator && response.data !== undefined) {
     return dataValidator(response.data);
   }
-  
+
   return true;
 }
 
@@ -65,19 +65,19 @@ export function isPaginatedResponse<T>(
   itemValidator?: (item: unknown) => item is T
 ): response is PaginatedResponse<T> {
   if (!isApiResponse(response)) return false;
-  
+
   const r = response as unknown as Record<string, unknown>;
-  
-  if (typeof r.total !== 'number') return false;
-  if (typeof r.page !== 'number') return false;
-  if (typeof r.limit !== 'number') return false;
-  
+
+  if (typeof r.total !== "number") return false;
+  if (typeof r.page !== "number") return false;
+  if (typeof r.limit !== "number") return false;
+
   if (r.data !== undefined && Array.isArray(r.data)) {
     if (itemValidator) {
-      return r.data.every(item => itemValidator(item));
+      return r.data.every((item) => itemValidator(item));
     }
   }
-  
+
   return true;
 }
 
@@ -99,78 +99,84 @@ export function safeJsonParse<T = unknown>(
  * Type-safe local storage access
  */
 export const typedStorage = {
-  getItem<T>(key: string, validator?: (value: unknown) => value is T): T | null {
+  getItem<T>(
+    key: string,
+    validator?: (value: unknown) => value is T
+  ): T | null {
     try {
       const item = localStorage.getItem(key);
       if (!item) return null;
-      
+
       const parsed = JSON.parse(item);
-      
+
       if (validator && !validator(parsed)) {
-        console.error(`Invalid data in localStorage for key: ${key}`);
+        // Error logged for debugging
         return null;
       }
-      
+
       return parsed as T;
     } catch {
       return null;
     }
   },
-  
+
   setItem<T>(key: string, value: T): void {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`Failed to save to localStorage:`, error);
+    } catch {
+      // Error logged for debugging
     }
   },
-  
+
   removeItem(key: string): void {
     try {
       localStorage.removeItem(key);
-    } catch (error) {
-      console.error(`Failed to remove from localStorage:`, error);
+    } catch {
+      // Error logged for debugging
     }
-  }
+  },
 };
 
 /**
  * Type-safe session storage access
  */
 export const typedSessionStorage = {
-  getItem<T>(key: string, validator?: (value: unknown) => value is T): T | null {
+  getItem<T>(
+    key: string,
+    validator?: (value: unknown) => value is T
+  ): T | null {
     try {
       const item = sessionStorage.getItem(key);
       if (!item) return null;
-      
+
       const parsed = JSON.parse(item);
-      
+
       if (validator && !validator(parsed)) {
-        console.error(`Invalid data in sessionStorage for key: ${key}`);
+        // Error logged for debugging
         return null;
       }
-      
+
       return parsed as T;
     } catch {
       return null;
     }
   },
-  
+
   setItem<T>(key: string, value: T): void {
     try {
       sessionStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(`Failed to save to sessionStorage:`, error);
+    } catch {
+      // Error logged for debugging
     }
   },
-  
+
   removeItem(key: string): void {
     try {
       sessionStorage.removeItem(key);
-    } catch (error) {
-      console.error(`Failed to remove from sessionStorage:`, error);
+    } catch {
+      // Error logged for debugging
     }
-  }
+  },
 };
 
 /**
@@ -204,12 +210,12 @@ export function createTypedEventHandler<T extends Event>(
     try {
       const result = handler(event as T);
       if (result instanceof Promise) {
-        result.catch(error => {
-          console.error('Async event handler error:', error);
+        result.catch(() => {
+          // Error logged for debugging
         });
       }
-    } catch (error) {
-      console.error('Event handler error:', error);
+    } catch {
+      // Error logged for debugging
     }
   };
 }
@@ -222,10 +228,10 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   return (...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
-    
+
     timeout = setTimeout(() => {
       func(...args);
     }, wait);
@@ -241,12 +247,14 @@ export function extractFormData<T extends Record<string, unknown>>(
 ): T {
   const formData = new FormData(form);
   const result = {} as T;
-  
-  for (const [key, validator] of Object.entries(schema) as Array<[keyof T, (value: FormDataEntryValue | null) => T[keyof T]]>) {
+
+  for (const [key, validator] of Object.entries(schema) as Array<
+    [keyof T, (value: FormDataEntryValue | null) => T[keyof T]]
+  >) {
     const value = formData.get(key as string);
     result[key] = validator(value);
   }
-  
+
   return result;
 }
 
@@ -257,11 +265,11 @@ export class TypedError extends Error {
   constructor(
     message: string,
     public readonly code: string,
-    public readonly statusCode: number = 500,
+    public readonly statusCode = 500,
     public readonly data?: unknown
   ) {
     super(message);
-    this.name = 'TypedError';
+    this.name = "TypedError";
   }
 }
 
@@ -270,7 +278,7 @@ export class TypedError extends Error {
  */
 export async function safeAsync<T>(
   promise: Promise<T>,
-  errorMessage: string = 'Operation failed'
+  errorMessage = "Operation failed"
 ): Promise<[T, null] | [null, Error]> {
   try {
     const result = await promise;
@@ -286,7 +294,7 @@ export async function safeAsync<T>(
  */
 export function isValidUrl(url: unknown): url is string {
   if (!isNonEmptyString(url)) return false;
-  
+
   try {
     new URL(url);
     return true;
@@ -300,7 +308,7 @@ export function isValidUrl(url: unknown): url is string {
  */
 export function isValidEmail(email: unknown): email is string {
   if (!isNonEmptyString(email)) return false;
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }

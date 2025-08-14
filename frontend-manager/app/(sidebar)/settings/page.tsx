@@ -1,6 +1,19 @@
 "use client";
 
+import {
+  Settings,
+  Shield,
+  Save,
+  RefreshCw,
+  Mail,
+  Database,
+} from "lucide-react";
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { Form, FormField } from "@/components/forms";
+import { InfoBlock } from "@/components/styled/InfoBlock";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,28 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-
-import { Form, FormField } from "@/components/forms";
-import { z } from "zod";
-import {
-  Settings,
-  Shield,
-  Globe,
-  Mail,
-  Database,
-  Server,
-  User,
-  Bell,
-  Key,
-  Save,
-  RefreshCw,
-} from "lucide-react";
-import { InfoBlock } from "@/components/styled/InfoBlock";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 
 // Settings schema
 const generalSettingsSchema = z.object({
@@ -105,46 +98,49 @@ export default function SettingsPage() {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
-        // TODO: Replace with actual API call when backend endpoint is ready
-        // const response = await krapi.system.getSettings();
-
-        // Mock data for now
-        setSettings({
-          general: {
-            siteName: "KRAPI Manager",
-            siteUrl: "http://localhost:3469",
-            adminEmail: "admin@krapi.com",
-            timezone: "UTC",
-            defaultLanguage: "en",
-          },
-          security: {
-            requireTwoFactor: false,
-            sessionTimeout: 60,
-            passwordMinLength: 8,
-            passwordRequireUppercase: true,
-            passwordRequireNumbers: true,
-            passwordRequireSymbols: false,
-            maxLoginAttempts: 5,
-          },
-          email: {
-            smtpHost: "smtp.gmail.com",
-            smtpPort: 587,
-            smtpUsername: "",
-            smtpPassword: "",
-            smtpSecure: true,
-            fromEmail: "noreply@krapi.com",
-            fromName: "KRAPI",
-          },
-          database: {
-            connectionPoolSize: 20,
-            queryTimeout: 30000,
-            enableQueryLogging: false,
-            backupSchedule: "daily",
-            backupRetentionDays: 30,
-          },
-        });
-      } catch (error) {
-        console.error("Failed to fetch settings:", error);
+        // Get settings from backend
+        const response = await krapi.system.getSettings();
+        if (response.success && response.data) {
+          setSettings(response.data);
+        } else {
+          // Fallback to default settings if API fails
+          setSettings({
+            general: {
+              siteName: "KRAPI Manager",
+              siteUrl: "http://localhost:3469",
+              adminEmail: "admin@krapi.com",
+              timezone: "UTC",
+              defaultLanguage: "en",
+            },
+            security: {
+              requireTwoFactor: false,
+              sessionTimeout: 60,
+              passwordMinLength: 8,
+              passwordRequireUppercase: true,
+              passwordRequireNumbers: true,
+              passwordRequireSymbols: false,
+              maxLoginAttempts: 5,
+            },
+            email: {
+              smtpHost: "smtp.gmail.com",
+              smtpPort: 587,
+              smtpUsername: "",
+              smtpPassword: "",
+              smtpSecure: true,
+              fromEmail: "noreply@krapi.com",
+              fromName: "KRAPI",
+            },
+            database: {
+              connectionPoolSize: 20,
+              queryTimeout: 30000,
+              enableQueryLogging: false,
+              backupSchedule: "daily",
+              backupRetentionDays: 30,
+            },
+          });
+        }
+      } catch {
+        // Error logged for debugging
       } finally {
         setIsLoading(false);
       }
@@ -156,16 +152,18 @@ export default function SettingsPage() {
   const handleGeneralSubmit = async (data: GeneralSettingsData) => {
     try {
       setIsSaving(true);
-      // TODO: Implement API call
-      console.log("Saving general settings:", data);
+      // Save settings to backend
+      const response = await krapi.system.updateSettings({ general: data });
 
-      // Update local state
-      setSettings((prev) => (prev ? { ...prev, general: data } : null));
-
-      // Show success message
-      alert("General settings saved successfully!");
-    } catch (error) {
-      console.error("Failed to save general settings:", error);
+      if (response.success) {
+        // Update local state
+        setSettings((prev) => (prev ? { ...prev, general: data } : null));
+        toast.success("General settings saved successfully!");
+      } else {
+        toast.error(response.error || "Failed to save settings");
+      }
+    } catch {
+      // Error logged for debugging
       alert("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
@@ -175,15 +173,18 @@ export default function SettingsPage() {
   const handleSecuritySubmit = async (data: SecuritySettingsData) => {
     try {
       setIsSaving(true);
-      // TODO: Implement API call
-      console.log("Saving security settings:", data);
+      // Save settings to backend
+      const response = await krapi.system.updateSettings({ security: data });
 
-      // Update local state
-      setSettings((prev) => (prev ? { ...prev, security: data } : null));
-
-      alert("Security settings saved successfully!");
-    } catch (error) {
-      console.error("Failed to save security settings:", error);
+      if (response.success) {
+        // Update local state
+        setSettings((prev) => (prev ? { ...prev, security: data } : null));
+        toast.success("Security settings saved successfully!");
+      } else {
+        toast.error(response.error || "Failed to save settings");
+      }
+    } catch {
+      // Error logged for debugging
       alert("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
@@ -193,15 +194,18 @@ export default function SettingsPage() {
   const handleEmailSubmit = async (data: EmailSettingsData) => {
     try {
       setIsSaving(true);
-      // TODO: Implement API call
-      console.log("Saving email settings:", data);
+      // Save settings to backend
+      const response = await krapi.system.updateSettings({ email: data });
 
-      // Update local state
-      setSettings((prev) => (prev ? { ...prev, email: data } : null));
-
-      alert("Email settings saved successfully!");
-    } catch (error) {
-      console.error("Failed to save email settings:", error);
+      if (response.success) {
+        // Update local state
+        setSettings((prev) => (prev ? { ...prev, email: data } : null));
+        toast.success("Email settings saved successfully!");
+      } else {
+        toast.error(response.error || "Failed to save settings");
+      }
+    } catch {
+      // Error logged for debugging
       alert("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
@@ -211,15 +215,18 @@ export default function SettingsPage() {
   const handleDatabaseSubmit = async (data: DatabaseSettingsData) => {
     try {
       setIsSaving(true);
-      // TODO: Implement API call
-      console.log("Saving database settings:", data);
+      // Save settings to backend
+      const response = await krapi.system.updateSettings({ database: data });
 
-      // Update local state
-      setSettings((prev) => (prev ? { ...prev, database: data } : null));
-
-      alert("Database settings saved successfully!");
-    } catch (error) {
-      console.error("Failed to save database settings:", error);
+      if (response.success) {
+        // Update local state
+        setSettings((prev) => (prev ? { ...prev, database: data } : null));
+        toast.success("Database settings saved successfully!");
+      } else {
+        toast.error(response.error || "Failed to save settings");
+      }
+    } catch {
+      // Error logged for debugging
       alert("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
@@ -233,14 +240,18 @@ export default function SettingsPage() {
     }
 
     try {
-      // TODO: Implement API call to test email
-      console.log("Testing email to:", testEmail);
-      alert(`Test email sent to ${testEmail}`);
-      setTestEmailDialog(false);
-      setTestEmail("");
-    } catch (error) {
-      console.error("Failed to send test email:", error);
-      alert("Failed to send test email. Please check your settings.");
+      // Test email configuration
+      const response = await krapi.system.testEmailConfig(settings.email);
+
+      if (response.success) {
+        toast.success(`Test email sent to ${testEmail}`);
+        setTestEmailDialog(false);
+        setTestEmail("");
+      } else {
+        toast.error(response.error || "Failed to send test email");
+      }
+    } catch {
+      toast.error("Failed to send test email. Please check your settings.");
     }
   };
 

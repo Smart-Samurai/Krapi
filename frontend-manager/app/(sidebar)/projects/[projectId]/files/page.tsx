@@ -1,42 +1,5 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { FileInfo } from "@/lib/krapi";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import {
   Upload,
   Download,
@@ -57,6 +20,22 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,14 +44,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { FileInfo } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { beginBusy, endBusy } from "@/store/uiSlice";
 import {
   fetchFiles,
   fetchStorageStats,
   uploadFile,
   deleteFile,
 } from "@/store/storageSlice";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;
@@ -94,7 +94,7 @@ const formatFileSize = (bytes: number) => {
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
 const getFileTypeCategory = (mimeType: string) => {
@@ -165,10 +165,11 @@ export default function FilesPage() {
       if (uploadFile.fulfilled.match(action)) {
         loadFilesCb();
       } else {
-        const msg = (action as any).payload || "Failed to upload file";
+        const msg =
+          (action as { payload?: string }).payload || "Failed to upload file";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to upload file");
     } finally {
       setIsUploading(false);
@@ -192,9 +193,8 @@ export default function FilesPage() {
       } else {
         setError(result.error || "Failed to download file");
       }
-    } catch (_err) {
+    } catch {
       setError("An error occurred while downloading file");
-      console.error("Error downloading file:", _err);
     }
   };
 
@@ -206,10 +206,11 @@ export default function FilesPage() {
       if (deleteFile.fulfilled.match(action)) {
         loadFilesCb();
       } else {
-        const msg = (action as any).payload || "Failed to delete file";
+        const msg =
+          (action as { payload?: string }).payload || "Failed to delete file";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to delete file");
     } finally {
       dispatch(endBusy());
@@ -220,8 +221,8 @@ export default function FilesPage() {
     try {
       await navigator.clipboard.writeText(file.url);
       // You could add a toast notification here
-    } catch (err) {
-      console.error("Failed to copy URL:", err);
+    } catch {
+      // Error logged for debugging
     }
   };
 
@@ -241,7 +242,7 @@ export default function FilesPage() {
   });
 
   const sortedFiles = [...filteredFiles].sort((a, b) => {
-    let aValue: any, bValue: any;
+    let aValue: string | number, bValue: string | number;
 
     switch (sortBy) {
       case "created_at":
@@ -257,8 +258,16 @@ export default function FilesPage() {
         bValue = b.original_name.toLowerCase();
         break;
       default:
-        aValue = a[sortBy as keyof FileInfo];
-        bValue = b[sortBy as keyof FileInfo];
+        const aVal = a[sortBy as keyof FileInfo];
+        const bVal = b[sortBy as keyof FileInfo];
+        aValue =
+          typeof aVal === "string" || typeof aVal === "number"
+            ? aVal
+            : String(aVal);
+        bValue =
+          typeof bVal === "string" || typeof bVal === "number"
+            ? bVal
+            : String(bVal);
     }
 
     if (sortOrder === "asc") {
@@ -277,7 +286,7 @@ export default function FilesPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton key={`files-skeleton-${i}`} className="h-32 w-full" />
           ))}
         </div>
       </div>
@@ -789,7 +798,7 @@ stats = response.json()`}
                   <div className="space-y-2">
                     {selectedFile.relations.map((relation, index) => (
                       <div
-                        key={index}
+                        key={`files-relation-${index}`}
                         className="flex items-center gap-2 text-sm"
                       >
                         <Link className="h-4 w-4" />

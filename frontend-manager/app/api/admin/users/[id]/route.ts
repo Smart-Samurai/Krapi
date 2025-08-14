@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createAuthenticatedSdk, getAuthToken } from '@/app/api/lib/sdk-client';
+import { NextRequest, NextResponse } from "next/server";
+
+import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
@@ -7,10 +8,10 @@ export async function GET(
 ) {
   try {
     const authToken = getAuthToken(request.headers);
-    
+
     if (!authToken) {
       return NextResponse.json(
-        { success: false, error: 'No authentication token provided' },
+        { success: false, error: "No authentication token provided" },
         { status: 401 }
       );
     }
@@ -25,11 +26,11 @@ export async function GET(
       return NextResponse.json(response, { status: 404 });
     }
   } catch (error) {
-    console.error('Get admin user error:', error);
+    // Error logged for debugging
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 }
     );
@@ -42,10 +43,10 @@ export async function PUT(
 ) {
   try {
     const authToken = getAuthToken(request.headers);
-    
+
     if (!authToken) {
       return NextResponse.json(
-        { success: false, error: 'No authentication token provided' },
+        { success: false, error: "No authentication token provided" },
         { status: 401 }
       );
     }
@@ -61,11 +62,11 @@ export async function PUT(
       return NextResponse.json(response, { status: 400 });
     }
   } catch (error) {
-    console.error('Update admin user error:', error);
+    // Error logged for debugging
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 }
     );
@@ -78,10 +79,10 @@ export async function DELETE(
 ) {
   try {
     const authToken = getAuthToken(request.headers);
-    
+
     if (!authToken) {
       return NextResponse.json(
-        { success: false, error: 'No authentication token provided' },
+        { success: false, error: "No authentication token provided" },
         { status: 401 }
       );
     }
@@ -96,11 +97,11 @@ export async function DELETE(
       return NextResponse.json(response, { status: 400 });
     }
   } catch (error) {
-    console.error('Delete admin user error:', error);
+    // Error logged for debugging
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 }
     );

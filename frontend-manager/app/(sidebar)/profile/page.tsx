@@ -1,22 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   FiUser,
   FiLock,
@@ -26,6 +10,23 @@ import {
   FiEyeOff,
 } from "react-icons/fi";
 import { toast } from "sonner";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Scope } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
@@ -92,7 +93,7 @@ export default function ProfilePage() {
       } else {
         toast.error(response.error || "Failed to change password");
       }
-    } catch (_error) {
+    } catch {
       toast.error("Failed to change password");
     } finally {
       setIsChangingPassword(false);
@@ -119,7 +120,7 @@ export default function ProfilePage() {
       } else {
         toast.error(response.error || "Failed to regenerate API key");
       }
-    } catch (_error) {
+    } catch {
       toast.error("Failed to regenerate API key");
     } finally {
       setIsRegeneratingKey(false);
@@ -168,7 +169,7 @@ export default function ProfilePage() {
       } else {
         toast.error(data.error || "Failed to create master API key");
       }
-    } catch (_error) {
+    } catch {
       toast.error("Failed to create master API key");
     } finally {
       setIsCreatingMasterKey(false);
@@ -515,11 +516,11 @@ export default function ProfilePage() {
                           value={
                             showApiKey
                               ? extendedUser.api_key
-                              : extendedUser.api_key.substring(0, 8) +
-                                "..." +
+                              : `${extendedUser.api_key.substring(0, 8) 
+                                }...${ 
                                 extendedUser.api_key.substring(
                                   extendedUser.api_key.length - 4
-                                )
+                                )}`
                           }
                           readOnly
                           className="font-mono text-sm"

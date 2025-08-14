@@ -1,7 +1,32 @@
 import nodemailer from "nodemailer";
+
 import { DatabaseService } from "./database.service";
+
 import { Project, EmailConfig } from "@/types";
-import { EmailTemplate, EmailSendRequest } from "krapi-sdk";
+
+interface EmailTemplate {
+  id: string;
+  projectId: string;
+  name: string;
+  subject: string;
+  body: string;
+  variables: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EmailSendRequest {
+  projectId: string;
+  to: string | string[];
+  subject?: string;
+  body?: string;
+  attachments?: Array<{
+    filename?: string;
+    content?: string | Buffer;
+    path?: string;
+    contentType?: string;
+  }>;
+}
 
 export class EmailService {
   private static instance: EmailService;
@@ -60,8 +85,8 @@ export class EmailService {
   private getDefaultConfig(): EmailConfig | null {
     if (
       !process.env.DEFAULT_SMTP_HOST ||
-      !process.env.DEFAULT_SMTP_USER ||
-      !process.env.DEFAULT_SMTP_PASS
+      !process.env.DEFAULT_SMTP_USERNAME ||
+      !process.env.DEFAULT_SMTP_PASSWORD
     ) {
       return null;
     }
@@ -70,10 +95,10 @@ export class EmailService {
       smtp_host: process.env.DEFAULT_SMTP_HOST,
       smtp_port: parseInt(process.env.DEFAULT_SMTP_PORT || "587"),
       smtp_secure: process.env.DEFAULT_SMTP_SECURE === "true",
-      smtp_user: process.env.DEFAULT_SMTP_USER,
-      smtp_pass: process.env.DEFAULT_SMTP_PASS,
+      smtp_username: process.env.DEFAULT_SMTP_USERNAME,
+      smtp_password: process.env.DEFAULT_SMTP_PASSWORD,
       from_email:
-        process.env.DEFAULT_FROM_EMAIL || process.env.DEFAULT_SMTP_USER,
+        process.env.DEFAULT_FROM_EMAIL || process.env.DEFAULT_SMTP_USERNAME,
       from_name: process.env.DEFAULT_FROM_NAME || "Krapi System",
     };
   }
@@ -211,11 +236,19 @@ export class EmailService {
   }
 
   // Get email templates for a project
-  async getTemplates(_projectId: string): Promise<EmailTemplate[]> {
+  async getTemplates(projectId: string): Promise<EmailTemplate[]> {
     try {
-      // For now, return empty array - templates would be stored in database
-      // This is a placeholder implementation
-      return [];
+      const templates = await this.db.getEmailTemplates(projectId);
+      return templates.map((template) => ({
+        id: template.id as string,
+        projectId: template.project_id as string,
+        name: template.name as string,
+        subject: template.subject as string,
+        body: template.body as string,
+        variables: (template.variables as string[]) || [],
+        createdAt: template.created_at as string,
+        updatedAt: template.updated_at as string,
+      }));
     } catch (error) {
       console.error("Get templates error:", error);
       return [];
@@ -223,10 +256,34 @@ export class EmailService {
   }
 
   // Get a specific email template
-  async getTemplate(_id: string): Promise<EmailTemplate | null> {
+  async getTemplate(id: string): Promise<EmailTemplate | null> {
     try {
-      // For now, return null - templates would be stored in database
-      // This is a placeholder implementation
+      // We need to get the project ID first to query the template
+      // This is a limitation of the current database structure
+      // For now, we'll search across all projects
+      const allProjects = await this.db.getAllProjects();
+
+      for (const project of allProjects) {
+        try {
+          const template = await this.db.getEmailTemplate(project.id, id);
+          if (template) {
+            return {
+              id: template.id as string,
+              projectId: template.project_id as string,
+              name: template.name as string,
+              subject: template.subject as string,
+              body: template.body as string,
+              variables: (template.variables as string[]) || [],
+              createdAt: template.created_at as string,
+              updatedAt: template.updated_at as string,
+            };
+          }
+        } catch (error) {
+          // Continue to next project
+          continue;
+        }
+      }
+
       return null;
     } catch (error) {
       console.error("Get template error:", error);
@@ -239,23 +296,38 @@ export class EmailService {
     templateData: Partial<EmailTemplate>
   ): Promise<EmailTemplate> {
     try {
-      // For now, return a mock template - templates would be stored in database
-      // This is a placeholder implementation
-      const template: EmailTemplate = {
-        id: `template_${Date.now()}`,
-        projectId: templateData.projectId || "",
-        name: templateData.name || "New Template",
-        subject: templateData.subject || "",
-        html: templateData.html || "",
-        text: templateData.text || "",
-        variables: templateData.variables || [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      if (
+        !templateData.projectId ||
+        !templateData.name ||
+        !templateData.subject ||
+        !templateData.body
+      ) {
+        throw new Error("Project ID, name, subject, and body are required");
+      }
+
+      const template = await this.db.createEmailTemplate(
+        templateData.projectId,
+        {
+          name: templateData.name,
+          subject: templateData.subject,
+          body: templateData.body,
+          variables: templateData.variables || [],
+        }
+      );
+
+      return {
+        id: template.id as string,
+        projectId: template.project_id as string,
+        name: template.name as string,
+        subject: template.subject as string,
+        body: template.body as string,
+        variables: (template.variables as string[]) || [],
+        createdAt: template.created_at as string,
+        updatedAt: template.updated_at as string,
       };
-      return template;
     } catch (error) {
       console.error("Create template error:", error);
-      throw new Error("Failed to create template");
+      throw new Error("Failed to create email template");
     }
   }
 
@@ -265,32 +337,56 @@ export class EmailService {
     updates: Partial<EmailTemplate>
   ): Promise<EmailTemplate> {
     try {
-      // For now, return a mock updated template - templates would be stored in database
-      // This is a placeholder implementation
-      const template: EmailTemplate = {
+      if (!updates.projectId) {
+        throw new Error("Project ID is required for template updates");
+      }
+
+      const template = await this.db.updateEmailTemplate(
+        updates.projectId,
         id,
-        projectId: updates.projectId || "",
-        name: updates.name || "Updated Template",
-        subject: updates.subject || "",
-        html: updates.html || "",
-        text: updates.text || "",
-        variables: updates.variables || [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        {
+          name: updates.name,
+          subject: updates.subject,
+          body: updates.body,
+          variables: updates.variables,
+        }
+      );
+
+      return {
+        id: template.id as string,
+        projectId: template.project_id as string,
+        name: template.name as string,
+        subject: template.subject as string,
+        body: template.body as string,
+        variables: (template.variables as string[]) || [],
+        createdAt: template.created_at as string,
+        updatedAt: template.updated_at as string,
       };
-      return template;
     } catch (error) {
       console.error("Update template error:", error);
-      throw new Error("Failed to update template");
+      throw new Error("Failed to update email template");
     }
   }
 
   // Delete an email template
-  async deleteTemplate(_id: string): Promise<boolean> {
+  async deleteTemplate(id: string): Promise<boolean> {
     try {
-      // For now, return true - templates would be deleted from database
-      // This is a placeholder implementation
-      return true;
+      // We need to find the project ID first
+      const allProjects = await this.db.getAllProjects();
+
+      for (const project of allProjects) {
+        try {
+          const result = await this.db.deleteEmailTemplate(project.id, id);
+          if (result) {
+            return true;
+          }
+        } catch (error) {
+          // Continue to next project
+          continue;
+        }
+      }
+
+      return false;
     } catch (error) {
       console.error("Delete template error:", error);
       return false;
@@ -347,8 +443,11 @@ export class EmailService {
       };
 
       // Update project settings
-      await this.db.updateProjectSettings(projectId, {
-        email_config: updatedConfig,
+      await this.db.updateProject(projectId, {
+        settings: {
+          ...project.settings,
+          email_config: updatedConfig,
+        },
       });
 
       // Clear transporter cache for this project
@@ -402,8 +501,8 @@ export class EmailService {
         port: emailConfig.smtp_port,
         secure: emailConfig.smtp_secure,
         auth: {
-          user: emailConfig.smtp_user,
-          pass: emailConfig.smtp_pass,
+          user: emailConfig.smtp_username,
+          pass: emailConfig.smtp_password,
         },
       });
 

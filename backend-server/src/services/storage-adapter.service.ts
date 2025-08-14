@@ -1,4 +1,5 @@
 import { StorageService } from "./storage.service";
+
 import { FileInfo, StorageStats } from "@/types";
 
 /**
@@ -22,7 +23,7 @@ export class StorageAdapterService {
     return StorageAdapterService.instance;
   }
 
-  async uploadFile(file: any, metadata?: any): Promise<FileInfo> {
+  async uploadFile(file: File | Buffer, metadata?: Record<string, unknown>): Promise<FileInfo> {
     return await this.storageService.uploadFile(file, metadata);
   }
 

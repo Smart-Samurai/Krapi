@@ -1,10 +1,11 @@
 "use client";
 
+import { Shield, AlertCircle } from "lucide-react";
 import React from "react";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Shield, AlertCircle } from "lucide-react";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 interface ScopeGuardProps {
   scopes: string | string[];
@@ -43,7 +44,7 @@ export function ScopeGuard({
       <AlertCircle className="h-4 w-4" />
       <AlertTitle>Access Restricted</AlertTitle>
       <AlertDescription className="space-y-2">
-        <p>You don't have permission to access this feature.</p>
+        <p>You don&apos;t have permission to access this feature.</p>
         <div>
           <p className="text-sm font-medium mb-1">
             Required {requireAll ? "all" : "any"} of these scopes:

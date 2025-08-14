@@ -1,12 +1,12 @@
 // API Response Types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
 }
 
-export interface PaginatedResponse<T = any> extends ApiResponse<T[]> {
+export interface PaginatedResponse<T = unknown> extends ApiResponse<T[]> {
   pagination: {
     page: number;
     limit: number;
@@ -98,6 +98,41 @@ export interface AuthConfig {
   require_email_verification: boolean;
 }
 
+export interface SystemSettings {
+  general: {
+    siteName: string;
+    siteUrl: string;
+    adminEmail: string;
+    timezone: string;
+    defaultLanguage: string;
+  };
+  security: {
+    requireTwoFactor: boolean;
+    sessionTimeout: number;
+    passwordMinLength: number;
+    passwordRequireUppercase: boolean;
+    passwordRequireNumbers: boolean;
+    passwordRequireSymbols: boolean;
+    maxLoginAttempts: number;
+  };
+  email: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUsername: string;
+    smtpPassword: string;
+    smtpSecure: boolean;
+    fromEmail: string;
+    fromName: string;
+  };
+  database: {
+    connectionPoolSize: number;
+    queryTimeout: number;
+    enableQueryLogging: boolean;
+    backupSchedule: string;
+    backupRetentionDays: number;
+  };
+}
+
 export interface EmailConfig {
   smtp_host: string;
   smtp_port: number;
@@ -140,7 +175,7 @@ export interface CollectionField {
   required?: boolean;
   unique?: boolean;
   indexed?: boolean;
-  default?: any;
+  default?: unknown;
   description?: string;
   validation?: FieldValidation;
   // Additional field types for relations
@@ -196,7 +231,7 @@ export interface Document {
   id: string;
   collection_id: string;
   project_id: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -222,7 +257,7 @@ export interface FileRelation {
   type: "user_avatar" | "document_attachment" | "custom";
   target_id: string;
   target_type: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface StorageStats {
@@ -250,7 +285,7 @@ export interface ProjectUser {
   email_verified_at?: string;
   phone_verified_at?: string;
   // Custom fields support
-  custom_fields?: Record<string, any>;
+  custom_fields?: Record<string, unknown>;
 }
 
 export enum ProjectScope {
@@ -282,7 +317,7 @@ export interface QueryOptions {
   limit?: number;
   orderBy?: string;
   order?: "asc" | "desc";
-  where?: Record<string, any>;
+  where?: Record<string, unknown>;
   search?: string;
   filter?: FilterCondition[];
 }
@@ -300,7 +335,7 @@ export interface FilterCondition {
     | "nin"
     | "like"
     | "ilike";
-  value: any;
+  value: unknown;
 }
 
 // Session Types
@@ -311,7 +346,7 @@ export interface Session {
   project_id?: string;
   type: "admin" | "project";
   scopes: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   expires_at: string;
   last_activity?: string;
@@ -373,7 +408,7 @@ export interface ApiKey {
   owner_id: string;
   scopes: string[];
   project_ids?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   expires_at?: string;
   last_used_at?: string;
   created_at: string;
@@ -398,7 +433,7 @@ export interface EmailSendRequest {
   template_id?: string;
   subject?: string;
   body?: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
   attachments?: FileAttachment[];
 }
 
@@ -416,7 +451,7 @@ export interface ChangelogEntry {
   action: string;
   resource_type: string;
   resource_id: string;
-  changes?: Record<string, any>;
+  changes?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -425,7 +460,431 @@ export interface CreateChangelogEntry {
   entity_type: string;
   entity_id: string;
   action: string;
-  changes?: Record<string, any>;
+  changes?: Record<string, unknown>;
   performed_by: string;
   session_id?: string;
+}
+
+// Additional types for better type safety
+export interface ActivityLog {
+  id: string;
+  user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  changes?: Record<string, unknown>;
+  timestamp: string;
+  ip_address?: string;
+  user_agent?: string;
+}
+
+export interface SystemInfo {
+  version: string;
+  uptime: number;
+  memory_usage: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  cpu_usage: number;
+  disk_usage: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  active_connections: number;
+  last_backup?: string;
+}
+
+export interface DatabaseHealth {
+  status: "healthy" | "unhealthy" | "degraded";
+  message: string;
+  timestamp: string;
+  connection_pool: {
+    total: number;
+    active: number;
+    idle: number;
+  };
+  response_time: number;
+  last_check: string;
+}
+
+export interface TestResult {
+  name: string;
+  passed: boolean;
+  duration: number;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+// Database Health Management Types
+export interface DatabaseHealthStatus {
+  isHealthy: boolean;
+  issues: DatabaseIssue[];
+  warnings: string[];
+  recommendations: string[];
+  checkDuration: number;
+  timestamp: string;
+  schemaVersion: string;
+}
+
+export interface SchemaValidationResult {
+  isValid: boolean;
+  mismatches: SchemaMismatch[];
+  missingTables: string[];
+  extraTables: string[];
+  fieldMismatches: FieldMismatch[];
+  timestamp: string;
+}
+
+export interface MigrationResult {
+  success: boolean;
+  migrationsApplied: number;
+  duration: number;
+  details: string;
+  appliedMigrations?: string[];
+}
+
+export interface AutoFixResult {
+  success: boolean;
+  fixesApplied: number;
+  duration: number;
+  details: string;
+  appliedFixes?: string[];
+}
+
+export interface DatabaseIssue {
+  type: string;
+  severity: "error" | "warning" | "info";
+  description: string;
+  table?: string;
+  field?: string;
+  suggestion?: string;
+}
+
+export interface SchemaMismatch {
+  table: string;
+  field?: string;
+  expected: string;
+  actual: string;
+  type: "missing_field" | "wrong_type" | "missing_index" | "missing_constraint";
+}
+
+export interface FieldMismatch {
+  table: string;
+  field: string;
+  expected: FieldDefinition;
+  actual: FieldDefinition;
+  differences: string[];
+}
+
+export interface FieldDefinition {
+  type: string;
+  nullable: boolean;
+  primary?: boolean;
+  unique?: boolean;
+  default?: string;
+  length?: number;
+  precision?: number;
+  scale?: number;
+}
+
+export interface Migration {
+  name: string;
+  version: string;
+  up: string;
+  down: string;
+  checksum: string;
+  dependencies?: string[];
+}
+
+export interface MigrationRecord {
+  id: number;
+  name: string;
+  version: string;
+  appliedAt: Date;
+  checksum: string;
+  executionTimeMs: number;
+  status: string;
+}
+
+export interface ExpectedSchema {
+  tables: Record<string, TableDefinition>;
+  version: string;
+  checksum: string;
+}
+
+export interface TableDefinition {
+  fields: Record<string, FieldDefinition>;
+  indexes: IndexDefinition[];
+  constraints: ConstraintDefinition[];
+  relations?: RelationDefinition[];
+}
+
+export interface IndexDefinition {
+  name: string;
+  fields: string[];
+  unique: boolean;
+  type?: "btree" | "hash" | "gin" | "gist";
+}
+
+export interface ConstraintDefinition {
+  name: string;
+  type: "primary_key" | "foreign_key" | "unique" | "check" | "not_null";
+  fields: string[];
+  reference?: {
+    table: string;
+    field: string;
+    onDelete?: "cascade" | "set_null" | "restrict";
+    onUpdate?: "cascade" | "set_null" | "restrict";
+  };
+  expression?: string;
+}
+
+export interface RelationDefinition {
+  name: string;
+  type: "one_to_one" | "one_to_many" | "many_to_one" | "many_to_many";
+  targetTable: string;
+  sourceField: string;
+  targetField: string;
+  cascadeDelete: boolean;
+  cascadeUpdate: boolean;
+}
+
+export interface FieldConstraint {
+  name: string;
+  type: "not_null" | "unique" | "check" | "default" | "foreign_key";
+  expression?: string;
+  reference?: {
+    table: string;
+    field: string;
+    onDelete?: "cascade" | "set_null" | "restrict";
+    onUpdate?: "cascade" | "set_null" | "restrict";
+  };
+}
+
+// Collections Type Management Types
+export interface CollectionTypeDefinition {
+  id: string;
+  name: string;
+  version: string;
+  fields: CollectionFieldType[];
+  indexes: CollectionIndexType[];
+  constraints: CollectionConstraintType[];
+  relations: CollectionRelationType[];
+  metadata: CollectionMetadata;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  project_id: string;
+}
+
+export interface CollectionFieldType {
+  name: string;
+  type: FieldType;
+  required: boolean;
+  unique: boolean;
+  indexed: boolean;
+  default?: unknown;
+  description?: string;
+  validation?: FieldValidation;
+  relation?: RelationConfig;
+  postgresql_type: string;
+  typescript_type: string;
+  constraints: FieldConstraint[];
+}
+
+export interface CollectionIndexType {
+  name: string;
+  fields: string[];
+  unique: boolean;
+  type: "btree" | "hash" | "gin" | "gist";
+  partial?: string;
+}
+
+export interface CollectionConstraintType {
+  name: string;
+  type: "primary_key" | "foreign_key" | "unique" | "check" | "not_null";
+  fields: string[];
+  reference?: {
+    table: string;
+    field: string;
+    onDelete?: "cascade" | "set_null" | "restrict";
+    onUpdate?: "cascade" | "set_null" | "restrict";
+  };
+  expression?: string;
+}
+
+export interface CollectionRelationType {
+  name: string;
+  type: "one_to_one" | "one_to_many" | "many_to_one" | "many_to_many";
+  target_collection: string;
+  source_field: string;
+  target_field: string;
+  cascade_delete: boolean;
+  cascade_update: boolean;
+}
+
+export interface CollectionMetadata {
+  description?: string;
+  tags?: string[];
+  category?: string;
+  is_system?: boolean;
+  is_deprecated?: boolean;
+  migration_history?: MigrationRecord[];
+}
+
+export interface CollectionTypeRegistry {
+  types: Map<string, CollectionTypeDefinition>;
+  version: string;
+  last_sync: string;
+  auto_fix_enabled: boolean;
+  validation_strict: boolean;
+}
+
+export interface CollectionTypeValidationResult {
+  isValid: boolean;
+  issues: CollectionTypeIssue[];
+  warnings: string[];
+  recommendations: string[];
+  validation_duration: number;
+  timestamp: string;
+}
+
+export interface CollectionTypeIssue {
+  type:
+    | "missing_field"
+    | "wrong_type"
+    | "missing_index"
+    | "missing_constraint"
+    | "extra_field"
+    | "type_mismatch"
+    | "constraint_violation";
+  severity: "error" | "warning" | "info";
+  field?: string;
+  expected?: string;
+  actual?: string;
+  description: string;
+  suggestion?: string;
+  auto_fixable: boolean;
+}
+
+export interface CollectionTypeAutoFixResult {
+  success: boolean;
+  fixes_applied: number;
+  duration: number;
+  details: string[];
+  applied_fixes: CollectionTypeFix[];
+  failed_fixes: CollectionTypeFix[];
+  timestamp: string;
+}
+
+export interface CollectionTypeFix {
+  type:
+    | "add_field"
+    | "modify_field"
+    | "add_index"
+    | "add_constraint"
+    | "remove_field"
+    | "modify_constraint";
+  field?: string;
+  description: string;
+  sql: string;
+  success: boolean;
+  error?: string;
+  execution_time: number;
+}
+
+export interface CollectionTypeSyncResult {
+  success: boolean;
+  synced_types: number;
+  new_types: number;
+  updated_types: number;
+  deleted_types: number;
+  errors: string[];
+  duration: number;
+  timestamp: string;
+}
+
+export interface CollectionTypeMigration {
+  id: string;
+  collection_type_id: string;
+  from_version: string;
+  to_version: string;
+  changes: CollectionTypeChange[];
+  sql_up: string[];
+  sql_down: string[];
+  executed_at?: string;
+  executed_by?: string;
+  status: "pending" | "executed" | "failed" | "rolled_back";
+  error?: string;
+}
+
+export interface CollectionTypeChange {
+  type:
+    | "field_added"
+    | "field_removed"
+    | "field_modified"
+    | "index_added"
+    | "index_removed"
+    | "constraint_added"
+    | "constraint_removed"
+    | "relation_added"
+    | "relation_removed";
+  field?: string;
+  description: string;
+  details: Record<string, unknown>;
+}
+
+// Enhanced Database Health Types
+export interface EnhancedDatabaseHealthStatus {
+  isHealthy: boolean;
+  issues: DatabaseIssue[];
+  warnings: string[];
+  recommendations: string[];
+  checkDuration: number;
+  timestamp: string;
+  schemaVersion: string;
+  collections_health: CollectionsHealthStatus;
+  system_tables_health: SystemTablesHealthStatus;
+}
+
+export interface CollectionsHealthStatus {
+  total_collections: number;
+  healthy_collections: number;
+  problematic_collections: number;
+  collections_with_issues: CollectionHealthStatus[];
+  overall_status: "healthy" | "degraded" | "unhealthy";
+}
+
+export interface CollectionHealthStatus {
+  collection_id: string;
+  collection_name: string;
+  status: "healthy" | "degraded" | "unhealthy";
+  issues: CollectionTypeIssue[];
+  last_validated: string;
+  auto_fix_available: boolean;
+}
+
+export interface SystemTablesHealthStatus {
+  total_tables: number;
+  healthy_tables: number;
+  problematic_tables: number;
+  missing_tables: string[];
+  orphaned_tables: string[];
+  table_issues: TableHealthIssue[];
+}
+
+export interface TableHealthIssue {
+  table_name: string;
+  issue_type:
+    | "missing"
+    | "orphaned"
+    | "schema_mismatch"
+    | "constraint_violation"
+    | "index_issue";
+  description: string;
+  severity: "error" | "warning" | "info";
+  auto_fixable: boolean;
+  suggestion?: string;
 }

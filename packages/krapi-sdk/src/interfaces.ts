@@ -11,7 +11,6 @@ import {
   Document,
   FileInfo,
   ProjectUser,
-  Session,
   ApiKey,
   EmailTemplate,
   ChangelogEntry,
@@ -21,18 +20,12 @@ import {
   StorageStats,
   EmailConfig,
   EmailSendRequest,
-  AdminRole,
-  AccessLevel,
-  AdminPermission,
-  Scope,
-  CollectionField,
-  CollectionIndex,
-  FieldType,
-  FieldValidation,
-  RelationConfig,
-  FileRelation,
-  FileAttachment,
-  FilterCondition,
+  ActivityLog,
+  SystemInfo,
+  DatabaseHealth,
+  TestResult,
+  SchemaValidationResult,
+  SystemSettings,
 } from "./types";
 
 export interface IAuthService {
@@ -83,10 +76,10 @@ export interface IAuthService {
     }>
   >;
 
-  getCurrentUser(req: any): Promise<ApiResponse<AdminUser | ProjectUser>>;
-  logout(req: any): Promise<ApiResponse<void>>;
-  changePassword(req: any): Promise<ApiResponse<void>>;
-  regenerateApiKey(req: any): Promise<ApiResponse<{ apiKey: string }>>;
+  getCurrentUser(req: unknown): Promise<ApiResponse<AdminUser | ProjectUser>>;
+  logout(req: unknown): Promise<ApiResponse<void>>;
+  changePassword(req: unknown): Promise<ApiResponse<void>>;
+  regenerateApiKey(req: unknown): Promise<ApiResponse<{ apiKey: string }>>;
 }
 
 export interface IAdminService {
@@ -105,7 +98,7 @@ export interface IAdminService {
   ): Promise<ApiResponse<Omit<AdminUser, "password_hash">>>;
   deleteUser(id: string): Promise<ApiResponse<void>>;
   toggleUserStatus(id: string): Promise<ApiResponse<{ active: boolean }>>;
-  getUserActivity(id: string): Promise<ApiResponse<any[]>>;
+  getUserActivity(id: string): Promise<ApiResponse<ActivityLog[]>>;
   getUserApiKeys(userId: string): Promise<ApiResponse<ApiKey[]>>;
   createUserApiKey(
     userId: string,
@@ -113,11 +106,23 @@ export interface IAdminService {
   ): Promise<ApiResponse<ApiKey>>;
   deleteApiKey(keyId: string): Promise<ApiResponse<void>>;
   createMasterApiKey(): Promise<ApiResponse<ApiKey>>;
-  getSystemStats(): Promise<ApiResponse<any>>;
-  getActivityLogs(options?: QueryOptions): Promise<PaginatedResponse<any>>;
-  getDatabaseHealth(): Promise<ApiResponse<any>>;
-  repairDatabase(): Promise<ApiResponse<any>>;
-  runDiagnostics(): Promise<ApiResponse<any>>;
+  getSystemStats(): Promise<ApiResponse<SystemInfo>>;
+  getActivityLogs(
+    options?: QueryOptions
+  ): Promise<PaginatedResponse<ActivityLog>>;
+  getDatabaseHealth(): Promise<ApiResponse<DatabaseHealth>>;
+  repairDatabase(): Promise<ApiResponse<{ success: boolean; message: string }>>;
+  runDiagnostics(): Promise<
+    ApiResponse<{
+      summary: {
+        total: number;
+        passed: number;
+        failed: number;
+        duration: number;
+      };
+      tests: TestResult[];
+    }>
+  >;
 }
 
 export interface IProjectService {
@@ -127,7 +132,7 @@ export interface IProjectService {
   update(id: string, updates: Partial<Project>): Promise<ApiResponse<Project>>;
   delete(id: string): Promise<ApiResponse<void>>;
   getStats(id: string): Promise<ApiResponse<ProjectStats>>;
-  getActivity(id: string): Promise<ApiResponse<any[]>>;
+  getActivity(id: string): Promise<ApiResponse<ActivityLog[]>>;
   getSettings(id: string): Promise<ApiResponse<ProjectSettings>>;
   updateSettings(
     id: string,
@@ -157,10 +162,113 @@ export interface ICollectionService {
     updates: Partial<Collection>
   ): Promise<ApiResponse<Collection>>;
   delete(id: string): Promise<ApiResponse<void>>;
-  getSchema(id: string): Promise<ApiResponse<any>>;
+  getSchema(id: string): Promise<ApiResponse<Collection>>;
   validateSchema(
-    schema: any
-  ): Promise<ApiResponse<{ valid: boolean; errors?: string[] }>>;
+    schema: Collection
+  ): Promise<ApiResponse<SchemaValidationResult>>;
+
+  // NEW: Advanced collections functionality
+  getHealth(collectionId: string): Promise<
+    ApiResponse<{
+      status: "healthy" | "degraded" | "unhealthy";
+      schemaValid: boolean;
+      dataIntegrity: {
+        hasNullViolations: boolean;
+        hasUniqueViolations: boolean;
+        hasForeignKeyViolations: boolean;
+        issues: string[];
+      };
+      tableStats: {
+        rowCount: number;
+        sizeBytes: number;
+        indexSizeBytes: number;
+      };
+      lastValidated: string;
+    }>
+  >;
+
+  getAllWithHealth(projectId: string): Promise<
+    ApiResponse<
+      Array<
+        Collection & {
+          health: {
+            status: "healthy" | "degraded" | "unhealthy";
+            issues: number;
+          };
+        }
+      >
+    >
+  >;
+
+  createFromTemplate(
+    templateName: string,
+    customizations?: {
+      name?: string;
+      description?: string;
+      additionalFields?: Array<{
+        name: string;
+        type: string;
+        required?: boolean;
+        unique?: boolean;
+        indexed?: boolean;
+        description?: string;
+      }>;
+    }
+  ): Promise<ApiResponse<Collection>>;
+
+  updateSchema(
+    collectionId: string,
+    updates: {
+      addFields?: Array<{
+        name: string;
+        type: string;
+        required?: boolean;
+        unique?: boolean;
+        indexed?: boolean;
+        default?: unknown;
+        description?: string;
+      }>;
+      removeFields?: string[];
+      modifyFields?: Array<{
+        name: string;
+        type?: string;
+        required?: boolean;
+        unique?: boolean;
+        indexed?: boolean;
+        default?: unknown;
+        description?: string;
+      }>;
+      addIndexes?: Array<{
+        name: string;
+        fields: string[];
+        unique?: boolean;
+      }>;
+      removeIndexes?: string[];
+    }
+  ): Promise<ApiResponse<Collection>>;
+
+  autoFixSchema(collectionId: string): Promise<
+    ApiResponse<{
+      success: boolean;
+      fixesApplied: number;
+      details: string[];
+      remainingIssues: number;
+    }>
+  >;
+
+  generateTypeScriptInterface(collectionId: string): Promise<
+    ApiResponse<{
+      interfaceCode: string;
+      fileName: string;
+    }>
+  >;
+
+  generateAllTypeScriptInterfaces(): Promise<
+    ApiResponse<{
+      interfacesCode: string;
+      fileName: string;
+    }>
+  >;
 }
 
 export interface IDocumentService {
@@ -171,11 +279,11 @@ export interface IDocumentService {
   getById(id: string): Promise<ApiResponse<Document>>;
   create(
     collectionId: string,
-    documentData: Record<string, any>
+    documentData: Record<string, unknown>
   ): Promise<ApiResponse<Document>>;
   update(
     id: string,
-    updates: Record<string, any>
+    updates: Record<string, unknown>
   ): Promise<ApiResponse<Document>>;
   delete(id: string): Promise<ApiResponse<void>>;
   search(
@@ -185,11 +293,11 @@ export interface IDocumentService {
   ): Promise<PaginatedResponse<Document>>;
   bulkCreate(
     collectionId: string,
-    documents: Record<string, any>[]
+    documents: Record<string, unknown>[]
   ): Promise<ApiResponse<Document[]>>;
   bulkUpdate(
     collectionId: string,
-    updates: Record<string, any>[]
+    updates: Record<string, unknown>[]
   ): Promise<ApiResponse<Document[]>>;
   bulkDelete(
     collectionId: string,
@@ -205,8 +313,8 @@ export interface IDocumentService {
 export interface IStorageService {
   uploadFile(
     projectId: string,
-    file: any,
-    metadata?: any
+    file: File | Buffer,
+    metadata?: Record<string, unknown>
   ): Promise<ApiResponse<FileInfo>>;
   downloadFile(
     fileId: string
@@ -256,9 +364,13 @@ export interface IApiKeyService {
   create(keyData: Partial<ApiKey>): Promise<ApiResponse<ApiKey>>;
   update(id: string, updates: Partial<ApiKey>): Promise<ApiResponse<ApiKey>>;
   delete(id: string): Promise<ApiResponse<void>>;
-  validate(
-    key: string
-  ): Promise<ApiResponse<{ valid: boolean; scopes?: string[]; user?: any }>>;
+  validate(key: string): Promise<
+    ApiResponse<{
+      valid: boolean;
+      scopes?: string[];
+      user?: AdminUser | ProjectUser;
+    }>
+  >;
   getByUser(userId: string): Promise<ApiResponse<ApiKey[]>>;
   getByEntity(
     entityType: string,
@@ -268,7 +380,7 @@ export interface IApiKeyService {
 
 export interface IEmailService {
   sendEmail(request: EmailSendRequest): Promise<ApiResponse<void>>;
-  getTemplates(projectId: string): Promise<ApiResponse<EmailTemplate[]>>;
+  getTemplates(projectId: string): Promise<ApiResponse<EmailTemplate>>;
   getTemplate(id: string): Promise<ApiResponse<EmailTemplate>>;
   createTemplate(
     templateData: Partial<EmailTemplate>
@@ -288,6 +400,14 @@ export interface IEmailService {
   ): Promise<ApiResponse<EmailConfig>>;
 }
 
+export interface ISystemService {
+  getSettings(): Promise<ApiResponse<SystemSettings>>;
+  updateSettings(updates: Partial<SystemSettings>): Promise<ApiResponse<SystemSettings>>;
+  testEmailConfig(config: EmailConfig): Promise<ApiResponse<{ success: boolean }>>;
+  getSystemInfo(): Promise<ApiResponse<SystemInfo>>;
+  getDatabaseHealth(): Promise<ApiResponse<DatabaseHealth>>;
+}
+
 export interface IChangelogService {
   getEntries(
     projectId: string,
@@ -302,17 +422,143 @@ export interface IChangelogService {
 
 export interface IHealthService {
   check(): Promise<
-    ApiResponse<{ status: string; timestamp: string; services: any }>
+    ApiResponse<{
+      status: string;
+      timestamp: string;
+      services: Record<string, { status: string; message: string }>;
+    }>
   >;
-  getSystemInfo(): Promise<ApiResponse<any>>;
-  getDatabaseStatus(): Promise<ApiResponse<any>>;
+  getSystemInfo(): Promise<ApiResponse<SystemInfo>>;
+  getDatabaseStatus(): Promise<ApiResponse<DatabaseHealth>>;
+
+  // NEW: Advanced database health management
+  validateSchema(): Promise<
+    ApiResponse<{
+      isValid: boolean;
+      mismatches: Array<{
+        type: string;
+        table?: string;
+        field?: string;
+        expected?: string;
+        actual?: string;
+        description: string;
+        severity: "error" | "warning" | "info";
+      }>;
+      missingTables: string[];
+      extraTables: string[];
+      fieldMismatches: Array<{
+        table: string;
+        field: string;
+        expected: string;
+        actual: string;
+        description: string;
+      }>;
+      timestamp: string;
+    }>
+  >;
+
+  autoFixSchema(): Promise<
+    ApiResponse<{
+      success: boolean;
+      fixesApplied: number;
+      details: string[];
+      remainingIssues: number;
+      duration: number;
+    }>
+  >;
+
+  getMigrationStatus(): Promise<
+    ApiResponse<{
+      currentVersion: string;
+      pendingMigrations: Array<{
+        name: string;
+        version: string;
+        description: string;
+      }>;
+      appliedMigrations: Array<{
+        name: string;
+        version: string;
+        appliedAt: string;
+      }>;
+    }>
+  >;
+
+  runMigrations(): Promise<
+    ApiResponse<{
+      success: boolean;
+      migrationsApplied: number;
+      details: string[];
+      duration: number;
+    }>
+  >;
+
+  rollbackDatabase(targetVersion: string): Promise<
+    ApiResponse<{
+      success: boolean;
+      rollbackVersion: string;
+      message: string;
+      duration: number;
+    }>
+  >;
+
+  getDatabaseStats(): Promise<
+    ApiResponse<{
+      tables: Array<{
+        name: string;
+        rowCount: number;
+        sizeBytes: number;
+        indexSizeBytes: number;
+        lastAnalyzed: string;
+      }>;
+      totalSize: number;
+      totalIndexSize: number;
+      connectionCount: number;
+      uptime: number;
+    }>
+  >;
+
+  checkTableIntegrity(tableName?: string): Promise<
+    ApiResponse<{
+      healthy: boolean;
+      issues: Array<{
+        table: string;
+        type: string;
+        description: string;
+        severity: "error" | "warning" | "info";
+        autoFixable: boolean;
+      }>;
+      summary: {
+        totalTables: number;
+        healthyTables: number;
+        tablesWithIssues: number;
+      };
+    }>
+  >;
+
+  repairDatabase(): Promise<
+    ApiResponse<{
+      success: boolean;
+      message: string;
+      repairs?: string[];
+    }>
+  >;
 }
 
 export interface ITestingService {
   createTestProject(): Promise<ApiResponse<Project>>;
   cleanup(): Promise<ApiResponse<void>>;
-  runIntegrationTests(): Promise<ApiResponse<any>>;
-  checkSchema(): Promise<ApiResponse<{ valid: boolean; errors?: string[] }>>;
+  runIntegrationTests(): Promise<
+    ApiResponse<{
+      summary: {
+        total: number;
+        passed: number;
+        failed: number;
+        duration: number;
+      };
+      tests: TestResult[];
+    }>
+  >;
+  checkSchema(): Promise<ApiResponse<SchemaValidationResult>>;
 }
 
 // Main SDK interface that combines all services
@@ -326,6 +572,7 @@ export interface IKrapiSDK {
   users: IUserService;
   apiKeys: IApiKeyService;
   email: IEmailService;
+  system: ISystemService;
   changelog: IChangelogService;
   health: IHealthService;
   testing: ITestingService;
@@ -348,26 +595,32 @@ export type {
   Document,
   FileInfo,
   ProjectUser,
-  Session,
-  ApiKey,
-  EmailTemplate,
-  ChangelogEntry,
-  CreateChangelogEntry,
-  ProjectSettings,
-  ProjectStats,
-  StorageStats,
-  EmailConfig,
-  EmailSendRequest,
-  AdminRole,
-  AccessLevel,
-  AdminPermission,
-  Scope,
-  CollectionField,
-  CollectionIndex,
-  FieldType,
-  FieldValidation,
-  RelationConfig,
-  FileRelation,
-  FileAttachment,
-  FilterCondition,
+  Session as _Session,
+  ApiKey as _ApiKey,
+  EmailTemplate as _EmailTemplate,
+  ChangelogEntry as _ChangelogEntry,
+  CreateChangelogEntry as _CreateChangelogEntry,
+  ProjectSettings as _ProjectSettings,
+  ProjectStats as _ProjectStats,
+  StorageStats as _StorageStats,
+  EmailConfig as _EmailConfig,
+  EmailSendRequest as _EmailSendRequest,
+  SystemSettings as _SystemSettings,
+  AdminRole as _AdminRole,
+  AccessLevel as _AccessLevel,
+  AdminPermission as _AdminPermission,
+  Scope as _Scope,
+  CollectionField as _CollectionField,
+  CollectionIndex as _CollectionIndex,
+  FieldType as _FieldType,
+  FieldValidation as _FieldValidation,
+  RelationConfig as _RelationConfig,
+  FileRelation as _FileRelation,
+  FileAttachment as _FileAttachment,
+  FilterCondition as _FilterCondition,
+  ActivityLog,
+  SystemInfo,
+  DatabaseHealth,
+  TestResult,
+  SchemaValidationResult,
 } from "./types";

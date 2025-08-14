@@ -311,7 +311,7 @@ export const validationSchemas = {
       limit: z.coerce.number().int().positive().max(100).optional(),
       sort: z.string().optional(),
       order: schemas.sortOrder.optional(),
-      filter: z.record(z.any()).optional(),
+      filter: z.record(z.unknown()).optional(),
     }),
   }),
 
@@ -332,7 +332,7 @@ export const validationSchemas = {
       name: z.string().optional(),
       phone: z.string().optional(),
       password: schemas.password.optional(),
-      metadata: z.record(z.any()).optional(),
+      metadata: z.record(z.unknown()).optional(),
     }),
   }),
 };
@@ -342,13 +342,13 @@ export const validationSchemas = {
  * Ensures the user has access to the project specified in the URL
  */
 export const validateProjectAccess = async (
-  req: Request,
+  req: Request & { user?: { id: string; type: string; projectId?: string }; app?: { locals: { db: { checkProjectAccess: (projectId: string, userId: string) => Promise<boolean> } } } },
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     const projectId = req.params.projectId;
-    const user = (req as any).user;
+    const user = req.user;
 
     if (!projectId) {
       res.status(400).json({
@@ -368,15 +368,17 @@ export const validateProjectAccess = async (
 
     // For admin users, check if they have access to the project
     if (user.type === "admin") {
-      const db = (req as any).app.locals.db;
-      const hasAccess = await db.checkProjectAccess(projectId, user.id);
+      const db = req.app?.locals.db;
+      if (db) {
+        const hasAccess = await db.checkProjectAccess(projectId, user.id);
 
-      if (!hasAccess) {
-        res.status(403).json({
-          success: false,
-          error: "Access denied to this project",
-        });
-        return;
+        if (!hasAccess) {
+          res.status(403).json({
+            success: false,
+            error: "Access denied to this project",
+          });
+          return;
+        }
       }
     }
 

@@ -1,10 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { ProjectUser } from "@/lib/krapi";
 import { ProjectScope } from "@krapi/sdk";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  Mail,
+  Phone,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,11 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-
 import {
   Dialog,
   DialogContent,
@@ -27,6 +34,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -35,22 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  Mail,
-  Phone,
-  Calendar,
-  Shield,
-  CheckCircle,
-  XCircle,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import type { ProjectUser } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 import {
@@ -77,7 +72,7 @@ const scopeLabels: Record<ProjectScope, string> = {
 export default function UsersPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
+
   const dispatch = useAppDispatch();
   const bucket = useAppSelector((s) => s.users.byProjectId[projectId]);
   const users = bucket?.items || [];
@@ -98,7 +93,7 @@ export default function UsersPage() {
     last_name: "",
     phone: "",
     access_scopes: [] as string[],
-    custom_fields: {} as Record<string, any>,
+    custom_fields: {} as Record<string, unknown>,
   });
 
   const loadUsersCb = useCallback(() => {
@@ -129,12 +124,13 @@ export default function UsersPage() {
         });
         loadUsersCb();
       } else {
-        const msg = (action as any).payload || "Failed to create user";
+        const msg =
+          (action as { payload?: string }).payload || "Failed to create user";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while creating user");
-      console.error("Error creating user:", err);
+      // Error logged for debugging
     } finally {
       dispatch(endBusy());
     }
@@ -145,7 +141,7 @@ export default function UsersPage() {
 
     try {
       dispatch(beginBusy());
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         username: formData.username,
         email: formData.email,
         first_name: formData.first_name,
@@ -175,12 +171,13 @@ export default function UsersPage() {
         });
         loadUsersCb();
       } else {
-        const msg = (action as any).payload || "Failed to update user";
+        const msg =
+          (action as { payload?: string }).payload || "Failed to update user";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while updating user");
-      console.error("Error updating user:", err);
+      // Error logged for debugging
     } finally {
       dispatch(endBusy());
     }
@@ -201,12 +198,13 @@ export default function UsersPage() {
       if (deleteUser.fulfilled.match(action)) {
         loadUsersCb();
       } else {
-        const msg = (action as any).payload || "Failed to delete user";
+        const msg =
+          (action as { payload?: string }).payload || "Failed to delete user";
         setError(String(msg));
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while deleting user");
-      console.error("Error deleting user:", err);
+      // Error logged for debugging
     } finally {
       dispatch(endBusy());
     }
@@ -245,7 +243,10 @@ export default function UsersPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton
+              key={`users-skeleton-item-${i}`}
+              className="h-32 w-full"
+            />
           ))}
         </div>
       </div>

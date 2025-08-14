@@ -1,12 +1,13 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
+import { AppSidebar } from "@/components/app-sidebar";
 import {
   SidebarProvider,
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { usePathname } from "next/navigation";
 import { navigationItems } from "@/lib/navigation-config";
 
 function getPageTitle(pathname: string): string {

@@ -1,10 +1,21 @@
 "use client";
 
+import {
+  FolderOpen,
+  Users,
+  Shield,
+  CheckCircle2,
+  Plus,
+  TrendingUp,
+  Database,
+  FileText,
+} from "lucide-react";
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project } from "@/lib/krapi";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,13 +23,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderOpen, Users, Shield, CheckCircle2, Plus, TrendingUp, Database, FileText } from "lucide-react";
-import Link from "next/link";
-import { Scope } from "@/lib/krapi";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
 
@@ -60,7 +69,7 @@ export default function DashboardPage() {
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i}>
+            <Card key={`dashboard-skeleton-card-${i}`}>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-8 w-16" />
@@ -80,12 +89,18 @@ export default function DashboardPage() {
       </div>
       <div className="rounded-md border p-4">
         <p className="mb-2">Try the new Model Context Protocol (MCP) tools:</p>
-        <a href="/mcp" className="text-primary underline">Go to Admin MCP</a>
+        <a href="/mcp" className="text-primary underline">
+          Go to Admin MCP
+        </a>
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user?.username}!</h1>
-          <p className="text-muted-foreground">Admin dashboard for managing your KRAPI instance</p>
+          <h1 className="text-3xl font-bold">
+            Welcome back, {user?.username}!
+          </h1>
+          <p className="text-muted-foreground">
+            Admin dashboard for managing your KRAPI instance
+          </p>
         </div>
         {hasScope(Scope.PROJECTS_WRITE) && (
           <Button asChild>
@@ -101,12 +116,16 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Projects
+            </CardTitle>
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">All projects in the system</p>
+            <p className="text-xs text-muted-foreground">
+              All projects in the system
+            </p>
           </CardContent>
         </Card>
 
@@ -208,7 +227,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {scopes.includes('master') ? (
+          {scopes.includes("master") ? (
             <Alert>
               <Shield className="h-4 w-4" />
               <AlertTitle>Master Access Enabled</AlertTitle>
@@ -233,40 +252,38 @@ export default function DashboardPage() {
 
       {/* Projects List */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoadingProjects ? (
-          [...Array(6)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-40" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4 mt-2" />
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          projects.map((project) => (
-            <Card key={project.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  {project.name}
-                </CardTitle>
-                <CardDescription>{project.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Badge variant={project.active ? "default" : "secondary"}>
-                    {project.active ? "Active" : "Inactive"}
-                  </Badge>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/projects/${project.id}`}>Manage</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+        {isLoadingProjects
+          ? [...Array(6)].map((_, i) => (
+              <Card key={`dashboard-project-skeleton-card-${i}`}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-40" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4 mt-2" />
+                </CardContent>
+              </Card>
+            ))
+          : projects.map((project) => (
+              <Card key={project.id}>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    {project.name}
+                  </CardTitle>
+                  <CardDescription>{project.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <Badge variant={project.active ? "default" : "secondary"}>
+                      {project.active ? "Active" : "Inactive"}
+                    </Badge>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/projects/${project.id}`}>Manage</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
       </div>
 
       {/* Quick Actions */}

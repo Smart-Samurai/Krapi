@@ -35,7 +35,10 @@ export const fetchFiles = createAsyncThunk(
   "storage/fetchFiles",
   async (
     { projectId }: { projectId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -45,8 +48,10 @@ export const fetchFiles = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to fetch files");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch files");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch files"
+      );
     }
   }
 );
@@ -55,7 +60,10 @@ export const fetchStorageStats = createAsyncThunk(
   "storage/fetchStats",
   async (
     { projectId }: { projectId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -65,8 +73,10 @@ export const fetchStorageStats = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to fetch stats");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch stats");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch stats"
+      );
     }
   }
 );
@@ -84,18 +94,23 @@ export const uploadFile = createAsyncThunk(
         | Buffer
         | { buffer: Buffer; originalname: string; mimetype: string };
     },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
-      const response = await client.storage.uploadFile(projectId, file as any);
+      const response = await client.storage.uploadFile(projectId, file);
       if (response.success && response.data) {
         return { projectId, file: response.data };
       } else {
         return rejectWithValue(response.error || "Failed to upload file");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to upload file");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to upload file"
+      );
     }
   }
 );
@@ -104,7 +119,10 @@ export const deleteFile = createAsyncThunk(
   "storage/deleteFile",
   async (
     { projectId, fileId }: { projectId: string; fileId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -114,8 +132,10 @@ export const deleteFile = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to delete file");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to delete file");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to delete file"
+      );
     }
   }
 );

@@ -19,7 +19,10 @@ export const fetchProjects = createAsyncThunk(
   "projects/fetchAll",
   async (
     _arg: void,
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -29,8 +32,10 @@ export const fetchProjects = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to fetch projects");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch projects");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch projects"
+      );
     }
   }
 );
@@ -39,7 +44,10 @@ export const fetchProjectById = createAsyncThunk(
   "projects/fetchById",
   async (
     { id }: { id: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -49,8 +57,10 @@ export const fetchProjectById = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to fetch project");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch project");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch project"
+      );
     }
   }
 );
@@ -58,8 +68,15 @@ export const fetchProjectById = createAsyncThunk(
 export const createProject = createAsyncThunk(
   "projects/create",
   async (
-    data: { name: string; description?: string; settings?: any },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    data: {
+      name: string;
+      description?: string;
+      settings?: Record<string, unknown>;
+    },
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -69,8 +86,10 @@ export const createProject = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to create project");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to create project");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to create project"
+      );
     }
   }
 );
@@ -79,7 +98,10 @@ export const updateProject = createAsyncThunk(
   "projects/update",
   async (
     { id, updates }: { id: string; updates: Partial<Project> },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -89,8 +111,10 @@ export const updateProject = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to update project");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to update project");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update project"
+      );
     }
   }
 );

@@ -19,13 +19,13 @@ export interface ChatMessage {
 export interface ToolSpec {
   name: string;
   description: string;
-  parameters: any; // JSON Schema
+  parameters: Record<string, unknown>; // JSON Schema
 }
 
 export interface ToolCall {
   id: string;
   name: string;
-  arguments: any;
+  arguments: Record<string, unknown>;
 }
 
 export interface ToolResult {
@@ -50,7 +50,11 @@ export class LlmService {
       const choice = resp.data.choices?.[0];
       const assistantMsg = choice.message;
       const outMessages: ChatMessage[] = [...messages, { role: 'assistant', content: assistantMsg.content || '' }];
-      const toolCalls = assistantMsg.tool_calls?.map((tc: any) => ({ id: tc.id, name: tc.function.name, arguments: JSON.parse(tc.function.arguments || '{}') })) || null;
+      const toolCalls = assistantMsg.tool_calls?.map((tc: { id: string; function: { name: string; arguments: string } }) => ({ 
+        id: tc.id, 
+        name: tc.function.name, 
+        arguments: JSON.parse(tc.function.arguments || '{}') 
+      })) || null;
       return { messages: outMessages, toolCalls };
     }
 

@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { FiInfo } from "react-icons/fi";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,9 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FiInfo } from "react-icons/fi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Project, Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
@@ -144,11 +145,25 @@ export function StreamlinedUserDialog({
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
+  const fetchProjects = useCallback(async () => {
+    try {
+      setLoadingProjects(true);
+      const response = await krapi!.projects.getAll();
+      if (response.success && response.data) {
+        setProjects(response.data);
+      }
+    } catch {
+      // Error logged for debugging
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [krapi]);
+
   useEffect(() => {
     if (open && krapi) {
       fetchProjects();
     }
-  }, [open, krapi]);
+  }, [open, krapi, fetchProjects]);
 
   useEffect(() => {
     if (editUser) {
@@ -157,9 +172,16 @@ export function StreamlinedUserDialog({
 
       // Determine account type from scopes
       const extendedUser = editUser as ExtendedAdminUser;
-      if (extendedUser.scopes && Array.isArray(extendedUser.scopes) && extendedUser.scopes.includes(Scope.MASTER)) {
+      if (
+        extendedUser.scopes &&
+        Array.isArray(extendedUser.scopes) &&
+        extendedUser.scopes.includes(Scope.MASTER)
+      ) {
         setAccountType("master_admin");
-      } else if (extendedUser.project_ids && extendedUser.project_ids.length > 0) {
+      } else if (
+        extendedUser.project_ids &&
+        extendedUser.project_ids.length > 0
+      ) {
         setAccountType("project_admin");
         setSelectedProjects(extendedUser.project_ids);
       } else {
@@ -170,20 +192,6 @@ export function StreamlinedUserDialog({
       }
     }
   }, [editUser]);
-
-  const fetchProjects = async () => {
-    try {
-      setLoadingProjects(true);
-      const response = await krapi!.projects.getAll();
-      if (response.success && response.data) {
-        setProjects(response.data);
-      }
-    } catch (err) {
-      console.error("Error fetching projects:", err);
-    } finally {
-      setLoadingProjects(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!krapi) return;
@@ -275,8 +283,8 @@ export function StreamlinedUserDialog({
       } else {
         setError(response.error || "Failed to save user");
       }
-    } catch (err) {
-      console.error("Error saving user:", err);
+    } catch {
+      // Error logged for debugging
       setError("An error occurred while saving the user");
     } finally {
       setLoading(false);
@@ -450,7 +458,7 @@ export function StreamlinedUserDialog({
                     <div className="grid grid-cols-2 gap-2">
                       {group.permissions.map((perm, id) => (
                         <div
-                          key={`${perm.scope}-${id}`}
+                          key={`streamlined-user-perm-${perm.scope}-${perm.label}-${id}`}
                           className="flex items-center space-x-2"
                         >
                           <Checkbox

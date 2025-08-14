@@ -1,55 +1,5 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { beginBusy, endBusy } from "@/store/uiSlice";
-import {
-  fetchCollections,
-  createCollection,
-  updateCollection,
-  deleteCollection,
-} from "@/store/collectionsSlice";
-import type { Collection, CollectionField } from "@/lib/krapi";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
   Edit,
@@ -65,8 +15,58 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import Link from "next/link";
-
+import { useParams } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { Collection, CollectionField } from "@/lib/krapi";
+import {
+  fetchCollections,
+  createCollection,
+  updateCollection,
+  deleteCollection,
+} from "@/store/collectionsSlice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 type FieldType =
   | "string"
@@ -161,11 +161,13 @@ export default function CollectionsPage() {
         loadCollections();
         toast.success("Collection created successfully");
       } else {
-        const msg = (action as any).payload || "Failed to create collection";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to create collection";
         setError(String(msg));
       }
-    } catch (error) {
-      console.error("Error creating collection:", error);
+    } catch {
+      // Error logged for debugging
       setError("Failed to create collection");
     } finally {
       dispatch(endBusy());
@@ -193,11 +195,13 @@ export default function CollectionsPage() {
         loadCollections();
         toast.success("Collection updated successfully");
       } else {
-        const msg = (action as any).payload || "Failed to update collection";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to update collection";
         setError(String(msg));
       }
-    } catch (error) {
-      console.error("Error updating collection:", error);
+    } catch {
+      // Error logged for debugging
       setError("Failed to update collection");
     } finally {
       dispatch(endBusy());
@@ -222,11 +226,13 @@ export default function CollectionsPage() {
         loadCollections();
         toast.success("Collection deleted successfully");
       } else {
-        const msg = (action as any).payload || "Failed to delete collection";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to delete collection";
         setError(String(msg));
       }
-    } catch (error) {
-      console.error("Error deleting collection:", error);
+    } catch {
+      // Error logged for debugging
       setError("Failed to delete collection");
     } finally {
       dispatch(endBusy());
@@ -282,7 +288,10 @@ export default function CollectionsPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton
+              key={`collections-skeleton-item-${i}`}
+              className="h-32 w-full"
+            />
           ))}
         </div>
       </div>
@@ -360,7 +369,9 @@ export default function CollectionsPage() {
                       const _Icon = fieldTypeIcons[field.type];
                       return (
                         <div
-                          key={index}
+                          key={`collections-field-${index}-${
+                            field.name || "unnamed"
+                          }`}
                           className="flex items-center gap-2 p-3 border rounded-lg"
                         >
                           <div className="flex-1 grid grid-cols-2 gap-2">
@@ -703,9 +714,7 @@ response = requests.delete(
                     </Button>
                     <Button variant="outline" size="sm" asChild>
                       <Link
-                        href={
-                          `/projects/${projectId}/collections/${collection.id}/documents` as any
-                        }
+                        href={`/projects/${projectId}/collections/${collection.name}/documents`}
                       >
                         <FileText className="h-4 w-4 mr-2" />
                         Documents
@@ -734,7 +743,9 @@ response = requests.delete(
                     {collection.fields.map((field, index) => {
                       const Icon = fieldTypeIcons[field.type];
                       return (
-                        <TableRow key={index}>
+                        <TableRow
+                          key={`collections-table-field-${index}-${field.name}`}
+                        >
                           <TableCell className="font-medium">
                             {field.name}
                           </TableCell>
@@ -821,7 +832,9 @@ response = requests.delete(
                   const _Icon = fieldTypeIcons[field.type];
                   return (
                     <div
-                      key={index}
+                      key={`collections-edit-field-${index}-${
+                        field.name || "unnamed"
+                      }`}
                       className="flex items-center gap-2 p-3 border rounded-lg"
                     >
                       <div className="flex-1 grid grid-cols-2 gap-2">

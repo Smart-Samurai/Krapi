@@ -5,7 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "dev": "nodemon",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "start": "node start.js",
     "type-check": "tsc --noEmit",
     "lint": "npm run lint:eslint && npm run lint:types",
@@ -68,6 +68,7 @@
     "@typescript-eslint/eslint-plugin": "^8.34.1",
     "@typescript-eslint/parser": "^8.34.1",
     "eslint": "^9.29.0",
+    "eslint-plugin-import": "^2.32.0",
     "jest": "^30.0.4",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.3",

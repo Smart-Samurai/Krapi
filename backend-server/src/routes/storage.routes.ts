@@ -1,8 +1,9 @@
 import { Router, IRouter } from "express";
+
 import { StorageController } from "@/controllers/storage.controller";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
-import { Scope } from "@/types";
 import { uploadSingle } from "@/middleware/upload.middleware";
+import { Scope } from "@/types";
 
 const router: IRouter = Router();
 const controller = new StorageController();
@@ -41,7 +42,7 @@ router.post(
     scopes: [Scope.STORAGE_WRITE],
     projectSpecific: true,
   }),
-  uploadSingle as any,
+  uploadSingle,
   controller.uploadFile
 );
 router.delete(

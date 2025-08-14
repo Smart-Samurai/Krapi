@@ -1,20 +1,5 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import type { Project } from "@/lib/krapi";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Database,
   Users,
@@ -25,9 +10,24 @@ import {
   Mail,
 } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Project } from "@/lib/krapi";
+import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
-import { fetchCollections } from "@/store/collectionsSlice";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -128,13 +128,13 @@ export default function ProjectDetailPage() {
           </CardHeader>
           <CardContent className="grid gap-2">
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/collections` as any}>
+              <Link href={`/projects/${projectId}/collections`}>
                 <Database className="mr-2 h-4 w-4" /> Collections{" "}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/documents` as any}>
+              <Link href={`/projects/${projectId}/documents`}>
                 <FileText className="mr-2 h-4 w-4" /> Documents{" "}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -152,13 +152,13 @@ export default function ProjectDetailPage() {
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/email` as any}>
+              <Link href={`/projects/${projectId}/email`}>
                 <Mail className="mr-2 h-4 w-4" /> Email{" "}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/mcp` as any}>
+              <Link href={`/projects/${projectId}/mcp`}>
                 <Activity className="mr-2 h-4 w-4" /> MCP{" "}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

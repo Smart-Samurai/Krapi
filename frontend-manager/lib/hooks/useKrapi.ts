@@ -1,7 +1,8 @@
 "use client";
 
-import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useCallback, useMemo } from "react";
+
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 /**
  * Enhanced hook for using KRAPI SDK with automatic authentication error handling
@@ -20,15 +21,31 @@ export function useKrapi() {
 
       try {
         return await apiCall();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Check if it's an authentication error
         const isAuthError =
-          error?.status === 401 ||
-          error?.response?.status === 401 ||
-          error?.message?.includes("Unauthorized") ||
-          error?.message?.includes("Invalid token") ||
-          error?.message?.includes("Token expired") ||
-          error?.isApiError === true;
+          (error &&
+            typeof error === "object" &&
+            "status" in error &&
+            error.status === 401) ||
+          (error &&
+            typeof error === "object" &&
+            "response" in error &&
+            error.response &&
+            typeof error.response === "object" &&
+            "status" in error.response &&
+            error.response.status === 401) ||
+          (error &&
+            typeof error === "object" &&
+            "message" in error &&
+            typeof error.message === "string" &&
+            (error.message.includes("Unauthorized") ||
+              error.message.includes("Invalid token") ||
+              error.message.includes("Token expired"))) ||
+          (error &&
+            typeof error === "object" &&
+            "isApiError" in error &&
+            error.isApiError === true);
 
         if (isAuthError) {
           // Handle auth error (this will redirect to login)

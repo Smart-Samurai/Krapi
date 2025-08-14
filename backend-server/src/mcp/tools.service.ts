@@ -1,4 +1,5 @@
 import { DatabaseService } from '@/services/database.service';
+import { CollectionField } from '@/types';
 
 export type ToolContext = {
   scope: 'admin' | 'project';
@@ -19,7 +20,10 @@ export class McpToolsService {
       active: true,
       created_by: ctx.userId || 'system',
       settings: {},
-    } as any);
+      api_key: `pk_${Math.random().toString(36).substr(2, 9)}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
     return project;
   }
 
@@ -30,7 +34,7 @@ export class McpToolsService {
       description: args.description,
       project_url: args.project_url,
       active: args.active,
-    } as any);
+    });
     return updated;
   }
 
@@ -41,11 +45,11 @@ export class McpToolsService {
   }
 
   // Collections
-  async createCollection(ctx: ToolContext, args: { name: string; description?: string; fields: any[] }) {
+  async createCollection(ctx: ToolContext, args: { name: string; description?: string; fields: CollectionField[] }) {
     if (ctx.scope !== 'project' || !ctx.projectId) throw new Error('Project scope required');
     return this.db.createCollection(ctx.projectId, args.name, {
       description: args.description || '',
-      fields: args.fields as any,
+      fields: args.fields,
       indexes: [],
     }, ctx.userId || 'system');
   }
@@ -56,19 +60,23 @@ export class McpToolsService {
   }
 
   // Documents
-  async createDocument(ctx: ToolContext, args: { collection_id: string; data: Record<string, any> }) {
+  async createDocument(ctx: ToolContext, args: { collection_id: string; data: Record<string, unknown> }) {
     if (ctx.scope !== 'project' || !ctx.projectId) throw new Error('Project scope required');
-    return this.db.createDocument(ctx.projectId, args.collection_id, args.data as any);
+    return this.db.createDocument(ctx.projectId, args.collection_id, args.data);
   }
 
   async listDocuments(ctx: ToolContext, args: { collection_id: string; search?: string; limit?: number; page?: number }) {
     if (ctx.scope !== 'project' || !ctx.projectId) throw new Error('Project scope required');
-    return this.db.getDocuments(ctx.projectId, args.collection_id, { search: args.search, limit: args.limit || 50, page: args.page || 1 } as any);
+    const offset = ((args.page || 1) - 1) * (args.limit || 50);
+    return this.db.getDocuments(ctx.projectId, args.collection_id, { 
+      limit: args.limit || 50, 
+      offset 
+    });
   }
 
-  async updateDocument(ctx: ToolContext, args: { collection_id: string; document_id: string; data: Record<string, any> }) {
+  async updateDocument(ctx: ToolContext, args: { collection_id: string; document_id: string; data: Record<string, unknown> }) {
     if (ctx.scope !== 'project' || !ctx.projectId) throw new Error('Project scope required');
-    return this.db.updateDocument(ctx.projectId, args.collection_id, args.document_id, args.data as any);
+    return this.db.updateDocument(ctx.projectId, args.collection_id, args.document_id, args.data);
   }
 
   async deleteDocument(ctx: ToolContext, args: { collection_id: string; document_id: string }) {

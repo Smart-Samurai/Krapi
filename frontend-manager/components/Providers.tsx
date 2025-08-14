@@ -1,10 +1,11 @@
 "use client";
 
-import { ReduxAuthProvider } from "@/contexts/redux-auth-context";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useRef } from "react";
-import { AuthErrorBoundaryWrapper } from "@/components/auth-error-boundary";
 import { Provider } from "react-redux";
+
+import { AuthErrorBoundaryWrapper } from "@/components/auth-error-boundary";
+import { ReduxAuthProvider } from "@/contexts/redux-auth-context";
 import { store } from "@/store";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -17,7 +18,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       !hasSetupErrorHandling.current
     ) {
       hasSetupErrorHandling.current = true;
+      // eslint-disable-next-line no-console
       const originalError = console.error;
+      // Suppress hydration warnings
+      // eslint-disable-next-line no-console
       console.error = (...args) => {
         const message = args[0];
         if (

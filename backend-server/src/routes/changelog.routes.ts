@@ -6,9 +6,10 @@
  */
 
 import { Router } from "express";
+
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
-import { Scope } from "@/types";
 import { DatabaseService } from "@/services/database.service";
+import { Scope } from "@/types";
 
 const router: Router = Router();
 
@@ -32,7 +33,7 @@ router.get(
 
       const db = DatabaseService.getInstance();
 
-      const filters: any = {};
+      const filters: Record<string, string> = {};
       if (entity_type) filters.entity_type = entity_type as string;
       if (entity_id) filters.entity_id = entity_id as string;
 

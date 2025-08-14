@@ -1,8 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Save } from "lucide-react";
 import { useParams } from "next/navigation";
-import type { Project } from "@/lib/krapi";
+import React, { useState, useEffect, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,13 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { Save } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -27,12 +26,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import type { Project } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { beginBusy, endBusy } from "@/store/uiSlice";
 import { fetchProjectById, updateProject } from "@/store/projectsSlice";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 const projectSettingsSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -83,16 +84,25 @@ export default function ProjectSettingsPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        updateProject({ id: projectId, updates: { name: data.name, description: data.description, active: data.is_active } as Partial<Project> })
+        updateProject({
+          id: projectId,
+          updates: {
+            name: data.name,
+            description: data.description,
+            active: data.is_active,
+          } as Partial<Project>,
+        })
       );
       if (updateProject.fulfilled.match(action)) {
         toast.success("Project settings updated successfully");
       } else {
-        const msg = (action as any).payload || "Failed to update project settings";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to update project settings";
         setError(String(msg));
         toast.error("Failed to update project settings");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while updating project settings");
     } finally {
       dispatch(endBusy());
@@ -120,7 +130,9 @@ export default function ProjectSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Project Settings</h1>
-          <p className="text-muted-foreground">Manage settings for this project</p>
+          <p className="text-muted-foreground">
+            Manage settings for this project
+          </p>
         </div>
       </div>
 
@@ -153,7 +165,10 @@ export default function ProjectSettingsPage() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Describe your project" {...field} />
+                      <Textarea
+                        placeholder="Describe your project"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -167,10 +182,15 @@ export default function ProjectSettingsPage() {
                   <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Active</FormLabel>
-                      <FormDescription>Whether the project is active</FormDescription>
+                      <FormDescription>
+                        Whether the project is active
+                      </FormDescription>
                     </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                   </FormItem>
                 )}

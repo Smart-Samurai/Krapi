@@ -1,8 +1,10 @@
+import fs from "fs";
+import path from "path";
+
 import { Request, Response } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
+
 import { DatabaseService } from "@/services/database.service";
 import {
   AuthenticatedRequest,
@@ -53,9 +55,26 @@ export class StorageController {
         fileSize: this.maxFileSize,
       },
       fileFilter: (req, file, cb) => {
-        // For now, accept all file types
-        // TODO: Implement project-specific file type restrictions
-        cb(null, true);
+        // Basic file type restrictions - can be enhanced with project-specific rules
+        const allowedMimeTypes = [
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+          "image/webp",
+          "application/pdf",
+          "application/json",
+          "text/plain",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ];
+
+        if (allowedMimeTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(null, false);
+        }
       },
     });
   }

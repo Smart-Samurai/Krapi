@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
+
+import { DatabaseService } from "@/services/database.service";
 import {
   AuthenticatedRequest,
   ApiResponse,
   Project,
   ChangeAction,
 } from "@/types";
-import { DatabaseService } from "@/services/database.service";
 
 /**
  * Testing Controller
@@ -97,7 +98,7 @@ export class TestingController {
         ];
 
         for (const collData of collections) {
-          const collection = await this.db.createCollection(
+          const _collection = await this.db.createCollection(
             project.id,
             collData.name,
             {
@@ -277,7 +278,15 @@ export class TestingController {
         return;
       }
 
-      const results: any[] = [];
+      const results: Array<{
+        suite: string;
+        tests: Array<{
+          name: string;
+          passed: boolean;
+          duration: number;
+          error?: string;
+        }>;
+      }> = [];
       const startTime = Date.now();
 
       // Test Suite 1: Project Operations

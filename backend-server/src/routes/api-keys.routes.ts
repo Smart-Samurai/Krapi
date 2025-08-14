@@ -6,6 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+
 import { authenticateProject } from '@/middleware/auth.middleware';
 import { validateProjectAccess } from '@/middleware/validation.middleware';
 import { DatabaseService } from '@/services/database.service';

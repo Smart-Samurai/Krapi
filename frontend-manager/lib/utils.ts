@@ -10,15 +10,40 @@ export function cn(...inputs: ClassValue[]) {
  * @param error - The error object to check
  * @returns true if the error is an authentication error
  */
-export function isAuthError(error: any): boolean {
-  return (
-    error?.status === 401 ||
-    error?.response?.status === 401 ||
-    error?.message?.includes("Unauthorized") ||
-    error?.message?.includes("Invalid token") ||
-    error?.message?.includes("Token expired") ||
-    error?.isApiError === true
-  );
+export function isAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const errorObj = error as Record<string, unknown>;
+
+  // Check for status 401
+  if ("status" in errorObj && errorObj.status === 401) return true;
+
+  // Check for response with status 401
+  if (
+    "response" in errorObj &&
+    errorObj.response &&
+    typeof errorObj.response === "object"
+  ) {
+    const response = errorObj.response as Record<string, unknown>;
+    if ("status" in response && response.status === 401) return true;
+  }
+
+  // Check for error message
+  if ("message" in errorObj && typeof errorObj.message === "string") {
+    const message = errorObj.message;
+    if (
+      message.includes("Unauthorized") ||
+      message.includes("Invalid token") ||
+      message.includes("Token expired")
+    ) {
+      return true;
+    }
+  }
+
+  // Check for isApiError flag
+  if ("isApiError" in errorObj && errorObj.isApiError === true) return true;
+
+  return false;
 }
 
 /**
@@ -29,11 +54,15 @@ export function isAuthError(error: any): boolean {
  * @returns true if the error was an auth error and was handled
  */
 export function handleAuthError(
-  error: any,
-  handleAuthError: (error: any) => void
+  error: unknown,
+  handleAuthError: (error: Error) => void
 ): boolean {
   if (isAuthError(error)) {
-    handleAuthError(error);
+    if (error instanceof Error) {
+      handleAuthError(error);
+    } else {
+      handleAuthError(new Error(String(error)));
+    }
     return true;
   }
   return false;
@@ -48,18 +77,22 @@ export function handleAuthError(
  * @returns Promise with the result or null if krapi or method is not available
  */
 export async function safeApiCall(
-  krapi: any,
+  krapi: Record<string, unknown>,
   method: string,
   methodName: string,
-  ...args: any[]
-): Promise<any> {
+  ...args: unknown[]
+): Promise<unknown> {
   if (
     !krapi ||
     !krapi[method] ||
-    typeof krapi[method][methodName] !== "function"
+    typeof (krapi[method] as Record<string, unknown>)[methodName] !== "function"
   ) {
     throw new Error(`API method ${method}.${methodName} is not available`);
   }
 
-  return krapi[method][methodName](...args);
+  return (
+    (krapi[method] as Record<string, unknown>)[methodName] as (
+      ...args: unknown[]
+    ) => unknown
+  )(...args);
 }

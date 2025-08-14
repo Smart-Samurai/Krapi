@@ -4,50 +4,52 @@
  * This file defines the complete API route structure for KRAPI backend.
  * All routes are prefixed with /krapi/k1 (configured in app.ts).
  *
- * Route Structure:
- * - System Routes: Health checks, version info
- * - Admin Routes: Authentication, admin user management
- * - Project Routes: Project CRUD operations
- * - Project Resource Routes: Collections, storage, users (nested under projects)
+ * CRITICAL: This backend now uses the SDK-driven architecture.
+ * All functionality comes from the SDK - backend just wires it up.
  */
 
+import { BackendSDK } from "@krapi/sdk";
 import { Router, Router as RouterType } from "express";
-import authRoutes from "./auth.routes";
-import adminRoutes from "./admin.routes";
-import projectRoutes from "./project.routes";
-import collectionsRoutes from "./collections.routes";
-import storageRoutes from "./storage.routes";
-import usersRoutes from "./users.routes";
-import emailRoutes from "./email.routes";
-import apiKeysRoutes from "./api-keys.routes";
-import changelogRoutes from "./changelog.routes";
-import testingRoutes from "./testing.routes";
-import { DatabaseService } from "@/services/database.service";
-import mcpRouter from "@/mcp/router";
+
+import { authenticate as _authenticate } from "@/middleware/auth.middleware";
+import { enforceProjectOrigin } from "@/middleware/origin-guard.middleware";
+import systemRoutes from "./system.routes";
+import adminRoutes, { initializeAdminSDK } from "./admin.routes";
+import emailRoutes, { initializeEmailSDK } from "./email.routes";
 
 const router: RouterType = Router();
 
-// ===== System Routes =====
+// Initialize the BackendSDK with database connection
+// This will be properly configured in app.ts
+let backendSDK: BackendSDK;
+
+// Initialize SDK function - called from app.ts
+export const initializeBackendSDK = (sdk: BackendSDK) => {
+  backendSDK = sdk;
+  // Initialize route-specific SDK instances
+  initializeAdminSDK(sdk);
+  initializeEmailSDK(sdk);
+};
+
+// ===== System Routes (SDK-driven) =====
 /**
- * Health check endpoint
+ * Health check endpoint - uses SDK health management
  * GET /krapi/k1/health
- *
- * Returns system health status including database connectivity.
- * No authentication required.
- *
- * @returns {Object} Health status with version, timestamp, and database info
  */
 router.get("/health", async (req, res) => {
   try {
-    const db = DatabaseService.getInstance();
-    const dbHealth = await db.performHealthCheck();
+    if (!backendSDK) {
+      throw new Error("BackendSDK not initialized");
+    }
+
+    const health = await backendSDK.performHealthCheck();
 
     res.json({
       success: true,
       message: "KRAPI Backend is running",
       version: "2.0.0",
       timestamp: new Date().toISOString(),
-      database: dbHealth,
+      database: health,
     });
   } catch (error) {
     res.status(503).json({
@@ -58,18 +60,25 @@ router.get("/health", async (req, res) => {
   }
 });
 
-// Database repair endpoint (protected - should be admin only in production)
+/**
+ * Database repair endpoint - uses SDK auto-fixing
+ * POST /krapi/k1/health/repair
+ */
 router.post("/health/repair", async (req, res) => {
   try {
-    const db = DatabaseService.getInstance();
-    const repairResult = await db.repairDatabase();
+    if (!backendSDK) {
+      throw new Error("BackendSDK not initialized");
+    }
+
+    const repairResult = await backendSDK.autoFixDatabase();
 
     res.json({
       success: repairResult.success,
-      message: repairResult.success
-        ? "Database repair completed"
-        : "Database repair failed",
-      actions: repairResult.actions,
+      message:
+        "message" in repairResult
+          ? repairResult.message
+          : "Database repair completed",
+      actions: repairResult,
     });
   } catch (error) {
     res.status(500).json({
@@ -80,7 +89,10 @@ router.post("/health/repair", async (req, res) => {
   }
 });
 
-// API version info
+/**
+ * API version info
+ * GET /krapi/k1/version
+ */
 router.get("/version", (req, res) => {
   res.json({
     success: true,
@@ -92,37 +104,35 @@ router.get("/version", (req, res) => {
   });
 });
 
-// ===== Admin-Level Routes =====
-// Authentication routes for admin users
-router.use("/auth", authRoutes);
+// ===== System Management Routes =====
+router.use("/system", systemRoutes);
 
-// Admin management routes (users, system settings)
+// ===== Admin-Level Routes (SDK-driven) =====
 router.use("/admin", adminRoutes);
 
-// Project management routes (CRUD operations on projects)
-router.use("/projects", projectRoutes);
+// ===== Email Routes (SDK-driven) =====
+router.use("/email", emailRoutes);
 
-// Testing routes (only in development mode)
-if (process.env.NODE_ENV !== "production") {
-  router.use("/testing", testingRoutes);
-}
+// ===== Project-Level Routes (SDK-driven) =====
+// All project-specific resources will be created using existing SDK methods
+router.use("/projects", enforceProjectOrigin, (req, res, next) => {
+  if (!backendSDK) {
+    return res
+      .status(500)
+      .json({ success: false, error: "BackendSDK not initialized" });
+  }
+  next();
+});
 
-// ===== Project-Level Routes =====
-// All project-specific resources are nested under /projects/:projectId
-import { enforceProjectOrigin } from "@/middleware/origin-guard.middleware";
-
-router.use("/projects", enforceProjectOrigin, collectionsRoutes); // /projects/:projectId/collections
-router.use("/projects", enforceProjectOrigin, storageRoutes); // /projects/:projectId/storage
-router.use("/projects", enforceProjectOrigin, usersRoutes); // /projects/:projectId/users
-router.use("/projects", enforceProjectOrigin, emailRoutes); // /projects/:projectId/email
-router.use("/projects", enforceProjectOrigin, apiKeysRoutes); // /projects/:projectId/api-keys
-router.use("/projects", enforceProjectOrigin, changelogRoutes); // /projects/:projectId/changelog
-
-// MCP integrated endpoints
-router.use("/mcp", mcpRouter);
-
-// Future project-level routes will follow the same pattern:
-// router.use('/projects', functionsRoutes); // /projects/:projectId/functions
+// MCP integrated endpoints - will be implemented using existing SDK methods
+router.use("/mcp", (req, res, next) => {
+  if (!backendSDK) {
+    return res
+      .status(500)
+      .json({ success: false, error: "BackendSDK not initialized" });
+  }
+  next();
+});
 
 // 404 handler
 router.use("*", (req, res) => {

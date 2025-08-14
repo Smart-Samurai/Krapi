@@ -1,18 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
+
 import { DatabaseService } from '@/services/database.service';
 
 const db = DatabaseService.getInstance();
 
-export async function enforceProjectOrigin(req: Request, res: Response, next: NextFunction) {
+export async function enforceProjectOrigin(req: Request & { params: { projectId?: string } }, res: Response, next: NextFunction) {
   try {
-    const projectId = (req.params as any).projectId;
+    const projectId = req.params.projectId;
     if (!projectId) return next();
 
     const project = await db.getProjectById(projectId);
     if (!project) return res.status(404).json({ success: false, error: 'Project not found' });
 
-    const settings = project.settings || {} as any;
-    const enabled = settings?.security?.enforce_origin === true;
+    const settings = project.settings || {};
+    const enabled = (settings as { security?: { enforce_origin?: boolean } })?.security?.enforce_origin === true;
     if (!enabled) return next();
 
     const allowed = (project.project_url || '').trim();

@@ -1,49 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { EmailConfig, EmailTemplate } from "@/lib/krapi";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Edit,
@@ -61,6 +17,28 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,8 +47,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { beginBusy, endBusy } from "@/store/uiSlice";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { EmailConfig, EmailTemplate } from "@/lib/krapi";
 import {
   fetchEmailConfig,
   updateEmailConfig,
@@ -80,6 +79,8 @@ import {
   updateEmailTemplate,
   deleteEmailTemplate,
 } from "@/store/emailSlice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 export default function EmailPage() {
   const params = useParams();
@@ -174,10 +175,12 @@ export default function EmailPage() {
         })
       );
       if (!updateEmailConfig.fulfilled.match(action)) {
-        const msg = (action as any).payload || "Failed to update email config";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to update email config";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to update email config");
     } finally {
       setIsSaving(false);
@@ -193,10 +196,12 @@ export default function EmailPage() {
         testEmailConfig({ projectId, email: testEmail })
       );
       if (!testEmailConfig.fulfilled.match(action)) {
-        const msg = (action as any).payload || "Failed to test email config";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to test email config";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to test email config");
     } finally {
       setIsTesting(false);
@@ -215,10 +220,12 @@ export default function EmailPage() {
         setTemplateForm({ name: "", subject: "", body: "", variables: [] });
         loadTemplatesCb();
       } else {
-        const msg = (action as any).payload || "Failed to create template";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to create template";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to create template");
     } finally {
       dispatch(endBusy());
@@ -242,10 +249,12 @@ export default function EmailPage() {
         setTemplateForm({ name: "", subject: "", body: "", variables: [] });
         loadTemplatesCb();
       } else {
-        const msg = (action as any).payload || "Failed to update template";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to update template";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to update template");
     } finally {
       dispatch(endBusy());
@@ -262,10 +271,12 @@ export default function EmailPage() {
       if (deleteEmailTemplate.fulfilled.match(action)) {
         loadTemplatesCb();
       } else {
-        const msg = (action as any).payload || "Failed to delete template";
+        const msg =
+          (action as { payload?: string }).payload ||
+          "Failed to delete template";
         setError(String(msg));
       }
-    } catch (_err) {
+    } catch {
       setError("Failed to delete template");
     } finally {
       dispatch(endBusy());
@@ -311,7 +322,7 @@ export default function EmailPage() {
   );
 
   const sortedTemplates = [...filteredTemplates].sort((a, b) => {
-    let aValue: any, bValue: any;
+    let aValue: string | number, bValue: string | number;
 
     switch (sortBy) {
       case "created_at":
@@ -323,8 +334,16 @@ export default function EmailPage() {
         bValue = b.name.toLowerCase();
         break;
       default:
-        aValue = a[sortBy as keyof EmailTemplate];
-        bValue = b[sortBy as keyof EmailTemplate];
+        const aVal = a[sortBy as keyof EmailTemplate];
+        const bVal = b[sortBy as keyof EmailTemplate];
+        aValue =
+          typeof aVal === "string" || typeof aVal === "number"
+            ? aVal
+            : String(aVal);
+        bValue =
+          typeof bVal === "string" || typeof bVal === "number"
+            ? bVal
+            : String(bVal);
     }
 
     if (sortOrder === "asc") {
@@ -343,7 +362,10 @@ export default function EmailPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton
+              key={`email-skeleton-item-${i}`}
+              className="h-32 w-full"
+            />
           ))}
         </div>
       </div>
@@ -674,7 +696,10 @@ export default function EmailPage() {
                     </div>
                     <div className="space-y-2">
                       {templateForm.variables.map((variable, index) => (
-                        <div key={index} className="flex items-center gap-2">
+                        <div
+                          key={`email-variable-${variable}-${index}`}
+                          className="flex items-center gap-2"
+                        >
                           <Input
                             value={variable}
                             onChange={(e) =>
@@ -813,7 +838,7 @@ export default function EmailPage() {
                             <div className="flex flex-wrap gap-1">
                               {template.variables.map((variable, index) => (
                                 <Badge
-                                  key={index}
+                                  key={`email-template-variable-${variable}-${index}`}
                                   variant="outline"
                                   className="text-xs"
                                 >
@@ -943,7 +968,10 @@ export default function EmailPage() {
                   </div>
                   <div className="space-y-2">
                     {templateForm.variables.map((variable, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div
+                        key={`email-edit-variable-${variable}-${index}`}
+                        className="flex items-center gap-2"
+                      >
                         <Input
                           value={variable}
                           onChange={(e) =>

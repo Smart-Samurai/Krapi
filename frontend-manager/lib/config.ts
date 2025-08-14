@@ -28,7 +28,7 @@ export const config = {
   ...productionOverrides,
 
   // Helper functions
-  getApiUrl: (endpoint: string = "") => {
+  getApiUrl: (endpoint = "") => {
     const baseUrl = baseConfig.api.baseUrl;
     return endpoint
       ? `${baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`

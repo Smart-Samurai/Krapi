@@ -1,4 +1,5 @@
 import { Router, IRouter } from "express";
+
 import { ProjectController } from "@/controllers/project.controller";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
 import { validate, validationSchemas } from "@/middleware/validation.middleware";

@@ -51,31 +51,36 @@ export class ErrorHandler {
 
     // Type guard for error with code property
     const hasCode = (err: unknown): err is { code: string } => {
-      return err !== null && typeof err === 'object' && 'code' in err;
+      return err !== null && typeof err === "object" && "code" in err;
     };
 
     // Type guard for axios error
-    const isAxiosError = (err: unknown): err is { 
-      response?: { 
-        status: number; 
-        statusText: string; 
-        data?: { error?: string; message?: string } 
+    const isAxiosError = (
+      err: unknown
+    ): err is {
+      response?: {
+        status: number;
+        statusText: string;
+        data?: { error?: string; message?: string };
       };
       code?: string;
       message?: string;
     } => {
-      return err !== null && typeof err === 'object' && 'response' in err;
+      return err !== null && typeof err === "object" && "response" in err;
     };
 
     // Network/Connection errors
-    if (hasCode(error) && (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK")) {
+    if (
+      hasCode(error) &&
+      (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK")
+    ) {
       return {
         message: "Cannot connect to the API server",
         code: error.code,
         context: errorContext,
         suggestions: [
-                  "Check if the backend server is running on port 3470",
-        "Verify the API server is accessible at http://localhost:3470",
+          "Check if the backend server is running on port 3470",
+          "Verify the API server is accessible at http://localhost:3470",
           "Check your network connection and firewall settings",
           "Restart the API server if it's not responding",
         ],
@@ -208,9 +213,12 @@ export class ErrorHandler {
 
     // Generic error
     return {
-      message: (isAxiosError(error) && error.message) ? error.message : 
-               error instanceof Error ? error.message : 
-               "An unexpected error occurred",
+      message:
+        isAxiosError(error) && error.message
+          ? error.message
+          : error instanceof Error
+          ? error.message
+          : "An unexpected error occurred",
       context: errorContext,
       suggestions: [
         "Check the browser console for more details",
@@ -248,13 +256,14 @@ export class ErrorHandler {
   /**
    * Log error with proper formatting
    */
-  logError(apiError: ApiError): void {
-    console.group(`🚨 ERROR: ${apiError.message}`);
-    console.error("Context:", apiError.context);
-    console.error("Status:", apiError.status);
-    console.error("Server Error:", apiError.serverError);
-    console.error("Suggestions:", apiError.suggestions);
-    console.groupEnd();
+  logError(_apiError: ApiError): void {
+    // Error logged for debugging
+    // console.group(`🚨 ERROR: ${_apiError.message}`);
+    // console.error("Context:", _apiError.context);
+    // console.error("Status:", _apiError.status);
+    // console.error("Server Error:", _apiError.serverError);
+    // console.error("Suggestions:", _apiError.suggestions);
+    // console.groupEnd();
   }
 
   /**

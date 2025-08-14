@@ -1,67 +1,188 @@
----
-alwaysApply: true
----
+# Cursor Rules for Krapi Project
 
-Use SHADCN for all styles in the project's frontend.
-Use these colors for shadcn:
-"@layer base {
-:root {
---background: 90 40% 98%;
---foreground: 93 36% 5%;
---card: 90 40% 98%;
---card-foreground: 93 36% 5%;
---popover: 90 40% 98%;
---popover-foreground: 93 36% 5%;
---primary: 93 66% 14%;
---primary-foreground: 90 40% 98%;
---secondary: 172 36% 66%;
---secondary-foreground: 93 36% 5%;
---muted: 90 39% 20%;
---muted-foreground: 93 36% 70%;
---accent: 200 36% 48%;
---accent-foreground: 93 36% 5%;
---destructive: 0 85% 60%;
---destructive-foreground: 93 36% 5%;
---border: 90 39% 20%;
---input: 90 39% 20%;
---ring: 200 36% 40%;
---radius: 0.5rem;
-}
+## Architecture Rules
 
-    .dark {
-      --background: 90 40% 2%;
-      --foreground: 93 36% 95%;
-      --card: 90 40% 2%;
-      --card-foreground: 93 36% 95%;
-      --popover: 90 40% 2%;
-      --popover-foreground: 93 36% 95%;
-      --primary: 93 66% 86%;
-      --primary-foreground: 90 40% 2%;
-      --secondary: 173 36% 34%;
-      --secondary-foreground: 93 36% 95%;
-      --muted: 90 39% 80%;
-      --muted-foreground: 93 36% 95%;
-      --accent: 200 36% 52%;
-      --accent-foreground: 90 40% 2%;
-      --destructive: 0 62% 30%;
-      --destructive-foreground: 92 37% 10%;
-      --border: 90 40% 60%;
-      --input: 90 39% 80%;
-      --ring: 200 36% 60%;
-    }
+### 1. Separation of Concerns
 
-}"
+- Separate functions and components into different files to better track points of failure
+- Each file should have a single, clear responsibility
+- Use proper file organization and naming conventions
 
-SDK is the most important part of the app. It describes all functionality. It exposes all functionality. When building anything new, we mock it up in the SDK first, then implement it in the backend, and only at the very end we import it into the frontend.
-Frontend needs to align to SDK and backend. Never change the SDK and backend to fit the frontend.
+### 2. Type Safety
 
-Avoid creating standalone scripts for testing or fixes; instead, build these capabilities directly into the SDK and backend as proper methods and endpoints. This ensures functionality remains discoverable, maintainable, and evolves with the architecture.
+- Everything needs to be type safe with specified types
+- Functions that mutate data, create new data, or request data must clearly specify:
+  - What kind of data they expect to receive
+  - What kind of data they will return
+- This allows different parts of the code to be connectable like LEGO blocks with matching data types
+- NO `any` types allowed - use proper TypeScript types
 
-## PORT CONFIGURATION
+### 3. Normalization of Coding Style
 
-**CRITICAL: This application uses specific ports that MUST NOT be changed:**
+- Use consistent style across all parts of the application
+- Keep code clean, elegant, and consistent
+- Examples of what needs to be consistent:
+  - API route writing patterns
+  - Mutation function patterns
+  - Async/API request patterns and libraries used
+  - Data transfer methodology
+  - Error handling patterns
+  - Logging patterns
 
-- Backend API Server: Port 3470 (http://localhost:3470)
-- Frontend Manager: Port 3469 (http://localhost:3469)
+### 4. Code Cleanliness
+
+- **NEVER comment out unused variables, imports, or code**
+- **ALWAYS delete unused variables, imports, and dead code completely**
+- Unused code creates confusion and maintenance overhead
+- If code might be needed later, use version control (git) to track it, not comments
+- Keep the codebase clean and production-ready at all times
+
+### 5. NO MOCK FUNCTIONALITY - REAL IMPLEMENTATIONS ONLY
+
+**CRITICAL: Mock functionality is completely banned and forbidden.**
+
+- **NEVER create mock functions, mock data, or mock implementations**
+- **NEVER use placeholder code that doesn't actually work**
+- **NEVER create fake database connections or fake API responses**
+- **ALWAYS implement real, functional code that performs actual operations**
+- **If you can't implement the real functionality immediately, don't create anything**
+- **Mock code is banned, forbidden, and completely unacceptable**
+- **Every function must do what it claims to do - no fake implementations**
+- **No "TODO: implement later" or "placeholder" code allowed**
+
+### 6. SDK-DRIVEN ARCHITECTURE - SINGLE SOURCE OF TRUTH
+
+**CRITICAL: The SDK controls BOTH frontend and backend - no duplicate implementations.**
+
+#### Frontend SDK Usage Pattern:
+
+```typescript
+// Frontend imports and uses SDK methods
+import { frontendSDK } from "@krapi/sdk";
+
+// Frontend calls SDK method with data
+const collections = await frontendSDK.collections.get({
+  projectId: "123",
+  limit: 50,
+  offset: 0,
+});
+```
+
+#### Backend Route Construction via SDK:
+
+```typescript
+// Backend creates routes using SDK, not custom implementations
+import { BackendSDK } from "@krapi/sdk";
+
+const backendSDK = new BackendSDK({
+  databaseConnection: dbConnection,
+  logger: logger,
+});
+
+// SDK automatically constructs the API route
+app.get("/collections", backendSDK.collections.createRoute("get"));
+```
+
+#### Key Principles:
+
+1. **Frontend imports frontendSDK.methods() from SDK**
+2. **SDK tells frontend exactly what data format is needed**
+3. **Backend creates routes by instantiating backendSDK.methodsConnection**
+4. **SDK controls the entire API construction process**
+5. **NO duplicate functionality between backend and SDK**
+6. **SDK is the ONLY implementation - backend just wires it up**
+
+#### Benefits:
+
+- **Single source of truth** - functionality exists only in SDK
+- **Type safety guaranteed** - frontend and backend use same interfaces
+- **Built-in error handling** - SDK provides comprehensive error responses
+- **No implementation mismatches** - backend can't exist without SDK
+- **Automatic validation** - SDK validates all inputs and outputs
+- **Consistent error messages** - SDK provides standardized error responses
+
+#### Error Handling:
+
+- **Database errors** - SDK catches and formats database-specific errors
+- **Missing endpoints** - SDK detects when frontend requests unimplemented functionality
+- **Input validation** - SDK validates all data before processing
+- **Type mismatches** - SDK ensures frontend/backend type compatibility
+- **Network errors** - SDK handles connection and timeout issues
+
+#### Implementation Flow:
+
+1. **SDK defines the method** (e.g., `collections.get()`)
+2. **Frontend imports and calls** the SDK method
+3. **Backend creates route** using `backendSDK.collections.createRoute('get')`
+4. **SDK handles everything** - validation, database calls, error handling, response formatting
+5. **Backend just wires** the SDK method to the HTTP route
+
+**REMEMBER: The SDK is not just a client library - it's the ENTIRE application logic. Backend is just HTTP routing, frontend is just UI. All business logic lives in the SDK.**
 
 These ports are hardcoded throughout the application and changing them will break functionality. Always use these exact ports when developing, testing, or deploying this application.
+
+## Database Auto-Fixers and Auto-Migration Requirements
+
+### 1. SDK Database Health Management
+
+The Krapi SDK MUST include comprehensive database auto-fixers and auto-migration capabilities to ensure database health during development.
+
+### 2. Why Auto-Fixers Are Critical
+
+- **Development Efficiency**: Prevents manual database resets when features change
+- **Continuous Development**: Allows seamless feature development, modification, and deletion
+- **Database Consistency**: Ensures the database always matches the current schema requirements
+- **Testing Reliability**: Maintains a healthy testing database without manual intervention
+
+### 3. Required Auto-Fixer Capabilities
+
+The SDK must automatically detect and fix:
+
+#### Schema Misalignments
+
+- **Missing Fields**: Detect when tables are missing required fields and add them
+- **Wrong Field Names**: Detect and rename fields that don't match expected schema
+- **Field Type Mismatches**: Convert field types to match expected schema
+- **Missing Tables**: Create tables that are referenced but don't exist
+- **Orphaned Tables**: Remove tables that are no longer needed
+
+#### Data Integrity Issues
+
+- **Missing Indexes**: Create required indexes for performance and constraints
+- **Foreign Key Violations**: Fix broken relationships between tables
+- **Constraint Violations**: Add missing constraints (unique, not null, etc.)
+- **Default Value Issues**: Set appropriate default values for new fields
+
+#### Migration Management
+
+- **Version Tracking**: Track database schema versions
+- **Rollback Capability**: Ability to rollback to previous schema versions
+- **Migration Logging**: Log all auto-fixes for debugging and audit purposes
+- **Conflict Resolution**: Handle conflicts when multiple developers make schema changes
+
+### 4. Implementation Requirements
+
+- **PostgreSQL Exclusive**: All auto-fixers must work with PostgreSQL
+- **Non-Destructive**: Auto-fixes should never lose data unless explicitly required
+- **Performance Optimized**: Auto-fixes should be fast and not block normal operations
+- **Development Focused**: Designed for development environments with frequent schema changes
+- **SDK Integration**: Must be accessible through the SDK for both frontend and backend
+
+### 5. Usage Patterns
+
+```typescript
+// Example SDK usage for database health checks
+await krapi.database.healthCheck(); // Runs all health checks
+await krapi.database.autoFix(); // Automatically fixes all detected issues
+await krapi.database.validateSchema(); // Validates current schema against expected
+await krapi.database.migrate(); // Runs pending migrations
+```
+
+### 6. Development Workflow Integration
+
+- Auto-fixers should run automatically during development startup
+- Health checks should be available on-demand
+- Migration status should be visible in development tools
+- All auto-fixes should be logged and traceable
+
+This auto-fixer system is essential for maintaining development velocity and database consistency in a rapidly evolving codebase.

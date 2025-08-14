@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+
 import { AuthService } from "@/services/auth.service";
 import { DatabaseService } from "@/services/database.service";
 import { AuthenticatedRequest, Scope, ScopeRequirement } from "@/types";

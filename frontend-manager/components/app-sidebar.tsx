@@ -1,18 +1,5 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-} from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -23,9 +10,22 @@ import {
   Database,
   FileText,
   KeyRound,
-  Mail,
   HardDrive,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import React from "react";
+
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -44,37 +44,37 @@ export function AppSidebar() {
     {
       title: "Dashboard",
       icon: LayoutDashboard,
-      href: "/dashboard",
+      href: "/dashboard" as const,
     },
     {
       title: "Projects",
       icon: FolderOpen,
-      href: "/projects",
+      href: "/projects" as const,
     },
     {
       title: "MCP",
       icon: TestTube2,
-      href: "/mcp",
+      href: "/mcp" as const,
     },
     {
       title: "Admin Users",
       icon: Users,
-      href: "/users",
+      href: "/users" as const,
     },
     {
       title: "Test Access",
       icon: TestTube2,
-      href: "/test-access",
+      href: "/test-access" as const,
     },
     {
       title: "Settings",
       icon: Settings,
-      href: "/settings",
+      href: "/settings" as const,
     },
     {
       title: "Profile",
       icon: User,
-      href: "/profile",
+      href: "/profile" as const,
     },
   ];
 
@@ -97,7 +97,7 @@ export function AppSidebar() {
             const isActive = pathname === item.href;
 
             return (
-              <Link key={item.href} href={item.href as any} className="block">
+              <Link key={item.href} href={item.href} className="block">
                 <SidebarMenuButton
                   isActive={isActive}
                   className="w-full cursor-pointer"
@@ -137,52 +137,47 @@ function ProjectSidebar() {
     {
       title: "Project Dashboard",
       icon: LayoutDashboard,
-      href: `/projects/${projectId}`,
+      href: `/projects/${projectId}` as const,
     },
     {
       title: "Collections",
       icon: FolderOpen,
-      href: `/projects/${projectId}/collections`,
+      href: `/projects/${projectId}/collections` as const,
     },
     {
       title: "Documents",
       icon: Database,
-      href: `/projects/${projectId}/documents`,
+      href: `/projects/${projectId}/documents` as const,
     },
     {
       title: "Users",
       icon: Users,
-      href: `/projects/${projectId}/users`,
+      href: `/projects/${projectId}/users` as const,
     },
     {
       title: "Files",
       icon: FileText,
-      href: `/projects/${projectId}/files`,
+      href: `/projects/${projectId}/files` as const,
     },
     {
       title: "Storage",
       icon: HardDrive,
-      href: `/projects/${projectId}/storage`,
+      href: `/projects/${projectId}/storage` as const,
     },
     {
       title: "API Keys",
       icon: KeyRound,
-      href: `/projects/${projectId}/api-keys`,
-    },
-    {
-      title: "Email",
-      icon: Mail,
-      href: `/projects/${projectId}/email`,
+      href: `/projects/${projectId}/api-keys` as const,
     },
     {
       title: "MCP",
       icon: TestTube2,
-      href: `/projects/${projectId}/mcp`,
+      href: `/projects/${projectId}/mcp` as const,
     },
     {
       title: "Settings",
       icon: Settings,
-      href: `/projects/${projectId}/settings`,
+      href: `/projects/${projectId}/settings` as const,
     },
   ];
 
@@ -221,7 +216,7 @@ function ProjectSidebar() {
             const isActive = pathname === item.href;
 
             return (
-              <Link key={item.href} href={item.href as any} className="block">
+              <Link key={item.href} href={item.href} className="block">
                 <SidebarMenuButton
                   isActive={isActive}
                   className="w-full cursor-pointer"

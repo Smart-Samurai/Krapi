@@ -4,7 +4,12 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { Collection, createDefaultKrapi } from "@/lib/krapi";
+import {
+  Collection,
+  CollectionField,
+  CollectionIndex,
+  createDefaultKrapi,
+} from "@/lib/krapi";
 
 // Types
 interface CollectionsBucket {
@@ -22,7 +27,10 @@ export const fetchCollections = createAsyncThunk(
   "collections/fetchAll",
   async (
     { projectId }: { projectId: string },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -32,8 +40,10 @@ export const fetchCollections = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to fetch collections");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to fetch collections");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch collections"
+      );
     }
   }
 );
@@ -49,11 +59,14 @@ export const createCollection = createAsyncThunk(
       data: {
         name: string;
         description?: string;
-        fields: any[];
-        indexes?: any[];
+        fields: CollectionField[];
+        indexes?: CollectionIndex[];
       };
     },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -63,8 +76,10 @@ export const createCollection = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to create collection");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to create collection");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to create collection"
+      );
     }
   }
 );
@@ -81,7 +96,10 @@ export const updateCollection = createAsyncThunk(
       collectionId: string;
       updates: Partial<Collection>;
     },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const client = createDefaultKrapi();
@@ -95,8 +113,10 @@ export const updateCollection = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to update collection");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to update collection");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update collection"
+      );
     }
   }
 );

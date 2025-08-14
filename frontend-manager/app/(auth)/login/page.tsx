@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Lock, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,11 +17,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { z } from "zod";
-import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
   FormControl,
@@ -26,9 +25,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
   rememberMe: z.boolean().optional(),
 });
@@ -36,14 +37,14 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
+  const _router = useRouter();
   const { login, loading, error } = useReduxAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
       rememberMe: false,
     },
@@ -57,9 +58,8 @@ export default function LoginPage() {
       }
 
       // The login function handles redirect internally
-      await login(data.email, data.password);
-    } catch (err) {
-      console.error("Login error:", err);
+      await login(data.username, data.password);
+    } catch {
       // Error handling is now managed by Redux
     }
   };
@@ -99,17 +99,17 @@ export default function LoginPage() {
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="email"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Username</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
                               {...field}
-                              type="email"
-                              placeholder="Enter your email"
+                              type="text"
+                              placeholder="Enter your username"
                               className="pl-10"
                               disabled={loading}
                             />
@@ -182,8 +182,11 @@ export default function LoginPage() {
                     type="button"
                     variant="link"
                     className="px-0"
-                    onClick={() => router.push("/forgot-password" as any)}
                     disabled={loading}
+                    onClick={() => {
+                      // Forgot password functionality will be implemented in a future update
+                      toast.info("Forgot password functionality coming soon!");
+                    }}
                   >
                     Forgot password?
                   </Button>
@@ -201,8 +204,11 @@ export default function LoginPage() {
                 <Button
                   variant="link"
                   className="px-0"
-                  onClick={() => router.push("/register" as any)}
                   disabled={loading}
+                  onClick={() => {
+                    // Registration functionality will be implemented in a future update
+                    toast.info("Registration functionality coming soon!");
+                  }}
                 >
                   Sign up
                 </Button>

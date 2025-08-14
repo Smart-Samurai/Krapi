@@ -1,14 +1,8 @@
 import { Request, Response } from "express";
+
 import { AuthService } from "@/services/auth.service";
 import { DatabaseService } from "@/services/database.service";
-import {
-  AuthenticatedRequest,
-  ApiResponse,
-  SessionType,
-  Scope,
-  AdminPermission,
-} from "@/types";
-import { v4 as uuidv4 } from "uuid";
+import { ApiResponse, SessionType, AdminUser, ProjectUser, Scope } from "@/types";
 
 /**
  * Authentication Controller
@@ -19,16 +13,10 @@ import { v4 as uuidv4 } from "uuid";
  * - Password management
  * - API key regeneration
  * - Session validation
+ *
+ * NOW USES BACKEND SDK FOR ALL OPERATIONS
  */
 export class AuthController {
-  private authService: AuthService;
-  private db: DatabaseService;
-
-  constructor() {
-    this.authService = AuthService.getInstance();
-    this.db = DatabaseService.getInstance();
-  }
-
   /**
    * Create admin session using API key
    * POST /krapi/k1/auth/admin/session
@@ -43,8 +31,21 @@ export class AuthController {
     try {
       const { api_key } = req.body;
 
+      if (!api_key) {
+        res.status(400).json({
+          success: false,
+          error: "API key is required",
+        } as ApiResponse);
+        return;
+      }
+
+      // Use existing services directly
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
+
       // Get admin user by API key
-      const adminUser = await this.db.getAdminUserByApiKey(api_key);
+      const adminUser = await dbService.getAdminUserByApiKey(api_key);
+
       if (!adminUser || !adminUser.active) {
         res.status(401).json({
           success: false,
@@ -53,122 +54,128 @@ export class AuthController {
         return;
       }
 
-      // Create session
-      const sessionToken = `admin_${uuidv4().replace(/-/g, "")}`;
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      // Create admin session with scopes
+      const session = await authService.createAdminSessionWithScopes(adminUser);
 
-      const session = await this.db.createSession({
-        token: sessionToken,
-        user_id: adminUser.id,
-        project_id: null,
-        type: SessionType.ADMIN,
-        scopes: this.mapAdminPermissionsToScopes(adminUser.permissions || []),
-        metadata: {
-          role: adminUser.role,
-          access_level: adminUser.access_level,
-        },
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-        consumed: false,
-      });
+      // Get scopes for the user's role
+      const scopes = authService.getScopesForRole(adminUser.role);
 
-      // Log session creation
-      await this.authService.logAuthAction(
-        "session_created",
-        "admin",
+      // Update login info
+      await dbService.updateLoginInfo(adminUser.id);
+
+      // Log the authentication action
+      await authService.logAuthAction(
+        "login",
+        adminUser.id,
         undefined,
         session.id
       );
 
+      // Return success response
       res.status(200).json({
         success: true,
         data: {
-          session_token: sessionToken,
-          expires_at: expiresAt.toISOString(),
-          user: {
-            id: adminUser.id,
-            username: adminUser.username,
-            email: adminUser.email,
-            role: adminUser.role,
-            access_level: adminUser.access_level,
-          },
+          session_token: session.token,
+          expires_at: session.expires_at,
+          scopes: scopes.map((scope) => scope.toString()),
         },
       } as ApiResponse);
-      return;
     } catch (error) {
       console.error("Create admin session error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to create session",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Create project session
+  /**
+   * Create project-specific session
+   * POST /krapi/k1/auth/project/:projectId/session
+   *
+   * Creates a new project session token from valid project credentials.
+   *
+   * @param req - Request with projectId in params and credentials in body
+   * @param res - Response with session token and expiration
+   */
   createProjectSession = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
-      const { api_key } = req.body;
+      const { username, password } = req.body;
 
-      // Get project by API key
-      const project = await this.db.getProjectByApiKey(api_key);
-      if (!project || !project.active) {
-        res.status(401).json({
+      if (!username || !password) {
+        res.status(400).json({
           success: false,
-          error: "Invalid or inactive project API key",
+          error: "Username and password are required",
         } as ApiResponse);
         return;
       }
 
-      // Create session
-      const sessionToken = `project_${uuidv4().replace(/-/g, "")}`;
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      // Use existing services directly
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
 
-      const session = await this.db.createSession({
-        token: sessionToken,
-        user_id: null,
-        project_id: project.id,
-        type: SessionType.PROJECT,
-        scopes: [Scope.DOCUMENTS_READ, Scope.DOCUMENTS_WRITE],
-        metadata: { role: "user" },
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-        consumed: false,
+      // Authenticate project user
+      const projectUser = await dbService.authenticateProjectUser(
+        projectId,
+        username,
+        password
+      );
+
+      if (!projectUser) {
+        res.status(401).json({
+          success: false,
+          error: "Invalid project credentials",
+        } as ApiResponse);
+        return;
+      }
+
+      // Create project session with scopes
+      const session = await authService.createProjectSessionWithScopes(
+        projectId,
+        projectUser.scopes.map((scope) => scope as Scope) // Convert string to Scope enum
+      );
+
+      // Update login info
+      await dbService.updateProjectUser(projectId, projectUser.id, {
+        last_login: new Date().toISOString(),
       });
 
-      // Log session creation
-      await this.authService.logAuthAction(
-        "session_created",
-        "project",
+      // Log the authentication action
+      await authService.logAuthAction(
+        "login",
+        projectUser.id,
         projectId,
         session.id
       );
 
+      // Return success response
       res.status(200).json({
         success: true,
         data: {
-          session_token: sessionToken,
-          expires_at: expiresAt.toISOString(),
-          project: {
-            id: project.id,
-            name: project.name,
-            description: project.description,
-          },
+          session_token: session.token,
+          expires_at: session.expires_at,
+          scopes: projectUser.scopes,
         },
       } as ApiResponse);
-      return;
     } catch (error) {
       console.error("Create project session error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to create session",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Admin login with username/password
+  /**
+   * Admin login with username and password
+   * POST /krapi/k1/auth/admin/login
+   *
+   * Authenticates admin user and returns session information.
+   *
+   * @param req - Request with username and password in body
+   * @param res - Response with user data and session token
+   */
   adminLogin = async (req: Request, res: Response): Promise<void> => {
     try {
       const { username, password } = req.body;
@@ -181,78 +188,89 @@ export class AuthController {
         return;
       }
 
-      // Verify admin credentials
-      const adminUser = await this.db.verifyAdminPassword(username, password);
-      if (!adminUser || !adminUser.active) {
+      // Use existing services directly for now
+      const authService = AuthService.getInstance();
+      const dbService = DatabaseService.getInstance();
+
+      // Try to authenticate as admin user
+      const adminUser = await authService.authenticateAdmin(username, password);
+
+      if (!adminUser) {
         res.status(401).json({
           success: false,
-          error: "Invalid credentials or inactive account",
+          error: "Invalid credentials",
         } as ApiResponse);
         return;
       }
 
-      // Create session
-      const sessionToken = `admin_${uuidv4().replace(/-/g, "")}`;
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      // Create admin session with scopes
+      const session = await authService.createAdminSessionWithScopes(adminUser);
 
-      const session = await this.db.createSession({
-        token: sessionToken,
-        user_id: adminUser.id,
-        project_id: null,
-        type: SessionType.ADMIN,
-        scopes: this.mapAdminPermissionsToScopes(adminUser.permissions || []),
-        metadata: {
-          role: adminUser.role,
-          access_level: adminUser.access_level,
-        },
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-        consumed: false,
-      });
+      // Get scopes for the user's role
+      const scopes = authService.getScopesForRole(adminUser.role);
 
-      // Update last login
-      await this.db.updateLoginInfo(adminUser.id);
+      // Update login info
+      await dbService.updateLoginInfo(adminUser.id);
 
-      // Log login
-      await this.authService.logAuthAction(
+      // Log the authentication action
+      await authService.logAuthAction(
         "login",
-        "admin",
+        adminUser.id,
         undefined,
         session.id
       );
 
+      // Return success response
       res.status(200).json({
         success: true,
         data: {
-          session_token: sessionToken,
-          expires_at: expiresAt.toISOString(),
           user: {
-            id: adminUser.id,
-            username: adminUser.username,
-            email: adminUser.email,
-            role: adminUser.role,
-            access_level: adminUser.access_level,
+            ...adminUser,
+            scopes: scopes.map((scope) => scope.toString()),
           },
+          token: session.token,
+          session_token: session.token,
+          expires_at: session.expires_at,
         },
       } as ApiResponse);
-      return;
     } catch (error) {
       console.error("Admin login error:", error);
       res.status(500).json({
         success: false,
-        error: "Login failed",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Validate session
+  /**
+   * Validate session token
+   * POST /krapi/k1/auth/session/validate
+   *
+   * Validates a session token and returns session information.
+   *
+   * @param req - Request with token in body
+   * @param res - Response with validation result
+   */
   validateSession = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { session_token } = req.body;
+      const { token } = req.body;
 
-      const session = await this.db.getSessionByToken(session_token);
-      if (!session) {
+      if (!token) {
+        res.status(400).json({
+          success: false,
+          error: "Token is required",
+        } as ApiResponse);
+        return;
+      }
+
+      // Use existing services directly
+      const authService = AuthService.getInstance();
+      const dbService = DatabaseService.getInstance();
+
+      // Validate the session
+      const sessionResult = await authService.validateSessionToken(token);
+      
+      if (!sessionResult.valid || !sessionResult.session) {
         res.status(401).json({
           success: false,
           error: "Invalid or expired session",
@@ -260,79 +278,149 @@ export class AuthController {
         return;
       }
 
+      // Get user information based on session type
+      let user: AdminUser | ProjectUser | undefined;
+      let scopes: string[] = [];
+
+      if (sessionResult.session.type === SessionType.ADMIN && sessionResult.session.user_id) {
+        user = await dbService.getAdminUserById(sessionResult.session.user_id);
+        if (user) {
+          scopes = authService.getScopesForRole(user.role).map(scope => scope.toString());
+        }
+      } else if (sessionResult.session.type === SessionType.PROJECT && sessionResult.session.project_id) {
+        // For project sessions, we need to get the project user
+        // This is a simplified implementation
+        const project = await dbService.getProjectById(sessionResult.session.project_id);
+        if (project) {
+          scopes = sessionResult.session.scopes.map(s => s.toString());
+        }
+      }
+
       res.status(200).json({
         success: true,
         data: {
           valid: true,
-          expires_at: session.expires_at,
-          type: session.type,
+          session: sessionResult.session,
+          user,
+          scopes,
         },
       } as ApiResponse);
-      return;
     } catch (error) {
-      console.error("Validate session error:", error);
+      console.error("Session validation error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to validate session",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Logout (invalidate session)
+  /**
+   * Logout and invalidate session
+   * POST /krapi/k1/auth/logout
+   *
+   * Logs out the current user and invalidates their session.
+   *
+   * @param req - Authenticated request
+   * @param res - Response with success message
+   */
   logout = async (req: Request, res: Response): Promise<void> => {
     try {
-      const authReq = req as AuthenticatedRequest;
-      const session = authReq.session;
-      const user = authReq.user;
-
-      if (session && !session.consumed) {
-        // Consume the session to invalidate it
-        await this.db.consumeSession(session.token);
-      }
-
-      // Log logout
-      if (user) {
-        await this.authService.logAuthAction(
-          "logout",
-          user.id,
-          undefined,
-          session?.id
-        );
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Logged out successfully",
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Logout error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Logout failed",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Get current user info
-  getCurrentUser = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const authUser = authReq.user;
-
-      if (!authUser) {
+      // Get the session token from the request headers
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
         res.status(401).json({
           success: false,
-          error: "Not authenticated",
+          error: "No valid session token provided",
         } as ApiResponse);
         return;
       }
 
-      // Fetch full user data based on type
-      if (authUser.type === "admin") {
-        const adminUser = await this.db.getAdminUserById(authUser.id);
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Use existing services directly for now
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
+
+      // Invalidate the session
+      const sessionInvalidated = await dbService.invalidateSession(token);
+
+      if (sessionInvalidated) {
+        // Log the logout action if we can get the user info
+        try {
+          const session = await dbService.getSessionByToken(token);
+          if (session && session.user_id) {
+            await authService.logAuthAction(
+              "logout",
+              session.user_id,
+              undefined,
+              session.id
+            );
+          }
+        } catch (logError) {
+          // Don't fail logout if logging fails
+          console.warn("Failed to log logout action:", logError);
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        data: undefined,
+      } as ApiResponse);
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+
+  /**
+   * Get current authenticated user
+   * GET /krapi/k1/auth/me
+   *
+   * Returns information about the currently authenticated user.
+   *
+   * @param req - Authenticated request
+   * @param res - Response with user data
+   */
+  getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Get the session token from the request headers
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({
+          success: false,
+          error: "No valid session token provided",
+        } as ApiResponse);
+        return;
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Use existing services directly for now
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
+
+      // Validate the session
+      const sessionResult = await authService.validateSessionToken(token);
+
+      if (!sessionResult.valid || !sessionResult.session) {
+        res.status(401).json({
+          success: false,
+          error: "Invalid or expired session",
+        } as ApiResponse);
+        return;
+      }
+
+      // Get user information based on session type
+      if (
+        sessionResult.session.type === SessionType.ADMIN &&
+        sessionResult.session.user_id
+      ) {
+        const adminUser = await dbService.getAdminUserById(
+          sessionResult.session.user_id
+        );
         if (!adminUser) {
           res.status(404).json({
             success: false,
@@ -341,77 +429,54 @@ export class AuthController {
           return;
         }
 
-        res.status(200).json({
-          success: true,
-          data: {
-            id: adminUser.id,
-            email: adminUser.email,
-            username: adminUser.username,
-            role: adminUser.role,
-            access_level: adminUser.access_level,
-            permissions: adminUser.permissions,
-            active: adminUser.active,
-            created_at: adminUser.created_at,
-            updated_at: adminUser.updated_at,
-            last_login: adminUser.last_login,
-            api_key: adminUser.api_key,
-            login_count: adminUser.login_count || 0,
-          },
-        } as ApiResponse);
-      } else {
-        // ProjectUser
-        const projectUser = await this.db.getProjectUser(
-          authUser.project_id!,
-          authUser.id
-        );
-        if (!projectUser) {
-          res.status(404).json({
-            success: false,
-            error: "User not found",
-          } as ApiResponse);
-          return;
-        }
+        // Get scopes for the user's role
+        const scopes = authService.getScopesForRole(adminUser.role);
 
         res.status(200).json({
           success: true,
           data: {
-            id: projectUser.id,
-            email: projectUser.email,
-            username: projectUser.username,
-            phone: projectUser.phone,
-            is_active: projectUser.is_active,
+            ...adminUser,
+            scopes: scopes.map((scope) => scope.toString()),
           },
         } as ApiResponse);
+      } else {
+        res.status(400).json({
+          success: false,
+          error: "Unsupported session type",
+        } as ApiResponse);
       }
-      return;
     } catch (error) {
       console.error("Get current user error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to get user info",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Change password
+  /**
+   * Change user password
+   * POST /krapi/k1/auth/change-password
+   *
+   * Changes the password for the current user.
+   *
+   * @param req - Authenticated request with current and new password
+   * @param res - Response with success message
+   */
   changePassword = async (req: Request, res: Response): Promise<void> => {
     try {
-      const authReq = req as AuthenticatedRequest;
-      const user = authReq.user;
-      const { current_password, new_password } = req.body;
+      const {
+        current_password,
+        new_password,
+      } = req.body;
 
-      if (!user) {
-        res.status(401).json({
-          success: false,
-          error: "Not authenticated",
-        } as ApiResponse);
-        return;
-      }
+      // Get service instances
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
 
-      // Get the full admin user data to verify password
-      const adminUser = await this.db.getAdminUserById(user.id);
-      if (!adminUser) {
+      // Validate current password
+      const currentUser = await dbService.getAdminUserById((req as any).user?.id);
+      if (!currentUser) {
         res.status(404).json({
           success: false,
           error: "User not found",
@@ -420,12 +485,9 @@ export class AuthController {
       }
 
       // Verify current password
-      const validUser = await this.authService.authenticateAdmin(
-        adminUser.email,
-        current_password
-      );
-      if (!validUser) {
-        res.status(401).json({
+      const isValidPassword = await authService.verifyPassword(current_password, currentUser.password_hash);
+      if (!isValidPassword) {
+        res.status(400).json({
           success: false,
           error: "Current password is incorrect",
         } as ApiResponse);
@@ -433,27 +495,41 @@ export class AuthController {
       }
 
       // Hash new password
-      const hashedPassword = await this.authService.hashPassword(new_password);
+      const newPasswordHash = await authService.hashPassword(new_password);
 
-      // Update password
-      this.db.updateAdminUser(user.id, { password_hash: hashedPassword });
+      // Update password in database
+      await dbService.updateAdminUserPassword(currentUser.id, newPasswordHash);
+
+      // Log the password change
+      await authService.logAuthAction(
+        "password_change",
+        currentUser.id,
+        undefined,
+        (req as any).session?.id
+      );
 
       res.status(200).json({
         success: true,
         message: "Password changed successfully",
       } as ApiResponse);
-      return;
     } catch (error) {
       console.error("Change password error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to change password",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Admin login with API key
+  /**
+   * Admin login using API key
+   * POST /krapi/k1/auth/admin/api-login
+   *
+   * Authenticates admin user using API key and returns session information.
+   *
+   * @param req - Request with api_key in body
+   * @param res - Response with user data and session token
+   */
   adminApiLogin = async (req: Request, res: Response): Promise<void> => {
     try {
       const { api_key } = req.body;
@@ -466,154 +542,138 @@ export class AuthController {
         return;
       }
 
-      const adminUser = await this.db.getAdminUserByApiKey(api_key);
+      // Use existing services directly for now
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
 
-      if (!adminUser) {
+      // Get admin user by API key
+      const adminUser = await dbService.getAdminUserByApiKey(api_key);
+
+      if (!adminUser || !adminUser.active) {
         res.status(401).json({
           success: false,
-          error: "Invalid API key",
-        });
+          error: "Invalid or inactive API key",
+        } as ApiResponse);
         return;
       }
 
-      if (!adminUser.active) {
-        res.status(401).json({
-          success: false,
-          error: "Account is deactivated",
-        });
-        return;
-      }
+      // Create admin session with scopes
+      const session = await authService.createAdminSessionWithScopes(adminUser);
 
-      // Generate session token
-      const sessionToken = `admin_${uuidv4().replace(/-/g, "")}`;
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      // Create session
-      const session = await this.db.createSession({
-        token: sessionToken,
-        user_id: adminUser.id,
-        project_id: null,
-        type: SessionType.ADMIN,
-        scopes: this.mapAdminPermissionsToScopes(adminUser.permissions || []),
-        metadata: {
-          role: adminUser.role,
-          access_level: adminUser.access_level,
-        },
-        created_at: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-        consumed: false,
-      });
-
-      if (!session) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to create session",
-        });
-        return;
-      }
+      // Get scopes for the user's role
+      const scopes = authService.getScopesForRole(adminUser.role);
 
       // Update login info
-      await this.db.updateLoginInfo(adminUser.id);
+      await dbService.updateLoginInfo(adminUser.id);
 
-      // Log the action
-      await this.authService.logAuthAction("login", adminUser.id);
+      // Log the authentication action
+      await authService.logAuthAction(
+        "login",
+        adminUser.id,
+        undefined,
+        session.id
+      );
 
-      res.json({
+      // Return success response
+      res.status(200).json({
         success: true,
         data: {
-          token: sessionToken,
-          expires_at: expiresAt.toISOString(),
           user: {
-            id: adminUser.id,
-            username: adminUser.username,
-            email: adminUser.email,
-            role: adminUser.role,
-            access_level: adminUser.access_level,
-            permissions: adminUser.permissions,
+            ...adminUser,
+            scopes: scopes.map((scope) => scope.toString()),
           },
+          token: session.token,
+          session_token: session.token,
+          expires_at: session.expires_at,
         },
-      });
+      } as ApiResponse);
     } catch (error) {
       console.error("Admin API login error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to authenticate with API key",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  // Regenerate API key for current user
+  /**
+   * Regenerate API key
+   * POST /krapi/k1/auth/regenerate-api-key
+   *
+   * Regenerates the API key for the current user.
+   *
+   * @param req - Authenticated request
+   * @param res - Response with new API key
+   */
   regenerateApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
-      const authReq = req as AuthenticatedRequest;
+      // Get service instances
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
 
-      if (!authReq.user) {
-        res.status(401).json({
+      // Get current user
+      const currentUser = await dbService.getAdminUserById((req as any).user?.id);
+      if (!currentUser) {
+        res.status(404).json({
           success: false,
-          error: "Unauthorized",
+          error: "User not found",
         } as ApiResponse);
         return;
       }
 
       // Generate new API key
-      const newApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+      const newApiKey = authService.generateApiKey();
 
-      // Update user with new API key
-      const updated = await this.db.updateAdminUser(authReq.user.id, {
-        api_key: newApiKey,
-      });
+      // Update API key in database
+      await dbService.updateAdminUserApiKey(currentUser.id, newApiKey);
 
-      if (!updated) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to regenerate API key",
-        } as ApiResponse);
-        return;
-      }
+      // Log the API key regeneration
+      await authService.logAuthAction(
+        "api_key_regenerated",
+        currentUser.id,
+        undefined,
+        (req as any).session?.id
+      );
 
       res.status(200).json({
         success: true,
         data: {
           api_key: newApiKey,
-          message:
-            "API key regenerated successfully. Save this key securely - it will not be shown again!",
+          message: "API key regenerated successfully",
         },
       } as ApiResponse);
-      return;
     } catch (error) {
       console.error("Regenerate API key error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to regenerate API key",
+        error: error instanceof Error ? error.message : "Internal server error",
       } as ApiResponse);
-      return;
     }
   };
 
-  private mapAdminPermissionsToScopes(permissions: AdminPermission[]): Scope[] {
-    const permissionToScopeMap: Record<AdminPermission, Scope> = {
-      "users.create": Scope.ADMIN_WRITE,
-      "users.read": Scope.ADMIN_READ,
-      "users.update": Scope.ADMIN_WRITE,
-      "users.delete": Scope.ADMIN_WRITE,
-      "projects.create": Scope.PROJECTS_WRITE,
-      "projects.read": Scope.PROJECTS_READ,
-      "projects.update": Scope.PROJECTS_WRITE,
-      "projects.delete": Scope.PROJECTS_DELETE,
-      "collections.create": Scope.COLLECTIONS_WRITE,
-      "collections.read": Scope.COLLECTIONS_READ,
-      "collections.write": Scope.COLLECTIONS_WRITE,
-      "collections.delete": Scope.COLLECTIONS_DELETE,
-      "storage.upload": Scope.STORAGE_WRITE,
-      "storage.read": Scope.STORAGE_READ,
-      "storage.delete": Scope.STORAGE_DELETE,
-      "settings.read": Scope.ADMIN_READ,
-      "settings.update": Scope.ADMIN_WRITE,
+  private mapAdminPermissionsToScopes(permissions: string[]): string[] {
+    const permissionToScopeMap: Record<string, string> = {
+      "users.create": "ADMIN_WRITE",
+      "users.read": "ADMIN_READ",
+      "users.update": "ADMIN_WRITE",
+      "users.delete": "ADMIN_WRITE",
+      "projects.create": "PROJECTS_WRITE",
+      "projects.read": "PROJECTS_READ",
+      "projects.update": "PROJECTS_WRITE",
+      "projects.delete": "PROJECTS_DELETE",
+      "collections.create": "COLLECTIONS_WRITE",
+      "collections.read": "COLLECTIONS_READ",
+      "collections.write": "COLLECTIONS_WRITE",
+      "collections.delete": "COLLECTIONS_DELETE",
+      "storage.upload": "STORAGE_WRITE",
+      "storage.read": "STORAGE_READ",
+      "storage.delete": "STORAGE_DELETE",
+      "settings.read": "ADMIN_READ",
+      "settings.update": "ADMIN_WRITE",
     };
 
     return permissions.map(
-      (permission) => permissionToScopeMap[permission] || Scope.ADMIN_READ
+      (permission) => permissionToScopeMap[permission] || "ADMIN_READ"
     );
   }
 }

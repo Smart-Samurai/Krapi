@@ -1,7 +1,14 @@
-import { Request, Response } from "express";
-import { backendSDK } from "@/lib/backend-sdk";
-import { ApiResponse } from "@/types";
+// import { Request, Response } from "express";
 
+// import { backendSDK } from "@/lib/backend-sdk";
+// import { ApiResponse } from "@/types";
+
+/**
+ * Email Controller
+ *
+ * TEMPORARILY DISABLED - Will be reimplemented using direct services
+ */
+/*
 export class EmailController {
   // Get email configuration
   getEmailConfig = async (req: Request, res: Response): Promise<void> => {
@@ -105,15 +112,15 @@ export class EmailController {
   getEmailTemplates = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
-
-      console.log("Email templates request - projectId:", projectId);
-      console.log("Request params:", req.params);
+      const { page = 1, limit = 50 } = req.query;
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
 
       if (!projectId) {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
@@ -122,13 +129,13 @@ export class EmailController {
       res.status(200).json({
         success: true,
         data: templates,
-      });
+      } as ApiResponse);
     } catch (error) {
       console.error("Error getting email templates:", error);
       res.status(500).json({
         success: false,
         error: "Failed to get email templates",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -141,7 +148,7 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
@@ -149,29 +156,22 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Template ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
       const result = await backendSDK.email.getTemplate(templateId);
 
-      if (result) {
-        res.status(200).json({
-          success: true,
-          data: result,
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          error: "Email template not found",
-        });
-      }
+      res.status(200).json({
+        success: true,
+        data: result,
+      } as ApiResponse);
     } catch (error) {
       console.error("Error getting email template:", error);
       res.status(500).json({
         success: false,
         error: "Failed to get email template",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -185,7 +185,15 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
+        return;
+      }
+
+      if (!templateData.name || !templateData.subject || !templateData.body) {
+        res.status(400).json({
+          success: false,
+          error: "Name, subject, and body are required",
+        } as ApiResponse);
         return;
       }
 
@@ -194,13 +202,13 @@ export class EmailController {
       res.status(201).json({
         success: true,
         data: result,
-      });
+      } as ApiResponse);
     } catch (error) {
       console.error("Error creating email template:", error);
       res.status(500).json({
         success: false,
         error: "Failed to create email template",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -214,7 +222,7 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
@@ -222,7 +230,15 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Template ID is required",
-        });
+        } as ApiResponse);
+        return;
+      }
+
+      if (!templateData.name || !templateData.subject || !templateData.body) {
+        res.status(400).json({
+          success: false,
+          error: "Name, subject, and body are required",
+        } as ApiResponse);
         return;
       }
 
@@ -231,23 +247,16 @@ export class EmailController {
         templateData
       );
 
-      if (result) {
-        res.status(200).json({
-          success: true,
-          data: result,
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          error: "Email template not found",
-        });
-      }
+      res.status(200).json({
+        success: true,
+        data: result,
+      } as ApiResponse);
     } catch (error) {
       console.error("Error updating email template:", error);
       res.status(500).json({
         success: false,
         error: "Failed to update email template",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -260,7 +269,7 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
@@ -268,29 +277,22 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Template ID is required",
-        });
+        } as ApiResponse);
         return;
       }
 
-      const deleted = await backendSDK.email.deleteTemplate(templateId);
+      const result = await backendSDK.email.deleteTemplate(templateId);
 
-      if (deleted) {
-        res.status(200).json({
-          success: true,
-          message: "Email template deleted successfully",
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          error: "Email template not found or could not be deleted",
-        });
-      }
+      res.status(200).json({
+        success: true,
+        data: result,
+      } as ApiResponse);
     } catch (error) {
       console.error("Error deleting email template:", error);
       res.status(500).json({
         success: false,
         error: "Failed to delete email template",
-      });
+      } as ApiResponse);
     }
   };
 
@@ -304,29 +306,33 @@ export class EmailController {
         res.status(400).json({
           success: false,
           error: "Project ID is required",
-        });
+        } as ApiResponse);
+        return;
+      }
+
+      if (!emailData.to || !emailData.subject || !emailData.body) {
+        res.status(400).json({
+          success: false,
+          error: "To, subject, and body are required",
+        } as ApiResponse);
         return;
       }
 
       const result = await backendSDK.email.sendEmail(emailData);
 
-      if (result) {
-        res.status(200).json({
-          success: true,
-          message: "Email sent successfully",
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: "Failed to send email",
-        });
-      }
+      res.status(200).json({
+        success: true,
+        data: result,
+      } as ApiResponse);
     } catch (error) {
       console.error("Error sending email:", error);
       res.status(500).json({
         success: false,
         error: "Failed to send email",
-      });
+      } as ApiResponse);
     }
   };
 }
+*/
+
+export default {}; // Temporary empty export

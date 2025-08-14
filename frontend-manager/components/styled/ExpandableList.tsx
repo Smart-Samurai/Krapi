@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
 import { FiChevronDown, FiChevronRight } from "react-icons/fi";
+
+import { cn } from "@/lib/utils";
 
 interface ExpandableListProps {
   title: string;

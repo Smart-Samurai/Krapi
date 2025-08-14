@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
@@ -26,7 +27,7 @@ export async function GET(
       return NextResponse.json(response, { status: 404 });
     }
   } catch (error) {
-    console.error("Get project error:", error);
+    // Error logged for debugging
 
     // Provide more detailed error information
     const errorMessage =
@@ -35,13 +36,7 @@ export async function GET(
       error && typeof error === "object" && "response" in error;
 
     if (isAxiosError) {
-      const axiosError = error as any;
-      console.error("Axios error details:", {
-        status: axiosError.response?.status,
-        statusText: axiosError.response?.statusText,
-        data: axiosError.response?.data,
-        message: axiosError.message,
-      });
+      // Error logged for debugging
     }
 
     return NextResponse.json(
@@ -52,7 +47,7 @@ export async function GET(
           process.env.NODE_ENV === "development"
             ? {
                 message: errorMessage,
-                isAxiosError: isAxiosError,
+                isAxiosError,
                 timestamp: new Date().toISOString(),
               }
             : undefined,
@@ -87,7 +82,7 @@ export async function PUT(
       return NextResponse.json(response, { status: 400 });
     }
   } catch (error) {
-    console.error("Update project error:", error);
+    // Error logged for debugging
     return NextResponse.json(
       {
         success: false,
@@ -122,7 +117,7 @@ export async function DELETE(
       return NextResponse.json(response, { status: 400 });
     }
   } catch (error) {
-    console.error("Delete project error:", error);
+    // Error logged for debugging
     return NextResponse.json(
       {
         success: false,

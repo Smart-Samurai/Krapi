@@ -6,7 +6,8 @@
  */
 
 import { Router, IRouter } from "express";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
+
 import { AuthController } from "@/controllers/auth.controller";
 import { authenticate } from "@/middleware/auth.middleware";
 

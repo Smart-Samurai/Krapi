@@ -1,0 +1,153 @@
+# Cursor Rules for Krapi Project
+
+## Core Architecture Principle: Perfect Plug and Socket Design
+
+**KRAPI implements a revolutionary "plug and socket" architecture where frontend (plug) and backend (socket) fit together perfectly.**
+
+### The Plug and Socket Rule
+
+Every method in the KRAPI SDK MUST:
+
+1. **Work identically in both client and server environments**
+2. **Have identical method signatures** (parameters, return types, error handling)
+3. **Provide identical functionality** regardless of connection mode
+4. **Support shared business logic** that can be used in both environments
+
+```typescript
+// CLIENT (The Plug) 🔌
+await krapi.connect({ endpoint: "https://api.example.com", apiKey: "key" });
+const project = await krapi.projects.create({ name: "My Project" });
+
+// SERVER (The Socket) ⚡
+await krapi.connect({ database: dbConnection });
+const project = await krapi.projects.create({ name: "My Project" }); // IDENTICAL!
+```
+
+### Socket Interface Compliance
+
+All SDK methods must implement the `KrapiSocketInterface` which guarantees:
+
+- **Perfect Method Parity**: Every client method has an exact server counterpart
+- **Identical Signatures**: Same parameters and return types in both modes
+- **Consistent Error Handling**: Same error types and structure
+- **Business Logic Portability**: Code can be moved between frontend/backend without changes
+
+## Architecture Rules
+
+### 1. Separation of Concerns
+
+- Separate functions and components into different files to better track points of failure
+- Each file should have a single, clear responsibility
+- Use proper file organization and naming conventions
+- **SDK Services**: Each service (auth, projects, collections, etc.) has both HTTP client and database implementations
+
+### 2. Type Safety
+
+- Everything needs to be type safe with specified types
+- Functions that mutate data, create new data, or request data must clearly specify:
+  - What kind of data they expect to receive
+  - What kind of data they will return
+- This allows different parts of the code to be connectable like LEGO blocks with matching data types
+- NO `any` types allowed - use proper TypeScript types
+- **Socket Compatibility**: All types must work identically in client and server modes
+
+### 3. Normalization of Coding Style
+
+- Use consistent style across all parts of the application
+- Keep code clean, elegant, and consistent
+- Examples of what needs to be consistent:
+  - API route writing patterns
+  - Mutation function patterns
+  - Async/API request patterns and libraries used
+  - Data transfer methodology
+  - Error handling patterns
+  - Logging patterns
+- **Cross-Environment Consistency**: Same patterns must work in both HTTP and database modes
+
+### 4. SDK Implementation Requirements
+
+#### Client Mode (HTTP) Implementation
+
+- Must use HTTP clients that communicate with KRAPI backend APIs
+- Must handle authentication (API keys, session tokens) automatically
+- Must provide identical method signatures as server mode
+- Must return identical data structures as server mode
+
+#### Server Mode (Database) Implementation
+
+- Must use direct database connections for maximum performance
+- Must provide identical method signatures as client mode
+- Must return identical data structures as client mode
+- Must handle database transactions and connection pooling
+
+#### Shared Business Logic Support
+
+- All business logic classes must work in both client and server modes
+- No mode-specific code allowed in business logic layers
+- Same imports and method calls must work regardless of connection mode
+
+## Database Auto-Fixers and Auto-Migration Requirements
+
+### 1. SDK Database Health Management
+
+The Krapi SDK MUST include comprehensive database auto-fixers and auto-migration capabilities to ensure database health during development.
+
+### 2. Why Auto-Fixers Are Critical
+
+- **Development Efficiency**: Prevents manual database resets when features change
+- **Continuous Development**: Allows seamless feature development, modification, and deletion
+- **Database Consistency**: Ensures the database always matches the current schema requirements
+- **Testing Reliability**: Maintains a healthy testing database without manual intervention
+
+### 3. Required Auto-Fixer Capabilities
+
+The SDK must automatically detect and fix:
+
+#### Schema Misalignments
+
+- **Missing Fields**: Detect when tables are missing required fields and add them
+- **Wrong Field Names**: Detect and rename fields that don't match expected schema
+- **Field Type Mismatches**: Convert field types to match expected schema
+- **Missing Tables**: Create tables that are referenced but don't exist
+- **Orphaned Tables**: Remove tables that are no longer needed
+
+#### Data Integrity Issues
+
+- **Missing Indexes**: Create required indexes for performance and constraints
+- **Foreign Key Violations**: Fix broken relationships between tables
+- **Constraint Violations**: Add missing constraints (unique, not null, etc.)
+- **Default Value Issues**: Set appropriate default values for new fields
+
+#### Migration Management
+
+- **Version Tracking**: Track database schema versions
+- **Rollback Capability**: Ability to rollback to previous schema versions
+- **Migration Logging**: Log all auto-fixes for debugging and audit purposes
+- **Conflict Resolution**: Handle conflicts when multiple developers make schema changes
+
+### 4. Implementation Requirements
+
+- **PostgreSQL Exclusive**: All auto-fixers must work with PostgreSQL
+- **Non-Destructive**: Auto-fixes should never lose data unless explicitly required
+- **Performance Optimized**: Auto-fixes should be fast and not block normal operations
+- **Development Focused**: Designed for development environments with frequent schema changes
+- **SDK Integration**: Must be accessible through the SDK for both frontend and backend
+
+### 5. Usage Patterns
+
+```typescript
+// Example SDK usage for database health checks
+await krapi.database.healthCheck(); // Runs all health checks
+await krapi.database.autoFix(); // Automatically fixes all detected issues
+await krapi.database.validateSchema(); // Validates current schema against expected
+await krapi.database.migrate(); // Runs pending migrations
+```
+
+### 6. Development Workflow Integration
+
+- Auto-fixers should run automatically during development startup
+- Health checks should be available on-demand
+- Migration status should be visible in development tools
+- All auto-fixes should be logged and traceable
+
+This auto-fixer system is essential for maintaining development velocity and database consistency in a rapidly evolving codebase.

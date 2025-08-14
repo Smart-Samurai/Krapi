@@ -1,5 +1,30 @@
-import { KrapiSDK } from "@krapi/sdk";
-import type { AdminRole, AccessLevel, ApiKey, ApiResponse } from "@krapi/sdk";
+import {
+  KrapiSDK,
+  Scope,
+  ProjectScope,
+  AdminRole,
+  AccessLevel,
+  type ApiKey,
+  type ApiResponse,
+  type PaginatedResponse,
+  type AdminUser,
+  type AdminPermission,
+  type Project,
+  type ProjectSettings,
+  type ProjectStats,
+  type Collection,
+  type CollectionField,
+  type CollectionIndex,
+  type Document,
+  type FileInfo,
+  type StorageStats,
+  type Session,
+  type QueryOptions,
+  type ProjectUser,
+  type EmailConfig,
+  type EmailTemplate,
+  type EmailSendRequest,
+} from "@krapi/sdk";
 
 /**
  * Create a default KRAPI client with base configuration
@@ -53,29 +78,16 @@ export function createKrapiWithApiKey(
   });
 }
 
-// Extend the KrapiSDK class to include the createMasterApiKey method
-export class ExtendedKrapiSDK extends KrapiSDK {
-  admin: any = {
-    ...this.admin,
-    // Create master API key
-    createMasterApiKey: async (data: {
-      name: string;
-      scopes: string[];
-    }): Promise<ApiResponse<ApiKey>> => {
-      const response = await (this as any).client.post(
-        "/admin/master-api-keys",
-        data
-      );
-      return response.data;
-    },
-  };
-}
+// Note: ExtendedKrapiSDK removed due to type compatibility issues
+// Use the base KrapiSDK class instead
 
-// Export the SDK class and types for convenience
-export { KrapiSDK } from "@krapi/sdk";
-
-// Re-export all types
+// Re-export all types and values for convenience
 export {
+  KrapiSDK,
+  Scope,
+  ProjectScope,
+  AdminRole,
+  AccessLevel,
   type ApiResponse,
   type PaginatedResponse,
   type AdminUser,
@@ -96,8 +108,4 @@ export {
   type EmailConfig,
   type EmailTemplate,
   type EmailSendRequest,
-  AdminRole,
-  AccessLevel,
-} from "@krapi/sdk";
-
-export { Scope, ProjectScope } from "@krapi/sdk";
+};

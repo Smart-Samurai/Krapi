@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import { DatabaseService } from "@/services/database.service";
 import {
   AuthenticatedRequest,
@@ -347,7 +348,7 @@ export class CollectionsController {
           page: pageNum,
           limit: limitNum,
           total,
-          totalPages: totalPages,
+          totalPages,
           hasNext: pageNum < totalPages,
           hasPrev: pageNum > 1,
         },
