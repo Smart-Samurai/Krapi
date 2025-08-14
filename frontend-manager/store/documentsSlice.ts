@@ -4,7 +4,7 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { Document, createDefaultKrapi } from "@/lib/krapi";
+import { Document } from "@/lib/krapi";
 
 // Types
 export interface DocumentsState {
@@ -21,15 +21,18 @@ const getDocumentsKey = (projectId: string, collectionId: string) =>
 export const fetchDocuments = createAsyncThunk(
   "documents/fetchAll",
   async (
-    { projectId, collectionId }: { projectId: string; collectionId: string },
+    {
+      projectId,
+      collectionId,
+      krapi,
+    }: { projectId: string; collectionId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.documents.getAll(projectId, collectionId);
+      const response = await krapi.documents.getAll(projectId, collectionId);
       if (response.success && response.data) {
         return { projectId, collectionId, documents: response.data };
       } else {
@@ -50,10 +53,12 @@ export const createDocument = createAsyncThunk(
       projectId,
       collectionId,
       data,
+      krapi,
     }: {
       projectId: string;
       collectionId: string;
       data: Record<string, unknown>;
+      krapi: any;
     },
     {
       getState,
@@ -61,8 +66,7 @@ export const createDocument = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.documents.create(
+      const response = await krapi.documents.create(
         projectId,
         collectionId,
         data
@@ -88,11 +92,13 @@ export const updateDocument = createAsyncThunk(
       collectionId,
       id,
       data,
+      krapi,
     }: {
       projectId: string;
       collectionId: string;
       id: string;
       data: Record<string, unknown>;
+      krapi: any;
     },
     {
       getState,
@@ -100,8 +106,7 @@ export const updateDocument = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.documents.update(
+      const response = await krapi.documents.update(
         projectId,
         collectionId,
         id,
@@ -127,15 +132,15 @@ export const deleteDocument = createAsyncThunk(
       projectId,
       collectionId,
       id,
-    }: { projectId: string; collectionId: string; id: string },
+      krapi,
+    }: { projectId: string; collectionId: string; id: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.documents.delete(
+      const response = await krapi.documents.delete(
         projectId,
         collectionId,
         id

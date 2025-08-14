@@ -50,22 +50,19 @@ export { FieldType } from "./core";
 
 // LEGACY INTERFACES (for backward compatibility - DEPRECATED)
 // Note: These are maintained for compatibility but krapi singleton is recommended
-export { FrontendSDK } from "./frontend-sdk";
 export { BackendSDK } from "./backend-sdk";
 // Legacy unified client exports removed - use the new krapi singleton instead
+
+// Note: FrontendSDK removed - use krapi singleton instead
 
 // Export shared interfaces and types
 export * from "./interfaces";
 export * from "./types";
 
-// Export for backward compatibility (after FrontendSDK is declared above)
-// Temporarily commented out due to build issues - these can be imported directly as FrontendSDK
-// export { FrontendSDK as ClientSDK };
-// export { FrontendSDK as KrapiSDK };
-// Note: KrapiClient now refers to the new unified client
+// Export key enums explicitly for better IDE support
+export { AdminRole, AccessLevel, Scope, ProjectScope } from "./types";
 
-// Export the main SDK class (FrontendSDK is the default)
-// export { FrontendSDK as default };
+// Export the main SDK class (krapi singleton is the default)
 
 // Export database health management system
 export { DatabaseHealthManager } from "./database-health";

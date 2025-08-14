@@ -17,7 +17,7 @@ import {
   clearAuthData,
 } from "@/store/authSlice";
 import type { AdminUser } from "@/lib/krapi";
-import { createDefaultKrapi, KrapiSDK } from "@/lib/krapi";
+import { krapi } from "@/lib/krapi";
 
 interface AuthContextType {
   user: (AdminUser & { scopes?: string[] }) | null;
@@ -26,7 +26,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   loginWithApiKey: (apiKey: string) => Promise<void>;
   logout: () => Promise<void>;
-  krapi: KrapiSDK | null;
+  krapi: typeof krapi;
   sessionToken: string | null;
   apiKey: string | null;
   scopes: string[];
@@ -41,7 +41,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const [krapiClient, setKrapiClient] = useState<KrapiSDK | null>(null);
 
   const { user, loading, error, sessionToken, apiKey, scopes, isInitialized } =
     useAppSelector((state) => state.auth);
@@ -49,20 +48,18 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize auth on mount
   useEffect(() => {
     if (!isInitialized) {
-      const client = createDefaultKrapi();
-      setKrapiClient(client);
-      dispatch(initializeAuth());
+      dispatch(initializeAuth({ krapi }));
     }
   }, [dispatch, isInitialized]);
 
   // Update krapi client when session token changes
   useEffect(() => {
-    if (krapiClient && sessionToken) {
-      krapiClient.setSessionToken(sessionToken);
-    } else if (krapiClient && apiKey) {
-      krapiClient.setApiKey(apiKey);
+    if (sessionToken) {
+      krapi.setSessionToken(sessionToken);
+    } else if (apiKey) {
+      krapi.setApiKey(apiKey);
     }
-  }, [krapiClient, sessionToken, apiKey]);
+  }, [sessionToken, apiKey]);
 
   // Handle auth errors and redirect
   const handleAuthError = useCallback(
@@ -101,7 +98,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     async (username: string, password: string) => {
       try {
         const result = await dispatch(
-          loginAction({ username, password })
+          loginAction({ username, password, krapi })
         ).unwrap();
 
         // Check if there's a redirect URL
@@ -122,7 +119,9 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithApiKey = useCallback(
     async (apiKey: string) => {
       try {
-        const result = await dispatch(loginWithApiKeyAction(apiKey)).unwrap();
+        const result = await dispatch(
+          loginWithApiKeyAction({ apiKey, krapi })
+        ).unwrap();
 
         // Check if there's a redirect URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -141,7 +140,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   // Logout function
   const logout = useCallback(async () => {
     try {
-      await dispatch(logoutAction()).unwrap();
+      await dispatch(logoutAction({ krapi })).unwrap();
       router.push("/login");
     } catch (error) {
       console.error("Logout error:", error);

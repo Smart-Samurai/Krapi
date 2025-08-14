@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { Project } from "@/lib/krapi";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById, updateProject } from "@/store/projectsSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
@@ -46,6 +47,7 @@ type ProjectSettingsFormData = z.infer<typeof projectSettingsSchema>;
 export default function ProjectSettingsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const projectsState = useAppSelector((s) => s.projects);
   const project = projectsState.items.find((p) => p.id === projectId) || null;
@@ -63,8 +65,8 @@ export default function ProjectSettingsPage() {
   });
 
   const fetchProjectDetails = useCallback(() => {
-    dispatch(fetchProjectById({ id: projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchProjectById({ id: projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -75,7 +77,7 @@ export default function ProjectSettingsPage() {
       form.reset({
         name: project.name,
         description: project.description || "",
-        is_active: project.active,
+        is_active: project.is_active,
       });
     }
   }, [project, form]);
@@ -91,6 +93,7 @@ export default function ProjectSettingsPage() {
             description: data.description,
             active: data.is_active,
           } as Partial<Project>,
+          krapi,
         })
       );
       if (updateProject.fulfilled.match(action)) {

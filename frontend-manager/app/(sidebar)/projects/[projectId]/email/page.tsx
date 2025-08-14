@@ -138,12 +138,12 @@ export default function EmailPage() {
   });
 
   const loadEmailConfigCb = useCallback(() => {
-    dispatch(fetchEmailConfig({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchEmailConfig({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   const loadTemplatesCb = useCallback(() => {
-    dispatch(fetchEmailTemplates({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchEmailTemplates({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
     loadEmailConfigCb();
@@ -172,6 +172,7 @@ export default function EmailPage() {
         updateEmailConfig({
           projectId,
           config: { ...configForm } as EmailConfig,
+          krapi,
         })
       );
       if (!updateEmailConfig.fulfilled.match(action)) {
@@ -193,7 +194,7 @@ export default function EmailPage() {
       setIsTesting(true);
       dispatch(beginBusy());
       const action = await dispatch(
-        testEmailConfig({ projectId, email: testEmail })
+        testEmailConfig({ projectId, email: testEmail, krapi })
       );
       if (!testEmailConfig.fulfilled.match(action)) {
         const msg =
@@ -213,7 +214,7 @@ export default function EmailPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        createEmailTemplate({ projectId, data: { ...templateForm } })
+        createEmailTemplate({ projectId, data: { ...templateForm }, krapi })
       );
       if (createEmailTemplate.fulfilled.match(action)) {
         setIsCreateTemplateDialogOpen(false);
@@ -241,6 +242,7 @@ export default function EmailPage() {
           projectId,
           templateId: editingTemplate.id,
           updates: { ...templateForm },
+          krapi,
         })
       );
       if (updateEmailTemplate.fulfilled.match(action)) {
@@ -266,7 +268,7 @@ export default function EmailPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        deleteEmailTemplate({ projectId, templateId })
+        deleteEmailTemplate({ projectId, templateId, krapi })
       );
       if (deleteEmailTemplate.fulfilled.match(action)) {
         loadTemplatesCb();

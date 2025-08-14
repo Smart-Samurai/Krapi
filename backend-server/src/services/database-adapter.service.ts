@@ -45,10 +45,9 @@ export class DatabaseAdapterService {
     const projects = await this.db.getAllProjects();
 
     // Apply pagination if options are provided
-    if (options?.limit || options?.page) {
+    if (options?.limit || options?.offset) {
       const limit = options.limit || 10;
-      const page = options.page || 1;
-      const offset = (page - 1) * limit;
+      const offset = options.offset || 0;
       return projects.slice(offset, offset + limit);
     }
 
@@ -299,9 +298,7 @@ export class DatabaseAdapterService {
         collection.name,
         {
           limit: options?.limit || 100,
-          offset: options?.page
-            ? (options.page - 1) * (options.limit || 100)
-            : 0,
+          offset: options?.offset || 0,
         }
       );
 
@@ -432,9 +429,7 @@ export class DatabaseAdapterService {
   ): Promise<ProjectUser[]> {
     const result = await this.db.getProjectUsers(projectId, {
       limit: options?.limit,
-      offset: options?.page
-        ? (options.page - 1) * (options.limit || 10)
-        : undefined,
+      offset: options?.offset,
       search: options?.search,
       active:
         (options as { active?: boolean })?.active !== undefined
@@ -464,9 +459,10 @@ export class DatabaseAdapterService {
       username: user.username,
       email: user.email,
       password: (user as { password?: string }).password || "",
-      phone: user.phone,
-      scopes: user.access_scopes || [],
-      metadata: user.custom_fields,
+      phone: (user as { phone?: string }).phone,
+      scopes: (user as { access_scopes?: string[] }).access_scopes || [],
+      metadata: (user as { custom_fields?: Record<string, unknown> })
+        .custom_fields,
     });
 
     return TypeMapper.mapProjectUser(backendUser);
@@ -486,9 +482,10 @@ export class DatabaseAdapterService {
     const user = await this.db.updateProjectUser(existingUser.project_id, id, {
       username: updates.username,
       email: updates.email,
-      phone: updates.phone,
-      scopes: updates.access_scopes,
-      metadata: updates.custom_fields,
+      phone: (updates as { phone?: string }).phone,
+      scopes: (updates as { access_scopes?: string[] }).access_scopes,
+      metadata: (updates as { custom_fields?: Record<string, unknown> })
+        .custom_fields,
     });
 
     return TypeMapper.mapProjectUser(user);
@@ -567,10 +564,9 @@ export class DatabaseAdapterService {
     const users = await this.db.getAllAdminUsers();
 
     // Apply pagination if options are provided
-    if (options?.limit || options?.page) {
+    if (options?.limit || options?.offset) {
       const limit = options.limit || 10;
-      const page = options.page || 1;
-      const offset = (page - 1) * limit;
+      const offset = options.offset || 0;
       const paginatedUsers = users.slice(offset, offset + limit);
       return paginatedUsers.map((user) => TypeMapper.mapAdminUser(user));
     }
@@ -645,10 +641,9 @@ export class DatabaseAdapterService {
     );
 
     // Apply pagination if options are provided
-    if (options?.limit || options?.page) {
+    if (options?.limit || options?.offset) {
       const limit = options.limit || 10;
-      const page = options.page || 1;
-      const offset = (page - 1) * limit;
+      const offset = options.offset || 0;
       return entries.slice(offset, offset + limit);
     }
 

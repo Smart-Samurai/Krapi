@@ -80,10 +80,10 @@ export default function ProfilePage() {
 
     setIsChangingPassword(true);
     try {
-      const response = await krapi.auth.changePassword({
-        current_password: currentPassword,
-        new_password: newPassword,
-      });
+      const response = await krapi.auth.changePassword(
+        currentPassword,
+        newPassword
+      );
 
       if (response.success) {
         toast.success("Password changed successfully");
@@ -91,7 +91,7 @@ export default function ProfilePage() {
         setNewPassword("");
         setConfirmPassword("");
       } else {
-        toast.error(response.error || "Failed to change password");
+        toast.error("Failed to change password");
       }
     } catch {
       toast.error("Failed to change password");
@@ -113,13 +113,16 @@ export default function ProfilePage() {
 
     setIsRegeneratingKey(true);
     try {
-      const response = await krapi.auth.regenerateApiKey();
-      if (response.success && response.data) {
-        toast.success("API key regenerated successfully");
-        // The user object should be updated automatically
-      } else {
-        toast.error(response.error || "Failed to regenerate API key");
-      }
+      // Note: regenerateApiKey method is not yet implemented in the SDK
+      // For now, we'll show a message that this feature is coming soon
+      toast.info("API key regeneration feature is coming soon");
+      // TODO: Implement when the method is available in the SDK
+      // const response = await krapi.auth.regenerateApiKey();
+      // if (response.success && response.data) {
+      //   toast.success("API key regenerated successfully");
+      // } else {
+      //   toast.error(response.error || "Failed to regenerate API key");
+      // }
     } catch {
       toast.error("Failed to regenerate API key");
     } finally {

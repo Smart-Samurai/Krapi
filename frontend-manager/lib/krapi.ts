@@ -1,111 +1,85 @@
+/**
+ * KRAPI Frontend Integration
+ *
+ * This module provides a clean interface to the KRAPI SDK for frontend use.
+ * All types and methods come directly from the SDK - no custom implementations.
+ */
+
 import {
-  KrapiSDK,
-  Scope,
-  ProjectScope,
-  AdminRole,
-  AccessLevel,
-  type ApiKey,
+  krapi,
   type ApiResponse,
   type PaginatedResponse,
-  type AdminUser,
-  type AdminPermission,
   type Project,
   type ProjectSettings,
-  type ProjectStats,
   type Collection,
-  type CollectionField,
-  type CollectionIndex,
   type Document,
+  type ProjectUser,
   type FileInfo,
-  type StorageStats,
+  type StorageStatistics,
   type Session,
   type QueryOptions,
-  type ProjectUser,
+  type ApiKey,
   type EmailConfig,
   type EmailTemplate,
-  type EmailSendRequest,
+  type StoredFile,
+  type AdminUser,
+  type CollectionField,
+  type AdminPermission,
+  type ProjectStatistics,
+  type EmailRequest,
+  AdminRole,
+  AccessLevel,
+  Scope,
+  ProjectScope,
 } from "@krapi/sdk";
 
-/**
- * Create a default KRAPI client with base configuration
- * This function creates an SDK instance without authentication
- * Authentication should be added later via setSessionToken or setApiKey
- */
-export function createDefaultKrapi(baseUrl?: string): KrapiSDK {
-  const url =
-    baseUrl ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3470/krapi/k1";
+// Note: These functions are no longer needed since we're using the krapi singleton directly
+// The frontend should use the krapi singleton from @krapi/sdk instead
 
-  return new KrapiSDK({
-    baseUrl: url,
-  });
-}
-
-/**
- * Create a KRAPI client with session token authentication
- */
-export function createKrapiWithSession(
-  sessionToken: string,
-  baseUrl?: string
-): KrapiSDK {
-  const url =
-    baseUrl ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3470/krapi/k1";
-
-  return new KrapiSDK({
-    baseUrl: url,
-    sessionToken,
-  });
-}
-
-/**
- * Create a KRAPI client with API key authentication
- */
-export function createKrapiWithApiKey(
-  apiKey: string,
-  baseUrl?: string
-): KrapiSDK {
-  const url =
-    baseUrl ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3470/krapi/k1";
-
-  return new KrapiSDK({
-    baseUrl: url,
-    apiKey,
-  });
-}
-
-// Note: ExtendedKrapiSDK removed due to type compatibility issues
-// Use the base KrapiSDK class instead
-
-// Re-export all types and values for convenience
+// Re-export ALL SDK types and classes for frontend use
 export {
-  KrapiSDK,
-  Scope,
-  ProjectScope,
+  krapi,
   AdminRole,
   AccessLevel,
+  Scope,
+  ProjectScope,
   type ApiResponse,
   type PaginatedResponse,
-  type AdminUser,
-  type AdminPermission,
   type Project,
   type ProjectSettings,
-  type ProjectStats,
   type Collection,
-  type CollectionField,
-  type CollectionIndex,
   type Document,
+  type ProjectUser,
   type FileInfo,
-  type StorageStats,
+  type StorageStatistics,
   type Session,
   type QueryOptions,
-  type ProjectUser,
   type ApiKey,
   type EmailConfig,
   type EmailTemplate,
-  type EmailSendRequest,
+  type StoredFile,
+  type AdminUser,
+  type CollectionField,
+  type AdminPermission,
+  type ProjectStatistics,
+  type EmailRequest,
+};
+
+// Frontend compatibility: use SDK data structure directly
+// The frontend should adapt to use what the SDK provides, not transform it
+
+// Note: All helper functions removed - frontend should use SDK data directly
+// Project.is_active instead of Project.active
+// ProjectUser.permissions instead of ProjectUser.access_scopes
+// ProjectUser.metadata instead of ProjectUser.custom_fields
+// StorageStatistics.storage_used_percentage instead of StorageStatistics.usage_percentage
+
+// Type aliases for backward compatibility
+export type StorageStats = StorageStatistics;
+export type ProjectStats = ProjectStatistics;
+export type EmailSendRequest = EmailRequest;
+export type CollectionIndex = {
+  name: string;
+  fields: string[];
+  unique?: boolean;
 };

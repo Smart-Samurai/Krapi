@@ -4,12 +4,7 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import {
-  Collection,
-  CollectionField,
-  CollectionIndex,
-  createDefaultKrapi,
-} from "@/lib/krapi";
+import { Collection, CollectionField, CollectionIndex } from "@/lib/krapi";
 
 // Types
 interface CollectionsBucket {
@@ -26,15 +21,14 @@ export interface CollectionsState {
 export const fetchCollections = createAsyncThunk(
   "collections/fetchAll",
   async (
-    { projectId }: { projectId: string },
+    { projectId, krapi }: { projectId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.collections.getAll(projectId);
+      const response = await krapi.collections.getAll(projectId);
       if (response.success && response.data) {
         return { projectId, collections: response.data };
       } else {
@@ -54,6 +48,7 @@ export const createCollection = createAsyncThunk(
     {
       projectId,
       data,
+      krapi,
     }: {
       projectId: string;
       data: {
@@ -62,6 +57,7 @@ export const createCollection = createAsyncThunk(
         fields: CollectionField[];
         indexes?: CollectionIndex[];
       };
+      krapi: any;
     },
     {
       getState,
@@ -69,8 +65,7 @@ export const createCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.collections.create(projectId, data);
+      const response = await krapi.collections.create(projectId, data);
       if (response.success && response.data) {
         return { projectId, collection: response.data };
       } else {
@@ -91,10 +86,12 @@ export const updateCollection = createAsyncThunk(
       projectId,
       collectionId,
       updates,
+      krapi,
     }: {
       projectId: string;
       collectionId: string;
       updates: Partial<Collection>;
+      krapi: any;
     },
     {
       getState,
@@ -102,8 +99,7 @@ export const updateCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.collections.update(
+      const response = await krapi.collections.update(
         projectId,
         collectionId,
         updates
@@ -124,12 +120,15 @@ export const updateCollection = createAsyncThunk(
 export const deleteCollection = createAsyncThunk(
   "collections/delete",
   async (
-    { projectId, collectionId }: { projectId: string; collectionId: string },
+    {
+      projectId,
+      collectionId,
+      krapi,
+    }: { projectId: string; collectionId: string; krapi: any },
     { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.collections.delete(projectId, collectionId);
+      const response = await krapi.collections.delete(projectId, collectionId);
       if (response.success) {
         return { projectId, collectionId };
       } else {

@@ -37,27 +37,21 @@
  * ```
  */
 
-import { DatabaseConnection, Logger } from "./core";
-
-// Import HTTP clients
 import { AuthHttpClient } from "./http-clients/auth-http-client";
-import { ProjectsHttpClient } from "./http-clients/projects-http-client";
 import { CollectionsHttpClient } from "./http-clients/collections-http-client";
-// BaseHttpClient import removed - not directly used in wrapper
-
-// Import database services
+import { ProjectsHttpClient } from "./http-clients/projects-http-client";
 import { AuthService } from "./auth-service";
-import { ProjectsService } from "./projects-service";
 import { CollectionsService } from "./collections-service";
 import { CollectionsSchemaManager } from "./collections-schema-manager";
-import { UsersService } from "./users-service";
 import { DatabaseHealthManager } from "./database-health";
-// TODO: Uncomment when interfaces are completed
-// import { StorageService } from "./storage-service";
-// import { EmailService } from "./email-service";
-// import { HealthService } from "./health-service";
-// import { TestingService } from "./testing-service";
-// import { AdminService } from "./admin-service";
+import { ProjectsService } from "./projects-service";
+import { UsersService } from "./users-service";
+import { KrapiSocketInterface } from "./socket-interface";
+import { DatabaseConnection, Logger } from "./core";
+import { StorageHttpClient } from "./http-clients/storage-http-client";
+import { EmailHttpClient } from "./http-clients/email-http-client";
+import { HealthHttpClient } from "./http-clients/health-http-client";
+import { SystemHttpClient } from "./http-clients/system-http-client";
 
 export interface KrapiConfig {
   // Client configuration
@@ -73,8 +67,6 @@ export interface KrapiConfig {
 
 type Mode = "client" | "server" | null;
 
-import { KrapiSocketInterface } from "./socket-interface";
-
 /**
  * Main KRAPI wrapper class that provides a unified interface
  * Implements the complete socket interface for perfect client/server parity
@@ -88,6 +80,10 @@ class KrapiWrapper implements KrapiSocketInterface {
   private authHttpClient?: AuthHttpClient;
   private projectsHttpClient?: ProjectsHttpClient;
   private collectionsHttpClient?: CollectionsHttpClient;
+  private storageHttpClient?: StorageHttpClient;
+  private emailHttpClient?: EmailHttpClient;
+  private healthHttpClient?: HealthHttpClient;
+  private systemHttpClient?: SystemHttpClient;
 
   // Database services (for server mode)
   private authService?: AuthService;
@@ -145,6 +141,10 @@ class KrapiWrapper implements KrapiSocketInterface {
     this.authHttpClient = new AuthHttpClient(httpConfig);
     this.projectsHttpClient = new ProjectsHttpClient(httpConfig);
     this.collectionsHttpClient = new CollectionsHttpClient(httpConfig);
+    this.storageHttpClient = new StorageHttpClient(httpConfig);
+    this.emailHttpClient = new EmailHttpClient(httpConfig);
+    this.healthHttpClient = new HealthHttpClient(httpConfig);
+    this.systemHttpClient = new SystemHttpClient(httpConfig);
   }
 
   /**
@@ -1326,35 +1326,196 @@ class KrapiWrapper implements KrapiSocketInterface {
    * Storage management
    */
   storage = {
-    uploadFile: async () => {
-      throw new Error("Storage methods not yet implemented");
+    uploadFile: async (
+      projectId: string,
+      file: File,
+      options?: {
+        folder_id?: string;
+        tags?: string[];
+        metadata?: Record<string, unknown>;
+        is_public?: boolean;
+      }
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.uploadFile(
+          projectId,
+          file,
+          options
+        );
+        return response.data || null;
+      } else {
+        // For server mode, we need to implement this
+        throw new Error("Storage uploadFile not implemented for server mode");
+      }
     },
-    downloadFile: async () => {
-      throw new Error("Storage methods not yet implemented");
+    downloadFile: async (projectId: string, fileId: string): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.downloadFile(
+          projectId,
+          fileId
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Storage downloadFile not implemented for server mode");
+      }
     },
-    getFile: async () => {
-      throw new Error("Storage methods not yet implemented");
+    getFile: async (projectId: string, fileId: string): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.getFile(
+          projectId,
+          fileId
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Storage getFile not implemented for server mode");
+      }
     },
-    deleteFile: async () => {
-      throw new Error("Storage methods not yet implemented");
+    deleteFile: async (
+      projectId: string,
+      fileId: string
+    ): Promise<{ success: boolean }> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.deleteFile(
+          projectId,
+          fileId
+        );
+        return { success: response.success };
+      } else {
+        throw new Error("Storage deleteFile not implemented for server mode");
+      }
     },
-    getFiles: async () => {
-      throw new Error("Storage methods not yet implemented");
+    getFiles: async (
+      projectId: string,
+      options?: {
+        folder?: string;
+        limit?: number;
+        offset?: number;
+        search?: string;
+        type?: string;
+      }
+    ): Promise<any[]> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.getFiles(
+          projectId,
+          options
+        );
+        return response.data || [];
+      } else {
+        throw new Error("Storage getFiles not implemented for server mode");
+      }
     },
-    createFolder: async () => {
-      throw new Error("Storage methods not yet implemented");
+    createFolder: async (
+      projectId: string,
+      folderData: {
+        name: string;
+        parent_folder_id?: string;
+        metadata?: Record<string, unknown>;
+      }
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.createFolder(
+          projectId,
+          folderData
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Storage createFolder not implemented for server mode");
+      }
     },
-    getFolders: async () => {
-      throw new Error("Storage methods not yet implemented");
+    getFolders: async (
+      projectId: string,
+      parentFolderId?: string
+    ): Promise<any[]> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.getFolders(
+          projectId,
+          parentFolderId
+        );
+        return response.data || [];
+      } else {
+        throw new Error("Storage getFolders not implemented for server mode");
+      }
     },
-    deleteFolder: async () => {
-      throw new Error("Storage methods not yet implemented");
+    deleteFolder: async (
+      projectId: string,
+      folderId: string
+    ): Promise<{ success: boolean }> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.deleteFolder(
+          projectId,
+          folderId
+        );
+        return { success: response.success };
+      } else {
+        throw new Error("Storage deleteFolder not implemented for server mode");
+      }
     },
-    getStatistics: async () => {
-      throw new Error("Storage methods not yet implemented");
+    getStatistics: async (
+      projectId: string
+    ): Promise<{
+      total_files: number;
+      total_size_bytes: number;
+      files_by_type: Record<string, number>;
+      storage_quota: {
+        used: number;
+        limit: number;
+        percentage: number;
+      };
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.getStorageStatistics(
+          projectId
+        );
+        if (response.data) {
+          // Convert the actual StorageStatistics to the expected format
+          const filesByType: Record<string, number> = {};
+          Object.entries(response.data.files_by_type || {}).forEach(
+            ([type, stats]) => {
+              filesByType[type] = stats.count;
+            }
+          );
+
+          return {
+            total_files: response.data.total_files || 0,
+            total_size_bytes: response.data.total_size || 0,
+            files_by_type: filesByType,
+            storage_quota: {
+              used: response.data.total_size || 0,
+              limit: 1024 * 1024 * 1024, // Default 1GB limit
+              percentage: response.data.storage_used_percentage || 0,
+            },
+          };
+        }
+        return {
+          total_files: 0,
+          total_size_bytes: 0,
+          files_by_type: {},
+          storage_quota: { used: 0, limit: 1024 * 1024 * 1024, percentage: 0 },
+        };
+      } else {
+        throw new Error(
+          "Storage getStatistics not implemented for server mode"
+        );
+      }
     },
-    getFileUrl: async () => {
-      throw new Error("Storage methods not yet implemented");
+    getFileUrl: async (
+      projectId: string,
+      fileId: string,
+      options?: {
+        expires_in?: number;
+        download?: boolean;
+      }
+    ): Promise<{ url: string; expires_at?: string }> => {
+      if (this.mode === "client") {
+        const response = await this.storageHttpClient!.getFileUrl(
+          projectId,
+          fileId,
+          options
+        );
+        return response.data || { url: "" };
+      } else {
+        throw new Error("Storage getFileUrl not implemented for server mode");
+      }
     },
   };
 
@@ -1362,35 +1523,161 @@ class KrapiWrapper implements KrapiSocketInterface {
    * Email management
    */
   email = {
-    getConfig: async () => {
-      throw new Error("Email methods not yet implemented");
+    getConfig: async (projectId: string): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.getConfig(projectId);
+        return response.data || null;
+      } else {
+        throw new Error("Email getConfig not implemented for server mode");
+      }
     },
-    updateConfig: async () => {
-      throw new Error("Email methods not yet implemented");
+    updateConfig: async (
+      projectId: string,
+      config: {
+        provider: string;
+        settings: Record<string, unknown>;
+      }
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.updateConfig(
+          projectId,
+          config as any
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Email updateConfig not implemented for server mode");
+      }
     },
-    testConfig: async () => {
-      throw new Error("Email methods not yet implemented");
+    testConfig: async (
+      projectId: string,
+      testEmail: string
+    ): Promise<{ success: boolean; message?: string }> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.testConfig(
+          projectId,
+          testEmail
+        );
+        return response.data || { success: false };
+      } else {
+        throw new Error("Email testConfig not implemented for server mode");
+      }
     },
-    getTemplates: async () => {
-      throw new Error("Email methods not yet implemented");
+    getTemplates: async (
+      projectId: string,
+      options?: {
+        limit?: number;
+        offset?: number;
+        search?: string;
+      }
+    ): Promise<any[]> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.getTemplates(
+          projectId,
+          options
+        );
+        return response.data || [];
+      } else {
+        throw new Error("Email getTemplates not implemented for server mode");
+      }
     },
-    getTemplate: async () => {
-      throw new Error("Email methods not yet implemented");
+    getTemplate: async (
+      projectId: string,
+      templateId: string
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.getTemplate(
+          projectId,
+          templateId
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Email getTemplate not implemented for server mode");
+      }
     },
-    createTemplate: async () => {
-      throw new Error("Email methods not yet implemented");
+    createTemplate: async (
+      projectId: string,
+      template: {
+        name: string;
+        subject: string;
+        body: string;
+        variables: string[];
+        type?: string;
+        description?: string;
+        is_active?: boolean;
+      }
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.createTemplate(
+          projectId,
+          template
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Email createTemplate not implemented for server mode");
+      }
     },
-    updateTemplate: async () => {
-      throw new Error("Email methods not yet implemented");
+    updateTemplate: async (
+      projectId: string,
+      templateId: string,
+      updates: Partial<any>
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.updateTemplate(
+          projectId,
+          templateId,
+          updates
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Email updateTemplate not implemented for server mode");
+      }
     },
-    deleteTemplate: async () => {
-      throw new Error("Email methods not yet implemented");
+    deleteTemplate: async (
+      projectId: string,
+      templateId: string
+    ): Promise<{ success: boolean }> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.deleteTemplate(
+          projectId,
+          templateId
+        );
+        return { success: response.success };
+      } else {
+        throw new Error("Email deleteTemplate not implemented for server mode");
+      }
     },
-    send: async () => {
-      throw new Error("Email methods not yet implemented");
+    send: async (projectId: string, emailRequest: any): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.sendEmail(
+          projectId,
+          emailRequest
+        );
+        return response.data || null;
+      } else {
+        throw new Error("Email send not implemented for server mode");
+      }
     },
-    getHistory: async () => {
-      throw new Error("Email methods not yet implemented");
+    getHistory: async (
+      projectId: string,
+      options?: {
+        limit?: number;
+        offset?: number;
+        status?: "sent" | "failed" | "bounced" | "delivered";
+        recipient?: string;
+        template_id?: string;
+        sent_after?: string;
+        sent_before?: string;
+      }
+    ): Promise<any[]> => {
+      if (this.mode === "client") {
+        const response = await this.emailHttpClient!.getEmailHistory(
+          projectId,
+          options
+        );
+        return response.data || [];
+      } else {
+        throw new Error("Email getHistory not implemented for server mode");
+      }
     },
   };
 
@@ -1398,53 +1685,426 @@ class KrapiWrapper implements KrapiSocketInterface {
    * API Keys management
    */
   apiKeys = {
-    getAll: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    getAll: async (
+      projectId: string,
+      _options?: {
+        limit?: number;
+        offset?: number;
+        type?: string;
+        status?: string;
+      }
+    ): Promise<any[]> => {
+      if (this.mode === "client") {
+        const response = await this.projectsHttpClient!.getProjectApiKeys(
+          projectId
+        );
+        return response.data || [];
+      } else {
+        // For server mode, we need to implement this
+        throw new Error("API Keys getAll not implemented for server mode");
+      }
     },
-    get: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    get: async (projectId: string, keyId: string): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.projectsHttpClient!.getProjectApiKey(
+          projectId,
+          keyId
+        );
+        return response.data || null;
+      } else {
+        throw new Error("API Keys get not implemented for server mode");
+      }
     },
-    create: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    create: async (
+      projectId: string,
+      keyData: {
+        name: string;
+        scopes: string[];
+        expires_at?: string;
+        rate_limit?: number;
+        metadata?: Record<string, unknown>;
+      }
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.projectsHttpClient!.createProjectApiKey(
+          projectId,
+          keyData
+        );
+        return response.data || null;
+      } else {
+        throw new Error("API Keys create not implemented for server mode");
+      }
     },
-    update: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    update: async (
+      projectId: string,
+      keyId: string,
+      updates: {
+        name?: string;
+        scopes?: string[];
+        expires_at?: string;
+        is_active?: boolean;
+        rate_limit?: number;
+        metadata?: Record<string, unknown>;
+      }
+    ): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.projectsHttpClient!.updateProjectApiKey(
+          projectId,
+          keyId,
+          updates
+        );
+        return response.data || null;
+      } else {
+        throw new Error("API Keys update not implemented for server mode");
+      }
     },
-    delete: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    delete: async (
+      projectId: string,
+      keyId: string
+    ): Promise<{ success: boolean }> => {
+      if (this.mode === "client") {
+        const response = await this.projectsHttpClient!.deleteProjectApiKey(
+          projectId,
+          keyId
+        );
+        return { success: response.success };
+      } else {
+        throw new Error("API Keys delete not implemented for server mode");
+      }
     },
-    regenerate: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    regenerate: async (projectId: string, keyId: string): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.projectsHttpClient!.regenerateProjectApiKey(
+          projectId,
+          keyId
+        );
+        return response.data || null;
+      } else {
+        throw new Error("API Keys regenerate not implemented for server mode");
+      }
     },
-    validateKey: async () => {
-      throw new Error("API Keys methods not yet implemented");
+    validateKey: async (
+      apiKey: string
+    ): Promise<{
+      valid: boolean;
+      key_info?: {
+        id: string;
+        name: string;
+        type: string;
+        scopes: string[];
+        project_id?: string;
+      };
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.authHttpClient!.validateApiKey(apiKey);
+        return response.data || { valid: false };
+      } else {
+        throw new Error("API Keys validateKey not implemented for server mode");
+      }
     },
   };
 
   /**
-   * Health management
+   * Health and diagnostics
    */
   health = {
-    check: async () => {
-      throw new Error("Health methods not yet implemented");
+    check: async (): Promise<{
+      healthy: boolean;
+      message: string;
+      details?: Record<string, unknown>;
+      version: string;
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.check();
+        return (
+          response.data || {
+            healthy: false,
+            message: "Health check failed",
+            version: "unknown",
+          }
+        );
+      } else {
+        throw new Error("Health check not implemented for server mode");
+      }
     },
-    checkDatabase: async () => {
-      throw new Error("Health methods not yet implemented");
+    checkDatabase: async (): Promise<{
+      healthy: boolean;
+      message: string;
+      details?: Record<string, unknown>;
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.checkDatabase();
+        return (
+          response.data || {
+            healthy: false,
+            message: "Database health check failed",
+          }
+        );
+      } else {
+        throw new Error("Health checkDatabase not implemented for server mode");
+      }
     },
-    runDiagnostics: async () => {
-      throw new Error("Health methods not yet implemented");
+    runDiagnostics: async (): Promise<{
+      tests: Array<{
+        name: string;
+        passed: boolean;
+        message: string;
+        duration: number;
+      }>;
+      summary: {
+        total: number;
+        passed: number;
+        failed: number;
+        duration: number;
+      };
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.runDiagnostics();
+        return (
+          response.data || {
+            tests: [],
+            summary: { total: 0, passed: 0, failed: 0, duration: 0 },
+          }
+        );
+      } else {
+        throw new Error(
+          "Health runDiagnostics not implemented for server mode"
+        );
+      }
     },
-    validateSchema: async () => {
-      throw new Error("Health methods not yet implemented");
+    validateSchema: async (): Promise<{
+      valid: boolean;
+      issues: Array<{
+        type: string;
+        table?: string;
+        field?: string;
+        message: string;
+        severity: "error" | "warning" | "info";
+      }>;
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.validateSchema();
+        return response.data || { valid: false, issues: [] };
+      } else {
+        throw new Error(
+          "Health validateSchema not implemented for server mode"
+        );
+      }
     },
-    autoFix: async () => {
-      throw new Error("Health methods not yet implemented");
+    autoFix: async (): Promise<{
+      success: boolean;
+      fixes_applied: number;
+      details: string[];
+      remaining_issues: number;
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.autoFix();
+        if (response.data) {
+          return {
+            success: response.data.success,
+            fixes_applied: response.data.fixed_issues?.length || 0,
+            details: response.data.fixed_issues || [],
+            remaining_issues: 0, // We don't have this info from the HTTP client
+          };
+        }
+        return {
+          success: false,
+          fixes_applied: 0,
+          details: [],
+          remaining_issues: 0,
+        };
+      } else {
+        throw new Error("Health autoFix not implemented for server mode");
+      }
     },
-    migrate: async () => {
-      throw new Error("Health methods not yet implemented");
+    migrate: async (): Promise<{
+      success: boolean;
+      migrations_applied: number;
+      details: string[];
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.runMigrations();
+        if (response.data) {
+          return {
+            success: response.data.success,
+            migrations_applied: response.data.applied_migrations?.length || 0,
+            details: response.data.applied_migrations || [],
+          };
+        }
+        return { success: false, migrations_applied: 0, details: [] };
+      } else {
+        throw new Error("Health migrate not implemented for server mode");
+      }
     },
-    getStats: async () => {
-      throw new Error("Health methods not yet implemented");
+    getStats: async (): Promise<{
+      database: {
+        size_bytes: number;
+        tables_count: number;
+        connections: number;
+        uptime: number;
+      };
+      system: {
+        memory_usage: number;
+        cpu_usage: number;
+        disk_usage: number;
+      };
+    }> => {
+      if (this.mode === "client") {
+        const response = await this.healthHttpClient!.getSystemInfo();
+        if (response.data) {
+          return {
+            database: {
+              size_bytes: 0, // We don't have this info from system info
+              tables_count: 0, // We don't have this info from system info
+              connections: response.data.network?.connections || 0,
+              uptime: response.data.uptime || 0,
+            },
+            system: {
+              memory_usage: response.data.memory?.percentage || 0,
+              cpu_usage: response.data.cpu?.usage || 0,
+              disk_usage: response.data.disk?.percentage || 0,
+            },
+          };
+        }
+        return {
+          database: {
+            size_bytes: 0,
+            tables_count: 0,
+            connections: 0,
+            uptime: 0,
+          },
+          system: { memory_usage: 0, cpu_usage: 0, disk_usage: 0 },
+        };
+      } else {
+        throw new Error("Health getStats not implemented for server mode");
+      }
+    },
+  };
+
+  /**
+   * System management
+   */
+  system = {
+    getSettings: async (): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.getSettings();
+        return response.data || null;
+      } else {
+        throw new Error("System getSettings not implemented for server mode");
+      }
+    },
+    updateSettings: async (updates: any): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.updateSettings(updates);
+        return response.data || null;
+      } else {
+        throw new Error(
+          "System updateSettings not implemented for server mode"
+        );
+      }
+    },
+    testEmailConfig: async (
+      emailConfig: any
+    ): Promise<{ success: boolean; message?: string }> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.testEmailConfig(
+          emailConfig
+        );
+        return response.data || { success: false };
+      } else {
+        throw new Error(
+          "System testEmailConfig not implemented for server mode"
+        );
+      }
+    },
+    getSystemInfo: async (): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.getSystemInfo();
+        return response.data || null;
+      } else {
+        throw new Error("System getSystemInfo not implemented for server mode");
+      }
+    },
+    runMaintenance: async (): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.runMaintenance();
+        return response.data || null;
+      } else {
+        throw new Error(
+          "System runMaintenance not implemented for server mode"
+        );
+      }
+    },
+    backupSystem: async (): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.backupSystem();
+        return response.data || null;
+      } else {
+        throw new Error("System backupSystem not implemented for server mode");
+      }
+    },
+    getSystemUsers: async (): Promise<any[]> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.getSystemUsers();
+        return response.data || [];
+      } else {
+        throw new Error(
+          "System getSystemUsers not implemented for server mode"
+        );
+      }
+    },
+    createSystemUser: async (userData: any): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.createSystemUser(
+          userData
+        );
+        return response.data || null;
+      } else {
+        throw new Error(
+          "System createSystemUser not implemented for server mode"
+        );
+      }
+    },
+    updateSystemUser: async (userId: string, updates: any): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.updateSystemUser(
+          userId,
+          updates
+        );
+        return response.data || null;
+      } else {
+        throw new Error(
+          "System updateSystemUser not implemented for server mode"
+        );
+      }
+    },
+    deleteSystemUser: async (userId: string): Promise<{ success: boolean }> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.deleteSystemUser(userId);
+        return { success: response.success };
+      } else {
+        throw new Error(
+          "System deleteSystemUser not implemented for server mode"
+        );
+      }
+    },
+    getSystemLogs: async (options?: any): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.getSystemLogs(options);
+        return response.data || null;
+      } else {
+        throw new Error("System getSystemLogs not implemented for server mode");
+      }
+    },
+    clearSystemLogs: async (options?: any): Promise<any> => {
+      if (this.mode === "client") {
+        const response = await this.systemHttpClient!.clearSystemLogs(options);
+        return response.data || null;
+      } else {
+        throw new Error(
+          "System clearSystemLogs not implemented for server mode"
+        );
+      }
     },
   };
 

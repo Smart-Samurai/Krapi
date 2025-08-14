@@ -29,10 +29,11 @@ export class TypeMapper {
     return {
       id: backendUser.id,
       project_id: backendUser.project_id,
-      username: backendUser.username,
-      email: backendUser.email,
-      phone: backendUser.phone,
-      is_verified: backendUser.is_verified,
+      username: backendUser.username || "",
+      email: backendUser.email || "",
+      first_name: backendUser.first_name,
+      last_name: backendUser.last_name,
+      is_verified: backendUser.is_verified || false,
       is_active: backendUser.is_active,
       access_scopes: backendUser.scopes || [],
       register_date: backendUser.created_at,
@@ -102,7 +103,6 @@ export class TypeMapper {
     backendSettings: BackendProjectSettings
   ): SDKProjectSettings {
     return {
-      email: backendSettings.email_config,
       storage: backendSettings.storage_config
         ? {
             max_file_size: backendSettings.storage_config.max_file_size,

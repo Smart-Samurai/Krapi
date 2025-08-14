@@ -1,28 +1,28 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // List of paths that don't require authentication
-const publicPaths = ['/login', '/api/auth'];
+const publicPaths = ["/login", "/api/auth", "/api/krapi"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Allow public paths
-  if (publicPaths.some(path => pathname.startsWith(path))) {
+  if (publicPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
-  
+
   // Check for authentication tokens
-  const sessionToken = request.cookies.get('session_token')?.value;
+  const sessionToken = request.cookies.get("session_token")?.value;
   const hasAuth = !!sessionToken;
-  
+
   // Redirect to login if not authenticated
   if (!hasAuth) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', pathname);
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
-  
+
   return NextResponse.next();
 }
 
@@ -36,6 +36,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public (public files)
      */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+    "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 };

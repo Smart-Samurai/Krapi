@@ -1,6 +1,8 @@
 "use client";
 
-import { ProjectScope } from "@krapi/sdk";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+
 import {
   Plus,
   Edit,
@@ -19,8 +21,6 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
-import { useParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
+import { ProjectScope } from "@/lib/krapi";
 import type { ApiKey } from "@/lib/krapi";
 
 const scopeLabels: Record<ProjectScope, string> = {
@@ -115,10 +116,11 @@ export default function ApiKeysPage() {
 
     try {
       const result = await krapi.apiKeys.getAll(projectId);
-      if (result.success && result.data) {
-        setApiKeys(result.data);
+      // The getAll method now returns the data array directly
+      if (Array.isArray(result)) {
+        setApiKeys(result);
       } else {
-        setError(result.error || "Failed to load API keys");
+        setError("Invalid response format");
       }
     } catch {
       setError("An error occurred while loading API keys");
@@ -145,7 +147,7 @@ export default function ApiKeysPage() {
         metadata: formData.metadata,
       });
 
-      if (result.success) {
+      if (result) {
         setIsCreateDialogOpen(false);
         setFormData({
           name: "",
@@ -155,7 +157,7 @@ export default function ApiKeysPage() {
         });
         loadApiKeys();
       } else {
-        setError(result.error || "Failed to create API key");
+        setError("Failed to create API key");
       }
     } catch {
       setError("An error occurred while creating API key");
@@ -175,7 +177,7 @@ export default function ApiKeysPage() {
         metadata: formData.metadata,
       });
 
-      if (result.success) {
+      if (result) {
         setIsEditDialogOpen(false);
         setEditingApiKey(null);
         setFormData({
@@ -186,7 +188,7 @@ export default function ApiKeysPage() {
         });
         loadApiKeys();
       } else {
-        setError(result.error || "Failed to update API key");
+        setError("Failed to update API key");
       }
     } catch {
       setError("An error occurred while updating API key");
@@ -210,7 +212,7 @@ export default function ApiKeysPage() {
       if (result.success) {
         loadApiKeys();
       } else {
-        setError(result.error || "Failed to delete API key");
+        setError("Failed to delete API key");
       }
     } catch {
       setError("An error occurred while deleting API key");
@@ -728,7 +730,7 @@ headers_with_key = {
                         <div>
                           <div className="font-medium">{apiKey.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            Created by {apiKey.created_by}
+                            Created by system
                           </div>
                         </div>
                       </TableCell>

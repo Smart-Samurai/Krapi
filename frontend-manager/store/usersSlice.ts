@@ -4,7 +4,7 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { ProjectUser, createDefaultKrapi } from "@/lib/krapi";
+import { ProjectUser } from "@/lib/krapi";
 
 // Types
 interface UsersBucket {
@@ -26,19 +26,19 @@ const initialState: UsersState = {
 export const fetchUsers = createAsyncThunk(
   "users/fetchAll",
   async (
-    { projectId, search }: { projectId: string; search?: string },
+    { projectId, search, krapi }: { projectId: string; search?: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.users.getAll(projectId, {
+      const response = await krapi.users.getAll(projectId, {
         search,
         limit: 200,
       });
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return { projectId, users: response.data };
       } else {
         return rejectWithValue(response.error || "Failed to fetch users");
@@ -57,9 +57,11 @@ export const createUser = createAsyncThunk(
     {
       projectId,
       data,
+      krapi,
     }: {
       projectId: string;
       data: { email: string; role?: string; name?: string };
+      krapi: any;
     },
     {
       getState,
@@ -67,7 +69,6 @@ export const createUser = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
       // Transform the data to match SDK expectations
       const userData = {
         username: data.email.split("@")[0], // Generate username from email
@@ -75,10 +76,11 @@ export const createUser = createAsyncThunk(
         password: Math.random().toString(36).slice(-8), // Generate random password
         first_name: data.name?.split(" ")[0] || "",
         last_name: data.name?.split(" ").slice(1).join(" ") || "",
-        access_scopes: data.role ? [data.role] : [],
+        permissions: data.role ? [data.role] : [], // Use SDK property name
       };
-      const response = await client.users.create(projectId, userData);
+      const response = await krapi.users.create(projectId, userData);
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return { projectId, user: response.data };
       } else {
         return rejectWithValue(response.error || "Failed to create user");
@@ -98,10 +100,12 @@ export const updateUser = createAsyncThunk(
       projectId,
       userId,
       updates,
+      krapi,
     }: {
       projectId: string;
       userId: string;
       updates: Partial<{ email: string; role: string; name: string }>;
+      krapi: any;
     },
     {
       getState,
@@ -109,8 +113,7 @@ export const updateUser = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.users.update(projectId, userId, updates);
+      const response = await krapi.users.update(projectId, userId, updates);
       if (response.success && response.data) {
         return { projectId, user: response.data };
       } else {
@@ -127,15 +130,14 @@ export const updateUser = createAsyncThunk(
 export const deleteUser = createAsyncThunk(
   "users/delete",
   async (
-    { projectId, userId }: { projectId: string; userId: string },
+    { projectId, userId, krapi }: { projectId: string; userId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.users.delete(projectId, userId);
+      const response = await krapi.users.delete(projectId, userId);
       if (response.success) {
         return { projectId, userId };
       } else {

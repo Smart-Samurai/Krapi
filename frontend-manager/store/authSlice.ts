@@ -4,7 +4,7 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { KrapiSDK, AdminUser, createDefaultKrapi } from "@/lib/krapi";
+import { AdminUser } from "@/lib/krapi";
 import { toast } from "sonner";
 
 // Types
@@ -43,17 +43,16 @@ const getCookie = (name: string): string | null => {
 // Async thunks
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
-  async (_: void, { dispatch }: { dispatch: any }) => {
+  async ({ krapi }: { krapi: any }, { dispatch }: { dispatch: any }) => {
     const storedToken =
       getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
-    const client = createDefaultKrapi();
 
     if (storedToken) {
-      client.setSessionToken(storedToken);
+      krapi.setSessionToken(storedToken);
       // Validate session
       try {
-        const response = await client.auth.getCurrentUser();
+        const response = await krapi.auth.getCurrentUser();
         if (response.success && response.data) {
           const storedScopes = localStorage.getItem("user_scopes");
           let userScopes: string[] = [];
@@ -86,10 +85,10 @@ export const initializeAuth = createAsyncThunk(
         return { user: null, scopes: [], sessionToken: null };
       }
     } else if (storedApiKey) {
-      client.setApiKey(storedApiKey);
+      krapi.setApiKey(storedApiKey);
       // Validate API key
       try {
-        const response = await client.auth.adminApiLogin(storedApiKey);
+        const response = await krapi.auth.adminApiLogin(storedApiKey);
         if (response.success && response.data) {
           const userScopes = response.data.user.scopes || [];
           return {
@@ -133,11 +132,11 @@ export const initializeAuth = createAsyncThunk(
 export const validateSession = createAsyncThunk(
   "auth/validateSession",
   async (
-    { client, token }: { client: KrapiSDK; token: string },
+    { krapi, token }: { krapi: any; token: string },
     { dispatch }: { dispatch: any }
   ) => {
     try {
-      const response = await client.auth.getCurrentUser();
+      const response = await krapi.auth.getCurrentUser();
       if (response.success && response.data) {
         const storedScopes = localStorage.getItem("user_scopes");
         let userScopes: string[] = [];
@@ -168,11 +167,11 @@ export const validateSession = createAsyncThunk(
 export const validateApiKey = createAsyncThunk(
   "auth/validateApiKey",
   async (
-    { client, key }: { client: KrapiSDK; key: string },
+    { krapi, key }: { krapi: any; key: string },
     { dispatch }: { dispatch: any }
   ) => {
     try {
-      const response = await client.auth.adminApiLogin(key);
+      const response = await krapi.auth.adminApiLogin(key);
       if (response.success && response.data) {
         const userScopes = response.data.user.scopes || [];
 
@@ -180,7 +179,7 @@ export const validateApiKey = createAsyncThunk(
         localStorage.setItem("session_token", response.data.session_token);
         setCookie("session_token", response.data.session_token);
         localStorage.setItem("user_scopes", JSON.stringify(userScopes));
-        client.setSessionToken(response.data.session_token);
+        krapi.setSessionToken(response.data.session_token);
 
         return {
           user: response.data.user,
@@ -201,18 +200,21 @@ export const validateApiKey = createAsyncThunk(
 export const login = createAsyncThunk(
   "auth/login",
   async (
-    { username, password }: { username: string; password: string },
+    {
+      username,
+      password,
+      krapi,
+    }: { username: string; password: string; krapi: any },
     { getState }: { getState: any }
   ) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
 
-    const client = createDefaultKrapi();
     if (sessionToken) {
-      client.setSessionToken(sessionToken);
+      krapi.setSessionToken(sessionToken);
     }
 
-    const response = await client.auth.adminLogin({ username, password });
+    const response = await krapi.auth.adminLogin({ username, password });
     if (response.success && response.data) {
       const userScopes = response.data.user.scopes || [];
 
@@ -221,7 +223,7 @@ export const login = createAsyncThunk(
       setCookie("session_token", response.data.session_token);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
-      client.setSessionToken(response.data.session_token);
+      krapi.setSessionToken(response.data.session_token);
 
       return {
         user: response.data.user,
@@ -236,16 +238,18 @@ export const login = createAsyncThunk(
 
 export const loginWithApiKey = createAsyncThunk(
   "auth/loginWithApiKey",
-  async (apiKey: string, { getState }: { getState: any }) => {
+  async (
+    { apiKey, krapi }: { apiKey: string; krapi: any },
+    { getState }: { getState: any }
+  ) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
 
-    const client = createDefaultKrapi();
     if (sessionToken) {
-      client.setSessionToken(sessionToken);
+      krapi.setSessionToken(sessionToken);
     }
 
-    const response = await client.auth.adminApiLogin(apiKey);
+    const response = await krapi.auth.adminApiLogin(apiKey);
     if (response.success && response.data) {
       const userScopes = response.data.user.scopes || [];
 
@@ -255,7 +259,7 @@ export const loginWithApiKey = createAsyncThunk(
       localStorage.setItem("api_key", apiKey);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
-      client.setSessionToken(response.data.session_token);
+      krapi.setSessionToken(response.data.session_token);
 
       return {
         user: response.data.user,
@@ -271,18 +275,17 @@ export const loginWithApiKey = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   "auth/logout",
-  async (_: void, { getState }: { getState: any }) => {
+  async ({ krapi }: { krapi: any }, { getState }: { getState: any }) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
 
-    const client = createDefaultKrapi();
     if (sessionToken) {
-      client.setSessionToken(sessionToken);
+      krapi.setSessionToken(sessionToken);
     }
 
     try {
       if (sessionToken) {
-        await client.auth.logout();
+        await krapi.auth.logout();
       }
     } catch (error) {
       console.error("Logout error:", error);
@@ -295,8 +298,8 @@ export const logout = createAsyncThunk(
     localStorage.removeItem("user_scopes");
     removeCookie("session_token");
 
-    if (client) {
-      client.clearAuth();
+    if (krapi) {
+      krapi.clearAuth();
     }
   }
 );

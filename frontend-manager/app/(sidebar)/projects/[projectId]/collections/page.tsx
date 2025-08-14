@@ -112,7 +112,7 @@ const fieldTypeLabels: Record<FieldType, string> = {
 export default function CollectionsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const _krapi = useKrapi();
+  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector(
     (s) => s.collections.byProjectId[projectId]
@@ -135,8 +135,8 @@ export default function CollectionsPage() {
   });
 
   const loadCollections = useCallback(() => {
-    dispatch(fetchCollections({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchCollections({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
     loadCollections();
@@ -153,6 +153,7 @@ export default function CollectionsPage() {
             description: formData.description,
             fields: formData.fields,
           },
+          krapi,
         })
       );
       if (createCollection.fulfilled.match(action)) {
@@ -186,6 +187,7 @@ export default function CollectionsPage() {
             description: formData.description,
             fields: formData.fields,
           },
+          krapi,
         })
       );
       if (updateCollection.fulfilled.match(action)) {
@@ -220,7 +222,7 @@ export default function CollectionsPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        deleteCollection({ projectId, collectionId })
+        deleteCollection({ projectId, collectionId, krapi })
       );
       if (deleteCollection.fulfilled.match(action)) {
         loadCollections();

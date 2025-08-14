@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -33,6 +32,7 @@ import { fetchProjects } from "@/store/projectsSlice";
 
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope } = useReduxAuth();
+  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const projectsState = useAppSelector((s) => s.projects);
   const projects = projectsState.items;
@@ -45,8 +45,8 @@ export default function DashboardPage() {
   });
 
   const loadProjects = useCallback(() => {
-    dispatch(fetchProjects());
-  }, [dispatch]);
+    dispatch(fetchProjects({ krapi }));
+  }, [dispatch, krapi]);
 
   useEffect(() => {
     if (hasScope(Scope.PROJECTS_READ)) {
@@ -57,7 +57,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setStats({
       totalProjects: projects.length,
-      activeProjects: projects.filter((p: Project) => p.active).length,
+      activeProjects: projects.filter((p: Project) => p.is_active).length,
       totalCollections: 0,
       totalDocuments: 0,
     });
@@ -69,7 +69,7 @@ export default function DashboardPage() {
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={`dashboard-skeleton-card-${i}`}>
+            <Card key={`dashboard-skeleton-${i}-${Date.now()}`}>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-8 w-16" />
@@ -274,8 +274,10 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
-                    <Badge variant={project.active ? "default" : "secondary"}>
-                      {project.active ? "Active" : "Inactive"}
+                    <Badge
+                      variant={project.is_active ? "default" : "secondary"}
+                    >
+                      {project.is_active ? "Active" : "Inactive"}
                     </Badge>
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/projects/${project.id}`}>Manage</Link>

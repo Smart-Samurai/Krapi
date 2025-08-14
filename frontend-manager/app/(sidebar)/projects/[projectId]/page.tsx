@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Project } from "@/lib/krapi";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
@@ -33,6 +34,7 @@ export default function ProjectDetailPage() {
   const params = useParams();
 
   const projectId = params.projectId as string;
+  const krapi = useKrapi();
   const dispatch = useAppDispatch();
 
   const projectsState = useAppSelector((s) => s.projects);
@@ -55,9 +57,9 @@ export default function ProjectDetailPage() {
   });
 
   const loadData = useCallback(() => {
-    dispatch(fetchProjectById({ id: projectId }));
-    dispatch(fetchCollections({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchProjectById({ id: projectId, krapi }));
+    dispatch(fetchCollections({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
     loadData();

@@ -99,9 +99,11 @@ export default function SettingsPage() {
       try {
         setIsLoading(true);
         // Get settings from backend
+        if (!krapi) return;
+
         const response = await krapi.system.getSettings();
-        if (response.success && response.data) {
-          setSettings(response.data);
+        if (response) {
+          setSettings(response);
         } else {
           // Fallback to default settings if API fails
           setSettings({
@@ -153,14 +155,16 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
       // Save settings to backend
+      if (!krapi) return;
+
       const response = await krapi.system.updateSettings({ general: data });
 
-      if (response.success) {
+      if (response) {
         // Update local state
         setSettings((prev) => (prev ? { ...prev, general: data } : null));
         toast.success("General settings saved successfully!");
       } else {
-        toast.error(response.error || "Failed to save settings");
+        toast.error("Failed to save settings");
       }
     } catch {
       // Error logged for debugging
@@ -174,14 +178,16 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
       // Save settings to backend
+      if (!krapi) return;
+
       const response = await krapi.system.updateSettings({ security: data });
 
-      if (response.success) {
+      if (response) {
         // Update local state
         setSettings((prev) => (prev ? { ...prev, security: data } : null));
         toast.success("Security settings saved successfully!");
       } else {
-        toast.error(response.error || "Failed to save settings");
+        toast.error("Failed to save settings");
       }
     } catch {
       // Error logged for debugging
@@ -195,14 +201,16 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
       // Save settings to backend
+      if (!krapi) return;
+
       const response = await krapi.system.updateSettings({ email: data });
 
-      if (response.success) {
+      if (response) {
         // Update local state
         setSettings((prev) => (prev ? { ...prev, email: data } : null));
         toast.success("Email settings saved successfully!");
       } else {
-        toast.error(response.error || "Failed to save settings");
+        toast.error("Failed to save settings");
       }
     } catch {
       // Error logged for debugging
@@ -216,14 +224,16 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
       // Save settings to backend
+      if (!krapi) return;
+
       const response = await krapi.system.updateSettings({ database: data });
 
-      if (response.success) {
+      if (response) {
         // Update local state
         setSettings((prev) => (prev ? { ...prev, database: data } : null));
         toast.success("Database settings saved successfully!");
       } else {
-        toast.error(response.error || "Failed to save settings");
+        toast.error("Failed to save settings");
       }
     } catch {
       // Error logged for debugging
@@ -234,24 +244,20 @@ export default function SettingsPage() {
   };
 
   const handleTestEmail = async () => {
-    if (!testEmail) {
-      alert("Please enter an email address");
-      return;
-    }
+    if (!settings || !krapi) return;
 
     try {
       // Test email configuration
       const response = await krapi.system.testEmailConfig(settings.email);
 
-      if (response.success) {
-        toast.success(`Test email sent to ${testEmail}`);
-        setTestEmailDialog(false);
-        setTestEmail("");
+      if (response && response.success) {
+        toast.success("Email configuration test successful!");
       } else {
-        toast.error(response.error || "Failed to send test email");
+        toast.error("Email configuration test failed");
       }
     } catch {
-      toast.error("Failed to send test email. Please check your settings.");
+      // Error logged for debugging
+      toast.error("Email configuration test failed. Please try again.");
     }
   };
 

@@ -87,14 +87,47 @@ export default function TestAccessPage() {
     dbHealth: boolean;
     integration: boolean;
     diagnostics: boolean;
-    creating: boolean;
+    testProject: boolean;
+    cleanup: boolean;
   }>({
     health: false,
     dbHealth: false,
     integration: false,
     diagnostics: false,
-    creating: false,
+    testProject: false,
+    cleanup: false,
   });
+
+  // TODO: Implement these methods when they're available in the SDK
+  const checkProjectAccess = async () => {
+    // Placeholder for now
+  };
+
+  const checkCollectionAccess = async () => {
+    if (!krapi) return;
+
+    try {
+      // TODO: Need a project ID to check collections
+      toast.info("Collection access check requires a project ID");
+    } catch {
+      // Error logged for debugging
+      toast.error("Collection access check failed");
+    }
+  };
+
+  const checkDocumentAccess = async () => {
+    if (!krapi) return;
+
+    try {
+      // TODO: Need a project ID and collection ID to check documents
+      toast.info(
+        "Document access check requires a project ID and collection ID"
+      );
+    } catch {
+      // Error logged for debugging
+      toast.error("Document access check failed");
+    }
+  };
 
   const checkSystemHealth = async () => {
     if (!krapi) return;
@@ -103,8 +136,8 @@ export default function TestAccessPage() {
       setRunning((prev) => ({ ...prev, health: true }));
       const response = await krapi.health.check();
 
-      if (response.success && response.data) {
-        setHealthStatus(response.data);
+      if (response) {
+        setHealthStatus(response);
         toast.success("System health check completed");
       } else {
         toast.error("Failed to check system health");
@@ -131,8 +164,8 @@ export default function TestAccessPage() {
       setRunning((prev) => ({ ...prev, dbHealth: true }));
       const response = await krapi.health.checkDatabase();
 
-      if (response.success && response.data) {
-        setDbHealthStatus(response.data);
+      if (response) {
+        setDbHealthStatus(response);
         toast.success("Database health check completed");
       } else {
         toast.error("Failed to check database health");
@@ -152,24 +185,11 @@ export default function TestAccessPage() {
     }
   };
 
-  const repairDatabase = async () => {
-    if (!krapi || !hasScope(Scope.MASTER)) return;
-
-    try {
-      const response = await krapi.health.repairDatabase();
-
-      if (response.success && response.data) {
-        toast.success(`Database repair completed: ${response.data.message}`);
-        // Refresh database health after repair
-        await checkDatabaseHealth();
-      } else {
-        toast.error("Failed to repair database");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Database repair failed");
-    }
-  };
+  // TODO: Implement when repairDatabase is available in the SDK
+  // const repairDatabase = async () => {
+  //   if (!krapi || !hasScope(Scope.MASTER)) return;
+  //   // Implementation will go here
+  // };
 
   const runDiagnostics = async () => {
     if (!krapi) return;
@@ -178,8 +198,8 @@ export default function TestAccessPage() {
       setRunning((prev) => ({ ...prev, diagnostics: true }));
       const response = await krapi.health.runDiagnostics();
 
-      if (response.success && response.data) {
-        setDiagnosticResults(response.data);
+      if (response) {
+        setDiagnosticResults(response);
         toast.success("System diagnostics completed");
       } else {
         toast.error("Failed to run diagnostics");
@@ -197,10 +217,10 @@ export default function TestAccessPage() {
 
     try {
       setRunning((prev) => ({ ...prev, integration: true }));
-      const response = await krapi.testing.runIntegrationTests();
+      const response = await krapi.testing.runTests();
 
-      if (response.success && response.data) {
-        setTestResults(response.data.results);
+      if (response) {
+        setTestResults(response);
         toast.success("Integration tests completed");
       } else {
         toast.error("Failed to run integration tests");
@@ -217,17 +237,13 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      setRunning((prev) => ({ ...prev, creating: true }));
-      const response = await krapi.testing.createTestProject({
-        name: `Test Project ${Date.now()}`,
-        withCollections: true,
-        withDocuments: true,
-        documentCount: 10,
-      });
+      setRunning((prev) => ({ ...prev, testProject: true }));
+      const response = await krapi.testing.createTestProject();
 
-      if (response.success && response.data) {
-        setTestProjects((prev) => [...prev, response.data!]);
+      if (response) {
         toast.success("Test project created successfully");
+        // Refresh projects list
+        await checkProjectAccess();
       } else {
         toast.error("Failed to create test project");
       }
@@ -235,33 +251,31 @@ export default function TestAccessPage() {
       // Error logged for debugging
       toast.error("Failed to create test project");
     } finally {
-      setRunning((prev) => ({ ...prev, creating: false }));
+      setRunning((prev) => ({ ...prev, testProject: false }));
     }
   };
 
-  const cleanupTestData = async (projectId?: string) => {
+  const cleanupTestData = async () => {
     if (!krapi) return;
 
     try {
-      const response = await krapi.testing.cleanup(projectId);
+      setRunning((prev) => ({ ...prev, cleanup: true }));
+      const response = await krapi.testing.cleanup();
 
-      if (response.success && response.data) {
-        const { deleted } = response.data;
-        toast.success(
-          `Cleanup completed: ${deleted.projects} projects, ${deleted.collections} collections, ${deleted.documents} documents deleted`
-        );
-
-        if (projectId) {
-          setTestProjects((prev) => prev.filter((p) => p.id !== projectId));
-        } else {
-          setTestProjects([]);
-        }
+      if (response) {
+        toast.success("Test data cleanup completed");
+        // Refresh data
+        await checkProjectAccess();
+        await checkCollectionAccess();
+        await checkDocumentAccess();
       } else {
         toast.error("Failed to cleanup test data");
       }
     } catch {
       // Error logged for debugging
-      toast.error("Cleanup failed");
+      toast.error("Test data cleanup failed");
+    } finally {
+      setRunning((prev) => ({ ...prev, cleanup: false }));
     }
   };
 
@@ -462,7 +476,12 @@ export default function TestAccessPage() {
 
                   {hasScope(Scope.MASTER) && (
                     <Button
-                      onClick={repairDatabase}
+                      onClick={() => {
+                        // TODO: Implement when repairDatabase is available in the SDK
+                        toast.info(
+                          "Repair Database functionality is not yet implemented."
+                        );
+                      }}
                       variant="destructive"
                       size="sm"
                       className="w-full"
@@ -715,10 +734,10 @@ export default function TestAccessPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={createTestProject}
-                  disabled={running.creating}
+                  disabled={running.testProject}
                   className="flex-1"
                 >
-                  {running.creating ? (
+                  {running.testProject ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                       Creating...
@@ -762,9 +781,11 @@ export default function TestAccessPage() {
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={project.active ? "default" : "secondary"}
+                            variant={
+                              project.is_active ? "default" : "secondary"
+                            }
                           >
-                            {project.active ? "Active" : "Inactive"}
+                            {project.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
                         <TableCell>

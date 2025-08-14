@@ -14,37 +14,42 @@ const BACKEND_URL = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { krapi: string[] } }
+  { params }: { params: Promise<{ krapi: string[] }> }
 ) {
-  return proxyRequest(request, params, "GET");
+  const resolvedParams = await params;
+  return proxyRequest(request, resolvedParams, "GET");
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { krapi: string[] } }
+  { params }: { params: Promise<{ krapi: string[] }> }
 ) {
-  return proxyRequest(request, params, "POST");
+  const resolvedParams = await params;
+  return proxyRequest(request, resolvedParams, "POST");
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { krapi: string[] } }
+  { params }: { params: Promise<{ krapi: string[] }> }
 ) {
-  return proxyRequest(request, params, "PUT");
+  const resolvedParams = await params;
+  return proxyRequest(request, resolvedParams, "PUT");
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { krapi: string[] } }
+  { params }: { params: Promise<{ krapi: string[] }> }
 ) {
-  return proxyRequest(request, params, "DELETE");
+  const resolvedParams = await params;
+  return proxyRequest(request, resolvedParams, "DELETE");
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { krapi: string[] } }
+  { params }: { params: Promise<{ krapi: string[] }> }
 ) {
-  return proxyRequest(request, params, "PATCH");
+  const resolvedParams = await params;
+  return proxyRequest(request, resolvedParams, "PATCH");
 }
 
 async function proxyRequest(
@@ -55,7 +60,10 @@ async function proxyRequest(
   try {
     // Build the backend URL
     const pathSegments = params.krapi || [];
-    const backendPath = `/krapi/${pathSegments.join("/")}`;
+    // Remove 'krapi' from the beginning if it exists to avoid duplication
+    const cleanSegments =
+      pathSegments[0] === "krapi" ? pathSegments.slice(1) : pathSegments;
+    const backendPath = `/krapi/${cleanSegments.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
 
     // Get query parameters
@@ -64,6 +72,15 @@ async function proxyRequest(
     const fullBackendUrl = searchParams
       ? `${backendUrl}?${searchParams}`
       : backendUrl;
+
+    // Debug logging
+    console.log("[KRAPI Proxy]", {
+      method,
+      pathSegments,
+      backendPath,
+      fullBackendUrl,
+      backend: BACKEND_URL,
+    });
 
     // Prepare headers (exclude host and other problematic headers)
     const headers = new Headers();
@@ -82,7 +99,7 @@ async function proxyRequest(
     });
 
     // Add proxy headers
-    headers.set("X-Forwarded-For", request.ip || "unknown");
+    headers.set("X-Forwarded-For", "unknown"); // request.ip not available in Next.js 15
     headers.set("X-Forwarded-Host", request.headers.get("host") || "unknown");
     headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));
 

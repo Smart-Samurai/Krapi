@@ -42,6 +42,11 @@ import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  fetchProjects,
+  createProject as createProjectThunk,
+  updateProject as updateProjectThunk,
+} from "@/store/projectsSlice";
 
 const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -62,8 +67,9 @@ export default function ProjectsPage() {
   const dispatch = useAppDispatch();
   const globalBusy = useAppSelector((s) => s.ui?.globalBusyCount ?? 0);
   const { krapi, hasScope } = useReduxAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const projectsState = useAppSelector((s) => s.projects);
+  const projects = projectsState.items;
+  const loading = projectsState.loading;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -84,22 +90,21 @@ export default function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     if (!krapi || !hasScope(Scope.PROJECTS_READ)) {
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
     dispatch(beginBusy());
     try {
-      const response = await krapi.projects.getAll();
-      if (response.success && response.data) {
-        setProjects(response.data);
+      // Use Redux thunk with krapi instance
+      const action = await dispatch(fetchProjects({ krapi }));
+      if (fetchProjects.fulfilled.match(action)) {
+        // Projects are now stored in Redux store
+        // No need to set local state
       }
     } catch {
       // Error logged to console for debugging
       toast.error("Failed to load projects");
     } finally {
-      setLoading(false);
       dispatch(endBusy());
     }
   }, [krapi, hasScope, dispatch]);
@@ -113,12 +118,12 @@ export default function ProjectsPage() {
       editForm.reset({
         name: selectedProject.name,
         description: selectedProject.description || "",
-        active: selectedProject.active,
+        active: selectedProject.is_active,
       });
     }
   }, [selectedProject, editForm]);
 
-  const createProject = async (data: CreateProjectFormData) => {
+  const handleCreateProject = async (data: CreateProjectFormData) => {
     if (!krapi || !hasScope(Scope.PROJECTS_WRITE)) {
       toast.error("You don't have permission to create projects");
       return;
@@ -127,12 +132,13 @@ export default function ProjectsPage() {
     setIsCreating(true);
     dispatch(beginBusy());
     try {
-      const response = await krapi.projects.create(data);
-      if (response.success && response.data) {
+      // Use Redux thunk with krapi instance
+      const action = await dispatch(createProjectThunk({ data, krapi }));
+      if (createProjectThunk.fulfilled.match(action)) {
         toast.success("Project created successfully");
         setIsCreateDialogOpen(false);
         createForm.reset();
-        await loadProjects(); // refresh list
+        // Projects are automatically updated in Redux store
       }
     } catch {
       // Error logged to console for debugging
@@ -143,7 +149,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const updateProject = async (data: EditProjectFormData) => {
+  const handleUpdateProject = async (data: EditProjectFormData) => {
     if (!krapi || !selectedProject || !hasScope(Scope.PROJECTS_WRITE)) {
       toast.error("You don't have permission to update projects");
       return;
@@ -152,12 +158,26 @@ export default function ProjectsPage() {
     setIsUpdating(true);
     dispatch(beginBusy());
     try {
-      const response = await krapi.projects.update(selectedProject.id, data);
-      if (response.success && response.data) {
+      // Convert frontend 'active' property to SDK 'is_active' property
+      const sdkData = {
+        ...data,
+        is_active: data.active,
+      };
+      delete (sdkData as any).active;
+
+      // Use Redux thunk with krapi instance
+      const action = await dispatch(
+        updateProjectThunk({
+          id: selectedProject.id,
+          updates: sdkData,
+          krapi,
+        })
+      );
+      if (updateProjectThunk.fulfilled.match(action)) {
         toast.success("Project updated successfully");
         setIsEditDialogOpen(false);
         setSelectedProject(null);
-        await loadProjects();
+        // Projects are automatically updated in Redux store
       }
     } catch {
       // Error logged to console for debugging
@@ -258,8 +278,10 @@ export default function ProjectsPage() {
                         {project.description || "No description"}
                       </CardDescription>
                     </div>
-                    <Badge variant={project.active ? "default" : "secondary"}>
-                      {project.active ? "Active" : "Inactive"}
+                    <Badge
+                      variant={project.is_active ? "default" : "secondary"}
+                    >
+                      {project.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -293,7 +315,7 @@ export default function ProjectsPage() {
           </DialogHeader>
           <Form {...createForm}>
             <form
-              onSubmit={createForm.handleSubmit(createProject)}
+              onSubmit={createForm.handleSubmit(handleCreateProject)}
               className="space-y-4"
             >
               <FormField
@@ -355,7 +377,7 @@ export default function ProjectsPage() {
           </DialogHeader>
           <Form {...editForm}>
             <form
-              onSubmit={editForm.handleSubmit(updateProject)}
+              onSubmit={editForm.handleSubmit(handleUpdateProject)}
               className="space-y-4"
             >
               <FormField

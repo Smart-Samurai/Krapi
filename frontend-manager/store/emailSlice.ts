@@ -4,7 +4,7 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { EmailConfig, EmailTemplate, createDefaultKrapi } from "@/lib/krapi";
+import { EmailConfig, EmailTemplate } from "@/lib/krapi";
 
 // Types
 interface EmailStateBucket<T> {
@@ -34,15 +34,14 @@ const initialState: EmailState = {
 export const fetchEmailConfig = createAsyncThunk(
   "email/fetchConfig",
   async (
-    { projectId }: { projectId: string },
+    { projectId, krapi }: { projectId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.getConfig(projectId);
+      const response = await krapi.email.getConfig(projectId);
       if (response.success && response.data) {
         return { projectId, config: response.data };
       } else {
@@ -61,15 +60,18 @@ export const fetchEmailConfig = createAsyncThunk(
 export const updateEmailConfig = createAsyncThunk(
   "email/updateConfig",
   async (
-    { projectId, config }: { projectId: string; config: EmailConfig },
+    {
+      projectId,
+      config,
+      krapi,
+    }: { projectId: string; config: EmailConfig; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.updateConfig(projectId, config);
+      const response = await krapi.email.updateConfig(projectId, config);
       if (response.success && response.data) {
         return { projectId, config: response.data };
       } else {
@@ -88,15 +90,18 @@ export const updateEmailConfig = createAsyncThunk(
 export const testEmailConfig = createAsyncThunk(
   "email/testConfig",
   async (
-    { projectId, email }: { projectId: string; email: string },
+    {
+      projectId,
+      email,
+      krapi,
+    }: { projectId: string; email: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.testConfig(projectId, email);
+      const response = await krapi.email.testConfig(projectId, email);
       if (response.success) {
         return { projectId, ok: true };
       } else {
@@ -113,15 +118,14 @@ export const testEmailConfig = createAsyncThunk(
 export const fetchEmailTemplates = createAsyncThunk(
   "email/fetchTemplates",
   async (
-    { projectId }: { projectId: string },
+    { projectId, krapi }: { projectId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.getTemplates(projectId);
+      const response = await krapi.email.getTemplates(projectId);
       if (response.success && response.data) {
         return { projectId, templates: response.data };
       } else {
@@ -141,6 +145,7 @@ export const createEmailTemplate = createAsyncThunk(
     {
       projectId,
       data,
+      krapi,
     }: {
       projectId: string;
       data: {
@@ -149,6 +154,7 @@ export const createEmailTemplate = createAsyncThunk(
         body: string;
         variables: string[];
       };
+      krapi: any;
     },
     {
       getState,
@@ -156,8 +162,7 @@ export const createEmailTemplate = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.createTemplate(projectId, data);
+      const response = await krapi.email.createTemplate(projectId, data);
       if (response.success && response.data) {
         return { projectId, template: response.data };
       } else {
@@ -178,6 +183,7 @@ export const updateEmailTemplate = createAsyncThunk(
       projectId,
       templateId,
       updates,
+      krapi,
     }: {
       projectId: string;
       templateId: string;
@@ -187,6 +193,7 @@ export const updateEmailTemplate = createAsyncThunk(
         body: string;
         variables: string[];
       }>;
+      krapi: any;
     },
     {
       getState,
@@ -194,8 +201,7 @@ export const updateEmailTemplate = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.updateTemplate(
+      const response = await krapi.email.updateTemplate(
         projectId,
         templateId,
         updates
@@ -216,15 +222,18 @@ export const updateEmailTemplate = createAsyncThunk(
 export const deleteEmailTemplate = createAsyncThunk(
   "email/deleteTemplate",
   async (
-    { projectId, templateId }: { projectId: string; templateId: string },
+    {
+      projectId,
+      templateId,
+      krapi,
+    }: { projectId: string; templateId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.email.deleteTemplate(projectId, templateId);
+      const response = await krapi.email.deleteTemplate(projectId, templateId);
       if (response.success) {
         return { projectId, templateId };
       } else {

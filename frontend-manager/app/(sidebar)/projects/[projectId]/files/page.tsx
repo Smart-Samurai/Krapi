@@ -65,6 +65,7 @@ import {
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { FileInfo } from "@/lib/krapi";
+
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchFiles,
@@ -144,12 +145,12 @@ export default function FilesPage() {
   const [sortOrder] = useState<"asc" | "desc">("desc");
 
   const loadFilesCb = useCallback(() => {
-    dispatch(fetchFiles({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchFiles({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   const loadStorageStatsCb = useCallback(() => {
-    dispatch(fetchStorageStats({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchStorageStats({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
     loadFilesCb();
@@ -161,7 +162,7 @@ export default function FilesPage() {
       setIsUploading(true);
       setUploadProgress(0);
       dispatch(beginBusy());
-      const action = await dispatch(uploadFile({ projectId, file }));
+      const action = await dispatch(uploadFile({ projectId, file, krapi }));
       if (uploadFile.fulfilled.match(action)) {
         loadFilesCb();
       } else {
@@ -202,7 +203,7 @@ export default function FilesPage() {
     if (!confirm("Are you sure you want to delete this file?")) return;
     try {
       dispatch(beginBusy());
-      const action = await dispatch(deleteFile({ projectId, fileId }));
+      const action = await dispatch(deleteFile({ projectId, fileId, krapi }));
       if (deleteFile.fulfilled.match(action)) {
         loadFilesCb();
       } else {
@@ -503,17 +504,17 @@ stats = response.json()`}
                 <span className="text-sm font-medium">Used Space</span>
                 <span className="text-sm text-muted-foreground">
                   {formatFileSize(storageStats.total_size)} /{" "}
-                  {formatFileSize(storageStats.storage_limit)}
+                  {formatFileSize(0)}
                 </span>
               </div>
               <Progress
-                value={storageStats.usage_percentage}
+                value={storageStats.storage_used_percentage || 0}
                 className="w-full"
               />
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <div className="text-2xl font-bold">
-                    {storageStats.file_count}
+                    {storageStats.total_files || 0}
                   </div>
                   <div className="text-sm text-muted-foreground">Files</div>
                 </div>
@@ -525,7 +526,7 @@ stats = response.json()`}
                 </div>
                 <div>
                   <div className="text-2xl font-bold">
-                    {Math.round(storageStats.usage_percentage)}%
+                    {Math.round(storageStats.storage_used_percentage || 0)}%
                   </div>
                   <div className="text-sm text-muted-foreground">Usage</div>
                 </div>

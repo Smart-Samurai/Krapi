@@ -1,6 +1,6 @@
 "use client";
 
-import { ProjectScope } from "@krapi/sdk";
+import { ProjectScope } from "@/lib/krapi";
 import {
   Plus,
   Edit,
@@ -46,8 +46,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ProjectUser } from "@/lib/krapi";
+
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
   fetchUsers,
   createUser,
@@ -72,6 +74,7 @@ const scopeLabels: Record<ProjectScope, string> = {
 export default function UsersPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const krapi = useKrapi();
 
   const dispatch = useAppDispatch();
   const bucket = useAppSelector((s) => s.users.byProjectId[projectId]);
@@ -97,8 +100,8 @@ export default function UsersPage() {
   });
 
   const loadUsersCb = useCallback(() => {
-    dispatch(fetchUsers({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchUsers({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
     loadUsersCb();
@@ -108,7 +111,7 @@ export default function UsersPage() {
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        createUser({ projectId, data: { ...formData } })
+        createUser({ projectId, data: { ...formData }, krapi })
       );
       if (createUser.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
@@ -153,7 +156,7 @@ export default function UsersPage() {
       if (formData.password) updates.password = formData.password;
 
       const action = await dispatch(
-        updateUser({ projectId, userId: editingUser.id, updates })
+        updateUser({ projectId, userId: editingUser.id, updates, krapi })
       );
 
       if (updateUser.fulfilled.match(action)) {
@@ -194,7 +197,7 @@ export default function UsersPage() {
 
     try {
       dispatch(beginBusy());
-      const action = await dispatch(deleteUser({ projectId, userId }));
+      const action = await dispatch(deleteUser({ projectId, userId, krapi }));
       if (deleteUser.fulfilled.match(action)) {
         loadUsersCb();
       } else {
@@ -222,14 +225,14 @@ export default function UsersPage() {
   const openEditDialog = (user: ProjectUser) => {
     setEditingUser(user);
     setFormData({
-      username: user.username,
-      email: user.email,
+      username: user.username || "",
+      email: user.email || "",
       password: "",
       first_name: user.first_name || "",
       last_name: user.last_name || "",
-      phone: user.phone || "",
-      access_scopes: user.access_scopes,
-      custom_fields: user.custom_fields || {},
+      phone: (user.metadata?.phone as string) || "",
+      access_scopes: user.permissions || [],
+      custom_fields: user.metadata || {},
     });
     setIsEditDialogOpen(true);
   };
@@ -478,10 +481,10 @@ export default function UsersPage() {
                           <Mail className="h-3 w-3" />
                           {user.email}
                         </div>
-                        {user.phone && (
+                        {(user.metadata?.phone as string) && (
                           <div className="flex items-center gap-1 text-sm">
                             <Phone className="h-3 w-3" />
-                            {user.phone}
+                            {user.metadata?.phone as string}
                           </div>
                         )}
                       </div>
@@ -494,15 +497,21 @@ export default function UsersPage() {
                           {user.is_active ? "Active" : "Inactive"}
                         </Badge>
                         <Badge
-                          variant={user.is_verified ? "default" : "outline"}
+                          variant={
+                            (user.metadata?.is_verified as boolean)
+                              ? "default"
+                              : "outline"
+                          }
                         >
-                          {user.is_verified ? "Verified" : "Unverified"}
+                          {(user.metadata?.is_verified as boolean)
+                            ? "Verified"
+                            : "Unverified"}
                         </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {user.access_scopes.slice(0, 3).map((scope) => (
+                        {user.permissions.slice(0, 3).map((scope) => (
                           <Badge
                             key={scope}
                             variant="outline"
@@ -511,16 +520,16 @@ export default function UsersPage() {
                             {scopeLabels[scope as ProjectScope] || scope}
                           </Badge>
                         ))}
-                        {user.access_scopes.length > 3 && (
+                        {user.permissions.length > 3 && (
                           <Badge variant="outline" className="text-xs">
-                            +{user.access_scopes.length - 3} more
+                            +{user.permissions.length - 3} more
                           </Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(user.register_date).toLocaleDateString()}
+                        {new Date(user.created_at).toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>

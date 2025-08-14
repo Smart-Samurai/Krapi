@@ -7,9 +7,9 @@
 
 export const CONFIG = {
   // Base URLs for testing
-  FRONTEND_URL: "https://krapi.genortg.pl",
-  BACKEND_URL: "https://krapi.genortg.pl/api/krapi/k1", // Using frontend proxy
-  DIRECT_BACKEND_URL: "https://api.krapi.genortg.pl/krapi/k1", // Direct backend (if available)
+  FRONTEND_URL: "http://localhost:3469",
+  BACKEND_URL: "http://localhost:3470/krapi/k1", // Direct backend for now
+  DIRECT_BACKEND_URL: "http://localhost:3470/krapi/k1", // Direct backend (working)
 
   // Test credentials
   ADMIN_CREDENTIALS: {

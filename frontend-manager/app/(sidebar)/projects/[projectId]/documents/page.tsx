@@ -76,7 +76,7 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 export default function DocumentsPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  const _krapi = useKrapi();
+  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector(
     (s) => s.collections.byProjectId[projectId]
@@ -111,13 +111,15 @@ export default function DocumentsPage() {
   });
 
   const loadCollections = useCallback(() => {
-    dispatch(fetchCollections({ projectId }));
-  }, [dispatch, projectId]);
+    dispatch(fetchCollections({ projectId, krapi }));
+  }, [dispatch, projectId, krapi]);
 
   const loadDocuments = useCallback(() => {
     if (!selectedCollection) return;
-    dispatch(fetchDocuments({ projectId, collectionId: selectedCollection }));
-  }, [dispatch, projectId, selectedCollection]);
+    dispatch(
+      fetchDocuments({ projectId, collectionId: selectedCollection, krapi })
+    );
+  }, [dispatch, projectId, selectedCollection, krapi]);
 
   useEffect(() => {
     loadCollections();
@@ -142,6 +144,7 @@ export default function DocumentsPage() {
           projectId,
           collectionId: selectedCollection,
           data: formData.data,
+          krapi,
         })
       );
       if (createDocument.fulfilled.match(action)) {
@@ -173,6 +176,7 @@ export default function DocumentsPage() {
           collectionId: selectedCollection,
           id: editingDocument.id,
           data: formData.data,
+          krapi,
         })
       );
 
@@ -211,6 +215,7 @@ export default function DocumentsPage() {
           projectId,
           collectionId: selectedCollection,
           id: documentId,
+          krapi,
         })
       );
       if (deleteDocument.fulfilled.match(action)) {

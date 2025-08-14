@@ -4,7 +4,10 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { FileInfo, StorageStats, createDefaultKrapi } from "@/lib/krapi";
+import {
+  FileInfo,
+  StorageStats,
+} from "@/lib/krapi";
 
 // Types
 interface FilesBucket {
@@ -34,15 +37,14 @@ const initialState: StorageState = {
 export const fetchFiles = createAsyncThunk(
   "storage/fetchFiles",
   async (
-    { projectId }: { projectId: string },
+    { projectId, krapi }: { projectId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.storage.getFiles(projectId);
+      const response = await krapi.storage.getFiles(projectId);
       if (response.success && response.data) {
         return { projectId, files: response.data };
       } else {
@@ -59,16 +61,16 @@ export const fetchFiles = createAsyncThunk(
 export const fetchStorageStats = createAsyncThunk(
   "storage/fetchStats",
   async (
-    { projectId }: { projectId: string },
+    { projectId, krapi }: { projectId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.storage.getStats(projectId);
+      const response = await krapi.storage.getStats(projectId);
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return { projectId, stats: response.data };
       } else {
         return rejectWithValue(response.error || "Failed to fetch stats");
@@ -87,12 +89,14 @@ export const uploadFile = createAsyncThunk(
     {
       projectId,
       file,
+      krapi,
     }: {
       projectId: string;
       file:
         | Blob
         | Buffer
         | { buffer: Buffer; originalname: string; mimetype: string };
+      krapi: any;
     },
     {
       getState,
@@ -100,8 +104,7 @@ export const uploadFile = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.storage.uploadFile(projectId, file);
+      const response = await krapi.storage.uploadFile(projectId, file);
       if (response.success && response.data) {
         return { projectId, file: response.data };
       } else {
@@ -118,15 +121,14 @@ export const uploadFile = createAsyncThunk(
 export const deleteFile = createAsyncThunk(
   "storage/deleteFile",
   async (
-    { projectId, fileId }: { projectId: string; fileId: string },
+    { projectId, fileId, krapi }: { projectId: string; fileId: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.storage.deleteFile(projectId, fileId);
+      const response = await krapi.storage.deleteFile(projectId, fileId);
       if (response.success) {
         return { projectId, fileId };
       } else {

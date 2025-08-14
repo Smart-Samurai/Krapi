@@ -55,6 +55,42 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
 
   // Optimize bundle size (swcMinify is enabled by default in Next.js 15)
+
+  // Webpack configuration to handle Node.js modules in browser
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Configure fallbacks for Node.js modules when running in the browser
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        url: false,
+        zlib: false,
+        http: false,
+        https: false,
+        assert: false,
+        os: false,
+        path: false,
+        "node-fetch": false,
+        nodemailer: false,
+      };
+    }
+
+    // Ignore Node.js modules in client bundle
+    config.externals = config.externals || [];
+    if (!isServer) {
+      config.externals.push({
+        "node-fetch": "fetch",
+        fs: "false",
+        nodemailer: "false",
+      });
+    }
+
+    return config;
+  },
 };
 
 export default nextConfig;

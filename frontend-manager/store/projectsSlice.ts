@@ -4,7 +4,7 @@ import {
   PayloadAction,
   ActionReducerMapBuilder,
 } from "@reduxjs/toolkit";
-import { Project, ProjectStats, createDefaultKrapi } from "@/lib/krapi";
+import { Project, ProjectStats } from "@/lib/krapi";
 
 // Types
 export interface ProjectsState {
@@ -18,16 +18,16 @@ export interface ProjectsState {
 export const fetchProjects = createAsyncThunk(
   "projects/fetchAll",
   async (
-    _arg: void,
+    { krapi }: { krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.projects.getAll();
+      const response = await krapi.projects.getAll();
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return response.data;
       } else {
         return rejectWithValue(response.error || "Failed to fetch projects");
@@ -43,16 +43,16 @@ export const fetchProjects = createAsyncThunk(
 export const fetchProjectById = createAsyncThunk(
   "projects/fetchById",
   async (
-    { id }: { id: string },
+    { id, krapi }: { id: string; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.projects.getById(id);
+      const response = await krapi.projects.getById(id);
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return response.data;
       } else {
         return rejectWithValue(response.error || "Failed to fetch project");
@@ -68,10 +68,16 @@ export const fetchProjectById = createAsyncThunk(
 export const createProject = createAsyncThunk(
   "projects/create",
   async (
-    data: {
-      name: string;
-      description?: string;
-      settings?: Record<string, unknown>;
+    {
+      data,
+      krapi,
+    }: {
+      data: {
+        name: string;
+        description?: string;
+        settings?: Record<string, unknown>;
+      };
+      krapi: any;
     },
     {
       getState,
@@ -79,9 +85,9 @@ export const createProject = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.projects.create(data);
+      const response = await krapi.projects.create(data);
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return response.data;
       } else {
         return rejectWithValue(response.error || "Failed to create project");
@@ -97,16 +103,20 @@ export const createProject = createAsyncThunk(
 export const updateProject = createAsyncThunk(
   "projects/update",
   async (
-    { id, updates }: { id: string; updates: Partial<Project> },
+    {
+      id,
+      updates,
+      krapi,
+    }: { id: string; updates: Partial<Project>; krapi: any },
     {
       getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const client = createDefaultKrapi();
-      const response = await client.projects.update(id, updates);
+      const response = await krapi.projects.update(id, updates);
       if (response.success && response.data) {
+        // Use SDK data directly - no transformation needed
         return response.data;
       } else {
         return rejectWithValue(response.error || "Failed to update project");
