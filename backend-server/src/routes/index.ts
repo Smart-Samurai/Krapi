@@ -16,6 +16,14 @@ import { enforceProjectOrigin } from "@/middleware/origin-guard.middleware";
 import systemRoutes from "./system.routes";
 import adminRoutes, { initializeAdminSDK } from "./admin.routes";
 import emailRoutes, { initializeEmailSDK } from "./email.routes";
+import authRoutes from "./auth.routes";
+import projectRoutes from "./project.routes";
+import collectionsRoutes from "./collections.routes";
+import usersRoutes from "./users.routes";
+import apiKeysRoutes from "./api-keys.routes";
+import storageRoutes from "./storage.routes";
+import testingRoutes from "./testing.routes";
+import changelogRoutes from "./changelog.routes";
 
 const router: RouterType = Router();
 
@@ -113,26 +121,29 @@ router.use("/admin", adminRoutes);
 // ===== Email Routes (SDK-driven) =====
 router.use("/email", emailRoutes);
 
-// ===== Project-Level Routes (SDK-driven) =====
-// All project-specific resources will be created using existing SDK methods
-router.use("/projects", enforceProjectOrigin, (req, res, next) => {
-  if (!backendSDK) {
-    return res
-      .status(500)
-      .json({ success: false, error: "BackendSDK not initialized" });
-  }
-  next();
-});
+// ===== Authentication Routes (SDK-driven) =====
+router.use("/auth", authRoutes);
 
-// MCP integrated endpoints - will be implemented using existing SDK methods
-router.use("/mcp", (req, res, next) => {
-  if (!backendSDK) {
-    return res
-      .status(500)
-      .json({ success: false, error: "BackendSDK not initialized" });
-  }
-  next();
-});
+// ===== Project-Level Routes (SDK-driven) =====
+router.use("/projects", enforceProjectOrigin, projectRoutes);
+
+// ===== Collection-Level Routes (SDK-driven) =====
+router.use("/collections", enforceProjectOrigin, collectionsRoutes);
+
+// ===== User Management Routes (SDK-driven) =====
+router.use("/users", enforceProjectOrigin, usersRoutes);
+
+// ===== API Keys Routes (SDK-driven) =====
+router.use("/api-keys", enforceProjectOrigin, apiKeysRoutes);
+
+// ===== Storage Routes (SDK-driven) =====
+router.use("/storage", enforceProjectOrigin, storageRoutes);
+
+// ===== Testing Routes (SDK-driven) =====
+router.use("/testing", testingRoutes);
+
+// ===== Changelog Routes (SDK-driven) =====
+router.use("/changelog", enforceProjectOrigin, changelogRoutes);
 
 // 404 handler
 router.use("*", (req, res) => {

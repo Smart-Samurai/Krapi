@@ -8,6 +8,22 @@
  * Every method here MUST work identically in both environments.
  */
 
+// Import all required types
+import type {
+  AdminUser,
+  ProjectUser,
+  Project,
+  ProjectStats,
+  ProjectSettings,
+  ActivityLog,
+  Collection,
+  Document,
+  FileInfo,
+  EmailConfig,
+  EmailTemplate,
+  ApiKey
+} from './types';
+
 export interface KrapiSocketInterface {
   // Authentication methods
   auth: {
@@ -25,7 +41,7 @@ export interface KrapiSocketInterface {
     ): Promise<{
       session_token: string;
       expires_at: string;
-      user: any;
+      user: AdminUser | ProjectUser;
       scopes: string[];
     }>;
 
@@ -33,7 +49,7 @@ export interface KrapiSocketInterface {
 
     logout(): Promise<{ success: boolean }>;
 
-    getCurrentUser(): Promise<any>;
+    getCurrentUser(): Promise<AdminUser | ProjectUser | null>;
 
     refreshSession(): Promise<{
       session_token: string;
@@ -42,7 +58,7 @@ export interface KrapiSocketInterface {
 
     validateSession(token: string): Promise<{
       valid: boolean;
-      session?: any;
+      session?: AdminUser | ProjectUser;
     }>;
 
     changePassword(
@@ -57,11 +73,14 @@ export interface KrapiSocketInterface {
       name: string;
       description?: string;
       settings?: Record<string, unknown>;
-    }): Promise<any>;
+    }): Promise<Project>;
 
-    get(projectId: string): Promise<any>;
+    get(projectId: string): Promise<Project>;
 
-    update(projectId: string, updates: Record<string, unknown>): Promise<any>;
+    update(
+      projectId: string,
+      updates: Record<string, unknown>
+    ): Promise<Project>;
 
     delete(projectId: string): Promise<{ success: boolean }>;
 
@@ -70,16 +89,16 @@ export interface KrapiSocketInterface {
       offset?: number;
       search?: string;
       status?: string;
-    }): Promise<any[]>;
+    }): Promise<Project[]>;
 
-    getStatistics(projectId: string): Promise<any>;
+    getStatistics(projectId: string): Promise<ProjectStats>;
 
-    getSettings(projectId: string): Promise<any>;
+    getSettings(projectId: string): Promise<ProjectSettings>;
 
     updateSettings(
       projectId: string,
       settings: Record<string, unknown>
-    ): Promise<any>;
+    ): Promise<ProjectSettings>;
 
     getActivity(
       projectId: string,
@@ -90,7 +109,7 @@ export interface KrapiSocketInterface {
         start_date?: string;
         end_date?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<ActivityLog[]>;
   };
 
   // Collections management
@@ -115,9 +134,9 @@ export interface KrapiSocketInterface {
           unique?: boolean;
         }>;
       }
-    ): Promise<any>;
+    ): Promise<Collection>;
 
-    get(projectId: string, collectionName: string): Promise<any>;
+    get(projectId: string, collectionName: string): Promise<Collection>;
 
     getAll(
       projectId: string,
@@ -126,7 +145,7 @@ export interface KrapiSocketInterface {
         offset?: number;
         search?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<Collection[]>;
 
     update(
       projectId: string,
@@ -148,14 +167,14 @@ export interface KrapiSocketInterface {
           unique?: boolean;
         }>;
       }
-    ): Promise<any>;
+    ): Promise<Collection>;
 
     delete(
       projectId: string,
       collectionName: string
     ): Promise<{ success: boolean }>;
 
-    getSchema(projectId: string, collectionName: string): Promise<any>;
+    getSchema(projectId: string, collectionName: string): Promise<Collection>;
 
     validateSchema(
       projectId: string,
@@ -170,7 +189,10 @@ export interface KrapiSocketInterface {
       }>;
     }>;
 
-    getStatistics(projectId: string, collectionName: string): Promise<any>;
+    getStatistics(
+      projectId: string,
+      collectionName: string
+    ): Promise<{ total_documents: number; total_size_bytes: number }>;
   };
 
   // Documents management
@@ -182,13 +204,13 @@ export interface KrapiSocketInterface {
         data: Record<string, unknown>;
         created_by?: string;
       }
-    ): Promise<any>;
+    ): Promise<Document>;
 
     get(
       projectId: string,
       collectionName: string,
       documentId: string
-    ): Promise<any>;
+    ): Promise<Document>;
 
     update(
       projectId: string,
@@ -198,7 +220,7 @@ export interface KrapiSocketInterface {
         data: Record<string, unknown>;
         updated_by?: string;
       }
-    ): Promise<any>;
+    ): Promise<Document>;
 
     delete(
       projectId: string,
@@ -218,7 +240,7 @@ export interface KrapiSocketInterface {
         order?: "asc" | "desc";
         search?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<Document[]>;
 
     search(
       projectId: string,
@@ -230,7 +252,7 @@ export interface KrapiSocketInterface {
         limit?: number;
         offset?: number;
       }
-    ): Promise<any[]>;
+    ): Promise<Document[]>;
 
     bulkCreate(
       projectId: string,
@@ -240,7 +262,7 @@ export interface KrapiSocketInterface {
         created_by?: string;
       }>
     ): Promise<{
-      created: any[];
+      created: Document[];
       errors: Array<{ index: number; error: string }>;
     }>;
 
@@ -253,7 +275,7 @@ export interface KrapiSocketInterface {
         updated_by?: string;
       }>
     ): Promise<{
-      updated: any[];
+      updated: Document[];
       errors: Array<{ id: string; error: string }>;
     }>;
 
@@ -304,9 +326,9 @@ export interface KrapiSocketInterface {
         role?: string;
         status?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<ProjectUser[]>;
 
-    get(projectId: string, userId: string): Promise<any>;
+    get(projectId: string, userId: string): Promise<ProjectUser>;
 
     create(
       projectId: string,
@@ -320,7 +342,7 @@ export interface KrapiSocketInterface {
         permissions?: string[];
         metadata?: Record<string, unknown>;
       }
-    ): Promise<any>;
+    ): Promise<ProjectUser>;
 
     update(
       projectId: string,
@@ -335,17 +357,21 @@ export interface KrapiSocketInterface {
         is_active?: boolean;
         metadata?: Record<string, unknown>;
       }
-    ): Promise<any>;
+    ): Promise<ProjectUser>;
 
     delete(projectId: string, userId: string): Promise<{ success: boolean }>;
 
-    updateRole(projectId: string, userId: string, role: string): Promise<any>;
+    updateRole(
+      projectId: string,
+      userId: string,
+      role: string
+    ): Promise<ProjectUser>;
 
     updatePermissions(
       projectId: string,
       userId: string,
       permissions: string[]
-    ): Promise<any>;
+    ): Promise<ProjectUser>;
 
     getActivity(
       projectId: string,
@@ -356,7 +382,7 @@ export interface KrapiSocketInterface {
         start_date?: string;
         end_date?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<{ id: string; action: string; timestamp: string; details: Record<string, unknown> }[]>;
 
     getStatistics(projectId: string): Promise<{
       total_users: number;
@@ -370,18 +396,18 @@ export interface KrapiSocketInterface {
   storage: {
     uploadFile(
       projectId: string,
-      file: any,
+      file: File | Blob,
       options?: {
         folder?: string;
         filename?: string;
         metadata?: Record<string, unknown>;
         public?: boolean;
       }
-    ): Promise<any>;
+    ): Promise<FileInfo>;
 
-    downloadFile(projectId: string, fileId: string): Promise<any>;
+    downloadFile(projectId: string, fileId: string): Promise<Blob>;
 
-    getFile(projectId: string, fileId: string): Promise<any>;
+    getFile(projectId: string, fileId: string): Promise<FileInfo>;
 
     deleteFile(
       projectId: string,
@@ -397,7 +423,7 @@ export interface KrapiSocketInterface {
         search?: string;
         type?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<FileInfo[]>;
 
     createFolder(
       projectId: string,
@@ -406,9 +432,12 @@ export interface KrapiSocketInterface {
         parent_folder_id?: string;
         metadata?: Record<string, unknown>;
       }
-    ): Promise<any>;
+    ): Promise<{ id: string; name: string; parent_folder_id?: string; metadata?: Record<string, unknown> }>;
 
-    getFolders(projectId: string, parentFolderId?: string): Promise<any[]>;
+    getFolders(
+      projectId: string,
+      parentFolderId?: string
+    ): Promise<{ id: string; name: string; parent_folder_id?: string; metadata?: Record<string, unknown> }[]>;
 
     deleteFolder(
       projectId: string,
@@ -438,7 +467,7 @@ export interface KrapiSocketInterface {
 
   // Email management
   email: {
-    getConfig(projectId: string): Promise<any>;
+    getConfig(projectId: string): Promise<EmailConfig>;
 
     updateConfig(
       projectId: string,
@@ -446,7 +475,7 @@ export interface KrapiSocketInterface {
         provider: string;
         settings: Record<string, unknown>;
       }
-    ): Promise<any>;
+    ): Promise<EmailConfig>;
 
     testConfig(
       projectId: string,
@@ -460,9 +489,9 @@ export interface KrapiSocketInterface {
         offset?: number;
         search?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<EmailTemplate[]>;
 
-    getTemplate(projectId: string, templateId: string): Promise<any>;
+    getTemplate(projectId: string, templateId: string): Promise<EmailTemplate>;
 
     createTemplate(
       projectId: string,
@@ -473,7 +502,7 @@ export interface KrapiSocketInterface {
         variables: string[];
         type?: string;
       }
-    ): Promise<any>;
+    ): Promise<EmailTemplate>;
 
     updateTemplate(
       projectId: string,
@@ -484,7 +513,7 @@ export interface KrapiSocketInterface {
         body?: string;
         variables?: string[];
       }
-    ): Promise<any>;
+    ): Promise<EmailTemplate>;
 
     deleteTemplate(
       projectId: string,
@@ -522,7 +551,7 @@ export interface KrapiSocketInterface {
         start_date?: string;
         end_date?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<{ id: string; to: string; subject: string; status: string; sent_at: string }[]>;
   };
 
   // API Keys management
@@ -535,9 +564,9 @@ export interface KrapiSocketInterface {
         type?: string;
         status?: string;
       }
-    ): Promise<any[]>;
+    ): Promise<ApiKey[]>;
 
-    get(projectId: string, keyId: string): Promise<any>;
+    get(projectId: string, keyId: string): Promise<ApiKey>;
 
     create(
       projectId: string,
@@ -548,7 +577,7 @@ export interface KrapiSocketInterface {
         rate_limit?: number;
         metadata?: Record<string, unknown>;
       }
-    ): Promise<any>;
+    ): Promise<ApiKey>;
 
     update(
       projectId: string,
@@ -561,11 +590,11 @@ export interface KrapiSocketInterface {
         rate_limit?: number;
         metadata?: Record<string, unknown>;
       }
-    ): Promise<any>;
+    ): Promise<ApiKey>;
 
     delete(projectId: string, keyId: string): Promise<{ success: boolean }>;
 
-    regenerate(projectId: string, keyId: string): Promise<any>;
+    regenerate(projectId: string, keyId: string): Promise<ApiKey>;
 
     validateKey(apiKey: string): Promise<{
       valid: boolean;
@@ -655,7 +684,7 @@ export interface KrapiSocketInterface {
       with_collections?: boolean;
       with_documents?: boolean;
       document_count?: number;
-    }): Promise<any>;
+    }): Promise<Project>;
 
     cleanup(projectId?: string): Promise<{
       success: boolean;
@@ -698,6 +727,6 @@ export interface KrapiSocketInterface {
 
   // Utility methods
   getMode(): "client" | "server" | null;
-  getConfig(): any;
+  getConfig(): { mode: "client" | "server" | null; endpoint?: string; apiKey?: string; database?: any };
   close(): Promise<void>;
 }

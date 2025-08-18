@@ -12,15 +12,33 @@ router.use(authenticate);
 
 // Create test project with optional sample data
 router.post(
-  "/create-project",
+  "/projects",
   requireScopes({
     scopes: [Scope.PROJECTS_WRITE],
   }),
   controller.createTestProject
 );
 
+// Get all test projects
+router.get(
+  "/projects",
+  requireScopes({
+    scopes: [Scope.PROJECTS_READ],
+  }),
+  controller.getTestProjects
+);
+
+// Delete specific test project
+router.delete(
+  "/projects/:projectId",
+  requireScopes({
+    scopes: [Scope.PROJECTS_DELETE],
+  }),
+  controller.deleteTestProject
+);
+
 // Clean up test data
-router.post(
+router.delete(
   "/cleanup",
   requireScopes({
     scopes: [Scope.PROJECTS_DELETE],
@@ -28,13 +46,67 @@ router.post(
   controller.cleanup
 );
 
+// Reset test data
+router.post(
+  "/reset",
+  requireScopes({
+    scopes: [Scope.PROJECTS_WRITE],
+  }),
+  controller.resetTestData
+);
+
 // Run integration tests
 router.post(
-  "/integration-tests",
+  "/run",
   requireScopes({
     scopes: [Scope.ADMIN_READ],
   }),
-  controller.runIntegrationTests
+  controller.runTests
+);
+
+// Run specific test scenario
+router.post(
+  "/scenarios/:scenarioName",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.runScenario
+);
+
+// Get available test scenarios
+router.get(
+  "/scenarios",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.getAvailableScenarios
+);
+
+// Seed data for testing
+router.post(
+  "/seed/:projectId",
+  requireScopes({
+    scopes: [Scope.PROJECTS_WRITE],
+  }),
+  controller.seedData
+);
+
+// Performance testing
+router.post(
+  "/performance",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.runPerformanceTest
+);
+
+// Load testing
+router.post(
+  "/load",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  controller.runLoadTest
 );
 
 // Check database schema

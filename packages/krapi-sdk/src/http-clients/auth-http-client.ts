@@ -120,6 +120,24 @@ export class AuthHttpClient extends BaseHttpClient {
     return response;
   }
 
+  async createSession(apiKey: string): Promise<
+    ApiResponse<{
+      session_token: string;
+      expires_at: string;
+      user_type: "admin" | "project";
+      scopes: string[];
+    }>
+  > {
+    return this.post<{
+      session_token: string;
+      expires_at: string;
+      user_type: "admin" | "project";
+      scopes: string[];
+    }>("/auth/sessions", {
+      api_key: apiKey,
+    });
+  }
+
   async revokeSession(
     sessionId: string
   ): Promise<ApiResponse<{ success: boolean }>> {
@@ -142,7 +160,7 @@ export class AuthHttpClient extends BaseHttpClient {
   ): Promise<ApiResponse<{ success: boolean }>> {
     const endpoint =
       userType === "admin"
-        ? `/auth/admin/change-password`
+        ? `/auth/change-password`
         : `/auth/users/${userId}/change-password`;
 
     return this.post<{ success: boolean }>(endpoint, passwordData);
@@ -180,9 +198,12 @@ export class AuthHttpClient extends BaseHttpClient {
       session?: Session;
     }>
   > {
-    return this.post<{ valid: boolean; session?: Session }>("/auth/validate", {
-      session_token: sessionToken,
-    });
+    return this.post<{ valid: boolean; session?: Session }>(
+      "/auth/session/validate",
+      {
+        token: sessionToken,
+      }
+    );
   }
 
   async validateApiKey(apiKey: string): Promise<

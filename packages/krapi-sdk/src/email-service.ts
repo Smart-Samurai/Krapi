@@ -52,6 +52,28 @@ export interface EmailResult {
   error?: string;
 }
 
+export interface EmailHistory {
+  id: string;
+  project_id: string;
+  to: string;
+  subject: string;
+  status: "sent" | "failed" | "pending";
+  sent_at?: string;
+  error_message?: string;
+  template_id?: string;
+  created_at: string;
+}
+
+export interface EmailProvider {
+  id: string;
+  name: string;
+  type: "smtp" | "sendgrid" | "mailgun" | "aws_ses";
+  config: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export class EmailService {
   private db: DatabaseConnection;
   private logger: Logger;

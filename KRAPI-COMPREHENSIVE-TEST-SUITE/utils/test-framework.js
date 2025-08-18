@@ -41,11 +41,18 @@ class TestFramework {
       const duration = Date.now() - this.testStartTime;
       this.passedTests++;
 
-      process.stdout.clearLine();
-      process.stdout.cursorTo(0);
-      console.log(
-        chalk.green(`  ✅ ${testName}`) + chalk.gray(` (${duration}ms)`)
-      );
+      // Use stdout methods if available, otherwise just print
+      if (process.stdout.clearLine && process.stdout.cursorTo) {
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        console.log(
+          chalk.green(`  ✅ ${testName}`) + chalk.gray(` (${duration}ms)`)
+        );
+      } else {
+        console.log(
+          chalk.green(`  ✅ ${testName}`) + chalk.gray(` (${duration}ms)`)
+        );
+      }
 
       this.results.push({
         suite: this.currentSuite,
@@ -58,11 +65,18 @@ class TestFramework {
       const duration = Date.now() - this.testStartTime;
       this.failedTests++;
 
-      process.stdout.clearLine();
-      process.stdout.cursorTo(0);
-      console.log(
-        chalk.red(`  ❌ ${testName}`) + chalk.gray(` (${duration}ms)`)
-      );
+      // Use stdout methods if available, otherwise just print
+      if (process.stdout.clearLine && process.stdout.cursorTo) {
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        console.log(
+          chalk.red(`  ❌ ${testName}`) + chalk.gray(` (${duration}ms)`)
+        );
+      } else {
+        console.log(
+          chalk.red(`  ❌ ${testName}`) + chalk.gray(` (${duration}ms)`)
+        );
+      }
       console.log(chalk.red(`     Error: ${error.message}`));
 
       this.results.push({

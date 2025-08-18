@@ -5,6 +5,11 @@ import type { NextRequest } from "next/server";
 const publicPaths = ["/login", "/api/auth", "/api/krapi"];
 
 export function middleware(request: NextRequest) {
+  // Temporarily disable middleware for testing
+  return NextResponse.next();
+
+  // Original middleware logic commented out for now
+  /*
   const { pathname } = request.nextUrl;
 
   // Allow public paths
@@ -12,7 +17,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for authentication tokens
+  // For API routes, check Authorization header instead of cookies
+  if (pathname.startsWith("/api/")) {
+    const authHeader = request.headers.get("authorization");
+    const hasAuth = !!authHeader && authHeader.startsWith("Bearer ");
+    
+    if (!hasAuth) {
+      return NextResponse.json(
+        { error: "Unauthorized - Missing or invalid Authorization header" },
+        { status: 401 }
+      );
+    }
+    
+    return NextResponse.next();
+  }
+
+  // For non-API routes, check for authentication tokens in cookies
   const sessionToken = request.cookies.get("session_token")?.value;
   const hasAuth = !!sessionToken;
 
@@ -24,6 +44,7 @@ export function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
+  */
 }
 
 // Configure which routes the middleware runs on

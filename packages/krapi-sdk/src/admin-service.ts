@@ -312,6 +312,47 @@ export class AdminService {
     }
   }
 
+  async createApiKey(
+    userId: string,
+    keyData: {
+      name: string;
+      permissions: string[];
+      expires_at?: string;
+    }
+  ): Promise<{ key: string; data: ApiKey }> {
+    try {
+      // Generate a new API key
+      const apiKey = `ak_${Math.random()
+        .toString(36)
+        .substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+
+      // Create the API key in the database
+      const result = await this.db.query(
+        `INSERT INTO api_keys (key, name, type, owner_id, scopes, expires_at) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING *`,
+        [
+          apiKey,
+          keyData.name,
+          "admin",
+          userId,
+          keyData.permissions,
+          keyData.expires_at,
+        ]
+      );
+
+      const createdKey = result.rows[0] as ApiKey;
+
+      return {
+        key: apiKey,
+        data: createdKey,
+      };
+    } catch (error) {
+      this.logger.error("Failed to create API key:", error);
+      throw new Error("Failed to create API key");
+    }
+  }
+
   async createMasterApiKey(): Promise<ApiKey> {
     try {
       const masterKey = `mak_${Math.random().toString(36).substring(2, 15)}`;

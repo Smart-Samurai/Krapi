@@ -56,18 +56,18 @@ export { BackendSDK } from "./backend-sdk";
 // Note: FrontendSDK removed - use krapi singleton instead
 
 // Export shared interfaces and types
-export * from "./interfaces";
-export * from "./types";
+// export * from "./interfaces"; // Temporarily disabled until types migration is complete
+// export * from "./types"; // Temporarily disabled until types migration is complete
 
 // Export key enums explicitly for better IDE support
 export { AdminRole, AccessLevel, Scope, ProjectScope } from "./types";
 
 // Export the main SDK class (krapi singleton is the default)
 
-// Export database health management system
-export { DatabaseHealthManager } from "./database-health";
-export { PostgreSQLAutoFixer } from "./postgresql-auto-fixer";
-export { SchemaGenerator } from "./schema-generator";
+// Export database health management system - temporarily disabled
+// export { DatabaseHealthManager } from "./database-health";
+// export { PostgreSQLAutoFixer } from "./postgresql-auto-fixer";
+// export { SchemaGenerator } from "./schema-generator";
 
 // Export all individual services (can be used directly)
 export { AdminService } from "./admin-service";
@@ -82,7 +82,7 @@ export { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
 export { ProjectsService } from "./projects-service";
 export { StorageService } from "./storage-service";
 export { SystemService } from "./system-service";
-export { TestingService } from "./testing-service";
+
 export { UsersService } from "./users-service";
 
 // Export HTTP clients for granular frontend control
@@ -166,13 +166,6 @@ export type {
   StorageStatistics,
   StorageQuota,
 } from "./storage-service";
-
-export type {
-  TestResult,
-  TestSuite,
-  DatabaseTestResult,
-  EndpointTestResult,
-} from "./testing-service";
 
 export type {
   ProjectUser,

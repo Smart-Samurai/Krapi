@@ -18,7 +18,7 @@ export async function GET(
 
     const { id } = await params;
     const client = createAuthenticatedSdk(authToken);
-    const response = await client.admin.getUserById(id);
+    const response = await client.admin.getUser(id);
 
     if (response.success) {
       return NextResponse.json(response);

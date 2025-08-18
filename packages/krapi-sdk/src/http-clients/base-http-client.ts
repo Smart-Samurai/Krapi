@@ -117,9 +117,12 @@ export class BaseHttpClient {
     return this.httpClient.patch(endpoint, data);
   }
 
-  protected async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  protected async delete<T>(
+    endpoint: string,
+    data?: unknown
+  ): Promise<ApiResponse<T>> {
     await this.initializeClient();
-    return this.httpClient.delete(endpoint);
+    return this.httpClient.delete(endpoint, { data });
   }
 
   // Utility method to build query strings

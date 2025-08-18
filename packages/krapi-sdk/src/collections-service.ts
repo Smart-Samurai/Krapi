@@ -48,6 +48,28 @@ export interface CreateDocumentRequest {
   created_by?: string;
 }
 
+export interface CollectionStatistics {
+  total_documents: number;
+  total_size_bytes: number;
+  average_document_size: number;
+  field_statistics: Record<
+    string,
+    {
+      null_count: number;
+      unique_values: number;
+      most_common_values?: Array<{ value: unknown; count: number }>;
+    }
+  >;
+  index_usage: Record<
+    string,
+    {
+      size_bytes: number;
+      scans: number;
+      last_used?: string;
+    }
+  >;
+}
+
 export interface UpdateDocumentRequest {
   data: Record<string, unknown>;
   updated_by?: string;

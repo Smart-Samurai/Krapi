@@ -14,8 +14,7 @@ import {
   BookOpen,
   Link as LinkIcon,
 } from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -111,6 +110,7 @@ const fieldTypeLabels: Record<FieldType, string> = {
 
 export default function CollectionsPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
@@ -367,11 +367,11 @@ export default function CollectionsPage() {
                     </Button>
                   </div>
                   <div className="space-y-3">
-                    {formData.fields.map((field, index) => {
+                    {formData.fields.map((field, _index) => {
                       const _Icon = fieldTypeIcons[field.type];
                       return (
                         <div
-                          key={`collections-field-${index}-${
+                          key={`collections-field-${_index}-${
                             field.name || "unnamed"
                           }`}
                           className="flex items-center gap-2 p-3 border rounded-lg"
@@ -381,13 +381,13 @@ export default function CollectionsPage() {
                               placeholder="Field name"
                               value={field.name}
                               onChange={(e) =>
-                                updateField(index, { name: e.target.value })
+                                updateField(_index, { name: e.target.value })
                               }
                             />
                             <Select
                               value={field.type}
                               onValueChange={(value: FieldType) =>
-                                updateField(index, { type: value })
+                                updateField(_index, { type: value })
                               }
                             >
                               <SelectTrigger>
@@ -417,7 +417,7 @@ export default function CollectionsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                updateField(index, {
+                                updateField(_index, {
                                   required: !field.required,
                                 })
                               }
@@ -434,7 +434,7 @@ export default function CollectionsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                updateField(index, { unique: !field.unique })
+                                updateField(_index, { unique: !field.unique })
                               }
                               className={
                                 field.unique
@@ -449,7 +449,7 @@ export default function CollectionsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                updateField(index, { indexed: !field.indexed })
+                                updateField(_index, { indexed: !field.indexed })
                               }
                               className={
                                 field.indexed
@@ -463,7 +463,7 @@ export default function CollectionsPage() {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => removeField(index)}
+                              onClick={() => removeField(_index)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -714,13 +714,17 @@ response = requests.delete(
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link
-                        href={`/projects/${projectId}/collections/${collection.name}/documents`}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Documents
-                      </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        router.push(
+                          `/projects/${projectId}/collections/${collection.name}/documents`
+                        )
+                      }
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Documents
                     </Button>
                     <Button
                       variant="outline"
@@ -742,11 +746,13 @@ response = requests.delete(
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {collection.fields.map((field, index) => {
+                    {collection.fields.map((field, _index) => {
                       const Icon = fieldTypeIcons[field.type];
                       return (
                         <TableRow
-                          key={`collections-table-field-${index}-${field.name}`}
+                          key={`collections-table-field-${
+                            field.name
+                          }-${Date.now()}`}
                         >
                           <TableCell className="font-medium">
                             {field.name}
@@ -830,13 +836,13 @@ response = requests.delete(
                 </Button>
               </div>
               <div className="space-y-3">
-                {formData.fields.map((field, index) => {
+                {formData.fields.map((field, _index) => {
                   const _Icon = fieldTypeIcons[field.type];
                   return (
                     <div
-                      key={`collections-edit-field-${index}-${
+                      key={`collections-edit-field-${
                         field.name || "unnamed"
-                      }`}
+                      }-${Date.now()}`}
                       className="flex items-center gap-2 p-3 border rounded-lg"
                     >
                       <div className="flex-1 grid grid-cols-2 gap-2">
@@ -844,13 +850,13 @@ response = requests.delete(
                           placeholder="Field name"
                           value={field.name}
                           onChange={(e) =>
-                            updateField(index, { name: e.target.value })
+                            updateField(_index, { name: e.target.value })
                           }
                         />
                         <Select
                           value={field.type}
                           onValueChange={(value: FieldType) =>
-                            updateField(index, { type: value })
+                            updateField(_index, { type: value })
                           }
                         >
                           <SelectTrigger>
@@ -879,7 +885,7 @@ response = requests.delete(
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            updateField(index, { required: !field.required })
+                            updateField(_index, { required: !field.required })
                           }
                           className={
                             field.required
@@ -894,7 +900,7 @@ response = requests.delete(
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            updateField(index, { unique: !field.unique })
+                            updateField(_index, { unique: !field.unique })
                           }
                           className={
                             field.unique
@@ -909,7 +915,7 @@ response = requests.delete(
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            updateField(index, { indexed: !field.indexed })
+                            updateField(_index, { indexed: !field.indexed })
                           }
                           className={
                             field.indexed
@@ -923,7 +929,7 @@ response = requests.delete(
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => removeField(index)}
+                          onClick={() => removeField(_index)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

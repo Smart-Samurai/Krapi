@@ -220,7 +220,7 @@ export default function TestAccessPage() {
       const response = await krapi.testing.runTests();
 
       if (response) {
-        setTestResults(response);
+        setTestResults(response.results || []);
         toast.success("Integration tests completed");
       } else {
         toast.error("Failed to run integration tests");
@@ -284,9 +284,9 @@ export default function TestAccessPage() {
 
     try {
       const response = await krapi.projects.getAll();
-      if (response.success && response.data) {
+      if (Array.isArray(response)) {
         // Filter test projects (those with "test" in the name)
-        const testProjects = response.data.filter(
+        const testProjects = response.filter(
           (p: Project) =>
             p.name.toLowerCase().includes("test") ||
             p.description?.toLowerCase().includes("test")
@@ -792,7 +792,7 @@ export default function TestAccessPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => cleanupTestData(project.id)}
+                            onClick={() => cleanupTestData()}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

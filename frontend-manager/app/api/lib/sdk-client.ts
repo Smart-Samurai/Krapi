@@ -1,18 +1,23 @@
-import { KrapiSDK } from "@krapi/sdk";
+import { krapi } from "@krapi/sdk";
 
-// Default SDK client for server-side usage
-export const serverSdk = new KrapiSDK({
-  baseUrl: process.env.KRAPI_API_URL || "http://localhost:3470",
-});
+// Initialize the SDK connection to the backend
+krapi
+  .connect({
+    endpoint: process.env.BACKEND_URL || "http://localhost:3470",
+    apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
+  })
+  .catch((error) => {
+    // Failed to connect SDK to backend
+  });
+
+// Export the configured SDK instance
+export const serverSdk = krapi;
 
 // Helper to create authenticated SDK instance
-export function createAuthenticatedSdk(token: string): KrapiSDK {
-  const sdk = new KrapiSDK({
-    baseUrl: process.env.KRAPI_API_URL || "http://localhost:3470",
-  });
-  
-  sdk.setSessionToken(token);
-  return sdk;
+export function createAuthenticatedSdk(_token: string): typeof krapi {
+  // Set the session token on the main SDK instance
+  krapi.auth.setSessionToken(_token);
+  return krapi;
 }
 
 /**

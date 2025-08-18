@@ -70,6 +70,14 @@ router.post("/project/:projectId/session", controller.createProjectSession);
  */
 router.post("/session/validate", controller.validateSession);
 
+/**
+ * Refresh session token
+ * POST /krapi/k1/auth/refresh
+ * Headers: Authorization: Bearer <token>
+ * Returns: { session_token: string, expires_at: string, scopes: string[] }
+ */
+router.post("/refresh", authenticate, controller.refreshSession);
+
 // ===== Protected Routes (require authentication) =====
 router.use(authenticate);
 

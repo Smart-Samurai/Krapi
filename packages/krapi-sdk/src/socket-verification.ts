@@ -731,7 +731,7 @@ export async function runSocketVerification(): Promise<void> {
   const verification = new SocketVerification();
   const results = await verification.runCompleteVerification();
 
-  console.log("\n" + verification.generateReport());
+  console.log(`\n${  verification.generateReport()}`);
 
   if (results.summary.overall_score < 100) {
     console.log("⚠️  Socket verification found issues. See report above.");

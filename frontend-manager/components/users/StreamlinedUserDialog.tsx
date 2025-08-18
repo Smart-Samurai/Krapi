@@ -149,8 +149,8 @@ export function StreamlinedUserDialog({
     try {
       setLoadingProjects(true);
       const response = await krapi!.projects.getAll();
-      if (response.success && response.data) {
-        setProjects(response.data);
+      if (Array.isArray(response)) {
+        setProjects(response);
       }
     } catch {
       // Error logged for debugging

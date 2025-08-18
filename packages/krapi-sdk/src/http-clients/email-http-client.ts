@@ -4,7 +4,6 @@
  * HTTP-based email methods for frontend apps
  */
 
-import { BaseHttpClient } from "./base-http-client";
 import { ApiResponse, PaginatedResponse } from "../core";
 import {
   EmailConfig,
@@ -14,6 +13,7 @@ import {
   EmailProvider,
 } from "../email-service";
 
+import { BaseHttpClient } from "./base-http-client";
 export class EmailHttpClient extends BaseHttpClient {
   // Email Configuration
   async getConfig(projectId: string): Promise<ApiResponse<EmailConfig>> {
@@ -31,7 +31,10 @@ export class EmailHttpClient extends BaseHttpClient {
     projectId: string,
     testEmail: string
   ): Promise<ApiResponse<{ success: boolean; message?: string }>> {
-    return this.post<{ success: boolean; message?: string }>(`/projects/${projectId}/email/test`, { email: testEmail });
+    return this.post<{ success: boolean; message?: string }>(
+      `/projects/${projectId}/email/test`,
+      { email: testEmail }
+    );
   }
 
   // Email Templates
@@ -50,10 +53,10 @@ export class EmailHttpClient extends BaseHttpClient {
     if (options?.search) params.append("search", options.search);
     if (options?.type) params.append("type", options.type);
 
-    const url = params.toString() 
+    const url = params.toString()
       ? `/projects/${projectId}/email/templates?${params}`
       : `/projects/${projectId}/email/templates`;
-    
+
     return this.getPaginated<EmailTemplate>(url);
   }
 
@@ -61,7 +64,9 @@ export class EmailHttpClient extends BaseHttpClient {
     projectId: string,
     templateId: string
   ): Promise<ApiResponse<EmailTemplate>> {
-    return this.get<EmailTemplate>(`/projects/${projectId}/email/templates/${templateId}`);
+    return this.get<EmailTemplate>(
+      `/projects/${projectId}/email/templates/${templateId}`
+    );
   }
 
   async createTemplate(
@@ -76,7 +81,10 @@ export class EmailHttpClient extends BaseHttpClient {
       is_active?: boolean;
     }
   ): Promise<ApiResponse<EmailTemplate>> {
-    return this.post<EmailTemplate>(`/projects/${projectId}/email/templates`, template);
+    return this.post<EmailTemplate>(
+      `/projects/${projectId}/email/templates`,
+      template
+    );
   }
 
   async updateTemplate(
@@ -84,14 +92,19 @@ export class EmailHttpClient extends BaseHttpClient {
     templateId: string,
     updates: Partial<EmailTemplate>
   ): Promise<ApiResponse<EmailTemplate>> {
-    return this.put<EmailTemplate>(`/projects/${projectId}/email/templates/${templateId}`, updates);
+    return this.put<EmailTemplate>(
+      `/projects/${projectId}/email/templates/${templateId}`,
+      updates
+    );
   }
 
   async deleteTemplate(
     projectId: string,
     templateId: string
   ): Promise<ApiResponse<{ success: boolean }>> {
-    return this.delete<{ success: boolean }>(`/projects/${projectId}/email/templates/${templateId}`);
+    return this.delete<{ success: boolean }>(
+      `/projects/${projectId}/email/templates/${templateId}`
+    );
   }
 
   async duplicateTemplate(
@@ -99,15 +112,24 @@ export class EmailHttpClient extends BaseHttpClient {
     templateId: string,
     newName: string
   ): Promise<ApiResponse<EmailTemplate>> {
-    return this.post<EmailTemplate>(`/projects/${projectId}/email/templates/${templateId}/duplicate`, { name: newName });
+    return this.post<EmailTemplate>(
+      `/projects/${projectId}/email/templates/${templateId}/duplicate`,
+      { name: newName }
+    );
   }
 
   // Email Sending
   async sendEmail(
     projectId: string,
     emailRequest: EmailRequest
-  ): Promise<ApiResponse<{ success: boolean; message_id?: string; sent_at: string }>> {
-    return this.post<{ success: boolean; message_id?: string; sent_at: string }>(`/projects/${projectId}/email/send`, emailRequest);
+  ): Promise<
+    ApiResponse<{ success: boolean; message_id?: string; sent_at: string }>
+  > {
+    return this.post<{
+      success: boolean;
+      message_id?: string;
+      sent_at: string;
+    }>(`/projects/${projectId}/email/send`, emailRequest);
   }
 
   async sendBulkEmail(
@@ -124,8 +146,14 @@ export class EmailHttpClient extends BaseHttpClient {
       from_name?: string;
       scheduled_at?: string;
     }
-  ): Promise<ApiResponse<{ success: boolean; message_ids: string[]; sent_at: string }>> {
-    return this.post<{ success: boolean; message_ids: string[]; sent_at: string }>(`/projects/${projectId}/email/bulk-send`, bulkRequest);
+  ): Promise<
+    ApiResponse<{ success: boolean; message_ids: string[]; sent_at: string }>
+  > {
+    return this.post<{
+      success: boolean;
+      message_ids: string[];
+      sent_at: string;
+    }>(`/projects/${projectId}/email/bulk-send`, bulkRequest);
   }
 
   async sendTemplateEmail(
@@ -145,8 +173,14 @@ export class EmailHttpClient extends BaseHttpClient {
         content_type: string;
       }>;
     }
-  ): Promise<ApiResponse<{ success: boolean; message_id?: string; sent_at: string }>> {
-    return this.post<{ success: boolean; message_id?: string; sent_at: string }>(`/projects/${projectId}/email/templates/${templateId}/send`, emailData);
+  ): Promise<
+    ApiResponse<{ success: boolean; message_id?: string; sent_at: string }>
+  > {
+    return this.post<{
+      success: boolean;
+      message_id?: string;
+      sent_at: string;
+    }>(`/projects/${projectId}/email/templates/${templateId}/send`, emailData);
   }
 
   // Email Scheduling
@@ -162,8 +196,18 @@ export class EmailHttpClient extends BaseHttpClient {
       from_email?: string;
       from_name?: string;
     }
-  ): Promise<ApiResponse<{ success: boolean; scheduled_id: string; scheduled_at: string }>> {
-    return this.post<{ success: boolean; scheduled_id: string; scheduled_at: string }>(`/projects/${projectId}/email/schedule`, scheduledEmail);
+  ): Promise<
+    ApiResponse<{
+      success: boolean;
+      scheduled_id: string;
+      scheduled_at: string;
+    }>
+  > {
+    return this.post<{
+      success: boolean;
+      scheduled_id: string;
+      scheduled_at: string;
+    }>(`/projects/${projectId}/email/schedule`, scheduledEmail);
   }
 
   async getScheduledEmails(
@@ -175,28 +219,32 @@ export class EmailHttpClient extends BaseHttpClient {
       scheduled_after?: string;
       scheduled_before?: string;
     }
-  ): Promise<PaginatedResponse<{
-    id: string;
-    template_id?: string;
-    to: string[];
-    subject: string;
-    body: string;
-    scheduled_at: string;
-    status: "pending" | "sent" | "cancelled";
-    sent_at?: string;
-    created_at: string;
-  }>> {
+  ): Promise<
+    PaginatedResponse<{
+      id: string;
+      template_id?: string;
+      to: string[];
+      subject: string;
+      body: string;
+      scheduled_at: string;
+      status: "pending" | "sent" | "cancelled";
+      sent_at?: string;
+      created_at: string;
+    }>
+  > {
     const params = new URLSearchParams();
     if (options?.limit) params.append("limit", options.limit.toString());
     if (options?.offset) params.append("offset", options.offset.toString());
     if (options?.status) params.append("status", options.status);
-    if (options?.scheduled_after) params.append("scheduled_after", options.scheduled_after);
-    if (options?.scheduled_before) params.append("scheduled_before", options.scheduled_before);
+    if (options?.scheduled_after)
+      params.append("scheduled_after", options.scheduled_after);
+    if (options?.scheduled_before)
+      params.append("scheduled_before", options.scheduled_before);
 
-    const url = params.toString() 
+    const url = params.toString()
       ? `/projects/${projectId}/email/scheduled?${params}`
       : `/projects/${projectId}/email/scheduled`;
-    
+
     return this.getPaginated<{
       id: string;
       template_id?: string;
@@ -214,7 +262,9 @@ export class EmailHttpClient extends BaseHttpClient {
     projectId: string,
     scheduledId: string
   ): Promise<ApiResponse<{ success: boolean }>> {
-    return this.delete<{ success: boolean }>(`/projects/${projectId}/email/scheduled/${scheduledId}`);
+    return this.delete<{ success: boolean }>(
+      `/projects/${projectId}/email/scheduled/${scheduledId}`
+    );
   }
 
   // Email History
@@ -239,28 +289,60 @@ export class EmailHttpClient extends BaseHttpClient {
     if (options?.sent_after) params.append("sent_after", options.sent_after);
     if (options?.sent_before) params.append("sent_before", options.sent_before);
 
-    const url = params.toString() 
+    const url = params.toString()
       ? `/projects/${projectId}/email/history?${params}`
       : `/projects/${projectId}/email/history`;
-    
+
     return this.getPaginated<EmailHistory>(url);
   }
 
   async getEmailDetails(
     projectId: string,
     messageId: string
-  ): Promise<ApiResponse<EmailHistory & {
-    opens: Array<{ timestamp: string; ip_address?: string; user_agent?: string }>;
-    clicks: Array<{ timestamp: string; url: string; ip_address?: string; user_agent?: string }>;
-    bounces: Array<{ timestamp: string; reason: string; type: "hard" | "soft" }>;
-    complaints: Array<{ timestamp: string; reason: string }>;
-  }>> {
-    return this.get<EmailHistory & {
-      opens: Array<{ timestamp: string; ip_address?: string; user_agent?: string }>;
-      clicks: Array<{ timestamp: string; url: string; ip_address?: string; user_agent?: string }>;
-      bounces: Array<{ timestamp: string; reason: string; type: "hard" | "soft" }>;
-      complaints: Array<{ timestamp: string; reason: string }>;
-    }>(`/projects/${projectId}/email/history/${messageId}`);
+  ): Promise<
+    ApiResponse<
+      EmailHistory & {
+        opens: Array<{
+          timestamp: string;
+          ip_address?: string;
+          user_agent?: string;
+        }>;
+        clicks: Array<{
+          timestamp: string;
+          url: string;
+          ip_address?: string;
+          user_agent?: string;
+        }>;
+        bounces: Array<{
+          timestamp: string;
+          reason: string;
+          type: "hard" | "soft";
+        }>;
+        complaints: Array<{ timestamp: string; reason: string }>;
+      }
+    >
+  > {
+    return this.get<
+      EmailHistory & {
+        opens: Array<{
+          timestamp: string;
+          ip_address?: string;
+          user_agent?: string;
+        }>;
+        clicks: Array<{
+          timestamp: string;
+          url: string;
+          ip_address?: string;
+          user_agent?: string;
+        }>;
+        bounces: Array<{
+          timestamp: string;
+          reason: string;
+          type: "hard" | "soft";
+        }>;
+        complaints: Array<{ timestamp: string; reason: string }>;
+      }
+    >(`/projects/${projectId}/email/history/${messageId}`);
   }
 
   // Email Analytics
@@ -272,41 +354,43 @@ export class EmailHttpClient extends BaseHttpClient {
       end_date?: string;
       template_id?: string;
     }
-  ): Promise<ApiResponse<{
-    period: string;
-    start_date: string;
-    end_date: string;
-    total_sent: number;
-    total_delivered: number;
-    total_bounced: number;
-    total_opened: number;
-    total_clicked: number;
-    total_complained: number;
-    delivery_rate: number;
-    open_rate: number;
-    click_rate: number;
-    bounce_rate: number;
-    complaint_rate: number;
-    daily_stats: Array<{
-      date: string;
-      sent: number;
-      delivered: number;
-      bounced: number;
-      opened: number;
-      clicked: number;
-      complained: number;
-    }>;
-  }>> {
+  ): Promise<
+    ApiResponse<{
+      period: string;
+      start_date: string;
+      end_date: string;
+      total_sent: number;
+      total_delivered: number;
+      total_bounced: number;
+      total_opened: number;
+      total_clicked: number;
+      total_complained: number;
+      delivery_rate: number;
+      open_rate: number;
+      click_rate: number;
+      bounce_rate: number;
+      complaint_rate: number;
+      daily_stats: Array<{
+        date: string;
+        sent: number;
+        delivered: number;
+        bounced: number;
+        opened: number;
+        clicked: number;
+        complained: number;
+      }>;
+    }>
+  > {
     const params = new URLSearchParams();
     if (options?.period) params.append("period", options.period);
     if (options?.start_date) params.append("start_date", options.start_date);
     if (options?.end_date) params.append("end_date", options.end_date);
     if (options?.template_id) params.append("template_id", options.template_id);
 
-    const url = params.toString() 
+    const url = params.toString()
       ? `/projects/${projectId}/email/analytics?${params}`
       : `/projects/${projectId}/email/analytics`;
-    
+
     return this.get<{
       period: string;
       start_date: string;
@@ -351,19 +435,24 @@ export class EmailHttpClient extends BaseHttpClient {
       to_email: string;
     }
   ): Promise<ApiResponse<{ success: boolean; message?: string }>> {
-    return this.post<{ success: boolean; message?: string }>(`/email/providers/${providerId}/test`, testConfig);
+    return this.post<{ success: boolean; message?: string }>(
+      `/email/providers/${providerId}/test`,
+      testConfig
+    );
   }
 
   // Email Validation
-  async validateEmail(email: string): Promise<ApiResponse<{
-    valid: boolean;
-    format_valid: boolean;
-    domain_valid: boolean;
-    disposable: boolean;
-    role: boolean;
-    free_email: boolean;
-    suggestions?: string[];
-  }>> {
+  async validateEmail(email: string): Promise<
+    ApiResponse<{
+      valid: boolean;
+      format_valid: boolean;
+      domain_valid: boolean;
+      disposable: boolean;
+      role: boolean;
+      free_email: boolean;
+      suggestions?: string[];
+    }>
+  > {
     return this.post<{
       valid: boolean;
       format_valid: boolean;
@@ -375,27 +464,31 @@ export class EmailHttpClient extends BaseHttpClient {
     }>("/email/validate", { email });
   }
 
-  async validateBulkEmails(
-    emails: string[]
-  ): Promise<ApiResponse<Array<{
-    email: string;
-    valid: boolean;
-    format_valid: boolean;
-    domain_valid: boolean;
-    disposable: boolean;
-    role: boolean;
-    free_email: boolean;
-    suggestions?: string[];
-  }>>> {
-    return this.post<Array<{
-      email: string;
-      valid: boolean;
-      format_valid: boolean;
-      domain_valid: boolean;
-      disposable: boolean;
-      role: boolean;
-      free_email: boolean;
-      suggestions?: string[];
-    }>>("/email/validate-bulk", { emails });
+  async validateBulkEmails(emails: string[]): Promise<
+    ApiResponse<
+      Array<{
+        email: string;
+        valid: boolean;
+        format_valid: boolean;
+        domain_valid: boolean;
+        disposable: boolean;
+        role: boolean;
+        free_email: boolean;
+        suggestions?: string[];
+      }>
+    >
+  > {
+    return this.post<
+      Array<{
+        email: string;
+        valid: boolean;
+        format_valid: boolean;
+        domain_valid: boolean;
+        disposable: boolean;
+        role: boolean;
+        free_email: boolean;
+        suggestions?: string[];
+      }>
+    >("/email/validate-bulk", { emails });
   }
 }

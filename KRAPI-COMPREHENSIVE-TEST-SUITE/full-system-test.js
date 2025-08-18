@@ -420,12 +420,10 @@ async function runTests() {
   process.exit(success ? 0 : 1);
 }
 
-// Execute if this file is run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runTests().catch((error) => {
-    console.error(chalk.red("Unexpected error:", error));
-    process.exit(1);
-  });
-}
+// Execute the test suite
+runTests().catch((error) => {
+  console.error(chalk.red("Unexpected error:", error));
+  process.exit(1);
+});
 
 export default ComprehensiveTestRunner;

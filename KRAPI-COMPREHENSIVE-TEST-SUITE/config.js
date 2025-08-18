@@ -6,10 +6,10 @@
  */
 
 export const CONFIG = {
-  // Base URLs for testing
+  // Base URLs for testing - MUST go through frontend
   FRONTEND_URL: "http://localhost:3469",
-  BACKEND_URL: "http://localhost:3470/krapi/k1", // Direct backend for now
-  DIRECT_BACKEND_URL: "http://localhost:3470/krapi/k1", // Direct backend (working)
+  BACKEND_URL: "http://localhost:3469/krapi/k1", // Frontend endpoint that routes to backend
+  DIRECT_BACKEND_URL: "http://localhost:3469/krapi/k1", // Frontend endpoint (same as BACKEND_URL)
 
   // Test credentials
   ADMIN_CREDENTIALS: {

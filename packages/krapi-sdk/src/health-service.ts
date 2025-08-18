@@ -71,6 +71,54 @@ export interface ServiceHealthStatus {
   responseTime?: number;
 }
 
+export interface DatabaseHealth {
+  healthy: boolean;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface SystemHealth {
+  healthy: boolean;
+  message: string;
+  details?: Record<string, unknown>;
+  version: string;
+}
+
+export interface TestResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  duration: number;
+  details?: Record<string, unknown>;
+}
+
+export interface SchemaValidationResult {
+  valid: boolean;
+  issues: Array<{
+    type: string;
+    table?: string;
+    field?: string;
+    message: string;
+    severity: "error" | "warning" | "info";
+  }>;
+  warnings: string[];
+  recommendations: string[];
+}
+
+export interface AutoFixResult {
+  success: boolean;
+  fixed_issues: string[];
+  issues_remaining: string[];
+  message: string;
+}
+
+export interface MigrationResult {
+  success: boolean;
+  applied_migrations: string[];
+  rollbacks: string[];
+  message: string;
+}
+
 export class HealthService {
   private db: DatabaseConnection;
   private logger: Logger;

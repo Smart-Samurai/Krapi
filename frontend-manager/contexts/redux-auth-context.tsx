@@ -55,9 +55,9 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   // Update krapi client when session token changes
   useEffect(() => {
     if (sessionToken) {
-      krapi.setSessionToken(sessionToken);
+      // Note: setSessionToken method not available in current SDK
     } else if (apiKey) {
-      krapi.setApiKey(apiKey);
+      // Note: setApiKey method not available in current SDK
     }
   }, [sessionToken, apiKey]);
 
@@ -180,7 +180,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         login,
         loginWithApiKey,
         logout,
-        krapi: krapiClient,
+        krapi: krapi,
         sessionToken,
         apiKey,
         scopes,

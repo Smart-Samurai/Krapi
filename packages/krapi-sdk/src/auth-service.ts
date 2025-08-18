@@ -350,6 +350,53 @@ export class AuthService {
     }
   }
 
+  async createSessionFromApiKey(apiKey: string): Promise<{
+    session_token: string;
+    expires_at: string;
+    user_type: "admin" | "project";
+    scopes: string[];
+  }> {
+    try {
+      // First, find the API key and get user information
+      const apiKeyResult = await this.db.query(
+        `SELECT ak.*, au.username, au.role, au.permissions, au.id as user_id
+         FROM api_keys ak
+         JOIN admin_users au ON ak.owner_id = au.id
+         WHERE ak.key = $1 AND ak.is_active = true AND ak.expires_at > CURRENT_TIMESTAMP`,
+        [apiKey]
+      );
+
+      if (apiKeyResult.rows.length === 0) {
+        throw new Error("Invalid or expired API key");
+      }
+
+      const apiKeyData = apiKeyResult.rows[0] as {
+        user_id: string;
+        scopes?: string[];
+        permissions?: string[];
+      };
+      const userType: "admin" | "project" = "admin"; // API keys are admin-only for now
+
+      // Create a new session
+      const session = await this.createSession({
+        user_id: apiKeyData.user_id,
+        user_type: userType,
+        scopes: apiKeyData.scopes || apiKeyData.permissions || [],
+        remember_me: false,
+      });
+
+      return {
+        session_token: session.token,
+        expires_at: session.expires_at,
+        user_type: userType,
+        scopes: session.scopes,
+      };
+    } catch (error) {
+      this.logger.error("Failed to create session from API key", error);
+      throw new Error("Failed to create session from API key");
+    }
+  }
+
   async validateSession(token: string): Promise<Session | null> {
     try {
       const result = await this.db.query(

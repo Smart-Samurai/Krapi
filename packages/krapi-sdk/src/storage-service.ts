@@ -89,6 +89,13 @@ export interface UploadRequest {
   uploaded_by: string;
 }
 
+export interface FileUrlRequest {
+  file_id: string;
+  expires_in?: number;
+  access_type?: "download" | "preview" | "stream";
+  user_id?: string;
+}
+
 export interface FileFilter {
   folder_id?: string;
   mime_type?: string;

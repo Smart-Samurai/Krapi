@@ -13,6 +13,7 @@ import AuthTests from "./tests/auth.test.js";
 import ProjectsTests from "./tests/projects.test.js";
 import CollectionsTests from "./tests/collections.test.js";
 import DocumentsTests from "./tests/documents.test.js";
+import CompleteCMSTests from "./tests/complete-cms.test.js";
 import ComprehensiveTestRunner from "./full-system-test.js";
 
 // Command line argument parsing
@@ -80,6 +81,11 @@ async function runIndividualTest(testName) {
         );
         break;
 
+      case "cms":
+      case "complete":
+        testClass = new CompleteCMSTests();
+        break;
+
       default:
         throw new Error(`Unknown test suite: ${testName}`);
     }
@@ -108,6 +114,7 @@ function showHelp() {
   console.log("");
   console.log(chalk.yellow("Commands:"));
   console.log("  full          Run complete system test (default)");
+  console.log("  cms           Run comprehensive CMS functionality test");
   console.log("  auth          Run authentication tests only");
   console.log("  projects      Run project management tests only");
   console.log("  collections   Run collections & schema tests only");
@@ -177,6 +184,8 @@ async function main() {
       process.exit(success ? 0 : 1);
       break;
 
+    case "cms":
+    case "complete":
     case "auth":
     case "projects":
     case "collections":

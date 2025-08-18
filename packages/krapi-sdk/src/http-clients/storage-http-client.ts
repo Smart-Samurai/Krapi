@@ -4,19 +4,18 @@
  * HTTP-based storage methods for frontend apps
  */
 
-import { BaseHttpClient } from "./base-http-client";
 import { ApiResponse, PaginatedResponse } from "../core";
 import {
   StoredFile,
   FileFolder,
   FileVersion,
   FilePermission,
-  UploadRequest,
   FileFilter,
   StorageStatistics,
   FileUrlRequest,
 } from "../storage-service";
 
+import { BaseHttpClient } from "./base-http-client";
 export class StorageHttpClient extends BaseHttpClient {
   // File Management
   async uploadFile(
@@ -31,7 +30,7 @@ export class StorageHttpClient extends BaseHttpClient {
   ): Promise<ApiResponse<StoredFile>> {
     const formData = new FormData();
     formData.append("file", file);
-    
+
     if (options?.folder_id) {
       formData.append("folder_id", options.folder_id);
     }
@@ -45,28 +44,37 @@ export class StorageHttpClient extends BaseHttpClient {
       formData.append("is_public", options.is_public.toString());
     }
 
-    return this.post<StoredFile>(`/projects/${projectId}/storage/upload`, formData);
+    return this.post<StoredFile>(
+      `/projects/${projectId}/storage/upload`,
+      formData
+    );
   }
 
   async downloadFile(
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<Blob>> {
-    return this.get<Blob>(`/projects/${projectId}/storage/files/${fileId}/download`);
+    return this.get<Blob>(
+      `/projects/${projectId}/storage/files/${fileId}/download`
+    );
   }
 
   async getFile(
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<StoredFile>> {
-    return this.get<StoredFile>(`/projects/${projectId}/storage/files/${fileId}`);
+    return this.get<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}`
+    );
   }
 
   async deleteFile(
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<{ success: boolean }>> {
-    return this.delete<{ success: boolean }>(`/projects/${projectId}/storage/files/${fileId}`);
+    return this.delete<{ success: boolean }>(
+      `/projects/${projectId}/storage/files/${fileId}`
+    );
   }
 
   async getFiles(
@@ -79,21 +87,32 @@ export class StorageHttpClient extends BaseHttpClient {
     }
   ): Promise<PaginatedResponse<StoredFile>> {
     const params = new URLSearchParams();
-    
+
     if (options?.folder_id) params.append("folder_id", options.folder_id);
     if (options?.mime_type) params.append("mime_type", options.mime_type);
-    if (options?.file_extension) params.append("file_extension", options.file_extension);
+    if (options?.file_extension)
+      params.append("file_extension", options.file_extension);
     if (options?.tags) params.append("tags", JSON.stringify(options.tags));
     if (options?.uploaded_by) params.append("uploaded_by", options.uploaded_by);
-    if (options?.is_public !== undefined) params.append("is_public", options.is_public.toString());
-    if (options?.created_after) params.append("created_after", options.created_after);
-    if (options?.created_before) params.append("created_before", options.created_before);
+    if (options?.is_public !== undefined)
+      params.append("is_public", options.is_public.toString());
+    if (options?.created_after)
+      params.append("created_after", options.created_after);
+    if (options?.created_before)
+      params.append("created_before", options.created_before);
     if (options?.limit) params.append("limit", options.limit.toString());
     if (options?.offset) params.append("offset", options.offset.toString());
     if (options?.sort_by) params.append("sort_by", options.sort_by);
     if (options?.sort_order) params.append("sort_order", options.sort_order);
 
-    return this.getPaginated<StoredFile>(`/projects/${projectId}/storage/files`, params);
+    const queryParams: Record<string, string> = {};
+    params.forEach((value, key) => {
+      queryParams[key] = value;
+    });
+    return this.getPaginated<StoredFile>(
+      `/projects/${projectId}/storage/files`,
+      queryParams
+    );
   }
 
   // Folder Management
@@ -107,14 +126,17 @@ export class StorageHttpClient extends BaseHttpClient {
       metadata?: Record<string, unknown>;
     }
   ): Promise<ApiResponse<FileFolder>> {
-    return this.post<FileFolder>(`/projects/${projectId}/storage/folders`, folderData);
+    return this.post<FileFolder>(
+      `/projects/${projectId}/storage/folders`,
+      folderData
+    );
   }
 
   async getFolders(
     projectId: string,
     parentFolderId?: string
   ): Promise<ApiResponse<FileFolder[]>> {
-    const url = parentFolderId 
+    const url = parentFolderId
       ? `/projects/${projectId}/storage/folders?parent_id=${parentFolderId}`
       : `/projects/${projectId}/storage/folders`;
     return this.get<FileFolder[]>(url);
@@ -125,14 +147,19 @@ export class StorageHttpClient extends BaseHttpClient {
     folderId: string,
     updates: Partial<FileFolder>
   ): Promise<ApiResponse<FileFolder>> {
-    return this.put<FileFolder>(`/projects/${projectId}/storage/folders/${folderId}`, updates);
+    return this.put<FileFolder>(
+      `/projects/${projectId}/storage/folders/${folderId}`,
+      updates
+    );
   }
 
   async deleteFolder(
     projectId: string,
     folderId: string
   ): Promise<ApiResponse<{ success: boolean }>> {
-    return this.delete<{ success: boolean }>(`/projects/${projectId}/storage/folders/${folderId}`);
+    return this.delete<{ success: boolean }>(
+      `/projects/${projectId}/storage/folders/${folderId}`
+    );
   }
 
   // File Operations
@@ -144,7 +171,10 @@ export class StorageHttpClient extends BaseHttpClient {
       new_name?: string;
     }
   ): Promise<ApiResponse<StoredFile>> {
-    return this.post<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/copy`, destination);
+    return this.post<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/copy`,
+      destination
+    );
   }
 
   async moveFile(
@@ -155,7 +185,10 @@ export class StorageHttpClient extends BaseHttpClient {
       new_name?: string;
     }
   ): Promise<ApiResponse<StoredFile>> {
-    return this.put<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/move`, destination);
+    return this.put<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/move`,
+      destination
+    );
   }
 
   async renameFile(
@@ -163,7 +196,10 @@ export class StorageHttpClient extends BaseHttpClient {
     fileId: string,
     newName: string
   ): Promise<ApiResponse<StoredFile>> {
-    return this.put<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/rename`, { new_name: newName });
+    return this.put<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/rename`,
+      { new_name: newName }
+    );
   }
 
   // File Metadata
@@ -172,7 +208,10 @@ export class StorageHttpClient extends BaseHttpClient {
     fileId: string,
     metadata: Record<string, unknown>
   ): Promise<ApiResponse<StoredFile>> {
-    return this.put<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/metadata`, { metadata });
+    return this.put<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/metadata`,
+      { metadata }
+    );
   }
 
   async addFileTags(
@@ -180,7 +219,10 @@ export class StorageHttpClient extends BaseHttpClient {
     fileId: string,
     tags: string[]
   ): Promise<ApiResponse<StoredFile>> {
-    return this.post<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/tags`, { tags });
+    return this.post<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/tags`,
+      { tags }
+    );
   }
 
   async removeFileTags(
@@ -188,7 +230,10 @@ export class StorageHttpClient extends BaseHttpClient {
     fileId: string,
     tags: string[]
   ): Promise<ApiResponse<StoredFile>> {
-    return this.delete<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/tags`, { tags });
+    return this.delete<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/tags`,
+      { tags }
+    );
   }
 
   // File Access
@@ -198,13 +243,14 @@ export class StorageHttpClient extends BaseHttpClient {
     options?: FileUrlRequest
   ): Promise<ApiResponse<{ url: string; expires_at?: string }>> {
     const params = new URLSearchParams();
-    if (options?.expires_in) params.append("expires_in", options.expires_in.toString());
-    if (options?.download) params.append("download", options.download.toString());
-    
-    const url = params.toString() 
+    if (options?.expires_in)
+      params.append("expires_in", options.expires_in.toString());
+    if (options?.access_type) params.append("access_type", options.access_type);
+
+    const url = params.toString()
       ? `/projects/${projectId}/storage/files/${fileId}/url?${params}`
       : `/projects/${projectId}/storage/files/${fileId}/url`;
-    
+
     return this.get<{ url: string; expires_at?: string }>(url);
   }
 
@@ -212,14 +258,20 @@ export class StorageHttpClient extends BaseHttpClient {
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<StoredFile>> {
-    return this.put<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/public`, { is_public: true });
+    return this.put<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/public`,
+      { is_public: true }
+    );
   }
 
   async makeFilePrivate(
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<StoredFile>> {
-    return this.put<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/public`, { is_public: false });
+    return this.put<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/public`,
+      { is_public: false }
+    );
   }
 
   // File Permissions
@@ -227,7 +279,9 @@ export class StorageHttpClient extends BaseHttpClient {
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<FilePermission[]>> {
-    return this.get<FilePermission[]>(`/projects/${projectId}/storage/files/${fileId}/permissions`);
+    return this.get<FilePermission[]>(
+      `/projects/${projectId}/storage/files/${fileId}/permissions`
+    );
   }
 
   async grantFilePermission(
@@ -240,7 +294,10 @@ export class StorageHttpClient extends BaseHttpClient {
       expires_at?: string;
     }
   ): Promise<ApiResponse<FilePermission>> {
-    return this.post<FilePermission>(`/projects/${projectId}/storage/files/${fileId}/permissions`, permission);
+    return this.post<FilePermission>(
+      `/projects/${projectId}/storage/files/${fileId}/permissions`,
+      permission
+    );
   }
 
   async revokeFilePermission(
@@ -248,7 +305,9 @@ export class StorageHttpClient extends BaseHttpClient {
     fileId: string,
     permissionId: string
   ): Promise<ApiResponse<{ success: boolean }>> {
-    return this.delete<{ success: boolean }>(`/projects/${projectId}/storage/files/${fileId}/permissions/${permissionId}`);
+    return this.delete<{ success: boolean }>(
+      `/projects/${projectId}/storage/files/${fileId}/permissions/${permissionId}`
+    );
   }
 
   // File Versions
@@ -256,7 +315,9 @@ export class StorageHttpClient extends BaseHttpClient {
     projectId: string,
     fileId: string
   ): Promise<ApiResponse<FileVersion[]>> {
-    return this.get<FileVersion[]>(`/projects/${projectId}/storage/files/${fileId}/versions`);
+    return this.get<FileVersion[]>(
+      `/projects/${projectId}/storage/files/${fileId}/versions`
+    );
   }
 
   async uploadFileVersion(
@@ -266,8 +327,11 @@ export class StorageHttpClient extends BaseHttpClient {
   ): Promise<ApiResponse<FileVersion>> {
     const formData = new FormData();
     formData.append("file", file);
-    
-    return this.post<FileVersion>(`/projects/${projectId}/storage/files/${fileId}/versions`, formData);
+
+    return this.post<FileVersion>(
+      `/projects/${projectId}/storage/files/${fileId}/versions`,
+      formData
+    );
   }
 
   async restoreFileVersion(
@@ -275,23 +339,27 @@ export class StorageHttpClient extends BaseHttpClient {
     fileId: string,
     versionId: string
   ): Promise<ApiResponse<StoredFile>> {
-    return this.post<StoredFile>(`/projects/${projectId}/storage/files/${fileId}/versions/${versionId}/restore`);
+    return this.post<StoredFile>(
+      `/projects/${projectId}/storage/files/${fileId}/versions/${versionId}/restore`
+    );
   }
 
   // Storage Analytics
   async getStorageStatistics(
     projectId: string
   ): Promise<ApiResponse<StorageStatistics>> {
-    return this.get<StorageStatistics>(`/projects/${projectId}/storage/statistics`);
+    return this.get<StorageStatistics>(
+      `/projects/${projectId}/storage/statistics`
+    );
   }
 
-  async getStorageQuota(
-    projectId: string
-  ): Promise<ApiResponse<{
-    used: number;
-    limit: number;
-    percentage: number;
-  }>> {
+  async getStorageQuota(projectId: string): Promise<
+    ApiResponse<{
+      used: number;
+      limit: number;
+      percentage: number;
+    }>
+  > {
     return this.get<{
       used: number;
       limit: number;
@@ -304,7 +372,10 @@ export class StorageHttpClient extends BaseHttpClient {
     projectId: string,
     fileIds: string[]
   ): Promise<ApiResponse<{ success: boolean; deleted_count: number }>> {
-    return this.post<{ success: boolean; deleted_count: number }>(`/projects/${projectId}/storage/bulk-delete`, { file_ids: fileIds });
+    return this.post<{ success: boolean; deleted_count: number }>(
+      `/projects/${projectId}/storage/bulk-delete`,
+      { file_ids: fileIds }
+    );
   }
 
   async bulkMoveFiles(
@@ -314,10 +385,13 @@ export class StorageHttpClient extends BaseHttpClient {
       folder_id?: string;
     }
   ): Promise<ApiResponse<{ success: boolean; moved_count: number }>> {
-    return this.post<{ success: boolean; moved_count: number }>(`/projects/${projectId}/storage/bulk-move`, { 
-      file_ids: fileIds, 
-      destination 
-    });
+    return this.post<{ success: boolean; moved_count: number }>(
+      `/projects/${projectId}/storage/bulk-move`,
+      {
+        file_ids: fileIds,
+        destination,
+      }
+    );
   }
 
   async bulkUpdateMetadata(
@@ -325,9 +399,12 @@ export class StorageHttpClient extends BaseHttpClient {
     fileIds: string[],
     metadata: Record<string, unknown>
   ): Promise<ApiResponse<{ success: boolean; updated_count: number }>> {
-    return this.post<{ success: boolean; updated_count: number }>(`/projects/${projectId}/storage/bulk-update-metadata`, { 
-      file_ids: fileIds, 
-      metadata 
-    });
+    return this.post<{ success: boolean; updated_count: number }>(
+      `/projects/${projectId}/storage/bulk-update-metadata`,
+      {
+        file_ids: fileIds,
+        metadata,
+      }
+    );
   }
 }

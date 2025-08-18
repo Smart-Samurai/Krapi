@@ -1,81 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
+import { krapi } from "@krapi/sdk";
 
-import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
+// Use basic types for now - can enhance later
+interface ProjectListOptions {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  status?: string;
+}
 
-export async function GET(request: NextRequest) {
+/**
+ * Get all projects
+ * GET /api/projects
+ */
+export async function GET(request: NextRequest): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const { searchParams } = new URL(request.url);
+    const options: ProjectListOptions = {
+      limit: searchParams.get("limit")
+        ? parseInt(searchParams.get("limit")!)
+        : undefined,
+      offset: searchParams.get("offset")
+        ? parseInt(searchParams.get("offset")!)
+        : undefined,
+      search: searchParams.get("search") || undefined,
+      status: (searchParams.get("status") as any) || undefined,
+    };
 
-    if (!authToken) {
-      return NextResponse.json(
-        { success: false, error: "No authentication token provided" },
-        { status: 401 }
-      );
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const options: {
-      page?: number;
-      limit?: number;
-      sort?: string;
-      order?: "asc" | "desc";
-      search?: string;
-    } = {};
-
-    const page = searchParams.get("page");
-    const limit = searchParams.get("limit");
-    const sort = searchParams.get("sort");
-    const order = searchParams.get("order");
-    const search = searchParams.get("search");
-
-    if (page) options.page = parseInt(page);
-    if (limit) options.limit = parseInt(limit);
-    if (sort) options.sort = sort;
-    if (order) options.order = order as "asc" | "desc";
-    if (search) options.search = search;
-
-    const client = createAuthenticatedSdk(authToken);
-    const response = await client.projects.getAll(options);
-
-    return NextResponse.json(response);
+    const projects = await krapi.projects.getAll(options);
+    return NextResponse.json({ success: true, data: projects });
   } catch (error) {
-    // Error logged for debugging
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
+        error:
+          error instanceof Error ? error.message : "Failed to get projects",
       },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+/**
+ * Create a new project
+ * POST /api/projects
+ */
+export async function POST(request: NextRequest): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const projectData = await request.json();
 
-    if (!authToken) {
+    if (!projectData.name) {
       return NextResponse.json(
-        { success: false, error: "No authentication token provided" },
-        { status: 401 }
+        { success: false, error: "Project name is required" },
+        { status: 400 }
       );
     }
 
-    const body = await request.json();
-    const client = createAuthenticatedSdk(authToken);
-    const response = await client.projects.create(body);
-
-    if (response.success) {
-      return NextResponse.json(response, { status: 201 });
-    } else {
-      return NextResponse.json(response, { status: 400 });
-    }
+    const project = await krapi.projects.create(projectData);
+    return NextResponse.json({ success: true, data: project }, { status: 201 });
   } catch (error) {
-    // Error logged for debugging
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
+        error:
+          error instanceof Error ? error.message : "Failed to create project",
       },
       { status: 500 }
     );

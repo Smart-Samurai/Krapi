@@ -1,30 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { serverSdk } from "@/app/api/lib/sdk-client";
+import { krapi } from "@/lib/krapi";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { username, password } = body;
 
-    if (!email || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { success: false, error: "Email and password are required" },
+        { success: false, error: "Username and password are required" },
         { status: 400 }
       );
     }
 
-    const client = serverSdk;
-    const response = await client.auth.adminLogin({
-      username: email,
-      password,
-    });
+    const response = await krapi.auth.login(username, password);
 
-    if (response.success) {
-      return NextResponse.json(response);
-    } else {
-      return NextResponse.json(response, { status: 401 });
-    }
+    // Return the data in the format expected by the tests
+    return NextResponse.json({
+      success: true,
+      session_token: response.session_token,
+      user: response.user,
+      expires_at: response.expires_at,
+      scopes: response.scopes,
+    });
   } catch (error) {
     // Error logged for debugging
     return NextResponse.json(

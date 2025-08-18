@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (search) options.search = search;
 
     const client = createAuthenticatedSdk(authToken);
-    const response = await client.admin.getUsers(options);
+    const response = await client.admin.getAllUsers(options);
 
     return NextResponse.json(response);
   } catch (error) {

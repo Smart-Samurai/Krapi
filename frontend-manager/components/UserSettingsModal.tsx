@@ -71,10 +71,10 @@ export default function UserSettingsModal({
 
     setIsChangingPassword(true);
     try {
-      const response = await krapi.auth.changePassword({
-        current_password: passwordForm.currentPassword,
-        new_password: passwordForm.newPassword,
-      });
+      const response = await krapi.auth.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword
+      );
 
       if (response.success) {
         showSuccess("Password changed successfully");
@@ -85,7 +85,7 @@ export default function UserSettingsModal({
         });
         setActiveTab("profile");
       } else {
-        showError(response.error || "Failed to change password");
+        showError("Failed to change password");
       }
     } catch {
       showError("Failed to change password");

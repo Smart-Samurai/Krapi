@@ -65,7 +65,6 @@ import {
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { FileInfo } from "@/lib/krapi";
-
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchFiles,
@@ -287,7 +286,10 @@ export default function FilesPage() {
         </div>
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={`files-skeleton-${i}`} className="h-32 w-full" />
+            <Skeleton
+              key={`files-skeleton-${i}-${Date.now()}`}
+              className="h-32 w-full"
+            />
           ))}
         </div>
       </div>
@@ -797,9 +799,11 @@ stats = response.json()`}
                 <div>
                   <Label>Relations</Label>
                   <div className="space-y-2">
-                    {selectedFile.relations.map((relation, index) => (
+                    {selectedFile.relations.map((relation) => (
                       <div
-                        key={`files-relation-${index}`}
+                        key={`files-relation-${relation.type}-${
+                          relation.target_id
+                        }-${Date.now()}`}
                         className="flex items-center gap-2 text-sm"
                       >
                         <Link className="h-4 w-4" />

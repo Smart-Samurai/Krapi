@@ -2,7 +2,13 @@ import { Request, Response } from "express";
 
 import { AuthService } from "@/services/auth.service";
 import { DatabaseService } from "@/services/database.service";
-import { ApiResponse, SessionType, AdminUser, ProjectUser, Scope } from "@/types";
+import {
+  ApiResponse,
+  SessionType,
+  AdminUser,
+  ProjectUser,
+  Scope,
+} from "@/types";
 
 /**
  * Authentication Controller
@@ -269,7 +275,7 @@ export class AuthController {
 
       // Validate the session
       const sessionResult = await authService.validateSessionToken(token);
-      
+
       if (!sessionResult.valid || !sessionResult.session) {
         res.status(401).json({
           success: false,
@@ -282,17 +288,27 @@ export class AuthController {
       let user: AdminUser | ProjectUser | undefined;
       let scopes: string[] = [];
 
-      if (sessionResult.session.type === SessionType.ADMIN && sessionResult.session.user_id) {
+      if (
+        sessionResult.session.type === SessionType.ADMIN &&
+        sessionResult.session.user_id
+      ) {
         user = await dbService.getAdminUserById(sessionResult.session.user_id);
         if (user) {
-          scopes = authService.getScopesForRole(user.role).map(scope => scope.toString());
+          scopes = authService
+            .getScopesForRole(user.role)
+            .map((scope) => scope.toString());
         }
-      } else if (sessionResult.session.type === SessionType.PROJECT && sessionResult.session.project_id) {
+      } else if (
+        sessionResult.session.type === SessionType.PROJECT &&
+        sessionResult.session.project_id
+      ) {
         // For project sessions, we need to get the project user
         // This is a simplified implementation
-        const project = await dbService.getProjectById(sessionResult.session.project_id);
+        const project = await dbService.getProjectById(
+          sessionResult.session.project_id
+        );
         if (project) {
-          scopes = sessionResult.session.scopes.map(s => s.toString());
+          scopes = sessionResult.session.scopes.map((s) => s.toString());
         }
       }
 
@@ -465,17 +481,16 @@ export class AuthController {
    */
   changePassword = async (req: Request, res: Response): Promise<void> => {
     try {
-      const {
-        current_password,
-        new_password,
-      } = req.body;
+      const { current_password, new_password } = req.body;
 
       // Get service instances
       const dbService = DatabaseService.getInstance();
       const authService = AuthService.getInstance();
 
       // Validate current password
-      const currentUser = await dbService.getAdminUserById((req as any).user?.id);
+      const currentUser = await dbService.getAdminUserById(
+        (req as any).user?.id
+      );
       if (!currentUser) {
         res.status(404).json({
           success: false,
@@ -485,7 +500,10 @@ export class AuthController {
       }
 
       // Verify current password
-      const isValidPassword = await authService.verifyPassword(current_password, currentUser.password_hash);
+      const isValidPassword = await authService.verifyPassword(
+        current_password,
+        currentUser.password_hash
+      );
       if (!isValidPassword) {
         res.status(400).json({
           success: false,
@@ -597,6 +615,58 @@ export class AuthController {
   };
 
   /**
+   * Refresh session token
+   * POST /krapi/k1/auth/refresh
+   *
+   * Refreshes the current session token if it's still valid.
+   *
+   * @param req - Authenticated request
+   * @param res - Response with new session token and expiration
+   */
+  refreshSession = async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Get service instances
+      const dbService = DatabaseService.getInstance();
+      const authService = AuthService.getInstance();
+
+      // Get current user
+      const currentUser = await dbService.getAdminUserById(
+        (req as any).user?.id
+      );
+      if (!currentUser) {
+        res.status(404).json({
+          success: false,
+          error: "User not found",
+        } as ApiResponse);
+        return;
+      }
+
+      // Create new session token
+      const session = await authService.createAdminSessionWithScopes(
+        currentUser
+      );
+
+      // Get scopes for the user's role
+      const scopes = authService.getScopesForRole(currentUser.role);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          session_token: session.token,
+          expires_at: session.expires_at,
+          scopes: scopes.map((scope) => scope.toString()),
+        },
+      } as ApiResponse);
+    } catch (error) {
+      console.error("Refresh session error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
+
+  /**
    * Regenerate API key
    * POST /krapi/k1/auth/regenerate-api-key
    *
@@ -612,7 +682,9 @@ export class AuthController {
       const authService = AuthService.getInstance();
 
       // Get current user
-      const currentUser = await dbService.getAdminUserById((req as any).user?.id);
+      const currentUser = await dbService.getAdminUserById(
+        (req as any).user?.id
+      );
       if (!currentUser) {
         res.status(404).json({
           success: false,

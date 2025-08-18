@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
+import { serverSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,13 +13,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const client = createAuthenticatedSdk(authToken);
-    const response = await client.auth.getCurrentUser();
+    // Use the serverSdk directly since it's already connected
+    const client = serverSdk;
+    const user = await client.auth.getCurrentUser();
 
-    if (response.success) {
-      return NextResponse.json(response);
+    if (user) {
+      return NextResponse.json({
+        success: true,
+        ...user
+      });
     } else {
-      return NextResponse.json(response, { status: 401 });
+      return NextResponse.json({
+        success: false,
+        error: "User not found"
+      }, { status: 401 });
     }
   } catch (error) {
     // Error logged for debugging

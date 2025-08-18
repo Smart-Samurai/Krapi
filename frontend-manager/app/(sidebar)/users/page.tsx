@@ -16,8 +16,10 @@ import {
   Code,
   FileText,
   Globe,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -124,116 +126,55 @@ export default function ServerAdministrationPage() {
 
   const [adminUsers, setAdminUsers] = useState<LocalAdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    if (!krapi) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await krapi.admin.getAllUsers({
+        limit: 100,
+        offset: 0,
+      });
+      if (response && response.data) {
+        setAdminUsers(response.data);
+      } else {
+        setAdminUsers([]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load users");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [krapi]);
 
   // Fetch admin users from the database
   useEffect(() => {
-    const fetchAdminUsers = async () => {
-      if (!krapi) return;
-
-      try {
-        setIsLoading(true);
-        const response = await krapi.admin.getUsers({});
-
-        if (response.success && response.data) {
-          // Transform the database users to match our AdminUser interface
-          const transformedUsers: LocalAdminUser[] = response.data.map(
-            (user: Record<string, unknown>) => ({
-              id: String(user.id || ""),
-              email: String(user.email || ""),
-              firstName: String(user.username || "").split(" ")[0] || "",
-              lastName: String(user.username || "").split(" ")[1] || "",
-              role: String(user.role || "") as
-                | "master_admin"
-                | "admin"
-                | "project_admin"
-                | "limited_admin",
-              status: Boolean(user.active) ? "active" : "inactive",
-              permissions: {
-                canManageUsers:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) =>
-                        String(p) === "users.create" ||
-                        String(p) === "users.update" ||
-                        String(p) === "users.delete"
-                    )) ||
-                  false,
-                canCreateProjects:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "projects.create"
-                    )) ||
-                  false,
-                canDeleteProjects:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "projects.delete"
-                    )) ||
-                  false,
-                canManageSystemSettings:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "settings.update"
-                    )) ||
-                  false,
-                canViewSystemLogs: false, // Not available in current permission system
-                canManageBackups: false, // Not available in current permission system
-                canAccessAllProjects:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "projects.read"
-                    )) ||
-                  false,
-                restrictedProjectIds: [],
-                canManageDatabase:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) =>
-                        String(p) === "collections.create" ||
-                        String(p) === "collections.write" ||
-                        String(p) === "users.delete"
-                    )) ||
-                  false,
-                canManageAPI: false, // Not available in current permission system
-                canManageFiles:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) =>
-                        String(p) === "storage.upload" ||
-                        String(p) === "storage.delete"
-                    )) ||
-                  false,
-                canManageAuth: false, // Not available in current permission system
-                canCreateAdminAccounts: false, // Not available in current permission system
-                canModifyOtherAdmins: false, // Not available in current permission system
-                isMasterAdmin: String(user.role) === "master_admin",
-              },
-              lastActive: String(user.last_login || user.updated_at || ""),
-              createdAt: String(user.created_at || ""),
-              lastLogin: String(user.last_login || ""),
-            })
-          );
-          setAdminUsers(transformedUsers);
-        } else {
-          // Error logged for debugging
-          setAdminUsers([]);
-        }
-      } catch {
-        // Error logged for debugging
-        setAdminUsers([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAdminUsers();
-  }, [krapi]);
+    loadUsers();
+  }, [loadUsers]);
 
   if (!krapi) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-gray-500">Loading...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading KRAPI SDK...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
+          <p className="text-destructive">{error}</p>
+          <Button onClick={loadUsers} className="mt-4">
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -272,94 +213,7 @@ export default function ServerAdministrationPage() {
 
       if (response.success) {
         // Refresh the admin users list
-        const usersResponse = await krapi.admin.getUsers();
-        if (usersResponse.success && usersResponse.data) {
-          setAdminUsers(
-            usersResponse.data.map((user: Record<string, unknown>) => ({
-              id: String(user.id || ""),
-              firstName:
-                String(user.username || "").split(" ")[0] ||
-                String(user.username || ""),
-              lastName: String(user.username || "").split(" ")[1] || "",
-              email: String(user.email || ""),
-              role: String(user.role || "") as
-                | "master_admin"
-                | "admin"
-                | "project_admin"
-                | "limited_admin",
-              accessLevel: String(user.access_level || "") as
-                | "full"
-                | "read_write"
-                | "read_only",
-              status: Boolean(user.active) ? "active" : "inactive",
-              permissions: {
-                canManageUsers:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) =>
-                        String(p) === "users.create" ||
-                        String(p) === "users.update" ||
-                        String(p) === "users.delete"
-                    )) ||
-                  false,
-                canCreateProjects:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "projects.create"
-                    )) ||
-                  false,
-                canDeleteProjects:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "projects.delete"
-                    )) ||
-                  false,
-                canManageSystemSettings:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "settings.update"
-                    )) ||
-                  false,
-                canViewSystemLogs: false,
-                canManageBackups: false,
-                canAccessAllProjects:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) => String(p) === "projects.read"
-                    )) ||
-                  false,
-                restrictedProjectIds: [],
-                canManageDatabase:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) =>
-                        String(p) === "collections.create" ||
-                        String(p) === "collections.write" ||
-                        String(p) === "collections.delete"
-                    )) ||
-                  false,
-                canManageAPI: false,
-                canManageFiles:
-                  (Array.isArray(user.permissions) &&
-                    user.permissions.some(
-                      (p: unknown) =>
-                        String(p) === "storage.upload" ||
-                        String(p) === "storage.delete"
-                    )) ||
-                  false,
-                canManageAuth: false,
-                canCreateAdminAccounts: false,
-                canModifyOtherAdmins: false,
-                isMasterAdmin: String(user.role) === "master_admin",
-              },
-              lastLogin: String(user.last_login || new Date().toISOString()),
-              lastActive: String(
-                user.last_login || user.updated_at || new Date().toISOString()
-              ),
-              createdAt: String(user.created_at || ""),
-            }))
-          );
-        }
+        loadUsers();
         setIsEditDialogOpen(false);
         setSelectedUser(null);
       }
@@ -384,7 +238,7 @@ export default function ServerAdministrationPage() {
 
         if (response.success) {
           // Remove the user from the local state
-          setAdminUsers(adminUsers.filter((user) => user.id !== userId));
+          loadUsers();
         }
       } catch {
         // Error logged for debugging
@@ -407,11 +261,7 @@ export default function ServerAdministrationPage() {
 
       if (response.success) {
         // Update the local state
-        setAdminUsers(
-          adminUsers.map((user) =>
-            user.id === userId ? { ...user, status: newStatus } : user
-          )
-        );
+        loadUsers();
       }
     } catch {
       // Error logged for debugging
@@ -1013,107 +863,7 @@ export default function ServerAdministrationPage() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onSuccess={() => {
-          const fetchAdminUsers = async () => {
-            if (!krapi) return;
-
-            try {
-              setIsLoading(true);
-              const response = await krapi.admin.getUsers({});
-
-              if (response.success && response.data) {
-                // Transform the database users to match our AdminUser interface
-                const transformedUsers: LocalAdminUser[] = response.data.map(
-                  (user: Record<string, unknown>) => ({
-                    id: String(user.id || ""),
-                    email: String(user.email || ""),
-                    firstName: String(user.username || "").split(" ")[0] || "",
-                    lastName: String(user.username || "").split(" ")[1] || "",
-                    role: String(user.role || "") as
-                      | "master_admin"
-                      | "admin"
-                      | "project_admin"
-                      | "limited_admin",
-                    status: Boolean(user.active) ? "active" : "inactive",
-                    permissions: {
-                      canManageUsers:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) =>
-                              String(p) === "users.create" ||
-                              String(p) === "users.update" ||
-                              String(p) === "users.delete"
-                          )) ||
-                        false,
-                      canCreateProjects:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "projects.create"
-                          )) ||
-                        false,
-                      canDeleteProjects:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "projects.delete"
-                          )) ||
-                        false,
-                      canManageSystemSettings:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "settings.update"
-                          )) ||
-                        false,
-                      canViewSystemLogs: false, // Not available in current permission system
-                      canManageBackups: false, // Not available in current permission system
-                      canAccessAllProjects:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "projects.read"
-                          )) ||
-                        false,
-                      restrictedProjectIds: [],
-                      canManageDatabase:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) =>
-                              String(p) === "collections.create" ||
-                              String(p) === "collections.write" ||
-                              String(p) === "collections.delete"
-                          )) ||
-                        false,
-                      canManageAPI: false, // Not available in current permission system
-                      canManageFiles:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) =>
-                              String(p) === "storage.upload" ||
-                              String(p) === "storage.delete"
-                          )) ||
-                        false,
-                      canManageAuth: false, // Not available in current permission system
-                      canCreateAdminAccounts: false, // Not available in current permission system
-                      canModifyOtherAdmins: false, // Not available in current permission system
-                      isMasterAdmin: String(user.role) === "master_admin",
-                    },
-                    lastActive: String(
-                      user.last_login || user.updated_at || ""
-                    ),
-                    createdAt: String(user.created_at || ""),
-                    lastLogin: String(user.last_login || ""),
-                  })
-                );
-                setAdminUsers(transformedUsers);
-              } else {
-                // Error logged for debugging
-                setAdminUsers([]);
-              }
-            } catch {
-              // Error logged for debugging
-              setAdminUsers([]);
-            } finally {
-              setIsLoading(false);
-            }
-          };
-          fetchAdminUsers();
+          loadUsers();
           toast.success("Admin user created successfully");
         }}
       />
@@ -1139,107 +889,7 @@ export default function ServerAdministrationPage() {
             : undefined
         }
         onSuccess={() => {
-          const fetchAdminUsers = async () => {
-            if (!krapi) return;
-
-            try {
-              setIsLoading(true);
-              const response = await krapi.admin.getUsers({});
-
-              if (response.success && response.data) {
-                // Transform the database users to match our AdminUser interface
-                const transformedUsers: LocalAdminUser[] = response.data.map(
-                  (user: Record<string, unknown>) => ({
-                    id: String(user.id || ""),
-                    email: String(user.email || ""),
-                    firstName: String(user.username || "").split(" ")[0] || "",
-                    lastName: String(user.username || "").split(" ")[1] || "",
-                    role: String(user.role || "") as
-                      | "master_admin"
-                      | "admin"
-                      | "project_admin"
-                      | "limited_admin",
-                    status: Boolean(user.active) ? "active" : "inactive",
-                    permissions: {
-                      canManageUsers:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) =>
-                              String(p) === "users.create" ||
-                              String(p) === "users.update" ||
-                              String(p) === "users.delete"
-                          )) ||
-                        false,
-                      canCreateProjects:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "projects.create"
-                          )) ||
-                        false,
-                      canDeleteProjects:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "projects.delete"
-                          )) ||
-                        false,
-                      canManageSystemSettings:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "settings.update"
-                          )) ||
-                        false,
-                      canViewSystemLogs: false, // Not available in current permission system
-                      canManageBackups: false, // Not available in current permission system
-                      canAccessAllProjects:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) => String(p) === "projects.read"
-                          )) ||
-                        false,
-                      restrictedProjectIds: [],
-                      canManageDatabase:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) =>
-                              String(p) === "collections.create" ||
-                              String(p) === "collections.write" ||
-                              String(p) === "collections.delete"
-                          )) ||
-                        false,
-                      canManageAPI: false, // Not available in current permission system
-                      canManageFiles:
-                        (Array.isArray(user.permissions) &&
-                          user.permissions.some(
-                            (p: unknown) =>
-                              String(p) === "storage.upload" ||
-                              String(p) === "storage.delete"
-                          )) ||
-                        false,
-                      canManageAuth: false, // Not available in current permission system
-                      canCreateAdminAccounts: false, // Not available in current permission system
-                      canModifyOtherAdmins: false, // Not available in current permission system
-                      isMasterAdmin: String(user.role) === "master_admin",
-                    },
-                    lastActive: String(
-                      user.last_login || user.updated_at || ""
-                    ),
-                    createdAt: String(user.created_at || ""),
-                    lastLogin: String(user.last_login || ""),
-                  })
-                );
-                setAdminUsers(transformedUsers);
-              } else {
-                // Error logged for debugging
-                setAdminUsers([]);
-              }
-            } catch {
-              // Error logged for debugging
-              setAdminUsers([]);
-            } finally {
-              setIsLoading(false);
-            }
-          };
-          fetchAdminUsers();
+          loadUsers();
           toast.success("Admin user updated successfully");
         }}
       />

@@ -41,12 +41,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { beginBusy, endBusy } from "@/store/uiSlice";
 import {
   fetchProjects,
   createProject as createProjectThunk,
   updateProject as updateProjectThunk,
 } from "@/store/projectsSlice";
+import { beginBusy, endBusy } from "@/store/uiSlice";
 
 const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
@@ -159,11 +159,11 @@ export default function ProjectsPage() {
     dispatch(beginBusy());
     try {
       // Convert frontend 'active' property to SDK 'is_active' property
-      const sdkData = {
+      const sdkData: Record<string, unknown> = {
         ...data,
         is_active: data.active,
       };
-      delete (sdkData as any).active;
+      delete sdkData.active;
 
       // Use Redux thunk with krapi instance
       const action = await dispatch(
@@ -194,7 +194,7 @@ export default function ProjectsPage() {
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Card key={`projects-skeleton-card-${i}`}>
+            <Card key={`projects-skeleton-card-${i}-${Date.now()}`}>
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />

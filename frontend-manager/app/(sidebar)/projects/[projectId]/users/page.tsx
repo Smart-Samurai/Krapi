@@ -1,16 +1,6 @@
 "use client";
 
-import { ProjectScope } from "@/lib/krapi";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Users,
-  Mail,
-  Phone,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Users, Mail, Phone, Eye, EyeOff } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 
@@ -45,11 +35,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { ProjectUser } from "@/lib/krapi";
-
+import { useKrapi } from "@/lib/hooks/useKrapi";
+import { ProjectScope, type ProjectUser } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import {
   fetchUsers,
   createUser,
@@ -247,7 +236,7 @@ export default function UsersPage() {
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
             <Skeleton
-              key={`users-skeleton-item-${i}`}
+              key={`users-skeleton-item-${i}-${Date.now()}`}
               className="h-32 w-full"
             />
           ))}

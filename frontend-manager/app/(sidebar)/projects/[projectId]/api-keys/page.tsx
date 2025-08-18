@@ -1,8 +1,5 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
-
 import {
   Plus,
   Edit,
@@ -21,6 +18,8 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -63,8 +62,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { ProjectScope } from "@/lib/krapi";
-import type { ApiKey } from "@/lib/krapi";
+import { ProjectScope, type ApiKey } from "@/lib/krapi";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.USERS_READ]: "Read Users",
@@ -345,7 +343,7 @@ export default function ApiKeysPage() {
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
             <Skeleton
-              key={`api-keys-skeleton-item-${i}`}
+              key={`api-keys-skeleton-item-${i}-${Date.now()}`}
               className="h-32 w-full"
             />
           ))}

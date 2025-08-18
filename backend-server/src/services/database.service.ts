@@ -2515,8 +2515,27 @@ export class DatabaseService {
     entity_type?: string;
     entity_id?: string;
     limit?: number;
+    offset?: number;
+    collection_name?: string;
+    user_id?: string;
+    action_type?: string;
+    start_date?: string;
+    end_date?: string;
+    document_id?: string;
   }): Promise<ChangelogEntry[]> {
-    const { project_id, entity_type, entity_id, limit = 100 } = filters;
+    const {
+      project_id,
+      entity_type,
+      entity_id,
+      limit = 100,
+      offset = 0,
+      collection_name,
+      user_id,
+      action_type,
+      start_date,
+      end_date,
+      document_id,
+    } = filters;
     const conditions: string[] = [];
     const values: unknown[] = [];
 
@@ -2535,6 +2554,40 @@ export class DatabaseService {
       values.push(entity_id);
     }
 
+    if (collection_name) {
+      conditions.push(
+        `entity_type = 'collection' AND entity_id = $${values.length + 1}`
+      );
+      values.push(collection_name);
+    }
+
+    if (user_id) {
+      conditions.push(`performed_by = $${values.length + 1}`);
+      values.push(user_id);
+    }
+
+    if (action_type) {
+      conditions.push(`action = $${values.length + 1}`);
+      values.push(action_type);
+    }
+
+    if (start_date) {
+      conditions.push(`created_at >= $${values.length + 1}`);
+      values.push(start_date);
+    }
+
+    if (end_date) {
+      conditions.push(`created_at <= $${values.length + 1}`);
+      values.push(end_date);
+    }
+
+    if (document_id) {
+      conditions.push(
+        `entity_type = 'document' AND entity_id = $${values.length + 1}`
+      );
+      values.push(document_id);
+    }
+
     values.push(limit);
 
     const whereClause =
@@ -2546,8 +2599,8 @@ export class DatabaseService {
        LEFT JOIN admin_users au ON c.performed_by = au.id 
        ${whereClause}
        ORDER BY c.created_at DESC 
-       LIMIT $${values.length}`,
-      values
+       LIMIT $${values.length} OFFSET $${values.length + 1}`,
+      [...values, offset]
     );
 
     return result.rows.map((row) => this.mapChangelogEntry(row));
@@ -3598,5 +3651,1327 @@ export class DatabaseService {
       fileTypes,
       lastUpload,
     };
+  }
+
+  /**
+   * Get storage statistics for a project
+   */
+  async getStorageStatistics(projectId: string): Promise<{
+    totalFiles: number;
+    totalSize: number;
+    fileTypes: Record<string, number>;
+    lastUpload: Date | null;
+    storageUsed: number;
+    storageLimit: number;
+  }> {
+    try {
+      // Get total files and size
+      const filesResult = await this.pool.query(
+        "SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM files WHERE project_id = $1",
+        [projectId]
+      );
+
+      const totalFiles = parseInt(filesResult.rows[0].count);
+      const totalSize = parseInt(filesResult.rows[0].total_size);
+
+      // Get file type distribution
+      const fileTypesResult = await this.pool.query(
+        "SELECT mime_type, COUNT(*) as count FROM files WHERE project_id = $1 GROUP BY mime_type",
+        [projectId]
+      );
+
+      const fileTypes: Record<string, number> = {};
+      fileTypesResult.rows.forEach((row) => {
+        fileTypes[row.mime_type] = parseInt(row.count);
+      });
+
+      // Get last upload time
+      const lastUploadResult = await this.pool.query(
+        "SELECT created_at FROM files WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1",
+        [projectId]
+      );
+
+      const lastUpload =
+        lastUploadResult.rows.length > 0
+          ? new Date(lastUploadResult.rows[0].created_at)
+          : null;
+
+      // Get project storage info
+      const projectResult = await this.pool.query(
+        "SELECT storage_used, storage_limit FROM projects WHERE id = $1",
+        [projectId]
+      );
+
+      const project = projectResult.rows[0];
+      const storageUsed = project?.storage_used || 0;
+      const storageLimit = project?.storage_limit || 1073741824; // 1GB default
+
+      return {
+        totalFiles,
+        totalSize,
+        fileTypes,
+        lastUpload,
+        storageUsed,
+        storageLimit,
+      };
+    } catch (error) {
+      console.error("Error getting storage statistics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new folder
+   */
+  async createFolder(data: {
+    project_id: string;
+    name: string;
+    parent_folder_id?: string;
+    metadata?: Record<string, unknown>;
+    created_by: string;
+    created_at: string;
+  }): Promise<{
+    id: string;
+    project_id: string;
+    name: string;
+    parent_folder_id?: string;
+    metadata?: Record<string, unknown>;
+    created_by: string;
+    created_at: string;
+  }> {
+    try {
+      const result = await this.pool.query(
+        `INSERT INTO folders (project_id, name, parent_folder_id, metadata, created_by, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [
+          data.project_id,
+          data.name,
+          data.parent_folder_id,
+          data.metadata ? JSON.stringify(data.metadata) : null,
+          data.created_by,
+          data.created_at,
+        ]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Error creating folder:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get folders for a project
+   */
+  async getFolders(
+    projectId: string,
+    options: {
+      parent_folder_id?: string;
+      include_files?: boolean;
+    } = {}
+  ): Promise<any[]> {
+    try {
+      let query = "SELECT * FROM folders WHERE project_id = $1";
+      const params = [projectId];
+
+      if (options.parent_folder_id) {
+        query += " AND parent_folder_id = $2";
+        params.push(options.parent_folder_id);
+      } else {
+        query += " AND parent_folder_id IS NULL";
+      }
+
+      query += " ORDER BY name";
+
+      const result = await this.pool.query(query, params);
+      const folders = result.rows;
+
+      if (options.include_files) {
+        for (const folder of folders) {
+          const filesResult = await this.pool.query(
+            "SELECT COUNT(*) as count FROM files WHERE folder_id = $1",
+            [folder.id]
+          );
+          folder.file_count = parseInt(filesResult.rows[0].count);
+        }
+      }
+
+      return folders;
+    } catch (error) {
+      console.error("Error getting folders:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a folder
+   */
+  async deleteFolder(projectId: string, folderId: string): Promise<void> {
+    try {
+      // Check if folder has files
+      const filesResult = await this.pool.query(
+        "SELECT COUNT(*) as count FROM files WHERE folder_id = $1",
+        [folderId]
+      );
+
+      if (parseInt(filesResult.rows[0].count) > 0) {
+        throw new Error(
+          "Cannot delete folder with files. Move or delete files first."
+        );
+      }
+
+      // Check if folder has subfolders
+      const subfoldersResult = await this.pool.query(
+        "SELECT COUNT(*) as count FROM folders WHERE parent_folder_id = $1",
+        [folderId]
+      );
+
+      if (parseInt(subfoldersResult.rows[0].count) > 0) {
+        throw new Error(
+          "Cannot delete folder with subfolders. Delete subfolders first."
+        );
+      }
+
+      await this.pool.query(
+        "DELETE FROM folders WHERE id = $1 AND project_id = $2",
+        [folderId, projectId]
+      );
+    } catch (error) {
+      console.error("Error deleting folder:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get file by ID
+   */
+  async getFileById(
+    projectId: string,
+    fileId: string
+  ): Promise<FileRecord | null> {
+    try {
+      const result = await this.pool.query(
+        "SELECT * FROM files WHERE id = $1 AND project_id = $2",
+        [fileId, projectId]
+      );
+
+      return result.rows.length > 0 ? this.mapFile(result.rows[0]) : null;
+    } catch (error) {
+      console.error("Error getting file by ID:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate file URL for download
+   */
+  async generateFileUrl(file: FileRecord, expiresIn: number): Promise<string> {
+    try {
+      // This is a simplified implementation
+      // In production, you'd want to use a proper file storage service like S3
+      const expiresAt = Date.now() + expiresIn * 1000;
+      const signature = this.generateFileSignature(file.id, expiresAt);
+
+      return `/api/storage/${file.project_id}/files/${file.id}/download?expires=${expiresAt}&signature=${signature}`;
+    } catch (error) {
+      console.error("Error generating file URL:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate file signature for security
+   */
+  private generateFileSignature(fileId: string, expiresAt: number): string {
+    const secret = process.env.FILE_SIGNATURE_SECRET || "default-secret";
+    const data = `${fileId}:${expiresAt}`;
+    return require("crypto")
+      .createHmac("sha256", secret)
+      .update(data)
+      .digest("hex");
+  }
+
+  /**
+   * Bulk delete files
+   */
+  async bulkDeleteFiles(
+    projectId: string,
+    fileIds: string[]
+  ): Promise<{
+    deleted: number;
+    failed: number;
+    errors: string[];
+  }> {
+    try {
+      const result = {
+        deleted: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+
+      for (const fileId of fileIds) {
+        try {
+          const file = await this.deleteFile(fileId);
+          if (file) {
+            result.deleted++;
+          } else {
+            result.failed++;
+            result.errors.push(`File ${fileId} not found`);
+          }
+        } catch (error) {
+          result.failed++;
+          result.errors.push(`Failed to delete file ${fileId}: ${error}`);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error bulk deleting files:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bulk move files
+   */
+  async bulkMoveFiles(
+    projectId: string,
+    fileIds: string[],
+    destinationFolderId?: string
+  ): Promise<{
+    moved: number;
+    failed: number;
+    errors: string[];
+  }> {
+    try {
+      const result = {
+        moved: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+
+      for (const fileId of fileIds) {
+        try {
+          await this.pool.query(
+            "UPDATE files SET folder_id = $1 WHERE id = $2 AND project_id = $3",
+            [destinationFolderId, fileId, projectId]
+          );
+          result.moved++;
+        } catch (error) {
+          result.failed++;
+          result.errors.push(`Failed to move file ${fileId}: ${error}`);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error bulk moving files:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bulk update file metadata
+   */
+  async bulkUpdateFileMetadata(
+    projectId: string,
+    fileIds: string[],
+    metadata: Record<string, unknown>
+  ): Promise<{
+    updated: number;
+    failed: number;
+    errors: string[];
+  }> {
+    try {
+      const result = {
+        updated: 0,
+        failed: 0,
+        errors: [] as string[],
+      };
+
+      for (const fileId of fileIds) {
+        try {
+          await this.pool.query(
+            "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3",
+            [JSON.stringify(metadata), fileId, projectId]
+          );
+          result.updated++;
+        } catch (error) {
+          result.failed++;
+          result.errors.push(`Failed to update file ${fileId}: ${error}`);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error bulk updating file metadata:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Copy a file
+   */
+  async copyFile(
+    projectId: string,
+    fileId: string,
+    options: {
+      destination_folder_id?: string;
+      new_name?: string;
+    }
+  ): Promise<FileRecord> {
+    try {
+      const originalFile = await this.getFileById(projectId, fileId);
+      if (!originalFile) {
+        throw new Error("File not found");
+      }
+
+      const newFilename = options.new_name || `copy_${originalFile.filename}`;
+      const newPath = `copies/${Date.now()}_${newFilename}`;
+
+      const result = await this.pool.query(
+        `INSERT INTO files (project_id, filename, original_name, mime_type, size, path, metadata, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [
+          projectId,
+          newFilename,
+          originalFile.original_name,
+          originalFile.mime_type,
+          originalFile.size,
+          newPath,
+          originalFile.metadata,
+          originalFile.uploaded_by || "system",
+        ]
+      );
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error copying file:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Move a file
+   */
+  async moveFile(
+    projectId: string,
+    fileId: string,
+    options: {
+      destination_folder_id?: string;
+      new_name?: string;
+    }
+  ): Promise<FileRecord> {
+    try {
+      const file = await this.getFileById(projectId, fileId);
+      if (!file) {
+        throw new Error("File not found");
+      }
+
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      if (options.destination_folder_id !== undefined) {
+        updates.push(`folder_id = $${paramCount++}`);
+        values.push(options.destination_folder_id);
+      }
+
+      if (options.new_name) {
+        updates.push(`filename = $${paramCount++}`);
+        values.push(options.new_name);
+      }
+
+      if (updates.length === 0) {
+        return file;
+      }
+
+      values.push(fileId, projectId);
+      const result = await this.pool.query(
+        `UPDATE files SET ${updates.join(
+          ", "
+        )} WHERE id = $${paramCount} AND project_id = $${
+          paramCount + 1
+        } RETURNING *`,
+        values
+      );
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error moving file:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Rename a file
+   */
+  async renameFile(
+    projectId: string,
+    fileId: string,
+    newName: string
+  ): Promise<FileRecord> {
+    try {
+      const result = await this.pool.query(
+        "UPDATE files SET filename = $1 WHERE id = $2 AND project_id = $3 RETURNING *",
+        [newName, fileId, projectId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("File not found");
+      }
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error renaming file:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update file metadata
+   */
+  async updateFileMetadata(
+    projectId: string,
+    fileId: string,
+    metadata: Record<string, unknown>
+  ): Promise<FileRecord> {
+    try {
+      const result = await this.pool.query(
+        "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
+        [JSON.stringify(metadata), fileId, projectId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("File not found");
+      }
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error updating file metadata:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add tags to a file
+   */
+  async addFileTags(
+    projectId: string,
+    fileId: string,
+    tags: string[]
+  ): Promise<FileRecord> {
+    try {
+      const file = await this.getFileById(projectId, fileId);
+      if (!file) {
+        throw new Error("File not found");
+      }
+
+      const currentTags = (file.metadata?.tags as string[]) || [];
+      const newTags = [...new Set([...currentTags, ...tags])];
+
+      const result = await this.pool.query(
+        "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
+        [JSON.stringify({ tags: newTags }), fileId, projectId]
+      );
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error adding file tags:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove tags from a file
+   */
+  async removeFileTags(
+    projectId: string,
+    fileId: string,
+    tags: string[]
+  ): Promise<FileRecord> {
+    try {
+      const file = await this.getFileById(projectId, fileId);
+      if (!file) {
+        throw new Error("File not found");
+      }
+
+      const currentTags = (file.metadata?.tags as string[]) || [];
+      const newTags = currentTags.filter((tag) => !tags.includes(tag));
+
+      const result = await this.pool.query(
+        "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
+        [JSON.stringify({ tags: newTags }), fileId, projectId]
+      );
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error removing file tags:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get file permissions
+   */
+  async getFilePermissions(projectId: string, fileId: string): Promise<any[]> {
+    try {
+      const result = await this.pool.query(
+        `SELECT fp.*, u.username, u.email 
+         FROM file_permissions fp 
+         JOIN project_users u ON fp.user_id = u.id 
+         WHERE fp.file_id = $1 AND fp.project_id = $2`,
+        [fileId, projectId]
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting file permissions:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Grant file permission
+   */
+  async grantFilePermission(
+    projectId: string,
+    fileId: string,
+    userId: string,
+    permission: string
+  ): Promise<any> {
+    try {
+      const result = await this.pool.query(
+        `INSERT INTO file_permissions (project_id, file_id, user_id, permission, granted_by, granted_at)
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         ON CONFLICT (project_id, file_id, user_id) 
+         DO UPDATE SET permission = $4, granted_by = $5, granted_at = $6
+         RETURNING *`,
+        [
+          projectId,
+          fileId,
+          userId,
+          permission,
+          "system",
+          new Date().toISOString(),
+        ]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Error granting file permission:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Revoke file permission
+   */
+  async revokeFilePermission(
+    projectId: string,
+    fileId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      await this.pool.query(
+        "DELETE FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
+        [projectId, fileId, userId]
+      );
+    } catch (error) {
+      console.error("Error revoking file permission:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get file versions
+   */
+  async getFileVersions(projectId: string, fileId: string): Promise<any[]> {
+    try {
+      const result = await this.pool.query(
+        "SELECT * FROM file_versions WHERE project_id = $1 AND file_id = $2 ORDER BY version_number DESC",
+        [projectId, fileId]
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting file versions:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload file version
+   */
+  async uploadFileVersion(
+    projectId: string,
+    fileId: string,
+    file: Express.Multer.File,
+    userId: string
+  ): Promise<any> {
+    try {
+      // Get current version number
+      const versionResult = await this.pool.query(
+        "SELECT COALESCE(MAX(version_number), 0) + 1 as next_version FROM file_versions WHERE project_id = $1 AND file_id = $2",
+        [projectId, fileId]
+      );
+
+      const versionNumber = versionResult.rows[0].next_version;
+
+      const result = await this.pool.query(
+        `INSERT INTO file_versions (project_id, file_id, version_number, filename, path, size, uploaded_by, uploaded_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [
+          projectId,
+          fileId,
+          versionNumber,
+          file.originalname,
+          file.path,
+          file.size,
+          userId,
+          new Date().toISOString(),
+        ]
+      );
+
+      return result.rows[0];
+    } catch (error) {
+      console.error("Error uploading file version:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Restore file version
+   */
+  async restoreFileVersion(
+    projectId: string,
+    fileId: string,
+    versionId: string
+  ): Promise<FileRecord> {
+    try {
+      const version = await this.pool.query(
+        "SELECT * FROM file_versions WHERE id = $1 AND project_id = $2 AND file_id = $3",
+        [versionId, projectId, fileId]
+      );
+
+      if (version.rows.length === 0) {
+        throw new Error("Version not found");
+      }
+
+      // Update the main file with version data
+      const result = await this.pool.query(
+        "UPDATE files SET filename = $1, path = $2, size = $3 WHERE id = $4 AND project_id = $5 RETURNING *",
+        [
+          version.rows[0].filename,
+          version.rows[0].path,
+          version.rows[0].size,
+          fileId,
+          projectId,
+        ]
+      );
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error restoring file version:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Make file public
+   */
+  async makeFilePublic(projectId: string, fileId: string): Promise<FileRecord> {
+    try {
+      const result = await this.pool.query(
+        "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
+        [
+          JSON.stringify({ public: true, public_at: new Date().toISOString() }),
+          fileId,
+          projectId,
+        ]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("File not found");
+      }
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error making file public:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Make file private
+   */
+  async makeFilePrivate(
+    projectId: string,
+    fileId: string
+  ): Promise<FileRecord> {
+    try {
+      const result = await this.pool.query(
+        "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
+        [
+          JSON.stringify({
+            public: false,
+            private_at: new Date().toISOString(),
+          }),
+          fileId,
+          projectId,
+        ]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("File not found");
+      }
+
+      return this.mapFile(result.rows[0]);
+    } catch (error) {
+      console.error("Error making file private:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset project data for testing
+   */
+  async resetProjectData(projectId: string): Promise<void> {
+    try {
+      // Delete all documents
+      await this.pool.query("DELETE FROM documents WHERE project_id = $1", [
+        projectId,
+      ]);
+
+      // Delete all collections
+      await this.pool.query("DELETE FROM collections WHERE project_id = $1", [
+        projectId,
+      ]);
+
+      // Delete all files
+      await this.pool.query("DELETE FROM files WHERE project_id = $1", [
+        projectId,
+      ]);
+
+      // Delete all folders
+      await this.pool.query("DELETE FROM folders WHERE project_id = $1", [
+        projectId,
+      ]);
+
+      // Delete all API keys
+      await this.pool.query("DELETE FROM api_keys WHERE project_id = $1", [
+        projectId,
+      ]);
+
+      // Delete all project users except the creator
+      await this.pool.query(
+        "DELETE FROM project_users WHERE project_id = $1 AND role != 'owner'",
+        [projectId]
+      );
+
+      // Reset project stats
+      await this.pool.query(
+        "UPDATE projects SET storage_used = 0, api_calls_count = 0, last_api_call = NULL WHERE id = $1",
+        [projectId]
+      );
+
+      console.log(`Reset project data for project ${projectId}`);
+    } catch (error) {
+      console.error("Error resetting project data:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset all test data
+   */
+  async resetAllTestData(): Promise<void> {
+    try {
+      // Get all test projects
+      const testProjects = await this.pool.query(
+        "SELECT id FROM projects WHERE settings->>'isTestProject' = 'true' OR name ILIKE '%test%'"
+      );
+
+      for (const project of testProjects.rows) {
+        await this.resetProjectData(project.id);
+      }
+
+      console.log("Reset all test data");
+    } catch (error) {
+      console.error("Error resetting all test data:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate database schema
+   */
+  async validateSchema(): Promise<{
+    valid: boolean;
+    issues: string[];
+    tables: string[];
+  }> {
+    try {
+      const issues: string[] = [];
+      const tables: string[] = [];
+
+      // Check if required tables exist
+      const requiredTables = [
+        "admin_users",
+        "projects",
+        "project_users",
+        "collections",
+        "documents",
+        "files",
+        "folders",
+        "api_keys",
+        "sessions",
+        "changelog",
+      ];
+
+      for (const table of requiredTables) {
+        try {
+          const result = await this.pool.query(
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)",
+            [table]
+          );
+
+          if (result.rows[0].exists) {
+            tables.push(table);
+          } else {
+            issues.push(`Missing table: ${table}`);
+          }
+        } catch (error) {
+          issues.push(`Error checking table ${table}: ${error}`);
+        }
+      }
+
+      // Check if required columns exist in key tables
+      const requiredColumns = {
+        projects: ["id", "name", "api_key", "created_at"],
+        collections: ["id", "project_id", "name", "fields"],
+        documents: ["id", "project_id", "collection_name", "data"],
+        files: ["id", "project_id", "filename", "path", "size"],
+      };
+
+      for (const [table, columns] of Object.entries(requiredColumns)) {
+        for (const column of columns) {
+          try {
+            const result = await this.pool.query(
+              "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name = $1 AND column_name = $2)",
+              [table, column]
+            );
+
+            if (!result.rows[0].exists) {
+              issues.push(`Missing column: ${table}.${column}`);
+            }
+          } catch (error) {
+            issues.push(`Error checking column ${table}.${column}: ${error}`);
+          }
+        }
+      }
+
+      const valid = issues.length === 0;
+
+      return {
+        valid,
+        issues,
+        tables,
+      };
+    } catch (error) {
+      console.error("Error validating schema:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Seed project data for testing
+   */
+  async seedProjectData(
+    projectId: string,
+    seedType: string,
+    options: Record<string, unknown> = {}
+  ): Promise<{
+    collections: number;
+    documents: number;
+    files: number;
+    users: number;
+  }> {
+    try {
+      let collections = 0;
+      let documents = 0;
+      let files = 0;
+      let users = 0;
+
+      switch (seedType) {
+        case "basic":
+          // Create basic collections
+          const basicCollections = [
+            {
+              name: "users",
+              fields: [
+                { name: "name", type: "string" as const, required: true },
+                { name: "email", type: "string" as const, required: true },
+              ],
+            },
+            {
+              name: "products",
+              fields: [
+                { name: "title", type: "string" as const, required: true },
+                { name: "price", type: "number" as const, required: true },
+              ],
+            },
+          ];
+
+          for (const collData of basicCollections) {
+            await this.createCollection(
+              projectId,
+              collData.name,
+              { fields: collData.fields },
+              "system"
+            );
+            collections++;
+          }
+          break;
+
+        case "full":
+          // Create comprehensive test data
+          const fullCollections = [
+            {
+              name: "users",
+              fields: [
+                { name: "name", type: "string" as const, required: true },
+                { name: "email", type: "string" as const, required: true },
+                { name: "age", type: "number" as const },
+              ],
+            },
+            {
+              name: "products",
+              fields: [
+                { name: "title", type: "string" as const, required: true },
+                { name: "price", type: "number" as const, required: true },
+                { name: "description", type: "string" as const },
+              ],
+            },
+            {
+              name: "orders",
+              fields: [
+                { name: "user_id", type: "string" as const, required: true },
+                { name: "total", type: "number" as const, required: true },
+                { name: "status", type: "string" as const },
+              ],
+            },
+          ];
+
+          for (const collData of fullCollections) {
+            await this.createCollection(
+              projectId,
+              collData.name,
+              { fields: collData.fields },
+              "system"
+            );
+            collections++;
+
+            // Add sample documents
+            const sampleDocs = this.generateSampleDocuments(collData.name, 5);
+            for (const docData of sampleDocs) {
+              await this.createDocument(
+                projectId,
+                collData.name,
+                docData,
+                "system"
+              );
+              documents++;
+            }
+          }
+          break;
+
+        default:
+          throw new Error(`Unknown seed type: ${seedType}`);
+      }
+
+      return { collections, documents, files, users };
+    } catch (error) {
+      console.error("Error seeding project data:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate sample documents for testing
+   */
+  private generateSampleDocuments(
+    collectionName: string,
+    count: number
+  ): Record<string, unknown>[] {
+    const documents: Record<string, unknown>[] = [];
+
+    for (let i = 0; i < count; i++) {
+      switch (collectionName) {
+        case "users":
+          documents.push({
+            name: `Test User ${i + 1}`,
+            email: `user${i + 1}@test.com`,
+            age: 20 + i,
+          });
+          break;
+
+        case "products":
+          documents.push({
+            title: `Test Product ${i + 1}`,
+            price: 10.99 + i * 5,
+            description: `This is test product ${i + 1}`,
+          });
+          break;
+
+        case "orders":
+          documents.push({
+            user_id: `user_${i + 1}`,
+            total: 50.0 + i * 10,
+            status: i % 2 === 0 ? "pending" : "completed",
+          });
+          break;
+
+        default:
+          documents.push({ id: i + 1, name: `Item ${i + 1}` });
+      }
+    }
+
+    return documents;
+  }
+
+  /**
+   * Get changelog statistics for a project
+   */
+  async getChangelogStatistics(
+    projectId: string,
+    options: {
+      period: string;
+      start_date?: string;
+      end_date?: string;
+      group_by: string;
+    }
+  ): Promise<{
+    total_entries: number;
+    by_action_type: Record<string, number>;
+    by_user: Record<string, number>;
+    by_entity_type: Record<string, number>;
+    timeline: Array<{ date: string; count: number }>;
+  }> {
+    try {
+      let whereClause = "WHERE project_id = $1";
+      const params = [projectId];
+      let paramCount = 1;
+
+      if (options.start_date) {
+        paramCount++;
+        whereClause += ` AND created_at >= $${paramCount}`;
+        params.push(options.start_date);
+      }
+
+      if (options.end_date) {
+        paramCount++;
+        whereClause += ` AND created_at <= $${paramCount}`;
+        params.push(options.end_date);
+      }
+
+      // Get total entries
+      const totalResult = await this.pool.query(
+        `SELECT COUNT(*) as count FROM changelog ${whereClause}`,
+        params
+      );
+      const totalEntries = parseInt(totalResult.rows[0].count);
+
+      // Get by action type
+      const actionTypeResult = await this.pool.query(
+        `SELECT action, COUNT(*) as count FROM changelog ${whereClause} GROUP BY action`,
+        params
+      );
+      const byActionType: Record<string, number> = {};
+      actionTypeResult.rows.forEach((row) => {
+        byActionType[row.action] = parseInt(row.count);
+      });
+
+      // Get by user
+      const userResult = await this.pool.query(
+        `SELECT performed_by, COUNT(*) as count FROM changelog ${whereClause} GROUP BY performed_by`,
+        params
+      );
+      const byUser: Record<string, number> = {};
+      userResult.rows.forEach((row) => {
+        byUser[row.performed_by] = parseInt(row.count);
+      });
+
+      // Get by entity type
+      const entityTypeResult = await this.pool.query(
+        `SELECT entity_type, COUNT(*) as count FROM changelog ${whereClause} GROUP BY entity_type`,
+        params
+      );
+      const byEntityType: Record<string, number> = {};
+      entityTypeResult.rows.forEach((row) => {
+        byEntityType[row.entity_type] = parseInt(row.count);
+      });
+
+      // Get timeline data
+      let timelineQuery = `SELECT DATE(created_at) as date, COUNT(*) as count FROM changelog ${whereClause}`;
+      if (options.period === "day") {
+        timelineQuery += " GROUP BY DATE(created_at) ORDER BY date";
+      } else if (options.period === "week") {
+        timelineQuery +=
+          " GROUP BY DATE_TRUNC('week', created_at) ORDER BY date";
+      } else if (options.period === "month") {
+        timelineQuery +=
+          " GROUP BY DATE_TRUNC('month', created_at) ORDER BY date";
+      }
+
+      const timelineResult = await this.pool.query(timelineQuery, params);
+      const timeline = timelineResult.rows.map((row) => ({
+        date: row.date,
+        count: parseInt(row.count),
+      }));
+
+      return {
+        total_entries: totalEntries,
+        by_action_type: byActionType,
+        by_user: byUser,
+        by_entity_type: byEntityType,
+        timeline,
+      };
+    } catch (error) {
+      console.error("Error getting changelog statistics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Export changelog data
+   */
+  async exportChangelog(
+    projectId: string,
+    options: {
+      format: string;
+      start_date?: string;
+      end_date?: string;
+      action_type?: string;
+      user_id?: string;
+      entity_type?: string;
+    }
+  ): Promise<{
+    format: string;
+    data: any[];
+    filename: string;
+    download_url: string;
+  }> {
+    try {
+      let whereClause = "WHERE project_id = $1";
+      const params = [projectId];
+      let paramCount = 1;
+
+      if (options.start_date) {
+        paramCount++;
+        whereClause += ` AND created_at >= $${paramCount}`;
+        params.push(options.start_date);
+      }
+
+      if (options.end_date) {
+        paramCount++;
+        whereClause += ` AND created_at <= $${paramCount}`;
+        params.push(options.end_date);
+      }
+
+      if (options.action_type) {
+        paramCount++;
+        whereClause += ` AND action = $${paramCount}`;
+        params.push(options.action_type);
+      }
+
+      if (options.user_id) {
+        paramCount++;
+        whereClause += ` AND performed_by = $${paramCount}`;
+        params.push(options.user_id);
+      }
+
+      if (options.entity_type) {
+        paramCount++;
+        whereClause += ` AND entity_type = $${paramCount}`;
+        params.push(options.entity_type);
+      }
+
+      const result = await this.pool.query(
+        `SELECT * FROM changelog ${whereClause} ORDER BY created_at DESC`,
+        params
+      );
+
+      const data = result.rows;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `changelog_${projectId}_${timestamp}.${options.format}`;
+
+      // In a real implementation, you'd save this to a file and return a download URL
+      const downloadUrl = `/api/changelog/export/${projectId}/download/${filename}`;
+
+      return {
+        format: options.format,
+        data,
+        filename,
+        download_url: downloadUrl,
+      };
+    } catch (error) {
+      console.error("Error exporting changelog:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Purge old changelog entries
+   */
+  async purgeOldChangelog(options: {
+    older_than_days: number;
+    project_id?: string;
+    action_type?: string;
+    entity_type?: string;
+  }): Promise<{
+    purged: number;
+    errors: string[];
+  }> {
+    try {
+      const result = {
+        purged: 0,
+        errors: [] as string[],
+      };
+
+      let whereClause = "WHERE created_at < NOW() - INTERVAL '$1 days'";
+      const params: (number | string)[] = [options.older_than_days];
+      let paramCount = 1;
+
+      if (options.project_id) {
+        paramCount++;
+        whereClause += ` AND project_id = $${paramCount}`;
+        params.push(options.project_id);
+      }
+
+      if (options.action_type) {
+        paramCount++;
+        whereClause += ` AND action = $${paramCount}`;
+        params.push(options.action_type);
+      }
+
+      if (options.entity_type) {
+        paramCount++;
+        whereClause += ` AND entity_type = $${paramCount}`;
+        params.push(options.entity_type);
+      }
+
+      const deleteResult = await this.pool.query(
+        `DELETE FROM changelog ${whereClause} RETURNING id`,
+        params
+      );
+
+      result.purged = deleteResult.rows.length;
+
+      return result;
+    } catch (error) {
+      console.error("Error purging old changelog:", error);
+      throw error;
+    }
   }
 }

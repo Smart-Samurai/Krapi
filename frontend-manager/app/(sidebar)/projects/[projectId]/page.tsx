@@ -24,8 +24,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Project } from "@/lib/krapi";
 import { useKrapi } from "@/lib/hooks/useKrapi";
+import type { Project } from "@/lib/krapi";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
