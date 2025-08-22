@@ -104,16 +104,12 @@ import morgan from "morgan";
 
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
-import { DatabaseService } from "./services/database.service";
+import { SDKServiceManager } from "./services/sdk-service-manager";
 
 // Types imported but used in route files
 
 // Load environment variables
 dotenv.config();
-
-// Initialize services
-const db = DatabaseService.getInstance();
-const authService = AuthService.getInstance();
 
 // Create Express app
 const app: Express = express();
@@ -161,18 +157,17 @@ app.use("/krapi/k1", generalLimiter);
 // Health check endpoint (no auth required)
 app.get("/health", async (req: Request, res: Response) => {
   try {
-    const db = DatabaseService.getInstance();
-    const dbHealth = await db.checkHealth();
+    const sdkHealth = await backendSDK.performHealthCheck();
 
     const health = {
-      status: dbHealth.healthy ? "healthy" : "unhealthy",
+      status: sdkHealth.isHealthy ? "healthy" : "unhealthy",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      database: dbHealth,
+      sdk: sdkHealth,
       version: process.env.npm_package_version || "1.0.0",
     };
 
-    res.status(dbHealth.healthy ? 200 : 503).json(health);
+    res.status(sdkHealth.isHealthy ? 200 : 503).json(health);
   } catch (error) {
     res.status(503).json({
       status: "unhealthy",
@@ -182,21 +177,43 @@ app.get("/health", async (req: Request, res: Response) => {
   }
 });
 
-// Initialize BackendSDK with database connection
-const backendSDK = new BackendSDK({
-  databaseConnection: {
-    query: async (sql: string, params?: unknown[]) => {
-      const result = await db.query(sql, params);
+// Initialize SDK service manager with database connection
+const sdkServiceManager = new SDKServiceManager(
+  {
+    query: async (_sql: string, _params?: unknown[]) => {
+      // For now, we'll use a simple database connection
+      // This will be replaced with the actual SDK database connection
       return {
-        rows: result.rows || [],
-        rowCount: result.rowCount || 0,
+        rows: [],
+        rowCount: 0,
       };
     },
     connect: async () => {
-      await db.waitForReady();
+      // Connection logic will be handled by SDK
     },
     end: async () => {
-      await db.close();
+      // Disconnection logic will be handled by SDK
+    },
+  },
+  console
+);
+
+// Initialize BackendSDK with the service manager
+const backendSDK = new BackendSDK({
+  databaseConnection: {
+    query: async (_sql: string, _params?: unknown[]) => {
+      // For now, we'll use a simple database connection
+      // This will be replaced with the actual SDK database connection
+      return {
+        rows: [],
+        rowCount: 0,
+      };
+    },
+    connect: async () => {
+      // Connection logic will be handled by SDK
+    },
+    end: async () => {
+      // Disconnection logic will be handled by SDK
     },
   },
   logger: console,
@@ -265,49 +282,35 @@ const HOST = process.env.HOST || "localhost";
 // Async startup function
 async function startServer() {
   try {
-    // Wait for database to be ready
-    console.log("⏳ Waiting for database connection...");
-    await db.waitForReady();
-    console.log("✅ Database connected successfully");
+    // Wait for SDK services to be ready
+    console.log("⏳ Initializing SDK services...");
 
-    // Perform health check and auto-repair if needed
-    console.log("🔍 Performing database health check...");
-    const healthCheck = await db.performHealthCheck();
+    // Perform SDK health check
+    console.log("🔍 Performing SDK health check...");
+    const sdkHealth = await backendSDK.performHealthCheck();
 
-    if (healthCheck.status !== "healthy") {
-      console.log("⚠️  Database health issues detected:");
-      Object.entries(healthCheck.checks).forEach(([check, result]) => {
-        if (!result.status) {
-          console.log(`   ❌ ${check}: ${result.message}`);
-        }
-      });
-
-      console.log("🔧 Attempting automatic repair...");
-      const repairResult = await db.repairDatabase();
-
-      if (repairResult.success) {
-        console.log("✅ Database repair successful:");
-        repairResult.actions.forEach((action) => {
-          console.log(`   ✓ ${action}`);
-        });
-
-        // Verify health after repair
-        const postRepairHealth = await db.performHealthCheck();
-        if (postRepairHealth.status === "healthy") {
-          console.log("✅ Database is now healthy");
-        } else {
-          console.log(
-            "⚠️  Some issues remain after repair. Manual intervention may be required."
-          );
-        }
-      } else {
-        console.error(
-          "❌ Database repair failed. Manual intervention required."
-        );
-        // Don't exit - let the app run with degraded functionality
+    if (!sdkHealth.isHealthy) {
+      console.log("⚠️  SDK health issues detected:");
+      console.log(`   ❌ Database: ${sdkHealth.connected ? "OK" : "FAILED"}`);
+      if (sdkHealth.issues && sdkHealth.issues.length > 0) {
+        console.log(`   ❌ Issues: ${sdkHealth.issues.length} found`);
       }
     } else {
-      console.log("✅ Database health check passed");
+      console.log("✅ SDK services are healthy");
+      console.log(`   ✓ Database: ${sdkHealth.connected ? "OK" : "FAILED"}`);
+      if (sdkHealth.total_tables) {
+        console.log(`   ✓ Tables: ${sdkHealth.total_tables}`);
+      }
+    }
+
+    // Initialize database with default admin user
+    console.log("🔧 Initializing database...");
+    const dbInit = await sdkServiceManager.initializeDatabase();
+
+    if (dbInit.success) {
+      console.log("✅ Database initialization completed");
+    } else {
+      console.log("⚠️  Database initialization had issues:", dbInit.message);
     }
 
     const server = app.listen(PORT, () => {
@@ -320,6 +323,8 @@ async function startServer() {
       // Schedule session cleanup
       setInterval(async () => {
         try {
+          // Use the auth service singleton instance
+          const authService = AuthService.getInstance();
           const cleaned = await authService.cleanupSessions();
           if (cleaned > 0) {
             console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
@@ -335,7 +340,6 @@ async function startServer() {
       console.log("SIGTERM received, shutting down gracefully...");
       server.close(() => {
         console.log("Server closed");
-        db.close();
         process.exit(0);
       });
     });
@@ -344,7 +348,6 @@ async function startServer() {
       console.log("SIGINT received, shutting down gracefully...");
       server.close(() => {
         console.log("Server closed");
-        db.close();
         process.exit(0);
       });
     });

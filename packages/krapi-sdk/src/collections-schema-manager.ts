@@ -6,6 +6,7 @@ import {
   FieldValidation,
   RelationConfig,
   CollectionIndex,
+  FieldDefinition,
 } from "./types";
 
 /**
@@ -55,29 +56,41 @@ export class CollectionsSchemaManager {
       id: this.generateCollectionId(),
       project_id: "default", // Will be set by the caller
       name: collectionData.name,
-      fields: collectionData.fields.map((field) => {
-        const mappedField: CollectionField = {
-          name: field.name,
-          type: field.type,
-          required: field.required ?? false,
-          unique: field.unique ?? false,
-          indexed: field.indexed ?? false,
-          description: field.description || "",
-        };
+      schema: {
+        fields: collectionData.fields.map((field) => {
+          const mappedField: FieldDefinition = {
+            name: field.name,
+            type: field.type,
+            required: field.required ?? false,
+            unique: field.unique ?? false,
+            description: field.description || "",
+          };
 
-        if (field.default !== undefined) {
-          mappedField.default = field.default;
-        }
-        if (field.validation !== undefined) {
-          mappedField.validation = field.validation;
-        }
-        if (field.relation !== undefined) {
-          mappedField.relation = field.relation;
-        }
+          if (field.default !== undefined) {
+            mappedField.default_value = field.default;
+          }
+          if (field.validation !== undefined) {
+            mappedField.validation = field.validation;
+          }
+          if (field.relation !== undefined) {
+            mappedField.options = {
+              ...mappedField.options,
+              reference_collection: field.relation.target_collection || "",
+            };
+          }
 
-        return mappedField;
-      }),
-      indexes: collectionData.indexes || [],
+          return mappedField;
+        }),
+        indexes: collectionData.indexes || [],
+      },
+      settings: {
+        read_permissions: [],
+        write_permissions: [],
+        delete_permissions: [],
+        enable_audit_log: false,
+        enable_soft_delete: false,
+        enable_versioning: false,
+      },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

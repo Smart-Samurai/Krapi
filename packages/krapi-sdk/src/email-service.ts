@@ -6,6 +6,7 @@
  */
 
 import { DatabaseConnection, Logger } from "./core";
+import nodemailer from "nodemailer";
 
 export interface EmailConfig {
   smtp_host: string;
@@ -146,7 +147,6 @@ export class EmailService {
       }
 
       // Test the email configuration by creating a test transporter
-      const nodemailer = await import("nodemailer");
       const transporter = nodemailer.createTransport({
         host: config.smtp_host,
         port: config.smtp_port,
@@ -321,7 +321,6 @@ export class EmailService {
       }
 
       // Create transporter and send email
-      const nodemailer = await import("nodemailer");
       const transporter = nodemailer.createTransport({
         host: emailConfig.smtp_host,
         port: emailConfig.smtp_port,

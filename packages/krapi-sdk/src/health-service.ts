@@ -5,6 +5,9 @@
  */
 
 import { DatabaseConnection, Logger } from "./core";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 export interface HealthDiagnostics {
   success: boolean;
@@ -380,8 +383,6 @@ export class HealthService {
 
     // Check file system access
     try {
-      const fs = await import("fs");
-      const path = await import("path");
       const tempDir = path.join(process.cwd(), "temp");
 
       if (!fs.existsSync(tempDir)) {
@@ -431,7 +432,6 @@ export class HealthService {
     percentage: number;
   }> {
     try {
-      const os = await import("os");
       const total = os.totalmem();
       const free = os.freemem();
       const used = total - free;
@@ -449,7 +449,6 @@ export class HealthService {
 
   private async getCpuInfo(): Promise<{ usage: number; load: number }> {
     try {
-      const os = await import("os");
       const loadAvg = os.loadavg();
       const load = loadAvg[0] || 0; // 1 minute average
 

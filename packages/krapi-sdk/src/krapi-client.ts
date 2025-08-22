@@ -25,6 +25,7 @@ import { SystemService } from "./system-service";
 import { TestingService } from "./testing-service";
 import { FieldType } from "./types";
 import { UsersService } from "./users-service";
+import axios from "axios";
 
 // Client mode type
 export type ClientMode = "database" | "http";
@@ -141,11 +142,8 @@ export class KrapiClient implements BaseClient {
   }
 
   private async initializeHttpMode(httpConfig: HttpSDKConfig) {
-    // Import axios dynamically
-    const axios = await import("axios");
-
     // Create axios instance
-    this.httpClient = axios.default.create({
+    this.httpClient = axios.create({
       baseURL: httpConfig.baseUrl,
       timeout: httpConfig.timeout || 30000,
       headers: {

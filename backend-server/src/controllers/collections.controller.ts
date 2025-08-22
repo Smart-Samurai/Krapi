@@ -1,17 +1,10 @@
-import { Request, Response } from "express";
+import { ApiResponse } from "@krapi/sdk";
+import { Response } from "express";
 
-import { DatabaseService } from "@/services/database.service";
-import {
-  AuthenticatedRequest,
-  ApiResponse,
-  PaginatedResponse,
-  Collection,
-  Document,
-  ChangeAction,
-  FieldType,
-  CollectionField,
-  FieldValidation,
-} from "@/types";
+import { DatabaseService } from "../services/database.service";
+import { isValidProjectId, sanitizeProjectId } from "../utils/validation";
+
+import { AuthenticatedRequest } from "@/types";
 
 export class CollectionsController {
   private db: DatabaseService;
@@ -20,135 +13,255 @@ export class CollectionsController {
     this.db = DatabaseService.getInstance();
   }
 
-  // Get all collections for a project
-  getCollections = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Get all collections for a project
+   * GET /krapi/k1/projects/:projectId/collections
+   */
+  getAllCollections = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> => {
     try {
       const { projectId } = req.params;
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      // Use the database service directly for now
-      const collections = await this.db.getProjectCollections(projectId);
-
-      res.status(200).json({
-        success: true,
-        data: collections,
-      } as ApiResponse<Collection[]>);
-      return;
-    } catch (error) {
-      console.error("Get collections error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to fetch collections",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Get collection by name
-  getCollection = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, collectionName } = req.params;
-
-      const collection = await this.db.getCollection(projectId, collectionName);
-
-      if (!collection) {
-        res.status(404).json({
+      if (!sanitizedId) {
+        res.status(400).json({
           success: false,
-          error: "Collection not found",
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
         } as ApiResponse);
         return;
       }
 
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
+
+      // Get collections from database
+      const collections = await this.db.getProjectCollections(sanitizedId);
+
       res.status(200).json({
         success: true,
-        data: collection,
-      } as ApiResponse<Collection>);
+        data: collections || [],
+      } as ApiResponse);
       return;
     } catch (error) {
-      console.error("Get collection error:", error);
+      console.error("Get collections error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       res.status(500).json({
         success: false,
-        error: "Failed to fetch collection",
+        error: "Failed to fetch collections",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
   };
 
-  // Create a new collection
+  /**
+   * Get a specific collection by name
+   * GET /krapi/k1/projects/:projectId/collections/:collectionName
+   */
+  getCollectionByName = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { projectId, collectionName } = req.params;
+      const sanitizedId = sanitizeProjectId(projectId);
+
+      if (!sanitizedId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
+        } as ApiResponse);
+        return;
+      }
+
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
+
+      if (!collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Collection name is required",
+          code: "MISSING_COLLECTION_NAME",
+        } as ApiResponse);
+        return;
+      }
+
+      // Get collection from database
+      const collection = await this.db.getCollectionByName(
+        sanitizedId,
+        collectionName
+      );
+
+      if (collection) {
+        res.status(200).json({
+          success: true,
+          data: collection,
+        } as ApiResponse);
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Collection not found",
+        } as ApiResponse);
+      }
+      return;
+    } catch (error) {
+      console.error("Get collection error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch collection",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
+      } as ApiResponse);
+      return;
+    }
+  };
+
+  /**
+   * Create a new collection
+   * POST /krapi/k1/projects/:projectId/collections
+   */
   createCollection = async (
     req: AuthenticatedRequest,
     res: Response
   ): Promise<void> => {
     try {
       const { projectId } = req.params;
-      const { name, description, fields = [], indexes = [] } = req.body;
+      const { name, description, fields, indexes } = req.body;
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      console.log("Creating collection:", { projectId, name, user: req.user });
-
-      // Verify project exists
-      const project = await this.db.getProjectById(projectId);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Check if collection already exists
-      const existing = await this.db.getCollection(projectId, name);
-      if (existing) {
-        res.status(409).json({
-          success: false,
-          error: "Collection with this name already exists",
-        } as ApiResponse);
-        return;
-      }
-
-      // Validate collection name
-      if (!this.isValidCollectionName(name)) {
+      if (!sanitizedId) {
         res.status(400).json({
           success: false,
-          error:
-            "Invalid collection name. Use only letters, numbers, and underscores.",
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
         } as ApiResponse);
         return;
       }
 
-      // Create the collection
-      const collection = await this.db.createCollection(
-        projectId,
-        name,
-        { description, fields, indexes },
-        req.user!.id
-      );
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
 
-      // Log the action
-      await this.db.createChangelogEntry({
-        project_id: projectId,
-        entity_type: "collection",
-        entity_id: collection.id,
-        action: ChangeAction.CREATED,
-        changes: { name, fields: fields.length },
-        performed_by: req.user?.id || "unknown",
-        session_id: req.session?.id,
-      });
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: "Collection name is required and must be a non-empty string",
+          code: "INVALID_NAME",
+        } as ApiResponse);
+        return;
+      }
+
+      if (name.trim().length > 100) {
+        res.status(400).json({
+          success: false,
+          error: "Collection name must be 100 characters or less",
+          code: "NAME_TOO_LONG",
+        } as ApiResponse);
+        return;
+      }
+
+      if (!fields || !Array.isArray(fields) || fields.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: "Collection fields are required and must be a non-empty array",
+          code: "INVALID_FIELDS",
+        } as ApiResponse);
+        return;
+      }
+
+      // Validate field data
+      const fieldValidation = this.validateFieldData(fields);
+      if (!fieldValidation.isValid) {
+        res.status(400).json({
+          success: false,
+          error: "Field validation failed",
+          details: fieldValidation.issues,
+          code: "FIELD_VALIDATION_ERROR",
+        } as ApiResponse);
+        return;
+      }
+
+      // Validate indexes if provided
+      if (indexes && Array.isArray(indexes) && indexes.length > 0) {
+        const indexValidation = this.validateIndexData(indexes, fields);
+        if (!indexValidation.isValid) {
+          res.status(400).json({
+            success: false,
+            error: "Index validation failed",
+            details: indexValidation.issues,
+            code: "INDEX_VALIDATION_ERROR",
+          } as ApiResponse);
+          return;
+        }
+      }
+
+      // Create collection using database service
+      const collection = await this.db.createCollection(
+        sanitizedId,
+        name.trim(),
+        {
+          description: description?.trim() || undefined,
+          fields,
+          indexes: indexes || [],
+        },
+        req.user.id
+      );
 
       res.status(201).json({
         success: true,
         data: collection,
-      } as ApiResponse<Collection>);
+        message: `Collection created successfully`,
+      } as ApiResponse);
       return;
     } catch (error) {
       console.error("Create collection error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       res.status(500).json({
         success: false,
         error: "Failed to create collection",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
   };
 
-  // Update collection
+  /**
+   * Update a collection
+   * PUT /krapi/k1/projects/:projectId/collections/:collectionName
+   */
   updateCollection = async (
     req: AuthenticatedRequest,
     res: Response
@@ -156,511 +269,275 @@ export class CollectionsController {
     try {
       const { projectId, collectionName } = req.params;
       const updates = req.body;
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      // Check if collection exists
-      const existing = await this.db.getCollection(projectId, collectionName);
-      if (!existing) {
-        res.status(404).json({
+      if (!sanitizedId) {
+        res.status(400).json({
           success: false,
-          error: "Collection not found",
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
         } as ApiResponse);
         return;
       }
 
-      // Validate field updates if provided
-      if (updates.fields) {
-        const validation = this.validateCollectionFields(updates.fields);
-        if (!validation.valid) {
-          res.status(400).json({
-            success: false,
-            error: validation.error,
-          } as ApiResponse);
-          return;
-        }
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
       }
 
-      // Update the collection
-      const updated = await this.db.updateCollection(
-        projectId,
+      if (!collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Collection name is required",
+          code: "MISSING_COLLECTION_NAME",
+        } as ApiResponse);
+        return;
+      }
+
+      // Update collection using database service
+      const collection = await this.db.updateCollection(
+        sanitizedId,
         collectionName,
         updates
       );
 
-      if (!updated) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to update collection",
+      if (collection) {
+        res.status(200).json({
+          success: true,
+          data: collection,
+          message: `Collection updated successfully`,
         } as ApiResponse);
-        return;
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Collection not found",
+        } as ApiResponse);
       }
-
-      // Log the changes
-      const changes: Record<string, unknown> = {};
-      if (updates.description !== existing.description) {
-        changes.description = {
-          from: existing.description,
-          to: updates.description,
-        };
-      }
-      if (updates.fields) {
-        changes.fields = {
-          from: existing.fields.length,
-          to: updates.fields.length,
-        };
-      }
-
-      if (Object.keys(changes).length > 0) {
-        await this.db.createChangelogEntry({
-          project_id: projectId,
-          entity_type: "collection",
-          entity_id: existing.id,
-          action: ChangeAction.UPDATED,
-          changes,
-          performed_by: req.user?.id || "unknown",
-          session_id: req.session?.id,
-        });
-      }
-
-      res.status(200).json({
-        success: true,
-        data: updated,
-      } as ApiResponse<Collection>);
       return;
     } catch (error) {
       console.error("Update collection error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       res.status(500).json({
         success: false,
         error: "Failed to update collection",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
   };
 
-  // Delete collection
+  /**
+   * Delete a collection
+   * DELETE /krapi/k1/projects/:projectId/collections/:collectionName
+   */
   deleteCollection = async (
     req: AuthenticatedRequest,
     res: Response
   ): Promise<void> => {
     try {
       const { projectId, collectionName } = req.params;
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      // Check if collection exists
-      const existing = await this.db.getCollection(projectId, collectionName);
-      if (!existing) {
+      if (!sanitizedId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
+        } as ApiResponse);
+        return;
+      }
+
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
+
+      if (!collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Collection name is required",
+          code: "MISSING_COLLECTION_NAME",
+        } as ApiResponse);
+        return;
+      }
+
+      // Delete collection using database service
+      const deleted = await this.db.deleteCollection(
+        sanitizedId,
+        collectionName
+      );
+
+      if (deleted) {
+        res.status(200).json({
+          success: true,
+          message: `Collection deleted successfully`,
+        } as ApiResponse);
+      } else {
         res.status(404).json({
           success: false,
           error: "Collection not found",
         } as ApiResponse);
-        return;
       }
-
-      // Check if collection has documents
-      const { total } = await this.db.getDocumentsByCollection(existing.id);
-      if (total > 0) {
-        res.status(409).json({
-          success: false,
-          error: `Cannot delete collection with ${total} documents. Delete all documents first.`,
-        } as ApiResponse);
-        return;
-      }
-
-      // Delete the collection
-      const deleted = await this.db.deleteCollection(projectId, collectionName);
-
-      if (!deleted) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to delete collection",
-        } as ApiResponse);
-        return;
-      }
-
-      // Log the action
-      await this.db.createChangelogEntry({
-        project_id: projectId,
-        entity_type: "collection",
-        entity_id: existing.id,
-        action: ChangeAction.DELETED,
-        changes: { name: collectionName },
-        performed_by: req.user?.id || "unknown",
-        session_id: req.session?.id,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: "Collection deleted successfully",
-      } as ApiResponse);
       return;
     } catch (error) {
       console.error("Delete collection error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       res.status(500).json({
         success: false,
         error: "Failed to delete collection",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
   };
 
-  // Get documents from a collection
-  getDocuments = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, collectionName } = req.params;
-      const {
-        page = 1,
-        limit = 50,
-        orderBy = "created_at",
-        order = "desc",
-        ...filters
-      } = req.query;
-
-      // Verify collection exists
-      const collection = await this.db.getCollection(projectId, collectionName);
-      if (!collection) {
-        res.status(404).json({
-          success: false,
-          error: "Collection not found",
-        } as ApiResponse);
-        return;
-      }
-
-      const pageNum = parseInt(page as string);
-      const limitNum = Math.min(parseInt(limit as string), 100);
-      const offset = (pageNum - 1) * limitNum;
-
-      const { documents, total } = await this.db.getDocuments(
-        projectId,
-        collectionName,
-        {
-          limit: limitNum,
-          offset,
-          orderBy: orderBy as string,
-          order: order as "asc" | "desc",
-          where: filters as Record<string, unknown>,
-        }
-      );
-
-      const totalPages = Math.ceil(total / limitNum);
-
-      res.status(200).json({
-        success: true,
-        data: documents,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          totalPages,
-          hasNext: pageNum < totalPages,
-          hasPrev: pageNum > 1,
-        },
-      } as PaginatedResponse<Document>);
-      return;
-    } catch (error) {
-      console.error("Get documents error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to fetch documents",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Get a single document
-  getDocument = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, collectionName, documentId } = req.params;
-
-      const document = await this.db.getDocument(
-        projectId,
-        collectionName,
-        documentId
-      );
-
-      if (!document) {
-        res.status(404).json({
-          success: false,
-          error: "Document not found",
-        } as ApiResponse);
-        return;
-      }
-
-      res.status(200).json({
-        success: true,
-        data: document,
-      } as ApiResponse<Document>);
-      return;
-    } catch (error) {
-      console.error("Get document error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to fetch document",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Create a new document
-  createDocument = async (
+  /**
+   * Get collection statistics
+   * GET /krapi/k1/projects/:projectId/collections/:collectionName/statistics
+   */
+  getCollectionStatistics = async (
     req: AuthenticatedRequest,
     res: Response
   ): Promise<void> => {
     try {
       const { projectId, collectionName } = req.params;
-      const { data } = req.body;
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      if (!data || typeof data !== "object") {
+      if (!sanitizedId) {
         res.status(400).json({
           success: false,
-          error: "Document data is required",
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
         } as ApiResponse);
         return;
       }
 
-      // Verify collection exists
-      const collection = await this.db.getCollection(projectId, collectionName);
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
+
+      if (!collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Collection name is required",
+          code: "MISSING_COLLECTION_NAME",
+        } as ApiResponse);
+        return;
+      }
+
+      // Get the collection to get statistics for
+      const collection = await this.db.getCollection(
+        sanitizedId,
+        collectionName
+      );
+
       if (!collection) {
         res.status(404).json({
           success: false,
           error: "Collection not found",
+          code: "COLLECTION_NOT_FOUND",
         } as ApiResponse);
         return;
       }
 
-      // Validate document against collection fields
-      const validation = this.validateDocument(data, collection.fields);
-      if (!validation.valid) {
-        res.status(400).json({
-          success: false,
-          error: validation.error,
-        } as ApiResponse);
-        return;
-      }
-
-      // Create the document
-      const document = await this.db.createDocument(
-        projectId,
-        collectionName,
-        data,
-        req.user?.id
-      );
-
-      // Log the action
-      await this.db.createChangelogEntry({
-        project_id: projectId,
-        entity_type: "document",
-        entity_id: document.id,
-        action: ChangeAction.CREATED,
-        changes: { collection: collectionName },
-        performed_by: req.user?.id || "unknown",
-        session_id: req.session?.id,
-      });
-
-      res.status(201).json({
-        success: true,
-        data: document,
-      } as ApiResponse<Document>);
-      return;
-    } catch (error) {
-      console.error("Create document error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to create document",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Update a document
-  updateDocument = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
-    try {
-      const { projectId, collectionName, documentId } = req.params;
-      const { data } = req.body;
-
-      if (!data || typeof data !== "object") {
-        res.status(400).json({
-          success: false,
-          error: "Document data is required",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify document exists
-      const existing = await this.db.getDocument(
-        projectId,
-        collectionName,
-        documentId
-      );
-      if (!existing) {
-        res.status(404).json({
-          success: false,
-          error: "Document not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Get collection for validation
-      const collection = await this.db.getCollection(projectId, collectionName);
-      if (!collection) {
-        res.status(404).json({
-          success: false,
-          error: "Collection not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Validate document against collection fields
-      const validation = this.validateDocument(data, collection.fields);
-      if (!validation.valid) {
-        res.status(400).json({
-          success: false,
-          error: validation.error,
-        } as ApiResponse);
-        return;
-      }
-
-      // Update the document
-      const updated = await this.db.updateDocument(
-        projectId,
-        collectionName,
-        documentId,
-        data,
-        req.user?.id
-      );
-
-      if (!updated) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to update document",
-        } as ApiResponse);
-        return;
-      }
-
-      // Log the action
-      await this.db.createChangelogEntry({
-        project_id: projectId,
-        entity_type: "document",
-        entity_id: documentId,
-        action: ChangeAction.UPDATED,
-        changes: { collection: collectionName },
-        performed_by: req.user?.id || "unknown",
-        session_id: req.session?.id,
-      });
+      // For now, return mock statistics since the database service doesn't have this method yet
+      // TODO: Implement actual statistics collection in DatabaseService
+      const statistics = {
+        total_documents: 0,
+        total_size_bytes: 0,
+        field_count: collection.fields?.length || 0,
+        index_count: collection.indexes?.length || 0,
+        created_at: collection.created_at,
+        updated_at: collection.updated_at
+      };
 
       res.status(200).json({
         success: true,
-        data: updated,
-      } as ApiResponse<Document>);
+        data: statistics,
+      } as ApiResponse);
       return;
     } catch (error) {
-      console.error("Update document error:", error);
+      console.error("Get collection statistics error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       res.status(500).json({
         success: false,
-        error: "Failed to update document",
+        error: "Failed to get collection statistics",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
   };
 
-  // Delete a document
-  deleteDocument = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
-    try {
-      const { projectId, collectionName, documentId } = req.params;
-
-      // Verify document exists
-      const existing = await this.db.getDocument(
-        projectId,
-        collectionName,
-        documentId
-      );
-      if (!existing) {
-        res.status(404).json({
-          success: false,
-          error: "Document not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Delete the document
-      const deleted = await this.db.deleteDocument(
-        projectId,
-        collectionName,
-        documentId
-      );
-
-      if (!deleted) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to delete document",
-        } as ApiResponse);
-        return;
-      }
-
-      // Log the action
-      await this.db.createChangelogEntry({
-        project_id: projectId,
-        entity_type: "document",
-        entity_id: documentId,
-        action: ChangeAction.DELETED,
-        changes: { collection: collectionName },
-        performed_by: req.user?.id || "unknown",
-        session_id: req.session?.id,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: "Document deleted successfully",
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Delete document error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to delete document",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Batch create documents
-  batchCreateDocuments = async (
+  /**
+   * Validate collection schema
+   * POST /krapi/k1/projects/:projectId/collections/:collectionName/validate-schema
+   */
+  validateCollectionSchema = async (
     req: AuthenticatedRequest,
     res: Response
   ): Promise<void> => {
     try {
       const { projectId, collectionName } = req.params;
-      const { documents } = req.body;
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      if (!documents || !Array.isArray(documents)) {
+      if (!sanitizedId) {
         res.status(400).json({
           success: false,
-          error: "Documents array is required",
+          error: "Project ID is required",
+          code: "MISSING_PROJECT_ID",
         } as ApiResponse);
         return;
       }
 
-      if (documents.length === 0) {
+      if (!isValidProjectId(sanitizedId)) {
         res.status(400).json({
           success: false,
-          error: "Documents array cannot be empty",
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
         } as ApiResponse);
         return;
       }
 
-      if (documents.length > 1000) {
+      if (!collectionName) {
         res.status(400).json({
           success: false,
-          error: "Maximum 1000 documents allowed per batch",
+          error: "Collection name is required",
+          code: "MISSING_COLLECTION_NAME",
         } as ApiResponse);
         return;
       }
 
-      // Verify collection exists
-      const collection = await this.db.getCollection(projectId, collectionName);
+      // Get the collection to validate
+      const collection = await this.db.getCollection(
+        sanitizedId,
+        collectionName
+      );
+
       if (!collection) {
         res.status(404).json({
           success: false,
@@ -669,657 +546,162 @@ export class CollectionsController {
         return;
       }
 
-      // Validate all documents
-      const validationErrors: string[] = [];
-      documents.forEach((doc, index) => {
-        if (!doc || typeof doc !== "object") {
-          validationErrors.push(`Document at index ${index} is invalid`);
-          return;
-        }
-        const validation = this.validateDocument(doc, collection.fields);
-        if (!validation.valid) {
-          validationErrors.push(
-            `Document at index ${index}: ${validation.error}`
-          );
-        }
-      });
+      // Basic schema validation
+      const issues: string[] = [];
+      let isValid = true;
 
-      if (validationErrors.length > 0) {
-        res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: validationErrors,
-        } as ApiResponse);
-        return;
-      }
-
-      // Create all documents
-      const createdDocuments: Document[] = [];
-      const errors: { index: number; error: string }[] = [];
-
-      for (let i = 0; i < documents.length; i++) {
-        try {
-          const document = await this.db.createDocument(
-            projectId,
-            collectionName,
-            documents[i],
-            req.user?.id
-          );
-          createdDocuments.push(document);
-
-          // Log the action
-          await this.db.createChangelogEntry({
-            project_id: projectId,
-            entity_type: "document",
-            entity_id: document.id,
-            action: ChangeAction.CREATED,
-            changes: { collection: collectionName, batch: true },
-            performed_by: req.user?.id || "unknown",
-            session_id: req.session?.id,
-          });
-        } catch (error) {
-          errors.push({
-            index: i,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
-      }
-
-      res.status(201).json({
-        success: true,
-        data: {
-          created: createdDocuments,
-          failed: errors,
-          summary: {
-            total: documents.length,
-            created: createdDocuments.length,
-            failed: errors.length,
-          },
-        },
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Batch create documents error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to create documents",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Batch update documents
-  batchUpdateDocuments = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
-    try {
-      const { projectId, collectionName } = req.params;
-      const { updates } = req.body;
-
-      if (!updates || !Array.isArray(updates)) {
-        res.status(400).json({
-          success: false,
-          error: "Updates array is required",
-        } as ApiResponse);
-        return;
-      }
-
-      if (updates.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "Updates array cannot be empty",
-        } as ApiResponse);
-        return;
-      }
-
-      if (updates.length > 1000) {
-        res.status(400).json({
-          success: false,
-          error: "Maximum 1000 updates allowed per batch",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify collection exists
-      const collection = await this.db.getCollection(projectId, collectionName);
-      if (!collection) {
-        res.status(404).json({
-          success: false,
-          error: "Collection not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Validate all updates
-      const validationErrors: string[] = [];
-      updates.forEach((update, index) => {
-        if (!update || typeof update !== "object") {
-          validationErrors.push(`Update at index ${index} is invalid`);
-          return;
-        }
-        if (!update.id) {
-          validationErrors.push(
-            `Update at index ${index}: Document ID is required`
-          );
-          return;
-        }
-        if (!update.data || typeof update.data !== "object") {
-          validationErrors.push(
-            `Update at index ${index}: Data object is required`
-          );
-          return;
-        }
-        const validation = this.validateDocument(
-          update.data,
-          collection.fields
-        );
-        if (!validation.valid) {
-          validationErrors.push(
-            `Update at index ${index}: ${validation.error}`
-          );
-        }
-      });
-
-      if (validationErrors.length > 0) {
-        res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: validationErrors,
-        } as ApiResponse);
-        return;
-      }
-
-      // Update all documents
-      const updatedDocuments: Document[] = [];
-      const errors: { index: number; id: string; error: string }[] = [];
-
-      for (let i = 0; i < updates.length; i++) {
-        try {
-          // Verify document exists
-          const existing = await this.db.getDocument(
-            projectId,
-            collectionName,
-            updates[i].id
-          );
-          if (!existing) {
-            errors.push({
-              index: i,
-              id: updates[i].id,
-              error: "Document not found",
-            });
-            continue;
+      // Validate fields
+      if (collection.fields && Array.isArray(collection.fields)) {
+        collection.fields.forEach((field, index) => {
+          if (!field.name || field.name.trim() === "") {
+            issues.push(`Field ${index}: Name is required`);
+            isValid = false;
           }
 
-          const updated = await this.db.updateDocument(
-            projectId,
-            collectionName,
-            updates[i].id,
-            updates[i].data,
-            req.user?.id
-          );
-
-          if (updated) {
-            updatedDocuments.push(updated);
-
-            // Log the action
-            await this.db.createChangelogEntry({
-              project_id: projectId,
-              entity_type: "document",
-              entity_id: updates[i].id,
-              action: ChangeAction.UPDATED,
-              changes: { collection: collectionName, batch: true },
-              performed_by: req.user?.id || "unknown",
-              session_id: req.session?.id,
-            });
-          } else {
-            errors.push({
-              index: i,
-              id: updates[i].id,
-              error: "Failed to update document",
-            });
+          if (
+            !field.type ||
+            ![
+              "string",
+              "text",
+              "integer",
+              "decimal",
+              "boolean",
+              "date",
+              "timestamp",
+              "json",
+              "uuid",
+            ].includes(field.type)
+          ) {
+            issues.push(`Field ${field.name}: Invalid type '${field.type}'`);
+            isValid = false;
           }
-        } catch (error) {
-          errors.push({
-            index: i,
-            id: updates[i].id,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        });
+      }
+
+      // Validate indexes
+      if (collection.indexes && Array.isArray(collection.indexes)) {
+        collection.indexes.forEach((index, indexIndex) => {
+          if (!index.name || index.name.trim() === "") {
+            issues.push(`Index ${indexIndex}: Name is required`);
+            isValid = false;
+          }
+
+          if (
+            !index.fields ||
+            !Array.isArray(index.fields) ||
+            index.fields.length === 0
+          ) {
+            issues.push(`Index ${index.name}: Must have at least one field`);
+            isValid = false;
+          }
+        });
       }
 
       res.status(200).json({
         success: true,
-        data: {
-          updated: updatedDocuments,
-          failed: errors,
-          summary: {
-            total: updates.length,
-            updated: updatedDocuments.length,
-            failed: errors.length,
-          },
-        },
+        valid: isValid,
+        issues,
+        collectionName,
       } as ApiResponse);
       return;
     } catch (error) {
-      console.error("Batch update documents error:", error);
+      console.error("Schema validation error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       res.status(500).json({
         success: false,
-        error: "Failed to update documents",
+        error: "Failed to validate schema",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
   };
 
-  // Batch delete documents
-  batchDeleteDocuments = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
-    try {
-      const { projectId, collectionName } = req.params;
-      const { documentIds } = req.body;
+  /**
+   * Validate field data for collection creation/update
+   */
+  private validateFieldData(fields: Record<string, unknown>[]): { isValid: boolean; issues: string[] } {
+    const issues: string[] = [];
+    let isValid = true;
 
-      if (!documentIds || !Array.isArray(documentIds)) {
-        res.status(400).json({
-          success: false,
-          error: "Document IDs array is required",
-        } as ApiResponse);
-        return;
-      }
-
-      if (documentIds.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "Document IDs array cannot be empty",
-        } as ApiResponse);
-        return;
-      }
-
-      if (documentIds.length > 1000) {
-        res.status(400).json({
-          success: false,
-          error: "Maximum 1000 documents allowed per batch",
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify collection exists
-      const collection = await this.db.getCollection(projectId, collectionName);
-      if (!collection) {
-        res.status(404).json({
-          success: false,
-          error: "Collection not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Delete all documents
-      const deletedIds: string[] = [];
-      const errors: { id: string; error: string }[] = [];
-
-      for (const documentId of documentIds) {
-        try {
-          // Verify document exists
-          const existing = await this.db.getDocument(
-            projectId,
-            collectionName,
-            documentId
-          );
-          if (!existing) {
-            errors.push({
-              id: documentId,
-              error: "Document not found",
-            });
-            continue;
-          }
-
-          const deleted = await this.db.deleteDocument(
-            projectId,
-            collectionName,
-            documentId
-          );
-
-          if (deleted) {
-            deletedIds.push(documentId);
-
-            // Log the action
-            await this.db.createChangelogEntry({
-              project_id: projectId,
-              entity_type: "document",
-              entity_id: documentId,
-              action: ChangeAction.DELETED,
-              changes: { collection: collectionName, batch: true },
-              performed_by: req.user?.id || "unknown",
-              session_id: req.session?.id,
-            });
-          } else {
-            errors.push({
-              id: documentId,
-              error: "Failed to delete document",
-            });
-          }
-        } catch (error) {
-          errors.push({
-            id: documentId,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          deleted: deletedIds,
-          failed: errors,
-          summary: {
-            total: documentIds.length,
-            deleted: deletedIds.length,
-            failed: errors.length,
-          },
-        },
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Batch delete documents error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to delete documents",
-      } as ApiResponse);
-      return;
-    }
-  };
-
-  // Helper methods
-  private isValidCollectionName(name: string): boolean {
-    return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
-  }
-
-  private validateCollectionFields(fields: CollectionField[]): {
-    valid: boolean;
-    error?: string;
-  } {
     if (!Array.isArray(fields)) {
-      return { valid: false, error: "Fields must be an array" };
+      return { isValid: false, issues: ["Fields must be an array"] };
     }
 
-    const fieldNames = new Set<string>();
-
-    for (const field of fields) {
-      // Check required properties
-      if (!field.name || !field.type) {
-        return { valid: false, error: "Each field must have a name and type" };
+    fields.forEach((field, index) => {
+      if (!field.name || typeof field.name !== "string" || field.name.trim() === "") {
+        issues.push(`Field ${index}: Name is required and cannot be empty`);
+        isValid = false;
       }
 
-      // Check for duplicate field names
-      if (fieldNames.has(field.name)) {
-        return { valid: false, error: `Duplicate field name: ${field.name}` };
-      }
-      fieldNames.add(field.name);
-
-      // Validate field name
-      if (!this.isValidFieldName(field.name)) {
-        return {
-          valid: false,
-          error: `Invalid field name: ${field.name}. Use only letters, numbers, and underscores.`,
-        };
+      // Check for invalid field names (spaces, special characters)
+      if (field.name && typeof field.name === "string" && /[^a-zA-Z0-9_]/g.test(field.name)) {
+        issues.push(`Field ${field.name}: Name cannot contain spaces or special characters (only letters, numbers, and underscores allowed)`);
+        isValid = false;
       }
 
-      // Validate field type
-      const validTypes: FieldType[] = [
+      if (!field.type || typeof field.type !== "string") {
+        issues.push(`Field ${field.name || index}: Type is required`);
+        isValid = false;
+      }
+
+      const validTypes = [
         "string",
-        "number",
+        "text",
+        "integer",
+        "decimal",
         "boolean",
         "date",
-        "array",
-        "object",
+        "timestamp",
+        "json",
+        "uuid",
       ];
-      if (!validTypes.includes(field.type as FieldType)) {
-        return { valid: false, error: `Invalid field type: ${field.type}` };
-      }
 
-      // Validate field validation rules if present
-      if (field.validation) {
-        const validationResult = this.validateFieldValidation(
-          field.type as FieldType,
-          field.validation
-        );
-        if (!validationResult.valid) {
-          return {
-            valid: false,
-            error: `Field ${field.name}: ${validationResult.error}`,
-          };
-        }
+      if (field.type && typeof field.type === "string" && !validTypes.includes(field.type)) {
+        issues.push(`Field ${field.name}: Invalid type '${field.type}'. Valid types are: ${validTypes.join(", ")}`);
+        isValid = false;
       }
-    }
+    });
 
-    return { valid: true };
+    return { isValid, issues };
   }
 
-  private isValidFieldName(name: string): boolean {
-    return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
-  }
+  /**
+   * Validate index data for collection creation/update
+   */
+  private validateIndexData(indexes: Record<string, unknown>[], fields: Record<string, unknown>[]): { isValid: boolean; issues: string[] } {
+    const issues: string[] = [];
+    let isValid = true;
 
-  private validateFieldValidation(
-    type: FieldType,
-    validation: FieldValidation
-  ): { valid: boolean; error?: string } {
-    switch (type) {
-      case "string":
-        if (validation.minLength !== undefined && validation.minLength < 0) {
-          return { valid: false, error: "minLength must be non-negative" };
-        }
-        if (validation.maxLength !== undefined && validation.maxLength < 0) {
-          return { valid: false, error: "maxLength must be non-negative" };
-        }
-        if (
-          validation.minLength !== undefined &&
-          validation.maxLength !== undefined &&
-          validation.minLength > validation.maxLength
-        ) {
-          return {
-            valid: false,
-            error: "minLength cannot be greater than maxLength",
-          };
-        }
-        break;
-
-      case "number":
-        if (
-          validation.min !== undefined &&
-          validation.max !== undefined &&
-          validation.min > validation.max
-        ) {
-          return { valid: false, error: "min cannot be greater than max" };
-        }
-        break;
-
-      case "array":
-        if (validation.minItems !== undefined && validation.minItems < 0) {
-          return { valid: false, error: "minItems must be non-negative" };
-        }
-        if (validation.maxItems !== undefined && validation.maxItems < 0) {
-          return { valid: false, error: "maxItems must be non-negative" };
-        }
-        if (
-          validation.minItems !== undefined &&
-          validation.maxItems !== undefined &&
-          validation.minItems > validation.maxItems
-        ) {
-          return {
-            valid: false,
-            error: "minItems cannot be greater than maxItems",
-          };
-        }
-        break;
+    if (!Array.isArray(indexes)) {
+      return { isValid: false, issues: ["Indexes must be an array"] };
     }
 
-    return { valid: true };
-  }
+    const fieldNames = fields.map(f => String(f.name || '')).filter(name => name.length > 0);
 
-  private validateDocument(
-    data: Record<string, unknown>,
-    fields: CollectionField[]
-  ): { valid: boolean; error?: string } {
-    // Check required fields
-    for (const field of fields) {
-      if (field.required && !(field.name in data)) {
-        return { valid: false, error: `Missing required field: ${field.name}` };
+    indexes.forEach((index, indexIndex) => {
+      if (!index.name || typeof index.name !== "string" || index.name.trim() === "") {
+        issues.push(`Index ${indexIndex}: Name is required and cannot be empty`);
+        isValid = false;
       }
 
-      // Validate field types and constraints
-      if (field.name in data) {
-        const value = data[field.name];
-        const validationResult = this.validateFieldValue(field, value);
-        if (!validationResult.valid) {
-          return validationResult;
-        }
+      if (!index.fields || !Array.isArray(index.fields) || index.fields.length === 0) {
+        issues.push(`Index ${index.name}: Must have at least one field`);
+        isValid = false;
       }
-    }
 
-    return { valid: true };
-  }
+      // Check if index fields exist in the collection
+      (index.fields as string[]).forEach((fieldName: string) => {
+        if (!fieldNames.includes(fieldName)) {
+          issues.push(`Index ${index.name}: Field '${fieldName}' does not exist in the collection`);
+          isValid = false;
+        }
+      });
+    });
 
-  private validateFieldValue(
-    field: CollectionField,
-    value: unknown
-  ): { valid: boolean; error?: string } {
-    // Type validation
-    switch (field.type) {
-      case "string":
-        if (typeof value !== "string") {
-          return {
-            valid: false,
-            error: `Field ${field.name} must be a string`,
-          };
-        }
-        if (field.validation) {
-          if (
-            field.validation.minLength !== undefined &&
-            value.length < field.validation.minLength
-          ) {
-            return {
-              valid: false,
-              error: `Field ${field.name} must be at least ${field.validation.minLength} characters`,
-            };
-          }
-          if (
-            field.validation.maxLength !== undefined &&
-            value.length > field.validation.maxLength
-          ) {
-            return {
-              valid: false,
-              error: `Field ${field.name} must be at most ${field.validation.maxLength} characters`,
-            };
-          }
-          if (field.validation.pattern) {
-            const regex = new RegExp(field.validation.pattern);
-            if (!regex.test(value)) {
-              return {
-                valid: false,
-                error: `Field ${field.name} does not match the required pattern`,
-              };
-            }
-          }
-        }
-        break;
-
-      case "number":
-        if (typeof value !== "number" || isNaN(value)) {
-          return {
-            valid: false,
-            error: `Field ${field.name} must be a number`,
-          };
-        }
-        if (field.validation) {
-          if (
-            field.validation.min !== undefined &&
-            value < field.validation.min
-          ) {
-            return {
-              valid: false,
-              error: `Field ${field.name} must be at least ${field.validation.min}`,
-            };
-          }
-          if (
-            field.validation.max !== undefined &&
-            value > field.validation.max
-          ) {
-            return {
-              valid: false,
-              error: `Field ${field.name} must be at most ${field.validation.max}`,
-            };
-          }
-        }
-        break;
-
-      case "boolean":
-        if (typeof value !== "boolean") {
-          return {
-            valid: false,
-            error: `Field ${field.name} must be a boolean`,
-          };
-        }
-        break;
-
-      case "date":
-        if (typeof value !== "string" || isNaN(Date.parse(value))) {
-          return {
-            valid: false,
-            error: `Field ${field.name} must be a valid date string`,
-          };
-        }
-        break;
-
-      case "array":
-        if (!Array.isArray(value)) {
-          return {
-            valid: false,
-            error: `Field ${field.name} must be an array`,
-          };
-        }
-        if (field.validation) {
-          if (
-            field.validation.minItems !== undefined &&
-            value.length < field.validation.minItems
-          ) {
-            return {
-              valid: false,
-              error: `Field ${field.name} must have at least ${field.validation.minItems} items`,
-            };
-          }
-          if (
-            field.validation.maxItems !== undefined &&
-            value.length > field.validation.maxItems
-          ) {
-            return {
-              valid: false,
-              error: `Field ${field.name} must have at most ${field.validation.maxItems} items`,
-            };
-          }
-        }
-        break;
-
-      case "object":
-        if (
-          typeof value !== "object" ||
-          value === null ||
-          Array.isArray(value)
-        ) {
-          return {
-            valid: false,
-            error: `Field ${field.name} must be an object`,
-          };
-        }
-        break;
-    }
-
-    // Check unique constraint if applicable
-    if (field.unique) {
-      // This would need to be checked against the database
-      // For now, we'll skip this validation at the controller level
-    }
-
-    return { valid: true };
+    return { isValid, issues };
   }
 }

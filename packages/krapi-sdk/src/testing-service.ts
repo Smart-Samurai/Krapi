@@ -247,19 +247,12 @@ export class TestingService {
     const startTime = Date.now();
 
     try {
-      // Use built-in fetch or node-fetch fallback
-      let fetchFn: any;
-      if (globalThis.fetch) {
-        fetchFn = globalThis.fetch;
-      } else {
-        try {
-          const nodeFetch = await import("node-fetch" as any);
-          fetchFn = nodeFetch.default;
-        } catch {
-          throw new Error(
-            "No fetch implementation available. Install node-fetch for Node.js environments."
-          );
-        }
+      // Use built-in fetch (Node 18+/browsers). If unavailable, throw.
+      const fetchFn: typeof fetch | undefined = (globalThis as any).fetch;
+      if (!fetchFn) {
+        throw new Error(
+          "No fetch implementation available. Please run on Node 18+ or provide a global fetch."
+        );
       }
       const url = `${baseUrl}${endpoint}`;
       const options: any = {

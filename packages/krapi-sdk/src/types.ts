@@ -24,6 +24,18 @@ export interface ApiResponse<T = any> {
   timestamp?: string;
 }
 
+export interface PaginatedResponse<T = any> {
+  data: T[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}
+
 export interface PaginationOptions {
   limit?: number;
   offset?: number;
@@ -71,6 +83,25 @@ export interface SessionToken {
   last_used_at?: string;
 }
 
+export interface Session {
+  id: string;
+  user_id: string;
+  token: string;
+  expires_at: string;
+  created_at: string;
+  last_used_at?: string;
+  ip_address?: string;
+  user_agent?: string;
+  is_active: boolean;
+  // Additional properties for backend compatibility
+  type?: SessionType;
+  project_id?: string;
+  scopes?: Scope[];
+  metadata?: Record<string, any>;
+  consumed?: boolean;
+  user_type?: "admin" | "project";
+}
+
 export interface SessionValidation {
   valid: boolean;
   user?: User;
@@ -106,11 +137,49 @@ export interface User {
   last_login_at?: string;
   profile?: UserProfile;
   project_id?: string; // For project users
+  // Additional properties for backend compatibility
+  permissions?: string[];
+  phone?: string;
+  is_verified?: boolean;
+  scopes?: Scope[];
+}
+
+export interface ProjectUser {
+  id: string;
+  project_id: string;
+  username: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  created_at: string;
+  updated_at: string;
+  last_login?: string;
+  // Backend-specific properties
+  phone?: string;
+  is_verified?: boolean;
+  scopes?: string[];
+  password?: string;
+  permissions?: string[];
+}
+
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  role: AdminRole;
+  access_level: AccessLevel;
+  permissions: string[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_login?: string;
+  login_count?: number;
+  // Backend-specific properties
+  api_key?: string;
+  password_hash?: string;
 }
 
 // Aliases for backward compatibility
-export type AdminUser = User;
-export type ProjectUser = User;
 export type CollectionField = FieldDefinition;
 export type CollectionIndex = IndexDefinition;
 
@@ -137,6 +206,10 @@ export enum AdminRole {
   SUPER_ADMIN = "super_admin",
   ADMIN = "admin",
   MODERATOR = "moderator",
+  // Additional roles for backend compatibility
+  MASTER_ADMIN = "master_admin",
+  PROJECT_ADMIN = "project_admin",
+  LIMITED_ADMIN = "limited_admin",
 }
 
 export enum AccessLevel {
@@ -151,6 +224,27 @@ export enum Scope {
   WRITE = "write",
   DELETE = "delete",
   ADMIN = "admin",
+  // Additional scopes for backend compatibility
+  MASTER = "master",
+  ADMIN_READ = "admin:read",
+  ADMIN_WRITE = "admin:write",
+  PROJECTS_READ = "projects:read",
+  PROJECTS_WRITE = "projects:write",
+  PROJECTS_DELETE = "projects:delete",
+  COLLECTIONS_READ = "collections:read",
+  COLLECTIONS_WRITE = "collections:write",
+  COLLECTIONS_DELETE = "collections:delete",
+  DOCUMENTS_READ = "documents:read",
+  DOCUMENTS_WRITE = "documents:write",
+  DOCUMENTS_DELETE = "documents:delete",
+  STORAGE_READ = "storage:read",
+  STORAGE_WRITE = "storage:write",
+  STORAGE_DELETE = "storage:delete",
+  EMAIL_SEND = "email:send",
+  EMAIL_READ = "email:read",
+  FUNCTIONS_EXECUTE = "functions:execute",
+  FUNCTIONS_WRITE = "functions:write",
+  FUNCTIONS_DELETE = "functions:delete",
 }
 
 export enum ProjectScope {
@@ -202,6 +296,8 @@ export interface ApiKey {
   usage_count: number;
   rate_limit?: number;
   metadata?: Record<string, any>;
+  // Backend-specific properties
+  project_ids?: string[];
 }
 
 export type ApiKeyScope =
@@ -262,6 +358,17 @@ export interface Project {
   settings: ProjectSettings;
   metadata?: Record<string, any>;
   stats?: ProjectStats;
+  // Additional properties for backend compatibility
+  storage_used?: number;
+  allowed_origins?: string[];
+  total_api_calls?: number;
+  last_api_call?: string;
+  // Backend-specific properties
+  project_url?: string;
+  active?: boolean;
+  created_by?: string;
+  rate_limit?: number;
+  rate_limit_window?: number;
 }
 
 export type ProjectStatus = "active" | "inactive" | "suspended" | "archived";
@@ -285,6 +392,24 @@ export interface ProjectSettings {
   custom_domain?: string;
   timezone?: string;
   locale?: string;
+  email_config?: {
+    smtp_host: string;
+    smtp_port: number;
+    smtp_secure: boolean;
+    smtp_username: string;
+    smtp_password: string;
+    from_email: string;
+    from_name: string;
+  };
+  // Backend-specific properties
+  authentication_required?: boolean;
+  cors_enabled?: boolean;
+  rate_limiting_enabled?: boolean;
+  logging_enabled?: boolean;
+  encryption_enabled?: boolean;
+  backup_enabled?: boolean;
+  custom_headers?: Record<string, string>;
+  environment?: "development" | "staging" | "production";
 }
 
 export interface ProjectStats {
@@ -295,6 +420,12 @@ export interface ProjectStats {
   storage_used: number;
   api_requests_today: number;
   api_requests_month: number;
+  // Additional properties for backend compatibility
+  api_calls_count?: number;
+  last_api_call?: string;
+  collections_count?: number;
+  documents_count?: number;
+  users_count?: number;
 }
 
 // Backward compatibility alias
@@ -339,6 +470,8 @@ export interface Collection {
   // Backward compatibility - direct access to schema properties
   fields?: FieldDefinition[];
   indexes?: IndexDefinition[];
+  // Backend-specific properties
+  collection_id?: string;
 }
 
 export interface CollectionSchema {
@@ -363,6 +496,12 @@ export interface FieldDefinition {
   indexed?: boolean;
   default?: any;
   relation?: any;
+  // Additional properties for specific field types
+  length?: number;
+  precision?: number;
+  scale?: number;
+  nullable?: boolean;
+  primary?: boolean;
 }
 
 export type FieldType =
@@ -392,7 +531,9 @@ export type FieldType =
   | "relation"
   | "enum"
   | "password"
-  | "encrypted";
+  | "encrypted"
+  | "varchar"
+  | "decimal";
 
 export interface FieldValidation {
   min_length?: number;
@@ -402,6 +543,14 @@ export interface FieldValidation {
   pattern?: string;
   allowed_values?: any[];
   custom_validator?: string;
+  // Alternative naming for backward compatibility
+  minLength?: number;
+  maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  // Additional properties for backward compatibility
+  min?: number;
+  max?: number;
 }
 
 export interface FieldOptions {
@@ -493,15 +642,15 @@ export interface CollectionListOptions extends QueryOptions {
 
 export interface Document {
   id: string;
-  collection_name: string;
+  collection_id: string;
   project_id: string;
   data: Record<string, any>;
+  version: number;
+  is_deleted: boolean;
   created_at: string;
   updated_at: string;
-  created_by?: string;
-  updated_by?: string;
-  version?: number;
-  status?: DocumentStatus;
+  created_by: string;
+  updated_by: string;
   metadata?: Record<string, any>;
 }
 
@@ -741,6 +890,7 @@ export interface DatabaseHealth {
   issues?: DatabaseIssue[];
   checkDuration?: number;
   isHealthy?: boolean;
+  warnings?: DatabaseIssue[]; // Alternative naming
 }
 
 // Backward compatibility alias
@@ -755,6 +905,10 @@ export interface SchemaValidationResult {
   extra_tables: string[];
   field_mismatches: FieldMismatch[];
   mismatches?: SchemaMismatch[]; // Backward compatibility
+  missingTables?: string[]; // Alternative naming
+  extraTables?: string[]; // Alternative naming
+  fieldMismatches?: FieldMismatch[]; // Alternative naming
+  timestamp?: string; // For tracking when validation was performed
 }
 
 export interface MigrationResult {
@@ -764,12 +918,20 @@ export interface MigrationResult {
   errors: string[];
   duration: number;
   details?: string; // Backward compatibility
+  appliedMigrations?: number; // Alternative naming
 }
 
 export interface SchemaMismatch {
   table: string;
-  type: "missing" | "extra" | "field_mismatch";
+  type:
+    | "missing"
+    | "extra"
+    | "field_mismatch"
+    | "missing_field"
+    | "missing_index"
+    | "missing_constraint";
   details: string;
+  field?: string; // For field-specific mismatches
 }
 
 export interface FieldMismatch {
@@ -778,6 +940,7 @@ export interface FieldMismatch {
   expected_type: string;
   actual_type: string;
   nullable_mismatch?: boolean;
+  expected: FieldDefinition; // The expected field definition
 }
 
 export interface StorageHealth {
@@ -969,7 +1132,418 @@ export type DeepPartial<T> = {
 };
 
 // ===================================
+// COLLECTION TYPE MANAGEMENT TYPES
+// ===================================
+
+export interface CollectionTypeDefinition {
+  id: string;
+  name: string;
+  description?: string;
+  version: string;
+  schema: CollectionTypeSchema;
+  validation_rules: CollectionTypeValidationRule[];
+  auto_fix_rules: CollectionTypeAutoFixRule[];
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  project_id: string;
+  // Direct access properties for backward compatibility
+  fields: CollectionTypeField[];
+  indexes: CollectionTypeIndex[];
+  constraints: CollectionTypeConstraint[];
+  relations: CollectionTypeRelation[];
+  metadata?: Record<string, any>;
+}
+
+export interface CollectionTypeSchema {
+  fields: CollectionTypeField[];
+  indexes: CollectionTypeIndex[];
+  constraints: CollectionTypeConstraint[];
+  relations: CollectionTypeRelation[];
+}
+
+export interface CollectionTypeField {
+  name: string;
+  type: FieldType;
+  required: boolean;
+  unique: boolean;
+  indexed: boolean;
+  default?: any;
+  description?: string;
+  validation?: FieldValidation;
+  length?: number;
+  precision?: number;
+  scale?: number;
+  nullable?: boolean;
+  primary?: boolean;
+  postgresql_type?: string; // For PostgreSQL-specific type mapping
+  typescript_type?: string; // For TypeScript type mapping
+  relation?: any; // For relation fields
+}
+
+export interface CollectionTypeIndex {
+  name: string;
+  fields: string[];
+  unique: boolean;
+  type?: "btree" | "hash" | "gin" | "gist";
+}
+
+export interface CollectionTypeConstraint {
+  name: string;
+  type: "primary_key" | "foreign_key" | "unique" | "check" | "not_null";
+  fields: string[];
+  reference_table?: string;
+  reference_fields?: string[];
+  cascade_delete?: boolean;
+  check_expression?: string;
+  // Additional properties for backward compatibility
+  reference?: {
+    table: string;
+    field: string;
+    onDelete?: string;
+    onUpdate?: string;
+  };
+  expression?: string; // Alternative to check_expression
+}
+
+export interface CollectionTypeRelation {
+  name: string;
+  type: "one-to-one" | "one-to-many" | "many-to-one" | "many-to-many";
+  target_collection: string;
+  source_field: string;
+  target_field: string;
+  cascade_delete: boolean;
+}
+
+export interface CollectionTypeValidationRule {
+  id: string;
+  name: string;
+  description: string;
+  severity: "error" | "warning" | "info";
+  condition: string;
+  message: string;
+}
+
+export interface CollectionTypeAutoFixRule {
+  id: string;
+  name: string;
+  description: string;
+  action:
+    | "add_field"
+    | "modify_field"
+    | "add_index"
+    | "add_constraint"
+    | "drop_field";
+  parameters: Record<string, any>;
+  priority: number;
+}
+
+export interface CollectionTypeValidationResult {
+  isValid: boolean;
+  issues: CollectionTypeIssue[];
+  warnings: CollectionTypeIssue[];
+  suggestions: CollectionTypeIssue[];
+}
+
+export interface CollectionTypeIssue {
+  id?: string; // Made optional since it's generated
+  type:
+    | "error"
+    | "warning"
+    | "info"
+    | "suggestion"
+    | "missing_field"
+    | "wrong_type"
+    | "missing_index"
+    | "missing_constraint"
+    | "type_mismatch"
+    | "extra_field";
+  severity:
+    | "critical"
+    | "high"
+    | "medium"
+    | "low"
+    | "info"
+    | "error"
+    | "warning";
+  category?: "schema" | "validation" | "performance" | "security"; // Made optional with default
+  description: string;
+  field?: string;
+  table?: string;
+  suggestion?: string;
+  auto_fixable: boolean;
+  expected?: string; // For type mismatches
+  actual?: string; // For type mismatches
+}
+
+export interface CollectionTypeAutoFixResult {
+  success: boolean;
+  fixes_applied: CollectionTypeFix[];
+  fixes_failed: CollectionTypeFix[];
+  total_fixes: number;
+  duration: number;
+  details: string;
+  // Alternative naming for backward compatibility
+  fixesApplied?: CollectionTypeFix[];
+  fixesFailed?: CollectionTypeFix[];
+  totalFixes?: number;
+  detailsArray?: string[]; // For when details is passed as array
+  // Alternative types for backward compatibility
+  fixes_applied_count?: number; // When fixes_applied is passed as count
+  details_array?: string[]; // When details is passed as array
+}
+
+export interface CollectionTypeFix {
+  id?: string; // Made optional since it's generated
+  type:
+    | "add_field"
+    | "modify_field"
+    | "add_index"
+    | "add_constraint"
+    | "drop_field";
+  table?: string; // Made optional for some use cases
+  field?: string;
+  description: string;
+  sql: string;
+  parameters?: Record<string, any>; // Made optional
+  applied?: boolean; // Made optional
+  error?: string;
+  success?: boolean; // For backward compatibility
+  execution_time?: number; // For performance tracking
+}
+
+export interface CollectionTypeRegistry {
+  types: Map<string, CollectionTypeDefinition>;
+  version: string;
+  last_sync: string;
+  auto_fix_enabled: boolean;
+  validation_strict: boolean;
+}
+
+// ===================================
+// SYSTEM & ADMINISTRATION TYPES
+// ===================================
+
+export interface ChangelogEntry {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  version: string;
+  user_id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  changes: Record<string, any>;
+  created_at: string;
+  metadata?: Record<string, any>;
+  // Backend-specific properties
+  project_id?: string;
+  entity_type?: string;
+  entity_id?: string;
+  performed_by?: string;
+  session_id?: string;
+}
+
+export interface CreateChangelogEntry {
+  type: "feature" | "bugfix" | "breaking" | "deprecation" | "security";
+  title: string;
+  description: string;
+  version: string;
+  author: string;
+  breaking_changes?: string[];
+  migration_guide?: string;
+}
+
+export interface StorageStats {
+  total_size: number;
+  file_count: number;
+  collections_count: number;
+  projects_count: number;
+  last_updated: string;
+}
+
+export interface EmailSendRequest {
+  to: string | string[];
+  subject: string;
+  body: string;
+  html?: boolean;
+  attachments?: EmailAttachment[];
+  template_id?: string;
+  variables?: Record<string, any>;
+}
+
+export interface EmailAttachment {
+  filename: string;
+  content: string | Buffer;
+  content_type: string;
+}
+
+export interface SystemInfo {
+  version: string;
+  build_date: string;
+  node_version: string;
+  platform: string;
+  arch: string;
+  uptime: number;
+  memory_usage: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external: number;
+  };
+}
+
+export interface TestResult {
+  name: string;
+  status: "passed" | "failed" | "skipped";
+  duration: number;
+  error?: string;
+  details?: any;
+}
+
+export interface SystemSettings {
+  debug_mode: boolean;
+  log_level: "error" | "warn" | "info" | "debug";
+  rate_limiting: {
+    enabled: boolean;
+    window_ms: number;
+    max_requests: number;
+  };
+  security: {
+    cors_enabled: boolean;
+    allowed_origins: string[];
+    session_timeout: number;
+    password_min_length: number;
+  };
+  database: {
+    connection_pool_size: number;
+    query_timeout: number;
+    max_connections: number;
+  };
+}
+
+export interface AdminPermission {
+  id: string;
+  name: string;
+  description: string;
+  resource: string;
+  action: "create" | "read" | "update" | "delete" | "manage";
+  scope: "global" | "project" | "collection" | "user";
+}
+
+export interface FileRelation {
+  id: string;
+  file_id: string;
+  related_file_id: string;
+  relation_type: "parent" | "child" | "sibling" | "version";
+  metadata?: Record<string, any>;
+}
+
+export interface FileAttachment {
+  id: string;
+  file_id: string;
+  attached_to_type: "document" | "email" | "project";
+  attached_to_id: string;
+  attachment_type: "inline" | "attachment";
+  metadata?: Record<string, any>;
+}
+
+export interface FilterCondition {
+  field: string;
+  operator:
+    | "eq"
+    | "ne"
+    | "gt"
+    | "gte"
+    | "lt"
+    | "lte"
+    | "in"
+    | "nin"
+    | "like"
+    | "ilike"
+    | "regex"
+    | "exists";
+  value: any;
+  case_sensitive?: boolean;
+}
+
+// ===================================
+// SCHEMA MANAGEMENT TYPES
+// ===================================
+
+export interface ExpectedSchema {
+  tables: TableDefinition[];
+  version: string;
+  description?: string;
+}
+
+export interface TableDefinition {
+  name: string;
+  fields: FieldDefinition[];
+  indexes: IndexDefinition[];
+  constraints: ConstraintDefinition[];
+  relations: RelationDefinition[];
+}
+
+// This interface is now defined above - removing duplicate
+
+// This interface is now defined above - removing duplicate
+
+export interface ConstraintDefinition {
+  name: string;
+  type: "primary_key" | "foreign_key" | "unique" | "check" | "not_null";
+  fields: string[];
+  reference_table?: string;
+  reference_fields?: string[];
+  cascade_delete?: boolean;
+  check_expression?: string;
+  // Additional properties for backward compatibility
+  reference?: {
+    table: string;
+    field: string;
+    onDelete?: string;
+    onUpdate?: string;
+  };
+  expression?: string; // Alternative to check_expression
+}
+
+export interface RelationDefinition {
+  name: string;
+  type: "one-to-one" | "one-to-many" | "many-to-one" | "many-to-many";
+  target_table: string;
+  source_field: string;
+  target_field: string;
+  cascade_delete: boolean;
+}
+
+// ===================================
 // EXPORTS
 // ===================================
 
 // All types are exported above - no need for re-export
+
+// ===================================
+// ADDITIONAL TYPES FOR BACKEND COMPATIBILITY
+// ===================================
+
+export enum SessionType {
+  ADMIN = "admin",
+  PROJECT = "project",
+  USER = "user",
+}
+
+export interface FileRecord {
+  id: string;
+  project_id: string;
+  filename: string;
+  original_name: string;
+  mime_type: string;
+  size: number;
+  path: string;
+  url: string;
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, any>;
+}

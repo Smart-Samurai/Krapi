@@ -1,3 +1,4 @@
+import crypto from "crypto";
 /**
  * Storage Service for BackendSDK
  *
@@ -783,7 +784,6 @@ export class StorageService {
   // Utility Methods
   private async generateFileHash(buffer: Buffer): Promise<string> {
     try {
-      const crypto = await import("crypto");
       return crypto.createHash("sha256").update(buffer).digest("hex");
     } catch {
       return `hash_${Date.now()}_${Math.random().toString(36).substring(2)}`;

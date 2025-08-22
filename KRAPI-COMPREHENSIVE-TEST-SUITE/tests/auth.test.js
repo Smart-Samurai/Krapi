@@ -318,7 +318,7 @@ class AuthTests extends TestFramework {
             password: CONFIG.ADMIN_CREDENTIALS.password,
           }
         );
-        this.sessionToken = loginResponse.data.token;
+        this.sessionToken = loginResponse.data.session_token;
       });
 
       // Test 10: Session Persistence

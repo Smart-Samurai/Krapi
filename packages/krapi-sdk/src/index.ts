@@ -56,8 +56,8 @@ export { BackendSDK } from "./backend-sdk";
 // Note: FrontendSDK removed - use krapi singleton instead
 
 // Export shared interfaces and types
-// export * from "./interfaces"; // Temporarily disabled until types migration is complete
-// export * from "./types"; // Temporarily disabled until types migration is complete
+export * from "./interfaces";
+export * from "./types";
 
 // Export key enums explicitly for better IDE support
 export { AdminRole, AccessLevel, Scope, ProjectScope } from "./types";
@@ -155,6 +155,8 @@ export type {
   CreateProjectRequest,
   UpdateProjectRequest,
 } from "./projects-service";
+
+export type { ProjectStats, AdminPermission } from "./types";
 
 export type {
   StoredFile,

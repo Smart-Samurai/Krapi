@@ -11,6 +11,7 @@
 
 import { DatabaseConnection, Logger } from "./core";
 import { PasswordHashRow, EmailRow } from "./database-types";
+import bcrypt from "bcryptjs";
 
 export interface AdminUser {
   id: string;
@@ -572,8 +573,6 @@ export class AuthService {
   // Utility Methods
   private async hashPassword(password: string): Promise<string> {
     try {
-      // In a real implementation, use bcrypt
-      const bcrypt = await import("bcryptjs");
       const saltRounds = 12;
       return await bcrypt.hash(password, saltRounds);
     } catch {
@@ -587,8 +586,6 @@ export class AuthService {
     hash: string
   ): Promise<boolean> {
     try {
-      // In a real implementation, use bcrypt
-      const bcrypt = await import("bcryptjs");
       return await bcrypt.compare(password, hash);
     } catch {
       // Fallback for development

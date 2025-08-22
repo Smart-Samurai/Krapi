@@ -2,6 +2,7 @@ import {
   ExpectedSchema,
   TableDefinition,
   FieldDefinition,
+  FieldType,
   IndexDefinition,
   ConstraintDefinition,
   RelationDefinition,
@@ -46,7 +47,7 @@ export class SchemaGenerator {
    * Generate complete database schema from TypeScript interfaces
    */
   generateSchema(): ExpectedSchema {
-    const tables: Record<string, TableDefinition> = {};
+    const tables: TableDefinition[] = [];
 
     // Process each interface to generate table definitions
     for (const [interfaceName, interfaceDef] of Object.entries(
@@ -54,10 +55,14 @@ export class SchemaGenerator {
     )) {
       if (this.shouldGenerateTable(interfaceName, interfaceDef)) {
         const tableName = this.getTableName(interfaceName);
-        tables[tableName] = this.generateTableDefinition(
+        const tableDef = this.generateTableDefinition(
           interfaceName,
           interfaceDef
         );
+        tables.push({
+          name: tableName,
+          ...tableDef,
+        });
       }
     }
 
@@ -67,7 +72,6 @@ export class SchemaGenerator {
     return {
       tables,
       version: this.getSchemaVersion(),
-      checksum: this.generateChecksum(tables),
     };
   }
 
@@ -77,8 +81,8 @@ export class SchemaGenerator {
   private generateTableDefinition(
     interfaceName: string,
     interfaceDef: unknown
-  ): TableDefinition {
-    const fields: Record<string, FieldDefinition> = {};
+  ): Omit<TableDefinition, "name"> {
+    const fields: FieldDefinition[] = [];
     const indexes: IndexDefinition[] = [];
     const constraints: ConstraintDefinition[] = [];
 
@@ -88,10 +92,12 @@ export class SchemaGenerator {
     )) {
       if (this.shouldGenerateField(propertyName, propertyDef)) {
         const fieldName = this.getFieldName(propertyName);
-        fields[fieldName] = this.generateFieldDefinition(
+        const fieldDef = this.generateFieldDefinition(
           propertyName,
           propertyDef
         );
+        fieldDef.name = fieldName;
+        fields.push(fieldDef);
 
         // Generate indexes for certain field types
         if (this.options.generateIndexes) {
@@ -157,7 +163,9 @@ export class SchemaGenerator {
     }
 
     const fieldDef: FieldDefinition = {
-      type: fieldType,
+      name: propertyName,
+      type: this.mapFieldType(fieldType),
+      required: !isOptional,
       nullable: isOptional,
       primary: isPrimary,
       unique: isUnique,
@@ -237,14 +245,14 @@ export class SchemaGenerator {
    */
   private generateTableConstraints(
     tableName: string,
-    fields: Record<string, FieldDefinition>
+    fields: FieldDefinition[]
   ): ConstraintDefinition[] {
     const constraints: ConstraintDefinition[] = [];
 
     // Primary key constraint
-    const primaryKeyFields = Object.entries(fields)
-      .filter(([_, field]) => field.primary)
-      .map(([name, _]) => name);
+    const primaryKeyFields = fields
+      .filter((field) => field.primary)
+      .map((field) => field.name);
 
     if (primaryKeyFields.length > 0) {
       constraints.push({
@@ -286,22 +294,21 @@ export class SchemaGenerator {
   /**
    * Generate relations between tables
    */
-  private generateRelations(tables: Record<string, TableDefinition>): void {
-    for (const [tableName, tableDef] of Object.entries(tables)) {
+  private generateRelations(tables: TableDefinition[]): void {
+    for (const tableDef of tables) {
       const relations: RelationDefinition[] = [];
 
-      for (const [fieldName, _fieldDef] of Object.entries(tableDef.fields)) {
-        if (this.isForeignKey(fieldName)) {
-          const targetTable = this.getTargetTable(fieldName);
-          if (targetTable && tables[targetTable]) {
+      for (const fieldDef of tableDef.fields) {
+        if (this.isForeignKey(fieldDef.name)) {
+          const targetTable = this.getTargetTable(fieldDef.name);
+          if (targetTable && tables.find((t) => t.name === targetTable)) {
             relations.push({
-              name: `${tableName}_${fieldName}_fk`,
-              type: "many_to_one",
-              targetTable,
-              sourceField: fieldName,
-              targetField: "id",
-              cascadeDelete: false,
-              cascadeUpdate: false,
+              name: `${tableDef.name}_${fieldDef.name}_fk`,
+              type: "many-to-one",
+              target_table: targetTable,
+              source_field: fieldDef.name,
+              target_field: "id",
+              cascade_delete: false,
             });
           }
         }
@@ -373,6 +380,41 @@ export class SchemaGenerator {
     }
 
     return "VARCHAR(255)";
+  }
+
+  private mapFieldType(type: string): FieldType {
+    // Map SQL types to FieldType enum values
+    if (type.startsWith("VARCHAR")) return "varchar";
+    if (type.startsWith("DECIMAL")) return "decimal";
+    if (type === "TIMESTAMP") return "timestamp";
+    if (type === "INTEGER") return "integer";
+    if (type === "BOOLEAN") return "boolean";
+    if (type === "TEXT") return "text";
+    if (type === "UUID") return "uuid";
+    if (type === "JSON") return "json";
+    if (type === "ARRAY") return "array";
+    if (type === "OBJECT") return "object";
+    if (type === "FILE") return "file";
+    if (type === "IMAGE") return "image";
+    if (type === "VIDEO") return "video";
+    if (type === "AUDIO") return "audio";
+    if (type === "REFERENCE") return "reference";
+    if (type === "RELATION") return "relation";
+    if (type === "ENUM") return "enum";
+    if (type === "PASSWORD") return "password";
+    if (type === "ENCRYPTED") return "encrypted";
+    if (type === "EMAIL") return "email";
+    if (type === "URL") return "url";
+    if (type === "PHONE") return "phone";
+    if (type === "UNIQUEID") return "uniqueID";
+    if (type === "DATE") return "date";
+    if (type === "DATETIME") return "datetime";
+    if (type === "TIME") return "time";
+    if (type === "NUMBER") return "number";
+    if (type === "FLOAT") return "float";
+    if (type === "STRING") return "string";
+
+    return "string"; // Default fallback
   }
 
   private isOptionalProperty(propertyDef: unknown): boolean {

@@ -6,12 +6,7 @@ import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 
 import { DatabaseService } from "@/services/database.service";
-import {
-  AuthenticatedRequest,
-  ApiResponse,
-  FileRecord,
-  ChangeAction,
-} from "@/types";
+import { AuthenticatedRequest, ApiResponse, FileRecord } from "@/types";
 
 export class StorageController {
   private db: DatabaseService;
@@ -133,8 +128,10 @@ export class StorageController {
           mime_type: req.file.mimetype,
           size: req.file.size,
           path: req.file.path,
+          url: `/files/${req.file.filename}`, // Generate a URL for the file
           uploaded_by: authReq.user?.id || authReq.session?.user_id || "system",
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
 
         // Log the action
@@ -142,11 +139,14 @@ export class StorageController {
           project_id: projectId,
           entity_type: "file",
           entity_id: fileRecord.id,
-          action: ChangeAction.CREATED,
+          action: "created",
           changes: { filename: req.file.originalname, size: req.file.size },
           performed_by:
             authReq.user?.id || authReq.session?.user_id || "system",
           session_id: authReq.session?.id,
+          user_id: authReq.user?.id || authReq.session?.user_id || "system",
+          resource_type: "file",
+          resource_id: fileRecord.id,
         });
 
         res.status(201).json({
@@ -328,10 +328,13 @@ export class StorageController {
         project_id: projectId,
         entity_type: "file",
         entity_id: fileId,
-        action: ChangeAction.DELETED,
+        action: "deleted",
         changes: { filename: file.original_name },
         performed_by: authReq.user?.id || authReq.session?.user_id || "system",
         session_id: authReq.session?.id,
+        user_id: authReq.user?.id || authReq.session?.user_id || "system",
+        resource_type: "file",
+        resource_id: fileId,
       });
 
       res.status(200).json({

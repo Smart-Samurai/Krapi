@@ -1,5 +1,10 @@
 import { ISystemService, ApiResponse } from "./interfaces";
-import { SystemSettings, SystemInfo, DatabaseHealth, EmailConfig } from "./types";
+import {
+  SystemSettings,
+  SystemInfo,
+  DatabaseHealth,
+  EmailConfig,
+} from "./types";
 
 export class SystemService implements ISystemService {
   constructor(private baseURL: string, private sessionToken?: string) {}
@@ -19,7 +24,7 @@ export class SystemService implements ISystemService {
         options.headers.forEach((value, key) => {
           headers[key] = value;
         });
-      } else if (typeof options.headers === 'object') {
+      } else if (typeof options.headers === "object") {
         Object.assign(headers, options.headers);
       }
     }
@@ -34,18 +39,22 @@ export class SystemService implements ISystemService {
         headers,
       });
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
       if (!response.ok) {
+        const message =
+          typeof data === "object" && data !== null && "error" in data
+            ? (data as any).error
+            : `HTTP ${response.status}: ${response.statusText}`;
         return {
           success: false,
-          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+          error: message,
         };
       }
 
       return {
         success: true,
-        data,
+        data: data as T,
       };
     } catch (error) {
       return {
@@ -59,14 +68,18 @@ export class SystemService implements ISystemService {
     return this.request<SystemSettings>("/krapi/k1/system/settings");
   }
 
-  async updateSettings(updates: Partial<SystemSettings>): Promise<ApiResponse<SystemSettings>> {
+  async updateSettings(
+    updates: Partial<SystemSettings>
+  ): Promise<ApiResponse<SystemSettings>> {
     return this.request<SystemSettings>("/krapi/k1/system/settings", {
       method: "PUT",
       body: JSON.stringify(updates),
     });
   }
 
-  async testEmailConfig(config: EmailConfig): Promise<ApiResponse<{ success: boolean }>> {
+  async testEmailConfig(
+    config: EmailConfig
+  ): Promise<ApiResponse<{ success: boolean }>> {
     return this.request<{ success: boolean }>("/krapi/k1/system/test-email", {
       method: "POST",
       body: JSON.stringify(config),

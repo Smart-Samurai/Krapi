@@ -5,9 +5,9 @@ import {
   CollectionTypeIssue,
   CollectionTypeAutoFixResult,
   CollectionTypeFix,
-  CollectionFieldType,
-  CollectionIndexType,
-  CollectionConstraintType,
+  CollectionTypeField as CollectionFieldType,
+  CollectionTypeIndex as CollectionIndexType,
+  CollectionTypeConstraint as CollectionConstraintType,
 } from "./types";
 
 /**
@@ -43,7 +43,7 @@ export class CollectionsTypeValidator {
   ): Promise<CollectionTypeValidationResult> {
     const startTime = Date.now();
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
     const recommendations: string[] = [];
 
     try {
@@ -116,7 +116,16 @@ export class CollectionsTypeValidator {
 
       // Check for potential performance issues
       const performanceIssues = this.checkPerformanceIssues(typeDefinition);
-      warnings.push(...performanceIssues);
+      warnings.push(
+        ...performanceIssues.map(
+          (msg): CollectionTypeIssue => ({
+            type: "warning",
+            severity: "warning",
+            description: msg,
+            auto_fixable: false,
+          })
+        )
+      );
     } catch (error) {
       issues.push({
         type: "type_mismatch",
@@ -128,15 +137,18 @@ export class CollectionsTypeValidator {
       });
     }
 
-    const validationDuration = Date.now() - startTime;
+    const suggestions: CollectionTypeIssue[] = recommendations.map((msg) => ({
+      type: "suggestion",
+      severity: "info",
+      description: msg,
+      auto_fixable: false,
+    }));
 
     return {
       isValid: issues.filter((i) => i.severity === "error").length === 0,
       issues,
       warnings,
-      recommendations,
-      validation_duration: validationDuration,
-      timestamp: new Date().toISOString(),
+      suggestions,
     };
   }
 
@@ -153,10 +165,10 @@ export class CollectionsTypeValidator {
     }>
   ): Promise<{
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   }> {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     for (const expectedField of expectedFields) {
       const actualField = actualFields.find(
@@ -202,9 +214,13 @@ export class CollectionsTypeValidator {
           expectedField.default !== undefined &&
           actualField.default !== expectedField.default?.toString()
         ) {
-          warnings.push(
-            `Field '${expectedField.name}' has different default value: expected ${expectedField.default}, got ${actualField.default}`
-          );
+          warnings.push({
+            type: "warning",
+            severity: "warning",
+            field: expectedField.name,
+            description: `Field '${expectedField.name}' has different default value: expected ${expectedField.default}, got ${actualField.default}`,
+            auto_fixable: false,
+          });
         }
       }
     }
@@ -220,10 +236,10 @@ export class CollectionsTypeValidator {
     actualIndexes: Array<{ name: string; fields: string[]; unique: boolean }>
   ): Promise<{
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   }> {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     for (const expectedIndex of expectedIndexes) {
       const actualIndex = actualIndexes.find(
@@ -284,10 +300,10 @@ export class CollectionsTypeValidator {
     actualConstraints: Array<{ name: string; type: string; fields: string[] }>
   ): Promise<{
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   }> {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     for (const expectedConstraint of expectedConstraints) {
       const actualConstraint = actualConstraints.find(
@@ -476,12 +492,11 @@ export class CollectionsTypeValidator {
     if (validation.isValid) {
       return {
         success: true,
-        fixes_applied: 0,
+        fixes_applied: [],
+        fixes_failed: [],
+        total_fixes: 0,
         duration: Date.now() - startTime,
-        details: ["Collection type is already valid"],
-        applied_fixes: [],
-        failed_fixes: [],
-        timestamp: new Date().toISOString(),
+        details: "Collection type is already valid",
       };
     }
 
@@ -526,12 +541,11 @@ export class CollectionsTypeValidator {
 
     return {
       success: appliedFixes.length > 0,
-      fixes_applied: appliedFixes.length,
+      fixes_applied: appliedFixes,
+      fixes_failed: failedFixes,
+      total_fixes: appliedFixes.length,
       duration,
-      details,
-      applied_fixes: appliedFixes,
-      failed_fixes: failedFixes,
-      timestamp: new Date().toISOString(),
+      details: details.join("; "),
     };
   }
 

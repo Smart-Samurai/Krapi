@@ -1,13 +1,14 @@
+import { AdminRole, SessionType, Scope } from "@krapi/sdk";
 import { Request, Response } from "express";
 
-import { AuthService } from "@/services/auth.service";
-import { DatabaseService } from "@/services/database.service";
+import { AuthService } from "../services/auth.service";
+import { DatabaseService } from "../services/database.service";
+
 import {
   ApiResponse,
-  SessionType,
   AdminUser,
-  ProjectUser,
-  Scope,
+  BackendProjectUser,
+  AuthenticatedRequest,
 } from "@/types";
 
 /**
@@ -64,7 +65,7 @@ export class AuthController {
       const session = await authService.createAdminSessionWithScopes(adminUser);
 
       // Get scopes for the user's role
-      const scopes = authService.getScopesForRole(adminUser.role);
+      const scopes = authService.getScopesForRole(adminUser.role as AdminRole);
 
       // Update login info
       await dbService.updateLoginInfo(adminUser.id);
@@ -139,7 +140,7 @@ export class AuthController {
       // Create project session with scopes
       const session = await authService.createProjectSessionWithScopes(
         projectId,
-        projectUser.scopes.map((scope) => scope as Scope) // Convert string to Scope enum
+        projectUser.permissions?.map((permission) => permission as Scope) || [] // Convert string to Scope enum
       );
 
       // Update login info
@@ -161,7 +162,9 @@ export class AuthController {
         data: {
           session_token: session.token,
           expires_at: session.expires_at,
-          scopes: projectUser.scopes,
+          scopes:
+            projectUser.permissions?.map((permission) => permission as Scope) ||
+            [],
         },
       } as ApiResponse);
     } catch (error) {
@@ -213,7 +216,7 @@ export class AuthController {
       const session = await authService.createAdminSessionWithScopes(adminUser);
 
       // Get scopes for the user's role
-      const scopes = authService.getScopesForRole(adminUser.role);
+      const scopes = authService.getScopesForRole(adminUser.role as AdminRole);
 
       // Update login info
       await dbService.updateLoginInfo(adminUser.id);
@@ -285,7 +288,7 @@ export class AuthController {
       }
 
       // Get user information based on session type
-      let user: AdminUser | ProjectUser | undefined;
+      let user: AdminUser | BackendProjectUser | undefined;
       let scopes: string[] = [];
 
       if (
@@ -295,21 +298,29 @@ export class AuthController {
         user = await dbService.getAdminUserById(sessionResult.session.user_id);
         if (user) {
           scopes = authService
-            .getScopesForRole(user.role)
+            .getScopesForRole(user.role as AdminRole)
             .map((scope) => scope.toString());
         }
       } else if (
         sessionResult.session.type === SessionType.PROJECT &&
-        sessionResult.session.project_id
+        sessionResult.session.project_id &&
+        sessionResult.session.user_id
       ) {
         // For project sessions, we need to get the project user
-        // This is a simplified implementation
-        const project = await dbService.getProjectById(
-          sessionResult.session.project_id
+        user = await dbService.getProjectUserById(
+          sessionResult.session.user_id
         );
-        if (project) {
+        if (user) {
           scopes = sessionResult.session.scopes.map((s) => s.toString());
         }
+      }
+
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: "User not found for session",
+        } as ApiResponse);
+        return;
       }
 
       res.status(200).json({
@@ -446,7 +457,9 @@ export class AuthController {
         }
 
         // Get scopes for the user's role
-        const scopes = authService.getScopesForRole(adminUser.role);
+        const scopes = authService.getScopesForRole(
+          adminUser.role as AdminRole
+        );
 
         res.status(200).json({
           success: true,
@@ -489,7 +502,7 @@ export class AuthController {
 
       // Validate current password
       const currentUser = await dbService.getAdminUserById(
-        (req as any).user?.id
+        (req as AuthenticatedRequest).user?.id
       );
       if (!currentUser) {
         res.status(404).json({
@@ -523,7 +536,7 @@ export class AuthController {
         "password_change",
         currentUser.id,
         undefined,
-        (req as any).session?.id
+        (req as AuthenticatedRequest).session?.id
       );
 
       res.status(200).json({
@@ -579,7 +592,7 @@ export class AuthController {
       const session = await authService.createAdminSessionWithScopes(adminUser);
 
       // Get scopes for the user's role
-      const scopes = authService.getScopesForRole(adminUser.role);
+      const scopes = authService.getScopesForRole(adminUser.role as AdminRole);
 
       // Update login info
       await dbService.updateLoginInfo(adminUser.id);
@@ -631,7 +644,7 @@ export class AuthController {
 
       // Get current user
       const currentUser = await dbService.getAdminUserById(
-        (req as any).user?.id
+        (req as AuthenticatedRequest).user?.id
       );
       if (!currentUser) {
         res.status(404).json({
@@ -647,7 +660,9 @@ export class AuthController {
       );
 
       // Get scopes for the user's role
-      const scopes = authService.getScopesForRole(currentUser.role);
+      const scopes = authService.getScopesForRole(
+        currentUser.role as AdminRole
+      );
 
       res.status(200).json({
         success: true,
@@ -683,7 +698,7 @@ export class AuthController {
 
       // Get current user
       const currentUser = await dbService.getAdminUserById(
-        (req as any).user?.id
+        (req as AuthenticatedRequest).user?.id
       );
       if (!currentUser) {
         res.status(404).json({
@@ -704,7 +719,7 @@ export class AuthController {
         "api_key_regenerated",
         currentUser.id,
         undefined,
-        (req as any).session?.id
+        (req as AuthenticatedRequest).session?.id
       );
 
       res.status(200).json({

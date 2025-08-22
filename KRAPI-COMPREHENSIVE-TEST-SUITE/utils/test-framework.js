@@ -18,14 +18,17 @@ class TestFramework {
   }
 
   // Start a test suite
-  describe(suiteName, callback) {
+  async describe(suiteName, callback) {
     this.currentSuite = suiteName;
     this.suiteStartTime = Date.now();
 
     console.log(chalk.blue.bold(`\n📋 ${suiteName}`));
     console.log(chalk.gray("━".repeat(50)));
 
-    return callback();
+    await callback();
+
+    // Return true if all tests passed, false if any failed
+    return this.failedTests === 0;
   }
 
   // Individual test
@@ -36,7 +39,15 @@ class TestFramework {
     try {
       process.stdout.write(chalk.yellow(`  ⏳ ${testName}... `));
 
-      await callback();
+      // Add timeout to prevent hanging tests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Test timed out after 5 seconds`)),
+          5000
+        );
+      });
+
+      await Promise.race([callback(), timeoutPromise]);
 
       const duration = Date.now() - this.testStartTime;
       this.passedTests++;
@@ -86,6 +97,11 @@ class TestFramework {
         duration,
         error: error.message,
       });
+
+      // Auto-stop tests on first failure
+      console.log(chalk.red.bold("\n💥 TEST FAILED - STOPPING TEST SUITE"));
+      console.log(chalk.red("Fix the error above and run tests again"));
+      process.exit(1);
     }
   }
 

@@ -1,22 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-
-import { krapi } from "@/lib/krapi";
+import { krapi } from "@krapi/sdk";
 
 /**
- * Get system health status
+ * Frontend Health Check
  * GET /api/health
+ * 
+ * This route checks the health of the frontend and its connection to the backend
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest): Promise<Response> {
   try {
-    // Use the SDK to get health status
-    const health = await krapi.health.check();
+    // Check if we can connect to the backend via direct HTTP call
+    let backendHealth = null;
+    let backendConnected = false;
+    
+    try {
+      // Try to get a simple response from backend directly
+      const response = await fetch("http://localhost:3470/health");
+      if (response.ok) {
+        backendHealth = await response.json();
+        backendConnected = true;
+      } else {
+        backendConnected = false;
+      }
+    } catch (error) {
+      backendConnected = false;
+      console.error("Backend health check failed:", error);
+    }
 
-    return NextResponse.json(health);
+    const frontendHealth = {
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      frontend: {
+        status: "running",
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || "development",
+      },
+      backend: {
+        connected: backendConnected,
+        health: backendHealth,
+      },
+    };
+
+    return NextResponse.json(frontendHealth);
   } catch (error) {
     return NextResponse.json(
       {
-        healthy: false,
-        message: "Health check failed",
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
         error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

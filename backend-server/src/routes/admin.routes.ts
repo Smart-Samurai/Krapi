@@ -148,7 +148,7 @@ router.put(
 router.delete(
   "/users/:userId",
   requireScopes({
-    scopes: [Scope.ADMIN_DELETE],
+    scopes: [Scope.ADMIN_WRITE],
   }),
   async (req, res) => {
     try {
@@ -236,6 +236,50 @@ router.post(
           error instanceof Error
             ? error.message
             : "Failed to create user API key",
+      });
+    }
+  }
+);
+
+// Admin API key management
+router.post(
+  "/api-keys",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  async (req, res) => {
+    try {
+      if (!backendSDK) {
+        return res
+          .status(500)
+          .json({ success: false, error: "BackendSDK not initialized" });
+      }
+
+      const { name, permissions, expires_at } = req.body;
+
+      // Get current user ID from authenticated request
+      const currentUser = (req as any).user;
+      if (!currentUser || !currentUser.id) {
+        return res
+          .status(401)
+          .json({ success: false, error: "User not authenticated" });
+      }
+
+      // Create admin API key with custom permissions
+      const apiKey = await backendSDK.admin.createApiKey(currentUser.id, {
+        name: name || "Admin API Key",
+        permissions: permissions || [],
+        expires_at: expires_at || undefined,
+      });
+
+      res.status(201).json({ success: true, data: apiKey });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create admin API key",
       });
     }
   }

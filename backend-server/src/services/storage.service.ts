@@ -1,6 +1,7 @@
-import { DatabaseService } from "./database.service";
 import * as fs from "fs";
 import * as path from "path";
+
+import { DatabaseService } from "./database.service";
 
 import { FileInfo, StorageStats } from "@/types";
 
@@ -24,58 +25,73 @@ export class StorageService {
     return StorageService.instance;
   }
 
-  async uploadFile(file: File | Buffer, metadata?: Record<string, unknown>): Promise<FileInfo> {
+  async uploadFile(
+    file: File | Buffer,
+    metadata?: Record<string, unknown>
+  ): Promise<FileInfo> {
     // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const uploadsDir = path.join(process.cwd(), "uploads");
     await fs.promises.mkdir(uploadsDir, { recursive: true });
 
     // Generate unique filename
-    const originalName = (file as { originalname?: string; name?: string })?.originalname || (file as { name?: string })?.name || "unknown";
+    const originalName =
+      (file as { originalname?: string; name?: string })?.originalname ||
+      (file as { name?: string })?.name ||
+      "unknown";
     const fileExtension = path.extname(originalName);
-    const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2)}${fileExtension}`;
+    const uniqueFilename = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2)}${fileExtension}`;
     const filePath = path.join(uploadsDir, uniqueFilename);
 
-          // Save file to disk
-      if (file instanceof Buffer) {
-        await fs.promises.writeFile(filePath, file);
+    // Save file to disk
+    if (file instanceof Buffer) {
+      await fs.promises.writeFile(filePath, file);
+    } else {
+      // Handle File object (from multer)
+      if ("arrayBuffer" in file && typeof file.arrayBuffer === "function") {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        await fs.promises.writeFile(filePath, buffer);
       } else {
-        // Handle File object (from multer)
-        if ('arrayBuffer' in file && typeof file.arrayBuffer === 'function') {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          await fs.promises.writeFile(filePath, buffer);
-        } else {
-          // Fallback for other file types
-          const buffer = Buffer.from(file as any);
-          await fs.promises.writeFile(filePath, buffer);
-        }
+        // Fallback for other file types
+        const buffer = Buffer.from(file as ArrayLike<number>);
+        await fs.promises.writeFile(filePath, buffer);
       }
+    }
 
     // Create file record in database
     const fileRecord = await this.db.createFile({
       project_id: (metadata as { projectId?: string })?.projectId || "default",
       filename: uniqueFilename,
       original_name: originalName,
-      mime_type: (file as { mimetype?: string })?.mimetype || "application/octet-stream",
+      mime_type:
+        (file as { mimetype?: string })?.mimetype || "application/octet-stream",
       size: (file as { size?: number })?.size || 0,
       path: "/uploads/",
+      url: `${
+        (metadata as { baseUrl?: string })?.baseUrl || ""
+      }/uploads/${uniqueFilename}`,
       metadata: metadata || {},
-      uploaded_by: (metadata as { uploadedBy?: string })?.uploadedBy || "system",
+      uploaded_by:
+        (metadata as { uploadedBy?: string })?.uploadedBy || "system",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      active: true,
     });
 
     return {
       id: fileRecord.id,
       project_id: fileRecord.project_id,
-      filename: fileRecord.filename,
+      name: fileRecord.filename,
       original_name: fileRecord.original_name,
+      path: fileRecord.path,
       mime_type: fileRecord.mime_type,
       size: fileRecord.size,
-      url: `${(metadata as { baseUrl?: string })?.baseUrl || ""}${fileRecord.path}${fileRecord.filename}`,
+      url: `${(metadata as { baseUrl?: string })?.baseUrl || ""}${
+        fileRecord.path
+      }${fileRecord.filename}`,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
-      updated_at: fileRecord.updated_at,
+      public: false,
     };
   }
 
@@ -88,8 +104,13 @@ export class StorageService {
     }
 
     // Read file from filesystem
-    const filePath = path.join(process.cwd(), 'uploads', fileRecord.path, fileRecord.filename);
-    
+    const filePath = path.join(
+      process.cwd(),
+      "uploads",
+      fileRecord.path,
+      fileRecord.filename
+    );
+
     try {
       const buffer = await fs.promises.readFile(filePath);
       return {
@@ -98,7 +119,11 @@ export class StorageService {
         mime_type: fileRecord.mime_type,
       };
     } catch (error) {
-      throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to read file: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -116,14 +141,15 @@ export class StorageService {
     return {
       id: fileRecord.id,
       project_id: fileRecord.project_id,
-      filename: fileRecord.filename,
+      name: fileRecord.filename,
       original_name: fileRecord.original_name,
+      path: fileRecord.path,
       mime_type: fileRecord.mime_type,
       size: fileRecord.size,
       url: `${fileRecord.path}${fileRecord.filename}`,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
-      updated_at: fileRecord.updated_at,
+      public: false,
     };
   }
 
@@ -133,14 +159,15 @@ export class StorageService {
     return files.map((file) => ({
       id: file.id,
       project_id: file.project_id,
-      filename: file.filename,
+      name: file.filename,
       original_name: file.original_name,
+      path: file.path,
       mime_type: file.mime_type,
       size: file.size,
       url: `${file.path}${file.filename}`,
       uploaded_by: file.uploaded_by,
       created_at: file.created_at,
-      updated_at: file.updated_at,
+      public: false,
     }));
   }
 
@@ -152,13 +179,14 @@ export class StorageService {
 
     // Mock storage limit and usage percentage for now
     const storage_limit = 1024 * 1024 * 1024; // 1GB
-    const usage_percentage = (total_size / storage_limit) * 100;
+    const _usage_percentage = (total_size / storage_limit) * 100;
 
     return {
       total_size,
       file_count,
-      storage_limit,
-      usage_percentage,
+      collections_count: 0, // TODO: Get from database
+      projects_count: 1, // Current project
+      last_updated: new Date().toISOString(),
     };
   }
 }

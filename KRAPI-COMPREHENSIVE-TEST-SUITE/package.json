@@ -15,7 +15,9 @@
     "test:email": "node tests/email.test.js",
     "test:apikeys": "node tests/apikeys.test.js",
     "test:health": "node tests/health.test.js",
-    "test:full": "node full-system-test.js"
+    "test:full": "node full-system-test.js",
+    "test:enhanced": "node enhanced-test-runner.js",
+    "test:comprehensive": "node run-comprehensive-tests.js"
   },
   "dependencies": {
     "@krapi/sdk": "file:../packages/krapi-sdk",

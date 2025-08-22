@@ -3,7 +3,12 @@ import bcrypt from "bcryptjs";
 import { AuthService } from "./auth.service";
 import { DatabaseService } from "./database.service";
 
-import { AdminUser, ProjectUser, SessionType } from "@/types";
+import {
+  AdminUser,
+  ProjectUser,
+  SessionType,
+  BackendProjectUser,
+} from "@/types";
 
 /**
  * Auth Adapter Service
@@ -63,8 +68,8 @@ export class AuthAdapterService {
 
       return {
         valid: true,
-        user: projectUser,
-        scopes: projectUser.scopes || [],
+        user: projectUser as unknown as ProjectUser,
+        scopes: (projectUser as BackendProjectUser).scopes || [],
       };
     }
 
@@ -101,20 +106,23 @@ export class AuthAdapterService {
   }
 
   async generateToken(user: AdminUser | ProjectUser): Promise<string> {
-    if ("role" in user) {
+    if ("role" in user && "permissions" in user) {
       // AdminUser
+      const adminUser = user as AdminUser;
       return this.authService.generateJWT({
-        id: user.id,
+        id: adminUser.id,
         type: SessionType.ADMIN,
-        permissions: user.permissions,
+        permissions: adminUser.permissions,
       });
     } else {
       // ProjectUser
+      const projectUser = user as ProjectUser;
       return this.authService.generateJWT({
-        id: user.id,
+        id: projectUser.id,
         type: SessionType.PROJECT,
-        projectId: user.project_id,
-        permissions: user.scopes,
+        projectId: projectUser.project_id,
+        permissions:
+          (projectUser as unknown as BackendProjectUser).scopes || [],
       });
     }
   }

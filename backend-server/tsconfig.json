@@ -25,6 +25,8 @@
     "noImplicitOverride": false,
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": false,
+
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

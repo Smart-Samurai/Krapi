@@ -53,7 +53,7 @@ export class EmailService {
       }
 
       // Get email configuration
-      let emailConfig = project.settings?.email_config;
+      let emailConfig = (project.settings as any)?.email_config;
       if (!emailConfig) {
         const defaultConfig = this.getDefaultConfig();
         if (!defaultConfig) {
@@ -127,7 +127,7 @@ export class EmailService {
         return { success: false, error: "Project not found" };
       }
 
-      const transporter = this.getTransporter(project);
+      const transporter = this.getTransporter(project as unknown as Project);
       if (!transporter) {
         return {
           success: false,
@@ -278,7 +278,7 @@ export class EmailService {
               updatedAt: template.updated_at as string,
             };
           }
-        } catch (error) {
+        } catch {
           // Continue to next project
           continue;
         }
@@ -380,7 +380,7 @@ export class EmailService {
           if (result) {
             return true;
           }
-        } catch (error) {
+        } catch {
           // Continue to next project
           continue;
         }

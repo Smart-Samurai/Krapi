@@ -4,6 +4,7 @@
  * Provides common HTTP functionality that all service clients extend
  */
 
+import axios from "axios";
 import { ApiResponse, PaginatedResponse, QueryOptions } from "../core";
 
 export interface HttpClientConfig {
@@ -28,9 +29,7 @@ export class BaseHttpClient {
   async initializeClient() {
     if (this.httpClient) return; // Already initialized
 
-    const axios = await import("axios");
-
-    this.httpClient = axios.default.create({
+    this.httpClient = axios.create({
       baseURL: `${this.baseUrl}/krapi/k1`,
       timeout: 30000,
       headers: {

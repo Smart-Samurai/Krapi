@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
+
 import { DatabaseService } from "../services/database.service";
 import { EmailService } from "../services/email.service";
+
 import { ApiResponse, SystemSettings } from "@/types";
 
 export class SystemController {
@@ -20,6 +22,19 @@ export class SystemController {
     try {
       // Get system settings from database or return defaults
       const settings: SystemSettings = {
+        debug_mode: process.env.DEBUG_MODE === "true",
+        log_level:
+          (process.env.LOG_LEVEL as "error" | "warn" | "info" | "debug") ||
+          "info",
+        rate_limiting: {
+          enabled: process.env.RATE_LIMITING_ENABLED === "true",
+          requests_per_minute: parseInt(
+            process.env.RATE_LIMIT_PER_MINUTE || "100"
+          ),
+          requests_per_hour: parseInt(
+            process.env.RATE_LIMIT_PER_HOUR || "1000"
+          ),
+        },
         general: {
           siteName: "KRAPI Manager",
           siteUrl: process.env.SITE_URL || "http://localhost:3469",
@@ -28,13 +43,17 @@ export class SystemController {
           defaultLanguage: process.env.DEFAULT_LANGUAGE || "en",
         },
         security: {
+          jwt_secret: process.env.JWT_SECRET || "default-jwt-secret",
           requireTwoFactor: process.env.REQUIRE_2FA === "true",
-          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
+          session_timeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
           passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || "8"),
-          passwordRequireUppercase: process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
-          passwordRequireNumbers: process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
-          passwordRequireSymbols: process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
-          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
+          passwordRequireUppercase:
+            process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
+          passwordRequireNumbers:
+            process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
+          passwordRequireSymbols:
+            process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
+          max_login_attempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
         },
         email: {
           smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -46,11 +65,20 @@ export class SystemController {
           fromName: process.env.FROM_NAME || "KRAPI",
         },
         database: {
+          connection_string:
+            process.env.DATABASE_URL || "postgresql://localhost:5432/krapi",
+          max_connections: parseInt(process.env.DB_MAX_CONNECTIONS || "100"),
           connectionPoolSize: parseInt(process.env.DB_POOL_SIZE || "20"),
           queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || "30000"),
           enableQueryLogging: process.env.DB_ENABLE_LOGGING === "true",
-          backupSchedule: (process.env.DB_BACKUP_SCHEDULE as any) || "daily",
-          backupRetentionDays: parseInt(process.env.DB_BACKUP_RETENTION || "30"),
+          backupSchedule:
+            (process.env.DB_BACKUP_SCHEDULE as
+              | "daily"
+              | "weekly"
+              | "monthly") || "daily",
+          backupRetentionDays: parseInt(
+            process.env.DB_BACKUP_RETENTION || "30"
+          ),
         },
       };
 
@@ -94,14 +122,17 @@ export class SystemController {
       }
 
       if (updates.security) {
-        if (updates.security.sessionTimeout) {
-          process.env.SESSION_TIMEOUT = updates.security.sessionTimeout.toString();
+        if (updates.security.session_timeout) {
+          process.env.SESSION_TIMEOUT =
+            updates.security.session_timeout.toString();
         }
         if (updates.security.passwordMinLength) {
-          process.env.PASSWORD_MIN_LENGTH = updates.security.passwordMinLength.toString();
+          process.env.PASSWORD_MIN_LENGTH =
+            updates.security.passwordMinLength.toString();
         }
-        if (updates.security.maxLoginAttempts) {
-          process.env.MAX_LOGIN_ATTEMPTS = updates.security.maxLoginAttempts.toString();
+        if (updates.security.max_login_attempts) {
+          process.env.MAX_LOGIN_ATTEMPTS =
+            updates.security.max_login_attempts.toString();
         }
       }
 
@@ -128,15 +159,30 @@ export class SystemController {
 
       if (updates.database) {
         if (updates.database.connectionPoolSize) {
-          process.env.DB_POOL_SIZE = updates.database.connectionPoolSize.toString();
+          process.env.DB_POOL_SIZE =
+            updates.database.connectionPoolSize.toString();
         }
         if (updates.database.queryTimeout) {
-          process.env.DB_QUERY_TIMEOUT = updates.database.queryTimeout.toString();
+          process.env.DB_QUERY_TIMEOUT =
+            updates.database.queryTimeout.toString();
         }
       }
 
       // Return updated settings
       const updatedSettings: SystemSettings = {
+        debug_mode: process.env.DEBUG_MODE === "true",
+        log_level:
+          (process.env.LOG_LEVEL as "error" | "warn" | "info" | "debug") ||
+          "info",
+        rate_limiting: {
+          enabled: process.env.RATE_LIMITING_ENABLED === "true",
+          requests_per_minute: parseInt(
+            process.env.RATE_LIMIT_PER_MINUTE || "100"
+          ),
+          requests_per_hour: parseInt(
+            process.env.RATE_LIMIT_PER_HOUR || "1000"
+          ),
+        },
         general: {
           siteName: process.env.SITE_NAME || "KRAPI Manager",
           siteUrl: process.env.SITE_URL || "http://localhost:3469",
@@ -145,13 +191,17 @@ export class SystemController {
           defaultLanguage: process.env.DEFAULT_LANGUAGE || "en",
         },
         security: {
+          jwt_secret: process.env.JWT_SECRET || "default-jwt-secret",
           requireTwoFactor: process.env.REQUIRE_2FA === "true",
-          sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
+          session_timeout: parseInt(process.env.SESSION_TIMEOUT || "60"),
           passwordMinLength: parseInt(process.env.PASSWORD_MIN_LENGTH || "8"),
-          passwordRequireUppercase: process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
-          passwordRequireNumbers: process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
-          passwordRequireSymbols: process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
-          maxLoginAttempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
+          passwordRequireUppercase:
+            process.env.PASSWORD_REQUIRE_UPPERCASE !== "false",
+          passwordRequireNumbers:
+            process.env.PASSWORD_REQUIRE_NUMBERS !== "false",
+          passwordRequireSymbols:
+            process.env.PASSWORD_REQUIRE_SYMBOLS === "true",
+          max_login_attempts: parseInt(process.env.MAX_LOGIN_ATTEMPTS || "5"),
         },
         email: {
           smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -163,14 +213,23 @@ export class SystemController {
           fromName: process.env.FROM_NAME || "KRAPI",
         },
         database: {
+          connection_string:
+            process.env.DATABASE_URL || "postgresql://localhost:5432/krapi",
+          max_connections: parseInt(process.env.DB_MAX_CONNECTIONS || "100"),
           connectionPoolSize: parseInt(process.env.DB_POOL_SIZE || "20"),
           queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || "30000"),
           enableQueryLogging: process.env.DB_ENABLE_LOGGING === "true",
-          backupSchedule: (process.env.DB_BACKUP_SCHEDULE as any) || "daily",
-          backupRetentionDays: parseInt(process.env.DB_BACKUP_RETENTION || "30"),
+          backupSchedule:
+            (process.env.DB_BACKUP_SCHEDULE as
+              | "daily"
+              | "weekly"
+              | "monthly") || "daily",
+          backupRetentionDays: parseInt(
+            process.env.DB_BACKUP_RETENTION || "30"
+          ),
         },
       };
-      
+
       res.status(200).json({
         success: true,
         data: updatedSettings,

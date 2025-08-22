@@ -1,62 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { krapi } from "@/lib/krapi";
+/**
+ * Admin API Keys API Route
+ *
+ * POST /api/admin/api-keys - Create new API key
+ * Forwards to backend /krapi/k1/admin/api-keys
+ */
 
-export async function GET(_request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
-    // For now, return empty list since admin API keys are not fully implemented
-    return NextResponse.json({
-      success: true,
-      data: [],
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 }
-    );
-  }
-}
+    const authorization = request.headers.get("authorization");
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { name, permissions, expires_at } = body;
-
-    if (!name || !permissions) {
+    if (!authorization || !authorization.startsWith("Bearer ")) {
       return NextResponse.json(
-        { success: false, error: "Name and permissions are required" },
-        { status: 400 }
+        { success: false, error: "Authorization header required" },
+        { status: 401 }
       );
     }
 
-    // Get the current user from the session to determine who's creating the API key
-    // For now, we'll use a system user ID since this is admin functionality
-    const systemUserId = "system";
+    const token = authorization.substring(7);
+    const body = await request.json();
 
-    // Use the SDK to create a real API key
-    const apiKey = await krapi.admin.createApiKey(systemUserId, {
-      name,
-      permissions,
-      expires_at,
+    // Call backend directly for API key creation
+    const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3470'}/krapi/k1/admin/api-keys`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        key: apiKey.key,
-        data: apiKey.data,
-      },
-      { status: 201 }
-    );
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        { success: false, error: errorData.error || 'Failed to create API key' },
+        { status: response.status }
+      );
+    }
+
+    const apiKeyData = await response.json();
+    return NextResponse.json(apiKeyData);
   } catch (error) {
-    // Error creating API key
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
+        error: error instanceof Error ? error.message : "Failed to create API key",
       },
       { status: 500 }
     );

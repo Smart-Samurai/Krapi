@@ -7,8 +7,8 @@
  * SDK-driven implementation using BackendSDK for all functionality
  */
 
-import { Router } from "express";
 import { BackendSDK } from "@krapi/sdk";
+import { Router } from "express";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
 import { Scope } from "@/types";
@@ -184,7 +184,7 @@ router.get(
           .json({ success: false, error: "BackendSDK not initialized" });
       }
 
-      const { projectId, templateId } = req.params;
+      const { projectId: _projectId, templateId } = req.params;
       const result = await backendSDK.email.getTemplate(templateId);
 
       if (!result) {
@@ -224,7 +224,7 @@ router.post(
           .json({ success: false, error: "BackendSDK not initialized" });
       }
 
-      const { projectId } = req.params;
+      const { projectId: _projectId } = req.params;
       const templateData = req.body;
 
       if (!templateData.name || !templateData.subject || !templateData.body) {
@@ -238,7 +238,7 @@ router.post(
       // Add project ID to template data
       const templateWithProject = {
         ...templateData,
-        projectId,
+        projectId: _projectId,
       };
 
       const result = await backendSDK.email.createTemplate(templateWithProject);
@@ -273,7 +273,7 @@ router.put(
           .json({ success: false, error: "BackendSDK not initialized" });
       }
 
-      const { projectId, templateId } = req.params;
+      const { projectId: _projectId, templateId } = req.params;
       const templateData = req.body;
 
       if (!templateData.name || !templateData.subject || !templateData.body) {
@@ -287,7 +287,7 @@ router.put(
       // Add project ID to template data
       const templateWithProject = {
         ...templateData,
-        projectId,
+        projectId: _projectId,
       };
 
       const result = await backendSDK.email.updateTemplate(
@@ -325,7 +325,7 @@ router.delete(
           .json({ success: false, error: "BackendSDK not initialized" });
       }
 
-      const { projectId, templateId } = req.params;
+      const { projectId: _projectId, templateId } = req.params;
       const result = await backendSDK.email.deleteTemplate(templateId);
 
       if (!result) {

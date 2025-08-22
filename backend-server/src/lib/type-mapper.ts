@@ -1,22 +1,19 @@
 import {
-  ProjectUser as SDKProjectUser,
-  AdminUser as SDKAdminUser,
-  ProjectSettings as SDKProjectSettings,
-  EmailConfig as SDKEmailConfig,
-  EmailTemplate as SDKEmailTemplate,
-  FileInfo as SDKFileInfo,
-  StorageStats as SDKStorageStats,
-  AdminRole as SDKAdminRole,
-  AccessLevel as SDKAccessLevel,
+  ProjectUser,
+  AdminUser,
+  ProjectSettings,
+  EmailConfig,
+  EmailTemplate,
+  FileInfo,
+  StorageStats,
+  AdminRole,
+  AccessLevel,
 } from "@krapi/sdk";
 
 import {
-  ProjectUser as BackendProjectUser,
-  AdminUser as BackendAdminUser,
-  ProjectSettings as BackendProjectSettings,
-  EmailConfig as BackendEmailConfig,
-  FileInfo as BackendFileInfo,
-  StorageStats as BackendStorageStats,
+  BackendProjectUser,
+  BackendAdminUser,
+  BackendFileRecord,
 } from "@/types";
 
 /**
@@ -25,7 +22,7 @@ import {
  * Converts between backend types and SDK types to ensure compatibility
  */
 export class TypeMapper {
-  static mapProjectUser(backendUser: BackendProjectUser): SDKProjectUser {
+  static mapProjectUser(backendUser: BackendProjectUser): ProjectUser {
     return {
       id: backendUser.id,
       project_id: backendUser.project_id,
@@ -48,43 +45,40 @@ export class TypeMapper {
     };
   }
 
-  static mapAdminUser(backendUser: BackendAdminUser): SDKAdminUser {
+  static mapAdminUser(backendUser: BackendAdminUser): AdminUser {
     // Map backend AdminRole to SDK AdminRole
-    let sdkRole: SDKAdminRole;
+    let sdkRole: AdminRole;
     switch (backendUser.role) {
       case "master_admin":
-        sdkRole = SDKAdminRole.MASTER_ADMIN;
+        sdkRole = AdminRole.ADMIN;
         break;
       case "admin":
-        sdkRole = SDKAdminRole.ADMIN;
+        sdkRole = AdminRole.ADMIN;
         break;
       case "project_admin":
-        sdkRole = SDKAdminRole.DEVELOPER; // Map project_admin to developer
+        sdkRole = AdminRole.ADMIN; // Map project_admin to admin
         break;
       case "limited_admin":
-        sdkRole = SDKAdminRole.DEVELOPER; // Map limited_admin to developer
+        sdkRole = AdminRole.ADMIN; // Map limited_admin to admin
         break;
       default:
-        sdkRole = SDKAdminRole.DEVELOPER;
+        sdkRole = AdminRole.ADMIN;
     }
 
     // Map backend AccessLevel to SDK AccessLevel
-    let sdkAccessLevel: SDKAccessLevel;
+    let sdkAccessLevel: AccessLevel;
     switch (backendUser.access_level) {
       case "full":
-        sdkAccessLevel = SDKAccessLevel.FULL;
+        sdkAccessLevel = AccessLevel.ADMIN;
         break;
-      case "projects_only":
-        sdkAccessLevel = SDKAccessLevel.READ_WRITE;
+      case "read_write":
+        sdkAccessLevel = AccessLevel.WRITE;
         break;
       case "read_only":
-        sdkAccessLevel = SDKAccessLevel.READ_ONLY;
-        break;
-      case "custom":
-        sdkAccessLevel = SDKAccessLevel.READ_WRITE;
+        sdkAccessLevel = AccessLevel.READ;
         break;
       default:
-        sdkAccessLevel = SDKAccessLevel.READ_WRITE;
+        sdkAccessLevel = AccessLevel.WRITE;
     }
 
     return {
@@ -94,7 +88,7 @@ export class TypeMapper {
       password_hash: backendUser.password_hash,
       role: sdkRole,
       access_level: sdkAccessLevel,
-      permissions: backendUser.permissions,
+      permissions: backendUser.permissions.map((p) => p.toString()),
       active: backendUser.active,
       created_at: backendUser.created_at,
       updated_at: backendUser.updated_at,
@@ -103,8 +97,8 @@ export class TypeMapper {
   }
 
   static mapProjectSettings(
-    backendSettings: BackendProjectSettings
-  ): SDKProjectSettings {
+    _backendSettings: Record<string, unknown>
+  ): ProjectSettings {
     return {
       // Note: storage property is not available in ProjectSettings interface
       // Note: auth is not available in ProjectSettings interface
@@ -126,15 +120,15 @@ export class TypeMapper {
     };
   }
 
-  static mapEmailConfig(backendConfig: BackendEmailConfig): SDKEmailConfig {
+  static mapEmailConfig(backendConfig: Record<string, unknown>): EmailConfig {
     return {
-      smtp_host: backendConfig.smtp_host,
-      smtp_port: backendConfig.smtp_port,
-      smtp_username: backendConfig.smtp_username,
-      smtp_password: backendConfig.smtp_password,
-      smtp_secure: backendConfig.smtp_secure,
-      from_email: backendConfig.from_email,
-      from_name: backendConfig.from_name,
+      smtp_host: backendConfig.smtp_host as string,
+      smtp_port: backendConfig.smtp_port as number,
+      smtp_username: backendConfig.smtp_username as string,
+      smtp_password: backendConfig.smtp_password as string,
+      smtp_secure: backendConfig.smtp_secure as boolean,
+      from_email: backendConfig.from_email as string,
+      from_name: backendConfig.from_name as string,
     };
   }
 
@@ -147,7 +141,7 @@ export class TypeMapper {
     variables?: string[];
     created_at: string;
     updated_at: string;
-  }): SDKEmailTemplate {
+  }): EmailTemplate {
     return {
       id: backendTemplate.id,
       project_id: backendTemplate.project_id,
@@ -160,28 +154,31 @@ export class TypeMapper {
     };
   }
 
-  static mapFileInfo(backendFile: BackendFileInfo): SDKFileInfo {
+  static mapFileInfo(backendFile: BackendFileRecord): FileInfo {
     return {
       id: backendFile.id,
       project_id: backendFile.project_id,
-      filename: backendFile.filename,
+      name: backendFile.filename,
       original_name: backendFile.original_name,
       mime_type: backendFile.mime_type,
       size: backendFile.size,
+      path: backendFile.path,
       url: backendFile.url,
       uploaded_by: backendFile.uploaded_by,
-      relations: backendFile.relations || [],
+      // relations not available in SDK FileInfo
       created_at: backendFile.created_at,
-      updated_at: backendFile.updated_at || backendFile.created_at,
+      public: false,
     };
   }
 
-  static mapStorageStats(backendStats: BackendStorageStats): SDKStorageStats {
+  static mapStorageStats(backendStats: Record<string, unknown>): StorageStats {
     return {
-      total_size: backendStats.total_size,
-      file_count: backendStats.file_count,
-      storage_limit: backendStats.storage_limit,
-      usage_percentage: backendStats.usage_percentage,
+      total_size: backendStats.total_size as number,
+      file_count: backendStats.file_count as number,
+      collections_count: (backendStats.collections_count as number) || 0,
+      projects_count: (backendStats.projects_count as number) || 1,
+      last_updated:
+        (backendStats.last_updated as string) || new Date().toISOString(),
     };
   }
 }

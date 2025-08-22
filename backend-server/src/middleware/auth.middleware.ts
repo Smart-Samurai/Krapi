@@ -2,7 +2,13 @@ import { Request, Response, NextFunction } from "express";
 
 import { AuthService } from "@/services/auth.service";
 import { DatabaseService } from "@/services/database.service";
-import { AuthenticatedRequest, Scope, ScopeRequirement } from "@/types";
+import {
+  AuthenticatedRequest,
+  Scope,
+  ScopeRequirement,
+  BackendApiKey,
+  AdminRole,
+} from "@/types";
 
 const authService = AuthService.getInstance();
 const db = DatabaseService.getInstance();
@@ -44,9 +50,9 @@ export const authenticate = async (
 
     if (isApiKey) {
       // Handle API key authentication
-      const apiKey = await db.getApiKey(token);
+      const apiKey = (await db.getApiKey(token)) as unknown as BackendApiKey;
 
-      if (!apiKey || !apiKey.is_active) {
+      if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
           success: false,
           error: "Invalid or inactive API key",
@@ -65,12 +71,13 @@ export const authenticate = async (
 
       // Get owner details
       let userId: string;
-      let userType: "admin" | "project";
+      let _userType: "admin" | "project"; // Unused variable
       let projectId: string | undefined;
 
-      if (apiKey.type === "master" || apiKey.type === "admin") {
-        userId = apiKey.owner_id;
-        userType = "admin";
+      // Check if it's an admin API key (has no project_id) or project API key
+      if (!apiKey.project_id) {
+        userId = apiKey.user_id;
+        _userType = "admin";
 
         // Verify admin user exists and is active
         const adminUser = await db.getAdminUserById(userId);
@@ -83,8 +90,8 @@ export const authenticate = async (
         }
       } else {
         // Project API key
-        projectId = apiKey.owner_id;
-        userType = "project";
+        projectId = apiKey.project_id;
+        _userType = "project";
 
         // Verify project exists and is active
         const project = await db.getProjectById(projectId);
@@ -100,11 +107,22 @@ export const authenticate = async (
         userId = projectId;
       }
 
+      // Get user scopes for admin users
+      let userScopes: string[] = [];
+      if (!projectId) {
+        const adminUser = await db.getAdminUserById(userId);
+        if (adminUser) {
+          const authService = AuthService.getInstance();
+          userScopes = authService
+            .getScopesForRole(adminUser.role)
+            .map((scope) => scope.toString());
+        }
+      }
+
       (req as AuthenticatedRequest).user = {
         id: userId,
-        type: userType,
         project_id: projectId,
-        scopes: apiKey.scopes as Scope[],
+        scopes: userScopes,
       };
       (req as AuthenticatedRequest).apiKey = apiKey;
     } else {
@@ -125,11 +143,29 @@ export const authenticate = async (
       // In such cases, use the session id as the user identifier
       const userId = session.user_id || session.id;
 
+      // Get user scopes for admin users
+      let userScopes: string[] = [];
+      if (session.type === "admin" && session.user_id) {
+        const adminUser = await db.getAdminUserById(session.user_id);
+        if (adminUser) {
+          const authService = AuthService.getInstance();
+          userScopes = authService
+            .getScopesForRole(adminUser.role)
+            .map((scope) => scope.toString());
+          console.log(
+            `🔍 [AUTH DEBUG] Admin user ${adminUser.username} has role: ${
+              adminUser.role
+            }, scopes: ${userScopes.join(", ")}`
+          );
+        }
+      } else if (session.type === "project" && session.scopes) {
+        userScopes = session.scopes.map((scope) => scope.toString());
+      }
+
       (req as AuthenticatedRequest).user = {
         id: userId,
-        type: session.type === "admin" ? "admin" : "project",
         project_id: session.project_id,
-        scopes: session.scopes as Scope[],
+        scopes: userScopes,
       };
       (req as AuthenticatedRequest).session = session;
     }
@@ -185,8 +221,8 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 
       // For API keys with limited project access
       if (
-        authReq.apiKey?.project_ids &&
-        !authReq.apiKey.project_ids.includes(projectId)
+        authReq.apiKey?.project_id &&
+        authReq.apiKey.project_id !== projectId
       ) {
         res.status(403).json({
           success: false,
@@ -212,6 +248,11 @@ export const requireScopes = (requirement: ScopeRequirement) => {
     }
 
     if (!hasAccess) {
+      console.log(
+        `🔍 [SCOPE DEBUG] Access denied. Required: ${requirement.scopes.join(
+          ", "
+        )}, User has: ${userScopes.join(", ")}`
+      );
       res.status(403).json({
         success: false,
         error: "Insufficient permissions",
@@ -220,6 +261,12 @@ export const requireScopes = (requirement: ScopeRequirement) => {
       });
       return;
     }
+
+    console.log(
+      `✅ [SCOPE DEBUG] Access granted for scopes: ${requirement.scopes.join(
+        ", "
+      )}`
+    );
 
     next();
   };

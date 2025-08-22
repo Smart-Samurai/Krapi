@@ -5,6 +5,7 @@ import {
   AutoFixResult,
   SchemaMismatch,
   FieldMismatch,
+  DatabaseIssue,
 } from "./types";
 
 /**
@@ -47,13 +48,12 @@ export class DatabaseHealthManager {
       ]);
 
       const healthStatus: DatabaseHealthStatus = {
+        connected: true,
         isHealthy: results.every((r) => r.isHealthy),
         issues: results.flatMap((r) => r.issues),
-        warnings: results.flatMap((r) => r.warnings).map((w) => w.description),
-        recommendations: results.flatMap((r) => r.recommendations),
+        warnings: results.flatMap((r) => r.warnings),
         checkDuration: Date.now() - startTime,
-        timestamp: new Date().toISOString(),
-        schemaVersion: this.schemaVersion,
+        response_time: Date.now() - startTime,
       };
 
       this.logger.info(
@@ -143,8 +143,15 @@ export class DatabaseHealthManager {
         this.expectedSchema
       );
 
+      const isValid = validationResult.mismatches.length === 0;
       return {
-        isValid: validationResult.mismatches.length === 0,
+        valid: isValid,
+        isValid,
+        errors: [],
+        warnings: [],
+        missing_tables: validationResult.missingTables,
+        extra_tables: validationResult.extraTables,
+        field_mismatches: validationResult.fieldMismatches,
         mismatches: validationResult.mismatches,
         missingTables: validationResult.missingTables,
         extraTables: validationResult.extraTables,
@@ -175,7 +182,8 @@ export class DatabaseHealthManager {
         this.logger.info("No pending migrations");
         return {
           success: true,
-          migrationsApplied: 0,
+          migrations_applied: 0,
+          errors: [],
           duration: Date.now() - startTime,
           details: "No pending migrations",
         };
@@ -201,10 +209,10 @@ export class DatabaseHealthManager {
 
       const result: MigrationResult = {
         success: successCount === pendingMigrations.length,
-        migrationsApplied: successCount,
+        migrations_applied: successCount,
+        errors: [],
         duration: Date.now() - startTime,
         details: `Applied ${successCount} migrations`,
-        appliedMigrations,
       };
 
       this.logger.info(
@@ -236,7 +244,8 @@ export class DatabaseHealthManager {
         this.logger.info("No rollback migrations needed");
         return {
           success: true,
-          migrationsApplied: 0,
+          migrations_applied: 0,
+          errors: [],
           duration: 0,
           details: "No rollback needed",
         };
@@ -263,10 +272,10 @@ export class DatabaseHealthManager {
 
       return {
         success: successCount === rollbackMigrations.length,
-        migrationsApplied: successCount,
+        migrations_applied: successCount,
+        errors: [],
         duration: 0,
         details: `Rolled back ${successCount} migrations`,
-        appliedMigrations: appliedRollbacks,
       };
     } catch (error) {
       this.logger.error("Rollback failed:", error);
@@ -355,8 +364,7 @@ export class DatabaseHealthManager {
             type: "missing_table",
             severity: "error",
             table: tableName,
-            description: `Table '${tableName}' is missing`,
-            suggestion: "Create the missing table",
+            description: `Table '${tableName}' is missing. Suggestion: Create the missing table`,
           });
           recommendations.push(`Create table '${tableName}'`);
         }
@@ -378,7 +386,6 @@ export class DatabaseHealthManager {
             description: `Failed to check table structure: ${
               error instanceof Error ? error.message : "Unknown error"
             }`,
-            suggestion: "Check database connection and permissions",
           },
         ],
         warnings: [],
@@ -411,8 +418,7 @@ export class DatabaseHealthManager {
               severity: "error",
               table: tableName,
               field: fieldName,
-              description: `Field '${fieldName}' is missing from table '${tableName}'`,
-              suggestion: "Add the missing field to the table",
+              description: `Field '${fieldName}' is missing from table '${tableName}'. Suggestion: Add the missing field to the table`,
             });
             recommendations.push(
               `Add field '${fieldName}' to table '${tableName}'`
@@ -428,8 +434,7 @@ export class DatabaseHealthManager {
               severity: "warning",
               table: tableName,
               field: actualField.name,
-              description: `Extra field '${actualField.name}' found in table '${tableName}'`,
-              suggestion: "Consider removing unused fields",
+              description: `Extra field '${actualField.name}' found in table '${tableName}'. Suggestion: Consider removing unused fields`,
             });
           }
         }
@@ -451,7 +456,6 @@ export class DatabaseHealthManager {
             description: `Failed to check field definitions: ${
               error instanceof Error ? error.message : "Unknown error"
             }`,
-            suggestion: "Check database connection and permissions",
           },
         ],
         warnings: [],
@@ -609,11 +613,4 @@ interface HealthCheckResult {
   recommendations: string[];
 }
 
-interface DatabaseIssue {
-  type: string;
-  severity: "error" | "warning" | "info";
-  description: string;
-  table?: string;
-  field?: string;
-  suggestion?: string;
-}
+// Use DatabaseIssue from types.ts

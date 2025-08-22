@@ -9,11 +9,9 @@ import { DatabaseService } from "./database.service";
 import {
   AdminUser,
   AdminRole,
-  Session,
   SessionType,
   Scope,
-  ChangeAction,
-  Project,
+  BackendSession,
 } from "@/types";
 
 /**
@@ -102,12 +100,17 @@ export class AuthService {
   /**
    * Get scopes for a given admin role
    */
-  getScopesForRole(role: AdminRole): Scope[] {
-    switch (role) {
+  getScopesForRole(role: AdminRole | string): Scope[] {
+    // Handle both enum values and string values for backward compatibility
+    const roleString = typeof role === 'string' ? role : String(role);
+    
+    switch (roleString) {
       case AdminRole.MASTER_ADMIN:
+      case "master_admin":
         return [Scope.MASTER]; // Master scope includes everything
 
       case AdminRole.ADMIN:
+      case "admin":
         return [
           Scope.ADMIN_READ,
           Scope.ADMIN_WRITE,
@@ -131,6 +134,7 @@ export class AuthService {
         ];
 
       case AdminRole.PROJECT_ADMIN:
+      case "project_admin":
         return [
           Scope.PROJECTS_READ,
           Scope.COLLECTIONS_READ,
@@ -167,7 +171,9 @@ export class AuthService {
   /**
    * Create admin session with appropriate scopes
    */
-  async createAdminSessionWithScopes(adminUser: AdminUser): Promise<Session> {
+  async createAdminSessionWithScopes(
+    adminUser: AdminUser
+  ): Promise<BackendSession> {
     const scopes = this.getScopesForRole(adminUser.role);
 
     const session = await this.db.createSession({
@@ -175,6 +181,7 @@ export class AuthService {
       type: SessionType.ADMIN,
       user_id: adminUser.id,
       scopes,
+      is_active: true,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
       consumed: false,
@@ -189,7 +196,7 @@ export class AuthService {
   async createProjectSessionWithScopes(
     projectId: string,
     scopes?: Scope[]
-  ): Promise<Session> {
+  ): Promise<BackendSession> {
     const project = await this.db.getProjectById(projectId);
     if (!project || !project.active) {
       throw new Error("Project not found or inactive");
@@ -200,8 +207,10 @@ export class AuthService {
     const session = await this.db.createSession({
       token: this.generateSecureToken(),
       type: SessionType.PROJECT,
+      user_id: "project-user", // Placeholder user ID for project sessions
       project_id: projectId,
       scopes: sessionScopes,
+      is_active: true,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
       consumed: false,
@@ -220,7 +229,7 @@ export class AuthService {
   // Validate Session Token (without consuming)
   async validateSessionToken(
     token: string
-  ): Promise<{ valid: boolean; session?: Session }> {
+  ): Promise<{ valid: boolean; session?: BackendSession }> {
     const session = await this.db.getSessionByToken(token);
 
     if (!session) {
@@ -301,26 +310,7 @@ export class AuthService {
 
   // Generate API Key
   generateApiKey(): string {
-    return crypto.randomBytes(32).toString('hex');
-  }
-
-  // Get Project Permissions
-  private getProjectPermissions(project: Project): string[] {
-    const permissions = [
-      "database.read",
-      "database.write",
-      "storage.read",
-      "storage.write",
-      "users.read",
-      "users.write",
-    ];
-
-    // Add additional permissions based on project settings
-    if (project.settings.email_config) {
-      permissions.push("email.send");
-    }
-
-    return permissions;
+    return crypto.randomBytes(32).toString("hex");
   }
 
   // Clean up expired sessions
@@ -330,7 +320,12 @@ export class AuthService {
 
   // Log authentication action
   async logAuthAction(
-    action: "login" | "logout" | "session_created" | "password_change" | "api_key_regenerated",
+    action:
+      | "login"
+      | "logout"
+      | "session_created"
+      | "password_change"
+      | "api_key_regenerated",
     userId: string,
     projectId?: string,
     sessionId?: string
@@ -339,10 +334,13 @@ export class AuthService {
       project_id: projectId,
       entity_type: "auth",
       entity_id: userId,
-      action: ChangeAction.CREATED,
+      action: "created",
       changes: { action },
       performed_by: userId,
       session_id: sessionId,
+      user_id: userId,
+      resource_type: "auth",
+      resource_id: userId,
     });
   }
 }

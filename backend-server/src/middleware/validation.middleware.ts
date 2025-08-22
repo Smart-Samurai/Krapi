@@ -19,7 +19,7 @@ export const validate = (schema: z.ZodSchema) => {
         res.status(400).json({
           success: false,
           error: "Validation error",
-          details: error.errors.map((err) => ({
+          details: error.issues.map((err) => ({
             path: err.path.join("."),
             message: err.message,
           })),
@@ -284,7 +284,7 @@ export const validationSchemas = {
       tableId: schemas.id,
     }),
     body: z.object({
-      data: z.record(z.any()),
+      data: z.record(z.string(), z.unknown()),
     }),
   }),
 
@@ -296,7 +296,7 @@ export const validationSchemas = {
       documentId: schemas.id,
     }),
     body: z.object({
-      data: z.record(z.any()),
+      data: z.record(z.string(), z.any()),
     }),
   }),
 
@@ -311,7 +311,7 @@ export const validationSchemas = {
       limit: z.coerce.number().int().positive().max(100).optional(),
       sort: z.string().optional(),
       order: schemas.sortOrder.optional(),
-      filter: z.record(z.unknown()).optional(),
+      filter: z.record(z.string(), z.unknown()).optional(),
     }),
   }),
 
@@ -332,7 +332,7 @@ export const validationSchemas = {
       name: z.string().optional(),
       phone: z.string().optional(),
       password: schemas.password.optional(),
-      metadata: z.record(z.unknown()).optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
     }),
   }),
 };

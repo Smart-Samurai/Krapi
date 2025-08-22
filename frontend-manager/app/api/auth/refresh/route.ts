@@ -1,59 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+/**
+ * Auth Refresh API Route
+ *
+ * POST /api/auth/refresh - Refresh session token
+ * Forwards to backend /krapi/k1/auth/refresh
+ */
+
+export async function POST(request: NextRequest): Promise<Response> {
   try {
-    // Extract the session token from the Authorization header
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const authorization = request.headers.get("authorization");
+    
+    if (!authorization || !authorization.startsWith("Bearer ")) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Authorization header with Bearer token is required",
-        },
+        { success: false, error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    const token = authorization.substring(7);
 
-    // For now, we'll call the backend directly since the SDK refresh method needs authentication context
-    // This maintains the frontend -> backend proxy architecture
-    const backendResponse = await fetch(
-      `${
-        process.env.BACKEND_URL || "http://localhost:3470"
-      }/krapi/k1/auth/refresh`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!backendResponse.ok) {
-      const errorData = await backendResponse.json().catch(() => ({}));
+    // Call backend directly for session refresh
+    const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3470'}/krapi/k1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
       return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to refresh session",
-        },
-        { status: backendResponse.status }
+        { success: false, error: errorData.error || 'Session refresh failed' },
+        { status: response.status }
       );
     }
-
-    const responseData = await backendResponse.json();
-
-    return NextResponse.json({
-      success: true,
-      session_token: responseData.data.session_token,
-      expires_at: responseData.data.expires_at,
-    });
+    
+    const refreshResult = await response.json();
+    
+    // Flatten the response to match what the tests expect
+    if (refreshResult.success && refreshResult.data) {
+      return NextResponse.json(refreshResult.data);
+    } else {
+      return NextResponse.json(refreshResult);
+    }
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Internal server error",
+        error: error instanceof Error ? error.message : "Session refresh failed",
       },
       { status: 500 }
     );

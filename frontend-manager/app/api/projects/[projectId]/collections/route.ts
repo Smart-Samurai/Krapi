@@ -1,35 +1,79 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { krapi } from "@/lib/krapi";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// UUID validation function - more permissive to accept any valid UUID format
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
 
 /**
- * Get all collections in a project
+ * Get all collections for a project
  * GET /api/projects/[projectId]/collections
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
-) {
+): Promise<Response> {
   try {
-    const { searchParams } = new URL(request.url);
-    const options = {
-      limit: searchParams.get("limit")
-        ? parseInt(searchParams.get("limit")!)
-        : undefined,
-      offset: searchParams.get("offset")
-        ? parseInt(searchParams.get("offset")!)
-        : undefined,
-      search: searchParams.get("search") || undefined,
-    };
+    // Extract authentication token from headers
+    const authToken = getAuthToken(request.headers);
+
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
 
     const { projectId } = await params;
-    const collections = await krapi.collections.getAll(projectId, options);
-    return NextResponse.json(collections);
+
+    // Validate UUID format before making backend call
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid project ID format" },
+        { status: 400 }
+      );
+    }
+
+    // Call the backend directly since the SDK method is not implemented for server mode
+    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    const response = await fetch(
+      `${backendUrl}/krapi/k1/projects/${projectId}/collections`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorData.error || "Failed to fetch collections",
+        },
+        { status: response.status }
+      );
+    }
+
+    const collections = await response.json();
+    // Return collections wrapped in data property to match test expectations
+    return NextResponse.json({ data: collections.data });
   } catch (error) {
+    console.error("Error fetching collections:", error);
     return NextResponse.json(
       {
+        success: false,
         error:
-          error instanceof Error ? error.message : "Failed to get collections",
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch collections",
       },
       { status: 500 }
     );
@@ -37,39 +81,68 @@ export async function GET(
 }
 
 /**
- * Create a new collection
+ * Create a new collection for a project
  * POST /api/projects/[projectId]/collections
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
-) {
+): Promise<Response> {
   try {
-    const collectionData = await request.json();
+    // Extract authentication token from headers
+    const authToken = getAuthToken(request.headers);
 
-    if (!collectionData.name) {
+    if (!authToken) {
       return NextResponse.json(
-        { error: "Collection name is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!collectionData.fields || !Array.isArray(collectionData.fields)) {
-      return NextResponse.json(
-        { error: "Collection fields are required and must be an array" },
-        { status: 400 }
+        { success: false, error: "Authentication required" },
+        { status: 401 }
       );
     }
 
     const { projectId } = await params;
-    const collection = await krapi.collections.create(
-      projectId,
-      collectionData
+    const collectionData = await request.json();
+
+    // Validate UUID format before making backend call
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid project ID format" },
+        { status: 400 }
+      );
+    }
+
+    // Call the backend directly since the SDK method is not implemented for server mode
+    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    const response = await fetch(
+      `${backendUrl}/krapi/k1/projects/${projectId}/collections`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(collectionData),
+      }
     );
-    return NextResponse.json(collection, { status: 201 });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorData.error || "Failed to create collection",
+        },
+        { status: response.status }
+      );
+    }
+
+    const collection = await response.json();
+    // Extract the data from the backend response and return it directly
+    return NextResponse.json(collection.data, { status: 201 });
   } catch (error) {
+    console.error("Error creating collection:", error);
     return NextResponse.json(
       {
+        success: false,
         error:
           error instanceof Error
             ? error.message

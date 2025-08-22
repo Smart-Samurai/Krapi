@@ -2,13 +2,7 @@ import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 
 import { DatabaseService } from "@/services/database.service";
-import {
-  ApiResponse,
-  ProjectUser,
-  ProjectScope,
-  SessionType,
-  Scope,
-} from "@/types";
+import { ApiResponse, BackendProjectUser, SessionType, Scope } from "@/types";
 
 export class UsersController {
   private db: DatabaseService;
@@ -21,15 +15,13 @@ export class UsersController {
   getUsers = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
-      const { page = 1, limit = 50, search, active } = req.query;
+      const { page = 1, limit = 50, search } = req.query;
 
       // Use the database service directly
       const result = await this.db.getProjectUsers(projectId, {
         limit: Number(limit),
         offset: (Number(page) - 1) * Number(limit),
         search: search as string,
-        active:
-          active === "true" ? true : active === "false" ? false : undefined,
       });
 
       res.json({
@@ -70,7 +62,7 @@ export class UsersController {
       res.json({
         success: true,
         data: user,
-      } as ApiResponse<ProjectUser>);
+      } as ApiResponse<BackendProjectUser>);
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({
@@ -84,7 +76,7 @@ export class UsersController {
   createUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
-      const { username, email, password, phone, scopes, metadata } = req.body;
+      const { username, email, password, phone, scopes } = req.body;
 
       // Validate required fields
       if (!username || !email || !password) {
@@ -122,9 +114,9 @@ export class UsersController {
 
       // Create the user with default scopes if none provided
       const defaultScopes = [
-        ProjectScope.DATA_READ,
-        ProjectScope.FILES_READ,
-        ProjectScope.FUNCTIONS_EXECUTE,
+        Scope.STORAGE_READ,
+        Scope.DOCUMENTS_READ,
+        Scope.FUNCTIONS_EXECUTE,
       ];
 
       const user = await this.db.createProjectUser(projectId, {
@@ -133,16 +125,12 @@ export class UsersController {
         password,
         phone,
         scopes: scopes || defaultScopes,
-        metadata: metadata || {},
       });
-
-      // Remove password hash from response
-      delete user.password_hash;
 
       res.status(201).json({
         success: true,
         data: user,
-      } as ApiResponse<ProjectUser>);
+      } as ApiResponse<BackendProjectUser>);
     } catch (error) {
       console.error("Create user error:", error);
       res.status(500).json({
@@ -203,13 +191,10 @@ export class UsersController {
         return;
       }
 
-      // Remove password hash from response
-      delete user.password_hash;
-
       res.json({
         success: true,
         data: user,
-      } as ApiResponse<ProjectUser>);
+      } as ApiResponse<BackendProjectUser>);
     } catch (error) {
       console.error("Update user error:", error);
       res.status(500).json({
@@ -279,18 +264,16 @@ export class UsersController {
       const sessionToken = `pst_${uuidv4().replace(/-/g, "")}`;
       const session = await this.db.createSession({
         token: sessionToken,
-        type: SessionType.PROJECT,
         user_id: user.id,
         project_id: projectId,
-        scopes: user.scopes.map((scope) => scope as Scope),
-        metadata: { user_type: "project_user" },
+        scopes:
+          user.permissions?.map((permission) => permission as Scope) || [],
+        type: "project" as SessionType,
+        user_type: "project_user",
+        is_active: true,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        consumed: false,
       });
-
-      // Remove password hash from response
-      delete user.password_hash;
 
       res.json({
         success: true,
@@ -324,7 +307,7 @@ export class UsersController {
       }
 
       const user = await this.db.updateProjectUser(projectId, userId, {
-        scopes,
+        permissions: scopes,
       });
 
       if (!user) {
@@ -335,13 +318,10 @@ export class UsersController {
         return;
       }
 
-      // Remove password hash from response
-      delete user.password_hash;
-
       res.json({
         success: true,
         data: user,
-      } as ApiResponse<ProjectUser>);
+      } as ApiResponse<BackendProjectUser>);
     } catch (error) {
       console.error("Update user scopes error:", error);
       res.status(500).json({
@@ -370,8 +350,10 @@ export class UsersController {
       // For now, we'll just mark the user as verified
 
       const user = await this.db.updateProjectUser(projectId, userId, {
-        is_verified: true,
-        email_verified_at: new Date().toISOString(),
+        metadata: {
+          is_verified: true,
+          email_verified_at: new Date().toISOString(),
+        },
       });
 
       if (!user) {
@@ -382,14 +364,11 @@ export class UsersController {
         return;
       }
 
-      // Remove password hash from response
-      delete user.password_hash;
-
       res.json({
         success: true,
         data: user,
         message: "Email verified successfully",
-      } as ApiResponse<ProjectUser>);
+      } as ApiResponse<BackendProjectUser>);
     } catch (error) {
       console.error("Verify email error:", error);
       res.status(500).json({

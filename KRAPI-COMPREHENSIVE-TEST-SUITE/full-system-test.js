@@ -13,6 +13,9 @@ import AuthTests from "./tests/auth.test.js";
 import ProjectsTests from "./tests/projects.test.js";
 import CollectionsTests from "./tests/collections.test.js";
 import DocumentsTests from "./tests/documents.test.js";
+import StorageTests from "./tests/storage.test.js";
+import EmailTests from "./tests/email.test.js";
+import ApiKeysTests from "./tests/apikeys.test.js";
 
 class ComprehensiveTestRunner {
   constructor() {
@@ -116,8 +119,49 @@ class ComprehensiveTestRunner {
         chalk.green("✅ Documents management phase completed successfully")
       );
 
-      // Phase 5: Users & Permissions (if implemented)
-      console.log(chalk.magenta.bold("\n👥 Phase 5: Users & Permissions"));
+      // Phase 5: Storage & File Management
+      console.log(
+        chalk.magenta.bold("\n💾 Phase 5: Storage & File Management")
+      );
+      const storageTests = new StorageTests(
+        this.sessionToken,
+        this.testProject
+      );
+      const storageSuccess = await storageTests.runAll();
+      this.processTestResults(storageTests, storageSuccess);
+
+      this.createdResources.files = storageTests.getUploadedFiles();
+      console.log(
+        chalk.green("✅ Storage & file management phase completed successfully")
+      );
+
+      // Phase 6: Email & Communications
+      console.log(chalk.magenta.bold("\n📧 Phase 6: Email & Communications"));
+      const emailTests = new EmailTests(this.sessionToken, this.testProject);
+      const emailSuccess = await emailTests.runAll();
+      this.processTestResults(emailTests, emailSuccess);
+
+      this.createdResources.emails = emailTests.getSentEmails();
+      console.log(
+        chalk.green("✅ Email & communications phase completed successfully")
+      );
+
+      // Phase 7: API Keys Management
+      console.log(chalk.magenta.bold("\n🔑 Phase 7: API Keys Management"));
+      const apiKeysTests = new ApiKeysTests(
+        this.sessionToken,
+        this.testProject
+      );
+      const apiKeysSuccess = await apiKeysTests.runAll();
+      this.processTestResults(apiKeysTests, apiKeysSuccess);
+
+      this.createdResources.apiKeys = apiKeysTests.getCreatedApiKeys();
+      console.log(
+        chalk.green("✅ API keys management phase completed successfully")
+      );
+
+      // Phase 8: Users & Permissions (if implemented)
+      console.log(chalk.magenta.bold("\n👥 Phase 8: Users & Permissions"));
       console.log(chalk.yellow("  ⏳ Users management testing..."));
       console.log(
         chalk.blue(
@@ -125,36 +169,6 @@ class ComprehensiveTestRunner {
         )
       );
       console.log(chalk.green("  ✅ Users phase completed (basic validation)"));
-
-      // Phase 6: Storage & File Management (if implemented)
-      console.log(
-        chalk.magenta.bold("\n💾 Phase 6: Storage & File Management")
-      );
-      console.log(chalk.yellow("  ⏳ Storage management testing..."));
-      console.log(
-        chalk.blue("  ℹ️ Storage endpoints may not be fully implemented yet")
-      );
-      console.log(
-        chalk.green("  ✅ Storage phase completed (basic validation)")
-      );
-
-      // Phase 7: Email & Communications (if implemented)
-      console.log(chalk.magenta.bold("\n📧 Phase 7: Email & Communications"));
-      console.log(chalk.yellow("  ⏳ Email service testing..."));
-      console.log(
-        chalk.blue("  ℹ️ Email endpoints may not be fully implemented yet")
-      );
-      console.log(chalk.green("  ✅ Email phase completed (basic validation)"));
-
-      // Phase 8: API Keys Management (if implemented)
-      console.log(chalk.magenta.bold("\n🔑 Phase 8: API Keys Management"));
-      console.log(chalk.yellow("  ⏳ API keys management testing..."));
-      console.log(
-        chalk.blue("  ℹ️ API keys endpoints may not be fully implemented yet")
-      );
-      console.log(
-        chalk.green("  ✅ API keys phase completed (basic validation)")
-      );
 
       // Phase 9: Health & System Diagnostics
       console.log(
@@ -266,6 +280,68 @@ class ComprehensiveTestRunner {
             )
           );
         }
+      }
+
+      // Cleanup files
+      if (
+        this.createdResources.files &&
+        this.createdResources.files.length > 0
+      ) {
+        for (const fileId of this.createdResources.files) {
+          try {
+            const response = await fetch(
+              `${CONFIG.BACKEND_URL}/storage/${fileId}`,
+              {
+                method: "DELETE",
+                headers: {
+                  Authorization: `Bearer ${this.sessionToken}`,
+                },
+              }
+            );
+
+            if (response.ok) {
+              cleanupCount++;
+            }
+          } catch (error) {
+            // Continue with cleanup even if individual items fail
+          }
+        }
+        console.log(
+          chalk.green(
+            `  ✅ Cleaned up ${this.createdResources.files.length} files`
+          )
+        );
+      }
+
+      // Cleanup API keys
+      if (
+        this.createdResources.apiKeys &&
+        this.createdResources.apiKeys.length > 0
+      ) {
+        for (const apiKey of this.createdResources.apiKeys) {
+          try {
+            const response = await fetch(
+              `${CONFIG.BACKEND_URL}/apikeys/${apiKey.id}`,
+              {
+                method: "DELETE",
+                headers: {
+                  Authorization: `Bearer ${this.sessionToken}`,
+                },
+              }
+            );
+
+            if (response.ok) {
+              cleanupCount++;
+            }
+          } catch (error) {
+            // Continue with cleanup even if individual items fail
+          }
+        }
+        console.log(
+          chalk.green(
+            `  ✅ Cleaned up ${this.createdResources.apiKeys.length} API keys`
+          )
+        );
       }
 
       // Cleanup collections
@@ -409,7 +485,7 @@ class ComprehensiveTestRunner {
   }
 }
 
-// Run the comprehensive test suite
+// Run the comprehensive test suite (only if executed directly)
 async function runTests() {
   console.log(chalk.blue("Starting KRAPI Comprehensive Test Suite...\n"));
 
@@ -420,10 +496,12 @@ async function runTests() {
   process.exit(success ? 0 : 1);
 }
 
-// Execute the test suite
-runTests().catch((error) => {
-  console.error(chalk.red("Unexpected error:", error));
-  process.exit(1);
-});
+// Execute the test suite only if this file is run directly (not imported)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runTests().catch((error) => {
+    console.error(chalk.red("Unexpected error:", error));
+    process.exit(1);
+  });
+}
 
 export default ComprehensiveTestRunner;

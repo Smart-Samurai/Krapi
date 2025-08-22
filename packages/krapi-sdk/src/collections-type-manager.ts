@@ -6,10 +6,10 @@ import {
   CollectionTypeAutoFixResult,
   CollectionTypeFix,
   CollectionTypeRegistry,
-  CollectionFieldType,
-  CollectionIndexType,
-  CollectionConstraintType,
-  CollectionRelationType,
+  CollectionTypeField as CollectionFieldType,
+  CollectionTypeIndex as CollectionIndexType,
+  CollectionTypeConstraint as CollectionConstraintType,
+  CollectionTypeRelation as CollectionRelationType,
 } from "./types";
 
 /**
@@ -190,8 +190,8 @@ export class CollectionsTypeManager {
   ): Promise<CollectionTypeValidationResult> {
     const startTime = Date.now();
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
-    const recommendations: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
+    const suggestions: CollectionTypeIssue[] = [];
 
     try {
       // Validate field definitions
@@ -259,19 +259,32 @@ export class CollectionsTypeManager {
         });
       }
 
-      // Generate recommendations
+      // Generate suggestions
       if (typeDefinition.fields.length === 0) {
-        recommendations.push("Collection should have at least one field");
+        suggestions.push({
+          type: "suggestion",
+          severity: "info",
+          description: "Collection should have at least one field",
+          auto_fixable: false,
+        });
       }
 
       if (!typeDefinition.fields.some((f) => f.name === "id")) {
-        recommendations.push("Consider adding an 'id' field for primary key");
+        suggestions.push({
+          type: "suggestion",
+          severity: "info",
+          description: "Consider adding an 'id' field for primary key",
+          auto_fixable: false,
+        });
       }
 
       if (typeDefinition.indexes.length === 0) {
-        recommendations.push(
-          "Consider adding indexes for frequently queried fields"
-        );
+        suggestions.push({
+          type: "suggestion",
+          severity: "info",
+          description: "Consider adding indexes for frequently queried fields",
+          auto_fixable: false,
+        });
       }
     } catch (error) {
       issues.push({
@@ -290,9 +303,7 @@ export class CollectionsTypeManager {
       isValid: issues.filter((i) => i.severity === "error").length === 0,
       issues,
       warnings,
-      recommendations,
-      validation_duration: validationDuration,
-      timestamp: new Date().toISOString(),
+      suggestions,
     };
   }
 
@@ -301,10 +312,10 @@ export class CollectionsTypeManager {
    */
   private validateFieldDefinition(field: CollectionFieldType): {
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   } {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     // Check field name
     if (!field.name || field.name.trim() === "") {
@@ -526,10 +537,10 @@ export class CollectionsTypeManager {
     fields: CollectionFieldType[]
   ): {
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   } {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     // Check index name
     if (!index.name || index.name.trim() === "") {
@@ -586,10 +597,10 @@ export class CollectionsTypeManager {
     fields: CollectionFieldType[]
   ): {
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   } {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     // Check constraint name
     if (!constraint.name || constraint.name.trim() === "") {
@@ -662,10 +673,10 @@ export class CollectionsTypeManager {
     fields: CollectionFieldType[]
   ): {
     issues: CollectionTypeIssue[];
-    warnings: string[];
+    warnings: CollectionTypeIssue[];
   } {
     const issues: CollectionTypeIssue[] = [];
-    const warnings: string[] = [];
+    const warnings: CollectionTypeIssue[] = [];
 
     // Check relation name
     if (!relation.name || relation.name.trim() === "") {
@@ -758,12 +769,11 @@ export class CollectionsTypeManager {
     if (validation.isValid) {
       return {
         success: true,
-        fixes_applied: 0,
+        fixes_applied: [],
+        fixes_failed: [],
+        total_fixes: 0,
         duration: Date.now() - startTime,
-        details: ["Collection type is already valid"],
-        applied_fixes: [],
-        failed_fixes: [],
-        timestamp: new Date().toISOString(),
+        details: "Collection type is already valid",
       };
     }
 
@@ -814,12 +824,11 @@ export class CollectionsTypeManager {
 
     return {
       success: appliedFixes.length > 0,
-      fixes_applied: appliedFixes.length,
+      fixes_applied: appliedFixes,
+      fixes_failed: failedFixes,
+      total_fixes: appliedFixes.length,
       duration,
-      details,
-      applied_fixes: appliedFixes,
-      failed_fixes: failedFixes,
-      timestamp: new Date().toISOString(),
+      details: details.join("; "),
     };
   }
 

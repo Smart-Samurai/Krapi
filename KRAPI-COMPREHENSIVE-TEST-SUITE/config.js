@@ -8,8 +8,9 @@
 export const CONFIG = {
   // Base URLs for testing - MUST go through frontend
   FRONTEND_URL: "http://localhost:3469",
-  BACKEND_URL: "http://localhost:3469/krapi/k1", // Frontend endpoint that routes to backend
-  DIRECT_BACKEND_URL: "http://localhost:3469/krapi/k1", // Frontend endpoint (same as BACKEND_URL)
+  FRONTEND_API_URL: "http://localhost:3469/api", // Frontend API endpoints
+  BACKEND_URL: "http://localhost:3469/api", // Frontend API endpoints (not proxy)
+  DIRECT_BACKEND_URL: "http://localhost:3470", // Direct backend URL for health checks
 
   // Test credentials
   ADMIN_CREDENTIALS: {
@@ -25,7 +26,7 @@ export const CONFIG = {
   // Test configuration
   CLEANUP_AFTER_TESTS: true,
   VERBOSE_LOGGING: true,
-  TIMEOUT_MS: 30000,
+  TIMEOUT_MS: 5000, // Reduced from 30s to 5s max
 
   // Test file configuration
   TEST_FILE: {

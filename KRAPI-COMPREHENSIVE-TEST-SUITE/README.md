@@ -1,336 +1,280 @@
-# 🧪 KRAPI Comprehensive Test Suite
+# KRAPI Comprehensive Test Suite
 
-> **The ultimate testing framework for KRAPI Backend-as-a-Service**
-
-This comprehensive test suite thoroughly validates every aspect of the KRAPI system by performing real database operations and testing all endpoints in a logical sequence.
+A comprehensive testing framework for the KRAPI Backend-as-a-Service platform that ensures all functionality works correctly through end-to-end testing.
 
 ## 🎯 What This Test Suite Does
 
-### **Real Database Testing**
+This test suite provides **comprehensive testing** of the entire KRAPI system by:
 
-- Creates actual projects, collections, and documents
-- Performs real CRUD operations on live data
-- Tests data integrity and relationships
-- Validates all API endpoints with real requests
-- Cleans up test data automatically after completion
-
-### **Comprehensive Coverage**
-
-- **Authentication & Sessions**: Login, logout, session management, API keys
-- **Project Management**: CRUD operations, settings, statistics, activity logs
-- **Collections & Schema**: Dynamic schema creation, field types, indexes, validation
-- **Documents & Data**: CRUD, bulk operations, filtering, sorting, aggregation
-- **Error Handling**: Invalid requests, missing data, permission errors
-- **Performance**: Bulk operations, pagination, complex queries
+1. **Starting fresh services** - Backend and frontend in dev mode
+2. **Resetting database** - Destroys and recreates PostgreSQL container with clean volumes
+3. **Testing all functionality** - Every CRUD operation, API route, and feature
+4. **End-to-end validation** - Tests go through frontend → backend → database flow
+5. **Real data operations** - Creates, modifies, and deletes real data
+6. **Comprehensive cleanup** - Removes all test data after testing
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- KRAPI backend running on `https://krapi.genortg.pl`
-- Database initialized with default admin user (`admin`/`admin123`)
-- Node.js 18+ with npm/pnpm
+- **Node.js** (v18 or higher)
+- **pnpm** package manager
+- **Docker** with Docker Compose
+- **KRAPI project** running in the parent directory
 
-### Installation
+### Running the Tests
+
+#### Option 1: Automated Script (Recommended)
+
+**Windows:**
+
+```cmd
+cd KRAPI-COMPREHENSIVE-TEST-SUITE
+run-tests.bat
+```
+
+**Linux/Mac:**
 
 ```bash
 cd KRAPI-COMPREHENSIVE-TEST-SUITE
-npm install
-# or
+./run-tests.sh
+```
+
+#### Option 2: Manual Execution
+
+```bash
+cd KRAPI-COMPREHENSIVE-TEST-SUITE
+
+# Install dependencies
 pnpm install
-```
 
-### Run All Tests
-
-```bash
 # Run comprehensive test suite
-npm run test
-# or
-node index.js full
+node run-comprehensive-tests.js
 ```
 
-### Run Individual Test Suites
+#### Option 3: Individual Test Suites
 
 ```bash
-# Authentication tests only
-npm run test:auth
-node index.js auth
+# Run specific test suites
+node tests/auth.test.js
+node tests/projects.test.js
+node tests/collections.test.js
+node tests/documents.test.js
+node tests/storage.test.js
+node tests/email.test.js
+node tests/apikeys.test.js
 
-# Project management tests only
-npm run test:projects
-node index.js projects
-
-# Collections & schema tests only
-npm run test:collections
-node index.js collections
-
-# Document operations tests only
-npm run test:documents
-node index.js documents
+# Run full system test
+node full-system-test.js
 ```
 
-## 📋 Test Phases
+## 🧪 Test Coverage
 
-### Phase 1: 🔐 Authentication & Session Management
+### Phase 1: Authentication & Session Management
 
-- Admin login with default credentials
-- Session token generation and validation
-- Session refresh and persistence
-- API key authentication (if available)
-- Password change functionality
-- Logout and session invalidation
-- Invalid login attempt handling
+- ✅ Admin login/logout
+- ✅ Session validation and refresh
+- ✅ Password change
+- ✅ API key authentication
+- ✅ Error handling for invalid credentials
 
-### Phase 2: 🎯 Project Management
+### Phase 2: Project Management
 
-- Create new projects with settings
-- Retrieve project information
-- Update project details and settings
-- Project pagination and filtering
-- Project statistics and activity logs
-- Multiple project creation for testing
-- Project deletion and cleanup
+- ✅ Project creation, reading, updating, deletion
+- ✅ Project listing and search
+- ✅ Project settings and configuration
 
-### Phase 3: 🗂️ Collections & Schema Management
+### Phase 3: Collections & Schema Management
 
-- Create collections with various field types
-- Dynamic schema definition and validation
-- Index creation and management
-- Schema updates and field additions
-- Collection statistics and information
-- Advanced field types (UUID, JSON, timestamps, etc.)
-- Collection name validation and error handling
+- ✅ Dynamic collection creation
+- ✅ Schema validation and enforcement
+- ✅ Collection CRUD operations
+- ✅ Field type management
 
-### Phase 4: 📄 Documents CRUD & Operations
+### Phase 4: Documents & Data Operations
 
-- Single document creation, retrieval, update, delete
-- Bulk document operations (create, update, delete)
-- Document filtering and querying
-- Sorting and pagination
-- Document counting and aggregation
-- Complex multi-criteria filtering
-- Data validation and error handling
+- ✅ Document CRUD operations
+- ✅ Bulk operations (create, update, delete)
+- ✅ Data validation and type checking
+- ✅ Query and filtering
 
-### Phase 5: 👥 Users & Permissions _(if implemented)_
+### Phase 5: Storage & File Management
 
-- User creation and management
-- Role assignment and permissions
-- User activity tracking
-- User statistics and reporting
+- ✅ File upload and download
+- ✅ File metadata management
+- ✅ File listing and search
+- ✅ File deletion and cleanup
 
-### Phase 6: 💾 Storage & File Management _(if implemented)_
+### Phase 6: Email & Communications
 
-- File upload and download
-- File metadata and information
-- Folder creation and management
-- Storage statistics and quotas
+- ✅ Email sending (plain text and HTML)
+- ✅ Email templates
+- ✅ Bulk email operations
+- ✅ Email validation and analytics
 
-### Phase 7: 📧 Email & Communications _(if implemented)_
+### Phase 7: API Keys Management
 
-- Email template management
-- Email sending functionality
-- Email configuration testing
+- ✅ API key creation and management
+- ✅ Permission-based access control
+- ✅ Key authentication testing
+- ✅ Key lifecycle management
 
-### Phase 8: 🔑 API Keys Management _(if implemented)_
+### Phase 8: Users & Permissions
 
-- API key creation and management
-- Key permissions and scopes
-- Key regeneration and deletion
+- ✅ User management (if implemented)
+- ✅ Permission system validation
+- ✅ Role-based access control
 
-### Phase 9: 🏥 Health & System Diagnostics
+### Phase 9: Health & System Diagnostics
 
-- System health endpoint testing
-- API health verification
-- Database connectivity validation
+- ✅ System health checks
+- ✅ Database connectivity
+- ✅ Service availability
+- ✅ Performance metrics
 
-## 🔧 Configuration
+## 🔄 Database Reset Process
 
-### Environment Configuration
+The test suite ensures a **completely fresh database** for each run:
 
-Edit `config.js` to customize test settings:
+1. **Stop and remove** existing PostgreSQL container
+2. **Delete all volumes** to remove all data
+3. **Remove network** configuration
+4. **Create fresh container** with clean PostgreSQL instance
+5. **Wait for health checks** to ensure database is ready
+6. **Initialize schema** with admin user and basic tables
+7. **Run comprehensive tests** against clean database
+8. **Clean up** all test data after completion
+
+## 📊 Test Results
+
+The test suite provides detailed reporting:
+
+- **Individual test results** with pass/fail status
+- **Test duration** and performance metrics
+- **Error details** for failed tests
+- **Resource cleanup** confirmation
+- **Overall success rate** and summary
+
+## 🛠️ Configuration
+
+Test configuration is in `config.js`:
 
 ```javascript
 export const CONFIG = {
-  // URLs
-  FRONTEND_URL: "https://krapi.genortg.pl",
-  BACKEND_URL: "https://krapi.genortg.pl/api/krapi/k1",
-
-  // Credentials
+  FRONTEND_URL: "http://localhost:3469",
+  BACKEND_URL: "http://localhost:3469/krapi/k1",
   ADMIN_CREDENTIALS: {
     username: "admin",
     password: "admin123",
   },
-
-  // Test Settings
-  CLEANUP_AFTER_TESTS: true,
-  VERBOSE_LOGGING: true,
-  TIMEOUT_MS: 30000,
+  // ... more configuration options
 };
 ```
 
-### Test Data
-
-The test suite creates realistic test data:
-
-- Projects with descriptive names and settings
-- Collections with various field types and indexes
-- Documents with realistic content and metadata
-- Users with different roles and permissions (if supported)
-- Files and storage items (if supported)
-
-## 📊 Test Results
-
-### Success Output
-
-```
-🚀 KRAPI Comprehensive Test Suite
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Testing against: https://krapi.genortg.pl
-API Endpoint: https://krapi.genortg.pl/api/krapi/k1
-
-🔐 Phase 1: Authentication & Session Management
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✅ Admin Login with Default Credentials (145ms)
-  ✅ Get Current User with Session Token (89ms)
-  ✅ Validate Session Token (67ms)
-  ✅ Refresh Session Token (123ms)
-  ...
-
-📊 Final Test Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Test Suites: 4
-Passed Suites: 4
-Failed Suites: 0
-Total Duration: 12.3s
-
-🎉 ALL TESTS PASSED!
-🚀 KRAPI system is working correctly!
-```
-
-### Failure Output
-
-When tests fail, detailed error information is provided:
-
-```
-❌ Failed Test Suites:
-  • AuthTests
-    - Invalid Login Attempts: Expected 401 for wrong password
-
-💥 1 TEST SUITE(S) FAILED!
-Please check the detailed error messages above.
-```
-
-## 🧹 Cleanup
-
-The test suite automatically cleans up all created resources:
-
-- Deletes all test documents (bulk delete for efficiency)
-- Removes all test collections
-- Deletes all test projects
-- Cleans up any uploaded files (if storage is tested)
-
-Cleanup can be disabled by setting `CLEANUP_AFTER_TESTS: false` in config.
-
-## 🔍 Testing Philosophy
-
-### Real Data Operations
-
-- No mocking or simulation - all operations use real API endpoints
-- Creates actual database entries to verify data persistence
-- Tests data relationships and integrity constraints
-- Validates business logic with realistic scenarios
-
-### Comprehensive Validation
-
-- Tests both success and failure scenarios
-- Validates data types and structure
-- Checks error handling and edge cases
-- Verifies pagination, filtering, and sorting
-- Tests bulk operations and performance
-
-### Progressive Testing
-
-- Each phase builds on the previous phase
-- Authentication is required for all subsequent tests
-- Projects are needed for collections testing
-- Collections are needed for documents testing
-- Realistic dependency chain validation
-
-## 🐛 Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-#### Connection Errors
+**Services won't start:**
 
-```bash
-# Verify KRAPI is running
-curl https://krapi.genortg.pl/health
+- Ensure Docker is running
+- Check if ports 3469 (frontend) and 3470 (backend) are available
+- Verify pnpm and Node.js are properly installed
 
-# Check API endpoint
-curl https://krapi.genortg.pl/api/krapi/k1/health
-```
+**Database connection fails:**
 
-#### Authentication Failures
+- Ensure Docker has enough resources (at least 2GB RAM)
+- Check if PostgreSQL container is healthy: `docker ps`
+- Verify database credentials in docker-compose.yml
 
-- Verify admin credentials in config.js
-- Check if default admin user exists in database
-- Ensure admin user has correct permissions
+**Tests fail with 404:**
 
-#### Test Failures
+- Services may still be starting up - wait longer
+- Check service logs for compilation errors
+- Ensure all dependencies are installed
 
-- Run individual test suites to isolate issues
-- Check detailed error messages in output
-- Verify database connectivity and permissions
-- Ensure all required endpoints are implemented
+**Permission denied errors:**
+
+- Make sure you have Docker permissions
+- Run `docker ps` to verify Docker access
+- Check if ports are available
 
 ### Debug Mode
 
-Enable verbose logging:
+To see detailed service logs:
 
-```javascript
-// In config.js
-VERBOSE_LOGGING: true;
+```bash
+# In another terminal, monitor service logs
+docker-compose logs -f
+
+# Or check individual service logs
+cd ..
+pnpm run docker:logs
 ```
 
-## 📈 Performance Testing
+## 📁 File Structure
 
-The test suite includes performance validation:
+```
+KRAPI-COMPREHENSIVE-TEST-SUITE/
+├── README.md                    # This file
+├── package.json                 # Dependencies and scripts
+├── config.js                    # Test configuration
+├── run-tests.sh                 # Linux/Mac test runner
+├── run-tests.bat                # Windows test runner
+├── run-comprehensive-tests.js   # Main test orchestrator
+├── enhanced-test-runner.js      # Database reset and service management
+├── full-system-test.js          # Complete test suite runner
+├── index.js                     # Individual test suite runner
+├── tests/                       # Test files
+│   ├── auth.test.js            # Authentication tests
+│   ├── projects.test.js        # Project management tests
+│   ├── collections.test.js     # Collections and schema tests
+│   ├── documents.test.js       # Document CRUD tests
+│   ├── storage.test.js         # File storage tests
+│   ├── email.test.js           # Email functionality tests
+│   └── apikeys.test.js         # API key management tests
+└── utils/                       # Test utilities
+    ├── test-framework.js        # Testing framework
+    └── database-helper.js       # Database utilities
+```
 
-- Measures response times for all operations
-- Tests bulk operations efficiency
-- Validates pagination performance
-- Monitors resource usage during testing
+## 🎯 Best Practices
+
+1. **Always run from clean state** - The test suite handles this automatically
+2. **Monitor service logs** - Watch for compilation errors during startup
+3. **Allow sufficient time** - Services need time to compile and start in dev mode
+4. **Check prerequisites** - Ensure Docker, Node.js, and pnpm are available
+5. **Review test results** - Pay attention to failed tests and error messages
+
+## 🚨 Important Notes
+
+- **This test suite modifies real data** - It creates and deletes actual database records
+- **Database is completely reset** - All existing data will be lost during testing
+- **Services run in dev mode** - This allows for hot reloading and debugging
+- **Tests go through frontend** - All requests route through frontend API endpoints
+- **Comprehensive cleanup** - Test data is automatically removed after testing
 
 ## 🤝 Contributing
 
-To add new test cases:
+To add new tests:
 
-1. Create new test file in `tests/` directory
-2. Extend `TestFramework` class
-3. Add test suite to main runner
-4. Update documentation
+1. Create test file in `tests/` directory
+2. Extend the `TestFramework` class
+3. Implement `runAll()` method with test cases
+4. Add test suite to `full-system-test.js`
+5. Update cleanup logic if needed
+6. Test thoroughly before committing
 
-Example test structure:
+## 📞 Support
 
-```javascript
-import TestFramework from "../utils/test-framework.js";
+If you encounter issues:
 
-class NewFeatureTests extends TestFramework {
-  async runAll() {
-    return this.describe("New Feature Tests", async () => {
-      await this.test("Test Case Name", async () => {
-        // Test implementation
-        this.assertTrue(condition, "Error message");
-      });
-    });
-  }
-}
-```
-
-## 📄 License
-
-MIT License - Part of the KRAPI project
+1. Check the troubleshooting section above
+2. Review service logs for error messages
+3. Verify all prerequisites are met
+4. Ensure Docker has sufficient resources
+5. Check if ports are available and not blocked
 
 ---
 
-**This test suite ensures KRAPI works perfectly with real data and real operations!** 🚀
+**Happy Testing! 🧪✨**

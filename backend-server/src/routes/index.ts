@@ -11,14 +11,14 @@
 import { BackendSDK } from "@krapi/sdk";
 import { Router, Router as RouterType } from "express";
 
-import { authenticate as _authenticate } from "@/middleware/auth.middleware";
-import { enforceProjectOrigin } from "@/middleware/origin-guard.middleware";
-import systemRoutes from "./system.routes";
+import { enforceProjectOrigin } from "../middleware/origin-guard.middleware";
+
 import adminRoutes, { initializeAdminSDK } from "./admin.routes";
-import emailRoutes, { initializeEmailSDK } from "./email.routes";
 import authRoutes from "./auth.routes";
-import projectRoutes from "./project.routes";
-import collectionsRoutes from "./collections.routes";
+import emailRoutes, { initializeEmailSDK } from "./email.routes";
+import projectRoutes, { initializeProjectSDK } from "./project.routes";
+import systemRoutes from "./system.routes";
+
 import usersRoutes from "./users.routes";
 import apiKeysRoutes from "./api-keys.routes";
 import storageRoutes from "./storage.routes";
@@ -37,6 +37,7 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
   // Initialize route-specific SDK instances
   initializeAdminSDK(sdk);
   initializeEmailSDK(sdk);
+  initializeProjectSDK(sdk);
 };
 
 // ===== System Routes (SDK-driven) =====
@@ -126,9 +127,6 @@ router.use("/auth", authRoutes);
 
 // ===== Project-Level Routes (SDK-driven) =====
 router.use("/projects", enforceProjectOrigin, projectRoutes);
-
-// ===== Collection-Level Routes (SDK-driven) =====
-router.use("/collections", enforceProjectOrigin, collectionsRoutes);
 
 // ===== User Management Routes (SDK-driven) =====
 router.use("/users", enforceProjectOrigin, usersRoutes);

@@ -11,6 +11,7 @@
 
 import { DatabaseConnection, Logger } from "./core";
 import { CountRow } from "./database-types";
+import bcrypt from "bcryptjs";
 
 export interface ProjectUser {
   id: string;
@@ -758,7 +759,6 @@ export class UsersService {
   // Utility Methods
   private async hashPassword(password: string): Promise<string> {
     try {
-      const bcrypt = await import("bcryptjs");
       const saltRounds = 12;
       return await bcrypt.hash(password, saltRounds);
     } catch (error) {
