@@ -24,7 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Project, Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
+import { Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
+import { type Project } from "@krapi/sdk";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 interface StreamlinedUserDialogProps {
@@ -150,7 +151,7 @@ export function StreamlinedUserDialog({
       setLoadingProjects(true);
       const response = await krapi!.projects.getAll();
       if (Array.isArray(response)) {
-        setProjects(response);
+        setProjects(response as unknown as Project[]);
       }
     } catch {
       // Error logged for debugging

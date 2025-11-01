@@ -62,7 +62,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { ProjectScope, type ApiKey } from "@/lib/krapi";
+import { ProjectScope } from "@/lib/krapi";
+import { type ApiKey } from "@krapi/sdk";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.READ]: "Read Projects",
@@ -120,7 +121,7 @@ export default function ApiKeysPage() {
       const result = await krapi.apiKeys.getAll(projectId);
       // The getAll method now returns the data array directly
       if (Array.isArray(result)) {
-        setApiKeys(result);
+        setApiKeys(result as unknown as ApiKey[]);
       } else {
         setError("Invalid response format");
       }
@@ -235,13 +236,13 @@ export default function ApiKeysPage() {
 
     try {
       const result = await krapi.apiKeys.regenerate(projectId, keyId);
-      if (result.success) {
+      if (result) {
         loadApiKeys();
       } else {
-        setError(result.error || "Failed to regenerate API key");
+        setError("Failed to regenerate API key");
       }
-    } catch {
-      setError("An error occurred while regenerating API key");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred while regenerating API key");
       // Error logged for debugging
     }
   };
@@ -604,21 +605,21 @@ headers_with_key = {
                     <div>
                       <h4 className="font-medium mb-2">Data Scopes:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• data:read - Read documents</li>
-                        <li>• data:write - Create/update documents</li>
-                        <li>• data:delete - Delete documents</li>
-                        <li>• collections:read - Read collections</li>
-                        <li>• collections:write - Manage collections</li>
+                        <li>? data:read - Read documents</li>
+                        <li>? data:write - Create/update documents</li>
+                        <li>? data:delete - Delete documents</li>
+                        <li>? collections:read - Read collections</li>
+                        <li>? collections:write - Manage collections</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">System Scopes:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• files:read - Read files</li>
-                        <li>• files:write - Upload files</li>
-                        <li>• files:delete - Delete files</li>
-                        <li>• users:read - Read users</li>
-                        <li>• users:write - Manage users</li>
+                        <li>? files:read - Read files</li>
+                        <li>? files:write - Upload files</li>
+                        <li>? files:delete - Delete files</li>
+                        <li>? users:read - Read users</li>
+                        <li>? users:write - Manage users</li>
                       </ul>
                     </div>
                   </div>

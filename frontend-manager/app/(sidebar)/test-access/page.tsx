@@ -40,7 +40,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { Project, Scope } from "@/lib/krapi";
+import { Scope } from "@/lib/krapi";
+import { type Project } from "@krapi/sdk";
 
 interface TestResult {
   name: string;
@@ -286,12 +287,12 @@ export default function TestAccessPage() {
       const response = await krapi.projects.getAll();
       if (Array.isArray(response)) {
         // Filter test projects (those with "test" in the name)
-        const testProjects = response.filter(
+        const testProjects = (response as unknown as Project[]).filter(
           (p: Project) =>
             p.name.toLowerCase().includes("test") ||
             p.description?.toLowerCase().includes("test")
         );
-        setTestProjects(testProjects);
+        setTestProjects(testProjects as unknown as Project[]);
       }
     } catch {
       // Error logged for debugging
