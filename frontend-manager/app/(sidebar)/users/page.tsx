@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
+import { AdminRole, AccessLevel, Scope, type AdminUser } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 // Permission types
@@ -138,8 +138,9 @@ export default function ServerAdministrationPage() {
         limit: 100,
         offset: 0,
       });
-      if (response && response.data) {
-        setAdminUsers(response.data);
+      const result = response as unknown as { data?: AdminUser[] };
+      if (result && result.data) {
+        setAdminUsers(result.data as unknown as LocalAdminUser[]);
       } else {
         setAdminUsers([]);
       }
@@ -210,8 +211,9 @@ export default function ServerAdministrationPage() {
           .map(([key]) => key as string) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         active: selectedUser.status === "active",
       });
+      const result = response as unknown as { success: boolean; error?: string };
 
-      if (response.success) {
+      if (result.success) {
         // Refresh the admin users list
         loadUsers();
         setIsEditDialogOpen(false);
@@ -235,8 +237,9 @@ export default function ServerAdministrationPage() {
       try {
         setIsLoading(true);
         const response = await krapi.admin.deleteUser(userId);
+        const result = response as unknown as { success: boolean; error?: string };
 
-        if (response.success) {
+        if (result.success) {
           // Remove the user from the local state
           loadUsers();
         }
@@ -258,8 +261,9 @@ export default function ServerAdministrationPage() {
       const response = await krapi.admin.updateUser(userId, {
         active: newStatus === "active",
       });
+      const result = response as unknown as { success: boolean; error?: string };
 
-      if (response.success) {
+      if (result.success) {
         // Update the local state
         loadUsers();
       }

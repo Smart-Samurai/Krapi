@@ -182,19 +182,32 @@ export default function FilesPage() {
 
     try {
       const result = await krapi.storage.downloadFile(projectId, file.id);
-      if (result.success && result.data) {
+      // downloadFile returns a Blob for file downloads
+      if (result instanceof Blob) {
         // Create a download link
         const link = document.createElement("a");
-        link.href = file.url;
+        link.href = URL.createObjectURL(result);
         link.download = file.original_name;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
       } else {
-        setError(result.error || "Failed to download file");
+        const response = result as unknown as { success?: boolean; data?: Blob; error?: string };
+        if (response.success && response.data) {
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(response.data);
+          link.download = file.original_name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+        } else {
+          setError(response.error || "Failed to download file");
+        }
       }
-    } catch {
-      setError("An error occurred while downloading file");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred while downloading file");
     }
   };
 
@@ -466,21 +479,21 @@ stats = response.json()`}
                         Supported Operations:
                       </h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• Upload files with progress tracking</li>
-                        <li>• Download files as blob/buffer</li>
-                        <li>• Get file metadata and info</li>
-                        <li>• Delete files permanently</li>
-                        <li>• Get storage usage statistics</li>
+                        <li>? Upload files with progress tracking</li>
+                        <li>? Download files as blob/buffer</li>
+                        <li>? Get file metadata and info</li>
+                        <li>? Delete files permanently</li>
+                        <li>? Get storage usage statistics</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">File Properties:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• filename - Stored filename</li>
-                        <li>• original_name - Original filename</li>
-                        <li>• mime_type - File type</li>
-                        <li>• size - File size in bytes</li>
-                        <li>• url - Direct download URL</li>
+                        <li>? filename - Stored filename</li>
+                        <li>? original_name - Original filename</li>
+                        <li>? mime_type - File type</li>
+                        <li>? size - File size in bytes</li>
+                        <li>? url - Direct download URL</li>
                       </ul>
                     </div>
                   </div>

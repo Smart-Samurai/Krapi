@@ -245,7 +245,7 @@ export function StreamlinedUserDialog({
         project_ids: projectIds,
       };
 
-      let response;
+      let response: { success: boolean; error?: string };
       if (editUser) {
         // For update, we need to send the data in the format the API expects
         const updateData: Partial<AdminUser> = {
@@ -255,7 +255,8 @@ export function StreamlinedUserDialog({
           access_level: userData.access_level as AccessLevel,
           permissions: [], // Will be derived from scopes on backend
         };
-        response = await krapi.admin.updateUser(editUser.id, updateData);
+        const result = await krapi.admin.updateUser(editUser.id, updateData);
+        response = result as unknown as { success: boolean; error?: string };
       } else {
         // For create, the API expects a different structure
         const createData = {
@@ -266,7 +267,8 @@ export function StreamlinedUserDialog({
           access_level: userData.access_level,
           permissions: [], // Will be derived from scopes on backend
         };
-        response = await krapi.admin.createUser(createData);
+        const result = await krapi.admin.createUser(createData);
+        response = result as unknown as { success: boolean; error?: string };
       }
 
       if (response.success) {

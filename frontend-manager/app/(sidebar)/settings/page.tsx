@@ -102,8 +102,9 @@ export default function SettingsPage() {
         if (!krapi) return;
 
         const response = await krapi.system.getSettings();
-        if (response) {
-          setSettings(response);
+        const result = response as unknown as SystemSettings | null;
+        if (result) {
+          setSettings(result);
         } else {
           // Fallback to default settings if API fails
           setSettings({

@@ -36,8 +36,9 @@ export async function GET(request: NextRequest) {
 
     const client = createAuthenticatedSdk(authToken);
     const response = await client.admin.getAllUsers(options);
+    const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
-    return NextResponse.json(response);
+    return NextResponse.json(result);
   } catch (error) {
     // Error logged for debugging
     return NextResponse.json(
@@ -64,11 +65,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const client = createAuthenticatedSdk(authToken);
     const response = await client.admin.createUser(body);
+    const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
-    if (response.success) {
-      return NextResponse.json(response, { status: 201 });
+    if (result.success) {
+      return NextResponse.json(result, { status: 201 });
     } else {
-      return NextResponse.json(response, { status: 400 });
+      return NextResponse.json(result, { status: 400 });
     }
   } catch (error) {
     // Error logged for debugging
