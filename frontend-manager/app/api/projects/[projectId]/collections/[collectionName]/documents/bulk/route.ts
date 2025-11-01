@@ -79,8 +79,11 @@ export async function POST(
       );
     }
 
-    const result = await response.json();
-    return NextResponse.json({ success: true, data: result }, { status: 201 });
+    const backendResponse = await response.json();
+    // Backend returns { success: true, created: [...], errors: [], total: ... }
+    // Test expects response.data.created to be an array
+    // Return the backend response directly, not wrapped in data
+    return NextResponse.json(backendResponse, { status: 201 });
   } catch (error) {
     console.error("Error creating documents:", error);
     return NextResponse.json(

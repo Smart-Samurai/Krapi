@@ -97,115 +97,17 @@ class ComprehensiveTestRunner {
     // Kill processes on test ports
     await this.killProcessOnPort(3498); // Frontend
     await this.killProcessOnPort(3470); // Backend
-    await this.killProcessOnPort(5420); // Database
-
-    // Use docker compose to safely manage containers with full cleanup
-    // On Windows, Docker commands may fail due to named pipe issues, so make this graceful
-    try {
-      const result = await this.runCommand("docker compose down -v --remove-orphans", {
-        ignoreStderr: true,
-      });
-      if (result.success) {
-        this.log(
-          "✅ Stopped existing Docker services and removed volumes",
-          "SUCCESS"
-        );
-      } else {
-        this.log("ℹ️ Docker cleanup skipped (likely Windows Docker issue)", "INFO");
-      }
-    } catch (error) {
-      this.log("ℹ️ Docker cleanup skipped (likely Windows Docker issue)", "INFO");
-    }
-
-    // Clean up any orphaned networks
-    try {
-      await this.runCommand("docker network prune -f", {
-        ignoreStderr: true,
-      });
-      this.log("✅ Cleaned up orphaned Docker networks", "SUCCESS");
-    } catch (error) {
-      this.log("ℹ️ No orphaned networks to clean", "INFO");
-    }
+    // No database port to clean up - using embedded SQLite
 
     this.log("✅ Cleanup complete", "SUCCESS");
   }
 
   async setupDockerEnvironment() {
-    this.log("🐳 Setting up Docker test environment...", "INFO");
-
-    // On Windows, Docker Desktop may not be accessible from child processes
-    // Try Docker commands but gracefully handle failures if container is already running
-    const checkResult = await this.runCommand(
-      "docker ps --filter name=krapi-postgres --format {{.Names}}",
-      { ignoreStderr: true }
-    );
-
-    if (checkResult.success && checkResult.stdout && checkResult.stdout.includes("krapi-postgres")) {
-      this.log("✅ PostgreSQL container already running", "SUCCESS");
-    } else {
-      // Try to start via docker compose
-      const composeResult = await this.runCommand("docker compose up -d", {
-        ignoreStderr: true,
-      });
-      
-      if (composeResult.success) {
-        this.log("✅ Started PostgreSQL container via docker compose", "SUCCESS");
-      } else {
-        // Docker commands failed - likely Windows named pipe issue
-        // Assume container is already running (as user confirmed) and continue
-        this.log("⚠️ Docker commands failed (likely Windows named pipe issue)", "WARNING");
-        this.log("ℹ️ Assuming PostgreSQL container is already running as confirmed", "INFO");
-      }
-    }
-
-    // Wait for database to be ready
-    this.log("⏳ Waiting for database to be ready...", "INFO");
-    let dbReady = false;
-    let attempts = 0;
-    const maxAttempts = 30;
-
-    while (!dbReady && attempts < maxAttempts) {
-      try {
-        const result = await this.runCommand(
-          `docker exec krapi-postgres pg_isready -U postgres -d krapi`,
-          { ignoreStderr: true }
-        );
-        if (result.success) {
-          dbReady = true;
-          this.log("✅ Database is ready", "SUCCESS");
-        } else {
-          // If Docker exec fails, try connecting directly via psql to verify DB is accessible
-          // On Windows, docker exec may fail due to named pipe issues, but DB might still be accessible
-          if (attempts >= 5) {
-            this.log(
-              "⚠️ Docker exec failed, but assuming database is accessible (Windows Docker issue)",
-              "WARNING"
-            );
-            dbReady = true;
-            break;
-          }
-        }
-      } catch (error) {
-        // Ignore errors and continue
-      }
-      attempts++;
-      if (attempts >= maxAttempts) {
-        // Don't throw - assume DB is ready if Docker commands fail
-        this.log(
-          "⚠️ Could not verify database via Docker commands, assuming it's ready",
-          "WARNING"
-        );
-        dbReady = true;
-        break;
-      }
-      this.log(
-        `⏳ Database not ready yet (attempt ${attempts}/${maxAttempts}), waiting...`,
-        "INFO"
-      );
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
-
-    this.log("✅ Docker environment setup complete", "SUCCESS");
+    this.log("💾 Using embedded SQLite database - no Docker setup needed", "INFO");
+    // SQLite database is embedded - no Docker setup required
+    // Database file will be created automatically at backend-server/data/krapi.db
+    this.log("✅ SQLite database will be initialized on first connection", "SUCCESS");
+    return true;
   }
 
   async buildServices() {
@@ -635,63 +537,12 @@ class ComprehensiveTestRunner {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Kill any remaining processes on ports
-    await this.killProcessOnPort(3498);
-    await this.killProcessOnPort(3470);
-    await this.killProcessOnPort(5420);
+    await this.killProcessOnPort(3498); // Frontend
+    await this.killProcessOnPort(3470); // Backend
+    // No database port - using embedded SQLite
 
-    // Use docker compose to safely stop services with full cleanup
-    try {
-      this.log("   Stopping Docker services...", "INFO");
-      const result = await this.runCommand(
-        "docker compose down -v --remove-orphans",
-        {
-          ignoreStderr: true,
-        }
-      );
-      if (result.success) {
-        this.log(
-          "✅ Docker services stopped and volumes removed via docker-compose",
-          "SUCCESS"
-        );
-      } else {
-        this.log(`⚠️ Docker cleanup had issues: ${result.stderr}`, "WARNING");
-      }
-    } catch (error) {
-      this.log(
-        `⚠️ Failed to stop Docker services: ${error.message}`,
-        "WARNING"
-      );
-    }
-
-    // Clean up any orphaned networks
-    try {
-      await this.runCommand("docker network prune -f", {
-        ignoreStderr: true,
-      });
-      this.log("✅ Cleaned up orphaned Docker networks", "SUCCESS");
-    } catch (error) {
-      this.log("⚠️ Failed to clean up networks", "WARNING");
-    }
-
-    // Verify Docker cleanup worked
-    try {
-      const checkResult = await this.runCommand(
-        "docker ps -a --filter name=krapi-postgres",
-        {
-          ignoreStderr: true,
-        }
-      );
-      if (
-        checkResult.success &&
-        checkResult.stdout.includes("krapi-postgres")
-      ) {
-        this.log("⚠️ Docker container still exists after cleanup", "WARNING");
-      } else {
-        this.log("✅ Docker container properly removed", "SUCCESS");
-      }
-    } catch (error) {
-      this.log("ℹ️ Could not verify Docker cleanup status", "INFO");
-    }
+    // SQLite uses embedded database - no Docker cleanup needed
+    this.log("ℹ️ Using embedded SQLite - no Docker cleanup required", "INFO");
 
     this.log("✅ Cleanup complete", "SUCCESS");
   }

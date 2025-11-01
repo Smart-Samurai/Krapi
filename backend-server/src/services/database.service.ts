@@ -2,10 +2,10 @@ import * as crypto from "crypto";
 
 import { ApiKeyScope, FieldType } from "@krapi/sdk";
 import bcrypt from "bcryptjs";
-import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
 
 import { MigrationService } from "./migration.service";
+import { SQLiteAdapter } from "./sqlite-adapter.service";
 
 import {
   AdminUser,
@@ -31,7 +31,7 @@ import {
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
 export class DatabaseService {
-  private pool: Pool;
+  private adapter: SQLiteAdapter;
   private static instance: DatabaseService;
   private isConnected = false;
   private connectionAttempts = 0;
@@ -50,22 +50,9 @@ export class DatabaseService {
       this.readyReject = reject;
     });
 
-    // PostgreSQL connection configuration
-    this.pool = new Pool({
-      host: process.env.DB_HOST || "localhost",
-      port: parseInt(process.env.DB_PORT || "5432"),
-      database: process.env.DB_NAME || "krapi",
-      user: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD || "postgres",
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000, // Increased from 2000
-    });
-
-    // Set up error handlers
-    this.pool.on("error", (err) => {
-      console.error("Unexpected error on idle client", err);
-    });
+    // SQLite database configuration
+    const dbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH;
+    this.adapter = new SQLiteAdapter(dbPath);
 
     // In development mode, skip heavy initialization for faster startup
     if (process.env.NODE_ENV === "development") {
@@ -108,9 +95,9 @@ export class DatabaseService {
     return this.readyPromise;
   }
 
-  // Public method to get a database connection
+  // Public method to get a database connection (for compatibility, returns adapter)
   async getConnection() {
-    return this.pool.connect();
+    return this.adapter;
   }
 
   // Public method to execute queries
@@ -118,11 +105,7 @@ export class DatabaseService {
     sql: string,
     params?: unknown[]
   ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
-    const result = await this.pool.query(sql, params);
-    return {
-      rows: result.rows || [],
-      rowCount: result.rowCount || 0,
-    };
+    return await this.adapter.query(sql, params);
   }
 
   // Method to implement DatabaseConnection interface
@@ -137,7 +120,8 @@ export class DatabaseService {
 
   async runSchemaFixes(): Promise<void> {
     if (!this.migrationService) {
-      throw new Error("Migration service not initialized");
+      // Initialize migration service if not already initialized
+      this.migrationService = new MigrationService(this.adapter);
     }
     await this.migrationService.checkAndFixSchema();
   }
@@ -164,11 +148,9 @@ export class DatabaseService {
   }> {
     try {
       // Check connection
-      const client = await this.pool.connect();
-      await client.query("SELECT 1");
-      client.release();
+      await this.adapter.query("SELECT 1");
 
-      // Check critical tables
+      // Check critical tables (SQLite uses sqlite_master instead of information_schema)
       const criticalTables = [
         "admin_users",
         "projects",
@@ -182,11 +164,11 @@ export class DatabaseService {
 
       const missingTables = [];
       for (const table of criticalTables) {
-        const result = await this.pool.query(
-          "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)",
+        const result = await this.adapter.query(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
           [table]
         );
-        if (!result.rows[0].exists) {
+        if (result.rows.length === 0) {
           missingTables.push(table);
         }
       }
@@ -206,9 +188,9 @@ export class DatabaseService {
         details: {
           lastCheck: this.lastHealthCheck,
           connectionPool: {
-            totalCount: this.pool.totalCount,
-            idleCount: this.pool.idleCount,
-            waitingCount: this.pool.waitingCount,
+            totalCount: 1,
+            idleCount: 1,
+            waitingCount: 0,
           },
         },
       };
@@ -273,10 +255,10 @@ export class DatabaseService {
       repairs.push("Fixed missing columns");
 
       // Create default admin if none exists
-      const adminCount = await this.pool.query(
-        "SELECT COUNT(*) FROM admin_users"
+      const adminCount = await this.adapter.query(
+        "SELECT COUNT(*) as count FROM admin_users"
       );
-      if (parseInt(adminCount.rows[0].count) === 0) {
+      if (parseInt(String(adminCount.rows[0]?.count || 0)) === 0) {
         await this.createDefaultAdmin();
         repairs.push("Created default admin user");
       }
@@ -322,17 +304,16 @@ export class DatabaseService {
     ) {
       this.connectionAttempts++;
       console.log(
-        `Attempting to connect to PostgreSQL (attempt ${this.connectionAttempts}/${this.maxConnectionAttempts})...`
+        `Attempting to connect to SQLite (attempt ${this.connectionAttempts}/${this.maxConnectionAttempts})...`
       );
 
       try {
         // Test the connection
-        const client = await this.pool.connect();
-        await client.query("SELECT 1");
-        client.release();
+        await this.adapter.connect();
+        await this.adapter.query("SELECT 1");
 
         this.isConnected = true;
-        console.log("Successfully connected to PostgreSQL");
+        console.log("Successfully connected to SQLite database");
 
         // Initialize tables first
         if (process.env.NODE_ENV === "development") {
@@ -349,7 +330,7 @@ export class DatabaseService {
         break;
       } catch (error) {
         console.error(
-          `Failed to connect to PostgreSQL (attempt ${this.connectionAttempts}):`,
+          `Failed to connect to SQLite (attempt ${this.connectionAttempts}):`,
           error
         );
 
@@ -363,10 +344,10 @@ export class DatabaseService {
           await new Promise((resolve) => setTimeout(resolve, waitTime));
         } else {
           console.error(
-            "Max connection attempts reached. Please ensure PostgreSQL is running."
+            "Max connection attempts reached. Please ensure SQLite database is accessible."
           );
           const connectionError = new Error(
-            "Failed to connect to PostgreSQL after multiple attempts"
+            "Failed to connect to SQLite database after multiple attempts"
           );
           this.readyReject(connectionError);
           throw connectionError;
@@ -376,254 +357,242 @@ export class DatabaseService {
   }
 
   private async initializeTables() {
-    const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
-
-      // Ensure required extension for gen_random_uuid()
-      await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+      // SQLite doesn't need explicit BEGIN - it auto-commits transactions
+      // SQLite doesn't need extensions - it has built-in functions
 
       // Admin Users Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS admin_users (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          username VARCHAR(255) UNIQUE NOT NULL,
-          email VARCHAR(255) UNIQUE NOT NULL,
-          password_hash VARCHAR(255) NOT NULL,
-          role VARCHAR(50) NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
-          access_level VARCHAR(50) NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
-          permissions TEXT[] DEFAULT '{}',
-          scopes TEXT[] DEFAULT '{}',
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_login TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          username TEXT UNIQUE NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
+          access_level TEXT NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
+          permissions TEXT DEFAULT '[]',
+          scopes TEXT DEFAULT '[]',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_login TEXT,
           login_count INTEGER DEFAULT 0,
-          api_key VARCHAR(255) UNIQUE
+          api_key TEXT UNIQUE
         )
       `);
 
       // API Keys Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS api_keys (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          key VARCHAR(255) UNIQUE NOT NULL,
-          name VARCHAR(255),
-          type VARCHAR(50) DEFAULT 'admin',
-          owner_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-          scopes TEXT[] DEFAULT '{}',
-          project_ids UUID[] DEFAULT '{}',
-          expires_at TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          key TEXT UNIQUE NOT NULL,
+          name TEXT,
+          type TEXT DEFAULT 'admin',
+          owner_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+          scopes TEXT DEFAULT '[]',
+          project_ids TEXT DEFAULT '[]',
+          expires_at TEXT,
           rate_limit INTEGER,
-          metadata JSONB DEFAULT '{}'::jsonb,
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_used_at TIMESTAMP,
-          usage_count BIGINT DEFAULT 0
+          metadata TEXT DEFAULT '{}',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_used_at TEXT,
+          usage_count INTEGER DEFAULT 0
         )
       `);
 
-      // Create indexes for API keys
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = true
+      // Create indexes for API keys (SQLite partial indexes use different syntax)
+      await this.adapter.query(`
+        CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = 1
       `);
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_id)
       `);
 
       // Projects Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS projects (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name VARCHAR(255) UNIQUE NOT NULL,
+          id TEXT PRIMARY KEY,
+          name TEXT UNIQUE NOT NULL,
           description TEXT,
-          owner_id UUID NOT NULL REFERENCES admin_users(id),
-          api_key VARCHAR(255) UNIQUE NOT NULL,
-          allowed_origins TEXT[] DEFAULT '{}',
-          settings JSONB DEFAULT '{}'::jsonb,
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          storage_used BIGINT DEFAULT 0,
-          api_calls_count BIGINT DEFAULT 0,
-          last_api_call TIMESTAMP
+          owner_id TEXT NOT NULL REFERENCES admin_users(id),
+          api_key TEXT UNIQUE NOT NULL,
+          project_url TEXT,
+          allowed_origins TEXT DEFAULT '[]',
+          settings TEXT DEFAULT '{}',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          storage_used INTEGER DEFAULT 0,
+          api_calls_count INTEGER DEFAULT 0,
+          last_api_call TEXT,
+          created_by TEXT NOT NULL REFERENCES admin_users(id)
         )
       `);
 
       // Project Users Table (for admin access to projects)
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS project_admins (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          admin_user_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-          role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'admin', 'developer', 'viewer')),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          admin_user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'developer', 'viewer')),
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(project_id, admin_user_id)
         )
       `);
 
       // Project Users Table (for project-specific user accounts)
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS project_users (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          username VARCHAR(255) NOT NULL,
-          email VARCHAR(255) NOT NULL,
-          password_hash VARCHAR(255) NOT NULL,
-          phone VARCHAR(50),
-          is_verified BOOLEAN DEFAULT false,
-          is_active BOOLEAN DEFAULT true,
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_login TIMESTAMP,
-          email_verified_at TIMESTAMP,
-          phone_verified_at TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          username TEXT NOT NULL,
+          email TEXT NOT NULL,
+          password_hash TEXT NOT NULL,
+          phone TEXT,
+          is_verified INTEGER DEFAULT 0,
+          is_active INTEGER DEFAULT 1,
+          scopes TEXT NOT NULL DEFAULT '[]',
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_login TEXT,
+          email_verified_at TEXT,
+          phone_verified_at TEXT,
           UNIQUE(project_id, username),
           UNIQUE(project_id, email)
         )
       `);
 
       // Create indexes for project users
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id)
       `);
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email)
       `);
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username)
       `);
 
       // Collections Table (formerly table_schemas)
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS collections (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          name VARCHAR(255) NOT NULL,
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
           description TEXT,
-          fields JSONB NOT NULL DEFAULT '[]'::jsonb,
-          indexes JSONB DEFAULT '[]'::jsonb,
+          fields TEXT NOT NULL DEFAULT '[]',
+          indexes TEXT DEFAULT '[]',
           document_count INTEGER DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID REFERENCES admin_users(id),
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT REFERENCES admin_users(id),
           UNIQUE(project_id, name)
         )
       `);
 
       // Documents Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS documents (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-          data JSONB NOT NULL DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID NOT NULL REFERENCES admin_users(id)
+          id TEXT PRIMARY KEY,
+          collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+          data TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT NOT NULL REFERENCES admin_users(id)
         )
       `);
 
       // Create indexes for documents
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_documents_collection_id
         ON documents(collection_id)
       `);
 
       // Files Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS files (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          filename VARCHAR(255) NOT NULL,
-          original_name VARCHAR(255) NOT NULL,
-          mime_type VARCHAR(255) NOT NULL,
-          size BIGINT NOT NULL,
-          path VARCHAR(500) NOT NULL,
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          uploaded_by UUID REFERENCES admin_users(id)
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          filename TEXT NOT NULL,
+          original_name TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          path TEXT NOT NULL,
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          uploaded_by TEXT REFERENCES admin_users(id)
         )
       `);
 
       // Sessions Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS sessions (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          token VARCHAR(500) UNIQUE NOT NULL,
-          user_id UUID REFERENCES admin_users(id),
-          project_id UUID REFERENCES projects(id),
-          type VARCHAR(50) NOT NULL CHECK (type IN ('admin', 'project')),
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          expires_at TIMESTAMP NOT NULL,
-          consumed BOOLEAN DEFAULT false,
-          consumed_at TIMESTAMP,
-          last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          is_active BOOLEAN DEFAULT true
+          id TEXT PRIMARY KEY,
+          token TEXT UNIQUE NOT NULL,
+          user_id TEXT REFERENCES admin_users(id),
+          project_id TEXT REFERENCES projects(id),
+          type TEXT NOT NULL CHECK (type IN ('admin', 'project')),
+          scopes TEXT NOT NULL DEFAULT '[]',
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          expires_at TEXT NOT NULL,
+          consumed INTEGER DEFAULT 0,
+          consumed_at TEXT,
+          last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
+          is_active INTEGER DEFAULT 1
         )
       `);
 
       // Create index for sessions
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)
       `);
 
       // Changelog Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS changelog (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-          entity_type VARCHAR(50) NOT NULL,
-          entity_id VARCHAR(255) NOT NULL,
-          action VARCHAR(50) NOT NULL,
-          changes JSONB DEFAULT '{}'::jsonb,
-          performed_by UUID REFERENCES admin_users(id),
-          session_id VARCHAR(255),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          changes TEXT DEFAULT '{}',
+          performed_by TEXT REFERENCES admin_users(id),
+          session_id TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
       // Email Templates Table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS email_templates (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          name VARCHAR(255) NOT NULL,
-          subject VARCHAR(500) NOT NULL,
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          subject TEXT NOT NULL,
           body TEXT NOT NULL,
-          variables JSONB DEFAULT '[]',
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          variables TEXT DEFAULT '[]',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
       // System checks table
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS system_checks (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          check_type VARCHAR(100) NOT NULL,
-          status VARCHAR(50) NOT NULL,
-          details JSONB DEFAULT '{}'::jsonb,
-          last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          check_type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          details TEXT DEFAULT '{}',
+          last_checked TEXT DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(check_type)
         )
       `);
 
-      // Create updated_at trigger function
-      await client.query(`
-        CREATE OR REPLACE FUNCTION update_updated_at_column()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            NEW.updated_at = CURRENT_TIMESTAMP;
-            RETURN NEW;
-        END;
-        $$ language 'plpgsql';
-      `);
-
-      // Create triggers for updated_at
+      // Create triggers for updated_at (SQLite doesn't support functions, triggers directly)
       const tablesWithUpdatedAt = [
         "admin_users",
         "projects",
@@ -632,75 +601,27 @@ export class DatabaseService {
         "email_templates",
       ];
       for (const table of tablesWithUpdatedAt) {
-        await client.query(`
-          DROP TRIGGER IF EXISTS update_${table}_updated_at ON ${table};
+        await this.adapter.query(`
+          DROP TRIGGER IF EXISTS update_${table}_updated_at;
           CREATE TRIGGER update_${table}_updated_at 
-          BEFORE UPDATE ON ${table} 
-          FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+          AFTER UPDATE ON ${table}
+          BEGIN
+            UPDATE ${table} SET updated_at = CURRENT_TIMESTAMP WHERE rowid = NEW.rowid;
+          END;
         `);
       }
 
-      // Add missing essential tables for auth system
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS sessions (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          token VARCHAR(500) UNIQUE NOT NULL,
-          user_id UUID REFERENCES admin_users(id),
-          project_id UUID REFERENCES projects(id),
-          type VARCHAR(50) NOT NULL CHECK (type IN ('admin', 'project')),
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          expires_at TIMESTAMP NOT NULL,
-                  consumed BOOLEAN DEFAULT false,
-        consumed_at TIMESTAMP,
-        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_active BOOLEAN DEFAULT true
-      )
-    `);
-
-      await client.query(`
-      CREATE TABLE IF NOT EXISTS api_keys (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        key VARCHAR(255) UNIQUE NOT NULL,
-        name VARCHAR(255),
-        type VARCHAR(50) DEFAULT 'admin',
-        owner_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-        scopes TEXT[] DEFAULT '{}',
-        project_ids UUID[] DEFAULT '{}',
-        expires_at TIMESTAMP,
-        rate_limit INTEGER,
-        metadata JSONB DEFAULT '{}'::jsonb,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_used_at TIMESTAMP,
-        usage_count BIGINT DEFAULT 0
-      )
-    `);
-
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS changelog (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID REFERENCES admin_users(id),
-          action VARCHAR(100) NOT NULL,
-          entity_type VARCHAR(50) NOT NULL,
-          entity_id UUID,
-          changes JSONB,
-          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          ip_address INET,
-          user_agent TEXT
-        )
-      `);
-
-      await client.query(`
+      // Note: sessions, api_keys, changelog already created above - avoid duplicates
+      // Only create migrations table if not exists
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS migrations (
           version INTEGER PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          name TEXT NOT NULL,
+          executed_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
-      await client.query("COMMIT");
+      // SQLite auto-commits, no need for explicit COMMIT
 
       // Repair database structure if needed
       await this.repairDatabase();
@@ -708,7 +629,7 @@ export class DatabaseService {
       // Seed default data after tables are created
       await this.seedDefaultData();
     } catch (error) {
-      await client.query("ROLLBACK");
+      // SQLite handles rollback automatically on error
 
       // Log more detailed error information
       console.error("Error during table initialization:", error);
@@ -724,8 +645,7 @@ export class DatabaseService {
           );
 
           try {
-            // Start a new transaction to clean up
-            await client.query("BEGIN");
+            // SQLite doesn't need explicit BEGIN
 
             // Drop tables in reverse order of dependencies
             const tablesToDrop = [
@@ -742,21 +662,21 @@ export class DatabaseService {
             ];
 
             for (const table of tablesToDrop) {
-              await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+              await this.adapter.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
             }
 
             // Drop the trigger function
-            await client.query(
+            await this.adapter.query(
               `DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE`
             );
 
-            await client.query("COMMIT");
+            // SQLite auto-commits
 
             console.log(
               "Cleaned up existing tables. Please restart the application."
             );
           } catch (cleanupError) {
-            await client.query("ROLLBACK");
+            // SQLite handles rollback automatically
             console.error("Failed to clean up tables:", cleanupError);
           }
         }
@@ -764,14 +684,14 @@ export class DatabaseService {
 
       throw error;
     } finally {
-      client.release();
+      // SQLite doesn't need connection release
     }
   }
 
   private async seedDefaultData() {
     try {
       // Check if master admin exists
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "SELECT id FROM admin_users WHERE username = $1",
         ["admin"]
       );
@@ -784,11 +704,12 @@ export class DatabaseService {
         const hashedPassword = await this.hashPassword("admin123");
         masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        const adminResult = await this.pool.query(
-          `INSERT INTO admin_users (username, email, password_hash, role, access_level, api_key) 
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id`,
+        const adminId = uuidv4();
+        await this.adapter.query(
+          `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
+            adminId,
             "admin",
             "admin@krapi.com",
             hashedPassword,
@@ -797,9 +718,9 @@ export class DatabaseService {
             masterApiKey,
           ]
         );
-        adminId = adminResult.rows[0].id;
+        // SQLite doesn't support RETURNING, so use the generated ID
       } else {
-        adminId = result.rows[0].id;
+        adminId = result.rows[0]?.id as string;
 
         // Ensure default admin has correct password and generate API key if missing
         const defaultPassword =
@@ -807,16 +728,16 @@ export class DatabaseService {
         const hashedPassword = await this.hashPassword(defaultPassword);
 
         // Check if admin has API key
-        const adminResult = await this.pool.query(
+        const adminResult = await this.adapter.query(
           "SELECT api_key FROM admin_users WHERE username = $1",
           ["admin"]
         );
 
-        if (!adminResult.rows[0].api_key) {
+        if (!(adminResult.rows[0]?.api_key as string)) {
           masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
-          await this.pool.query(
+          await this.adapter.query(
             `UPDATE admin_users 
-             SET password_hash = $1, is_active = true, api_key = $2 
+             SET password_hash = $1, is_active = 1, api_key = $2 
              WHERE username = $3`,
             [hashedPassword, masterApiKey, "admin"]
           );
@@ -824,10 +745,10 @@ export class DatabaseService {
             "Default master admin password reset and API key generated"
           );
         } else {
-          masterApiKey = adminResult.rows[0].api_key;
-          await this.pool.query(
+          masterApiKey = adminResult.rows[0]?.api_key as string;
+          await this.adapter.query(
             `UPDATE admin_users 
-             SET password_hash = $1, is_active = true 
+             SET password_hash = $1, is_active = 1 
              WHERE username = $2`,
             [hashedPassword, "admin"]
           );
@@ -836,50 +757,40 @@ export class DatabaseService {
 
       // Create or update master API key in api_keys table
       if (masterApiKey) {
-        await this.pool.query(
+        await this.adapter.query(
           `
-          INSERT INTO api_keys (key, name, type, owner_id, scopes, is_active)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO api_keys (id, key, name, type, owner_id, scopes, is_active)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (key) 
           DO UPDATE SET 
-            is_active = true,
-            scopes = $5
+            is_active = 1,
+            scopes = $6
         `,
           [
+            uuidv4(),
             masterApiKey,
             "Master API Key",
             "master",
             adminId,
-            ["master"], // Master scope gives full access
-            true,
+            JSON.stringify(["master"]), // Master scope gives full access - store as JSON
+            1,
           ]
         );
       }
 
-      // Create a system check table to track initialization
-      await this.pool.query(`
-        CREATE TABLE IF NOT EXISTS system_checks (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          check_type VARCHAR(100) NOT NULL,
-          status VARCHAR(50) NOT NULL,
-          details JSONB DEFAULT '{}'::jsonb,
-          last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(check_type)
-        )
-      `);
-
-      // Record successful initialization
-      await this.pool.query(
+      // Record successful initialization (system_checks table already created above)
+      await this.adapter.query(
         `
-        INSERT INTO system_checks (check_type, status, details)
-        VALUES ('database_initialization', 'success', $1)
+        INSERT INTO system_checks (id, check_type, status, details)
+        VALUES ($1, 'database_initialization', 'success', $2)
         ON CONFLICT (check_type) 
         DO UPDATE SET 
           status = 'success',
-          details = $1,
+          details = $2,
           last_checked = CURRENT_TIMESTAMP
       `,
         [
+          uuidv4(),
           JSON.stringify({
             version: "1.0.0",
             initialized_at: new Date().toISOString(),
@@ -922,7 +833,7 @@ export class DatabaseService {
     try {
       // Check database connection
       try {
-        await this.pool.query("SELECT 1");
+        await this.adapter.query("SELECT 1");
         checks.database = { status: true, message: "Connected" };
       } catch (error) {
         checks.database = {
@@ -947,15 +858,19 @@ export class DatabaseService {
       ];
 
       try {
-        const tableCheckResult = await this.pool.query(
-          `
-          SELECT table_name 
-          FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = ANY($1)
-        `,
-          [requiredTables]
-        );
+        // SQLite uses sqlite_master instead of information_schema
+        // Check each table individually
+        const foundTables: string[] = [];
+        for (const table of requiredTables) {
+          const result = await this.adapter.query(
+            `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
+            [table]
+          );
+          if (result.rows.length > 0) {
+            foundTables.push(table);
+          }
+        }
+        const tableCheckResult = { rows: foundTables.map((t) => ({ table_name: t })) };
 
         const existingTables = tableCheckResult.rows.map(
           (row) => row.table_name
@@ -987,12 +902,12 @@ export class DatabaseService {
 
       // Check default admin exists and is active
       try {
-        const adminResult = await this.pool.query(
+        const adminResult = await this.adapter.query(
           "SELECT id, is_active FROM admin_users WHERE username = $1",
           ["admin"]
         );
 
-        if (adminResult.rows.length > 0 && adminResult.rows[0].is_active) {
+        if (adminResult.rows.length > 0 && (adminResult.rows[0] as { is_active: unknown })?.is_active) {
           checks.defaultAdmin = {
             status: true,
             message: "Default admin exists and is active",
@@ -1017,7 +932,7 @@ export class DatabaseService {
 
       // Check initialization status
       try {
-        const initResult = await this.pool.query(
+        const initResult = await this.adapter.query(
           `SELECT status, details, last_checked 
            FROM system_checks 
            WHERE check_type = 'database_initialization'`
@@ -1025,12 +940,13 @@ export class DatabaseService {
 
         if (
           initResult.rows.length > 0 &&
-          initResult.rows[0].status === "success"
+          (initResult.rows[0] as { status: string })?.status === "success"
         ) {
+          const initRow = initResult.rows[0] as { status: string; details: unknown };
           checks.initialization = {
             status: true,
             message: "Database properly initialized",
-            details: initResult.rows[0].details,
+            details: initRow.details as Record<string, unknown>,
           };
         } else {
           checks.initialization = {
@@ -1096,7 +1012,7 @@ export class DatabaseService {
       }
 
       // Record repair action
-      await this.pool.query(
+      await this.adapter.query(
         `
         INSERT INTO system_checks (check_type, status, details)
         VALUES ('database_repair', 'success', $1)
@@ -1123,116 +1039,111 @@ export class DatabaseService {
 
   private async fixMissingColumns(): Promise<void> {
     try {
-      // Check and add missing columns to sessions table
-      const sessionColumns = await this.pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'sessions' AND table_schema = 'public'
-      `);
-
-      const existingSessionColumns = sessionColumns.rows.map(
-        (row) => row.column_name
+      // Check and add missing columns to sessions table (SQLite uses PRAGMA table_info)
+      const sessionColumns = await this.adapter.query(`PRAGMA table_info(sessions)`);
+      const existingSessionColumns = (sessionColumns.rows as Array<{ name: string }>).map(
+        (row) => row.name
       );
 
       // Add consumed column if it doesn't exist
       if (!existingSessionColumns.includes("consumed")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE sessions 
-          ADD COLUMN consumed BOOLEAN DEFAULT false
+          ADD COLUMN consumed INTEGER DEFAULT 0
         `);
         console.log("Added missing 'consumed' column to sessions table");
       }
 
       // Add consumed_at column if it doesn't exist
       if (!existingSessionColumns.includes("consumed_at")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE sessions 
-          ADD COLUMN consumed_at TIMESTAMP
+          ADD COLUMN consumed_at TEXT
         `);
         console.log("Added missing 'consumed_at' column to sessions table");
       }
 
       // Check and add missing columns to projects table
-      const projectColumns = await this.pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'projects' AND table_schema = 'public'
-      `);
-
-      const existingProjectColumns = projectColumns.rows.map(
-        (row) => row.column_name
+      const projectColumns = await this.adapter.query(`PRAGMA table_info(projects)`);
+      const existingProjectColumns = (projectColumns.rows as Array<{ name: string }>).map(
+        (row) => row.name
       );
 
       // Add is_active column if it doesn't exist
       if (!existingProjectColumns.includes("is_active")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ADD COLUMN is_active BOOLEAN DEFAULT true
+          ADD COLUMN is_active INTEGER DEFAULT 1
         `);
         console.log("Added missing 'is_active' column to projects table");
       }
 
       // Add created_by column if it doesn't exist
       if (!existingProjectColumns.includes("created_by")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ADD COLUMN created_by UUID REFERENCES admin_users(id)
+          ADD COLUMN created_by TEXT REFERENCES admin_users(id)
         `);
         console.log("Added missing 'created_by' column to projects table");
       }
 
       // Add settings column if it doesn't exist
       if (!existingProjectColumns.includes("settings")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ADD COLUMN settings JSONB DEFAULT '{}'::jsonb
+          ADD COLUMN settings TEXT DEFAULT '{}'
         `);
         console.log("Added missing 'settings' column to projects table");
       }
 
       // Add storage_used column if it doesn't exist
       if (!existingProjectColumns.includes("storage_used")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ADD COLUMN storage_used BIGINT DEFAULT 0
+          ADD COLUMN storage_used INTEGER DEFAULT 0
         `);
         console.log("Added missing 'storage_used' column to projects table");
       }
 
       // Add api_calls_count column if it doesn't exist
       if (!existingProjectColumns.includes("api_calls_count")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ADD COLUMN api_calls_count BIGINT DEFAULT 0
+          ADD COLUMN api_calls_count INTEGER DEFAULT 0
         `);
         console.log("Added missing 'api_calls_count' column to projects table");
       }
 
       // Add last_api_call column if it doesn't exist
       if (!existingProjectColumns.includes("last_api_call")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ADD COLUMN last_api_call TIMESTAMP
+          ADD COLUMN last_api_call TEXT
         `);
         console.log("Added missing 'last_api_call' column to projects table");
       }
 
-      // Check and add missing columns to admin_users table
-      const adminUserColumns = await this.pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'admin_users' AND table_schema = 'public'
-      `);
+      // Add project_url column if it doesn't exist
+      if (!existingProjectColumns.includes("project_url")) {
+        await this.adapter.query(`
+          ALTER TABLE projects 
+          ADD COLUMN project_url TEXT
+        `);
+        console.log("Added missing 'project_url' column to projects table");
+      }
 
-      const existingAdminUserColumns = adminUserColumns.rows.map(
-        (row) => row.column_name
+      // Check and add missing columns to admin_users table
+      const adminUserColumns = await this.adapter.query(`PRAGMA table_info(admin_users)`);
+
+      const existingAdminUserColumns = (adminUserColumns.rows as Array<{ name: string }>).map(
+        (row) => row.name
       );
 
       // Add password_hash column if it doesn't exist (rename from password if needed)
       if (!existingAdminUserColumns.includes("password_hash")) {
         if (existingAdminUserColumns.includes("password")) {
           // Rename password column to password_hash
-          await this.pool.query(`
+          await this.adapter.query(`
             ALTER TABLE admin_users 
             RENAME COLUMN password TO password_hash
           `);
@@ -1241,7 +1152,7 @@ export class DatabaseService {
           );
         } else {
           // Add password_hash column
-          await this.pool.query(`
+          await this.adapter.query(`
             ALTER TABLE admin_users 
             ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''
           `);
@@ -1253,7 +1164,7 @@ export class DatabaseService {
 
       // Add api_key column if it doesn't exist
       if (!existingAdminUserColumns.includes("api_key")) {
-        await this.pool.query(`
+        await this.adapter.query(`
           ALTER TABLE admin_users 
           ADD COLUMN api_key VARCHAR(255) UNIQUE
         `);
@@ -1278,7 +1189,7 @@ export class DatabaseService {
       data.password_hash ||
       (data.password ? await bcrypt.hash(data.password, 10) : "");
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `INSERT INTO admin_users (username, email, password_hash, role, access_level, permissions, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
@@ -1298,7 +1209,7 @@ export class DatabaseService {
 
   async getAdminUserByUsername(username: string): Promise<AdminUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM admin_users WHERE username = $1",
       [username]
     );
@@ -1308,7 +1219,7 @@ export class DatabaseService {
 
   async getAdminUserByEmail(email: string): Promise<AdminUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM admin_users WHERE email = $1",
       [email]
     );
@@ -1318,7 +1229,7 @@ export class DatabaseService {
 
   async getAdminUserById(id: string): Promise<AdminUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM admin_users WHERE id = $1",
       [id]
     );
@@ -1328,7 +1239,7 @@ export class DatabaseService {
 
   async getAdminUserByApiKey(apiKey: string): Promise<AdminUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM admin_users WHERE api_key = $1 AND is_active = true",
       [apiKey]
     );
@@ -1338,7 +1249,7 @@ export class DatabaseService {
 
   async getAllAdminUsers(): Promise<AdminUser[]> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM admin_users ORDER BY created_at DESC"
     );
 
@@ -1350,12 +1261,14 @@ export class DatabaseService {
     passwordHash: string
   ): Promise<AdminUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
-      "UPDATE admin_users SET password_hash = $1 WHERE id = $2 RETURNING *",
+    // SQLite doesn't support RETURNING *, so update and query back separately
+    await this.adapter.query(
+      "UPDATE admin_users SET password_hash = $1 WHERE id = $2",
       [passwordHash, id]
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    // Query back the updated row
+    return this.getAdminUserById(id);
   }
 
   async updateAdminUserApiKey(
@@ -1363,12 +1276,14 @@ export class DatabaseService {
     apiKey: string
   ): Promise<AdminUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
-      "UPDATE admin_users SET api_key = $1 WHERE id = $2 RETURNING *",
+    // SQLite doesn't support RETURNING *, so update and query back separately
+    await this.adapter.query(
+      "UPDATE admin_users SET api_key = $1 WHERE id = $2",
       [apiKey, id]
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    // Query back the updated row
+    return this.getAdminUserById(id);
   }
 
   async updateAdminUser(
@@ -1394,7 +1309,7 @@ export class DatabaseService {
     }
     if (data.active !== undefined) {
       fields.push(`is_active = $${paramCount++}`);
-      values.push(data.active);
+      values.push(data.active ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
     }
     if (data.api_key !== undefined) {
       fields.push(`api_key = $${paramCount++}`);
@@ -1417,19 +1332,21 @@ export class DatabaseService {
     if (fields.length === 0) return this.getAdminUserById(id);
 
     values.push(id);
-    const result = await this.pool.query(
+    // SQLite doesn't support RETURNING *, so update and query back separately
+    await this.adapter.query(
       `UPDATE admin_users SET ${fields.join(
         ", "
-      )} WHERE id = $${paramCount} RETURNING *`,
+      )} WHERE id = $${paramCount}`,
       values
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    // Query back the updated row
+    return this.getAdminUserById(id);
   }
 
   async updateLoginInfo(id: string): Promise<void> {
     await this.ensureReady();
-    await this.pool.query(
+    await this.adapter.query(
       `UPDATE admin_users 
        SET last_login = CURRENT_TIMESTAMP, login_count = login_count + 1 
        WHERE id = $1`,
@@ -1440,7 +1357,7 @@ export class DatabaseService {
   // Admin account management methods
   async enableAdminAccount(adminUserId: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE admin_users SET is_active = true WHERE id = $1",
       [adminUserId]
     );
@@ -1449,7 +1366,7 @@ export class DatabaseService {
 
   async disableAdminAccount(adminUserId: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE admin_users SET is_active = false WHERE id = $1",
       [adminUserId]
     );
@@ -1460,7 +1377,7 @@ export class DatabaseService {
     adminUserId: string
   ): Promise<{ is_active: boolean } | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT is_active FROM admin_users WHERE id = $1",
       [adminUserId]
     );
@@ -1471,7 +1388,7 @@ export class DatabaseService {
 
   async deleteAdminUser(id: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "DELETE FROM admin_users WHERE id = $1",
       [id]
     );
@@ -1507,29 +1424,45 @@ export class DatabaseService {
     >
   ): Promise<BackendProject> {
     try {
+      // Validate required fields
+      if (!data.created_by) {
+        throw new Error("created_by is required to create a project");
+      }
+
       const apiKey = data.api_key || `pk_${uuidv4().replace(/-/g, "")}`;
 
-      const rows = await this.queryWithRetry<Record<string, unknown>>(
-        `INSERT INTO projects (name, description, project_url, api_key, is_active, created_by, settings) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7) 
-         RETURNING *`,
+      // Generate project ID (SQLite doesn't support RETURNING *)
+      const projectId = uuidv4();
+      
+      await this.adapter.query(
+        `INSERT INTO projects (id, name, description, project_url, api_key, is_active, created_by, settings, owner_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
+          projectId,
           data.name,
-          data.description,
-          data.project_url,
+          data.description || null,
+          data.project_url || null,
           apiKey,
-          data.active ?? true,
-          data.created_by,
+          data.active ? 1 : 0, // SQLite uses INTEGER 1/0 for booleans
+          data.created_by, // Required - should be provided by controller
           JSON.stringify(data.settings || {}),
+          data.created_by, // owner_id defaults to created_by
         ]
+      );
+
+      // Query back the inserted row (SQLite doesn't support RETURNING *)
+      const rows = await this.queryWithRetry<Record<string, unknown>>(
+        `SELECT * FROM projects WHERE id = $1`,
+        [projectId]
       );
 
       return this.mapProject(rows[0]);
     } catch (error) {
       console.error("Failed to create project:", error);
-      // Check if it's a schema issue
+      // Check if it's a schema issue (missing column)
       if (error instanceof Error && error.message.includes("column")) {
-        await this.autoRepair();
+        // Fix missing columns directly (more targeted than full autoRepair)
+        await this.fixMissingColumns();
         // Retry after repair
         return this.createProject(data);
       }
@@ -1567,7 +1500,7 @@ export class DatabaseService {
 
   async getProjectByApiKey(apiKey: string): Promise<BackendProject | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM projects WHERE api_key = $1 AND is_active = true",
       [apiKey]
     );
@@ -1616,7 +1549,7 @@ export class DatabaseService {
       }
       if (data.active !== undefined) {
         updates.push(`is_active = $${paramCount++}`);
-        values.push(data.active);
+        values.push(data.active ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
       }
       if (data.settings !== undefined) {
         updates.push(`settings = $${paramCount++}`);
@@ -1630,14 +1563,16 @@ export class DatabaseService {
       updates.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(id);
 
-      const rows = await this.queryWithRetry<Record<string, unknown>>(
+      // SQLite doesn't support RETURNING *, so update and query back separately
+      await this.adapter.query(
         `UPDATE projects SET ${updates.join(
           ", "
-        )} WHERE id = $${paramCount} RETURNING *`,
+        )} WHERE id = $${paramCount}`,
         values
       );
 
-      return rows.length > 0 ? this.mapProject(rows[0]) : null;
+      // Query back the updated row
+      return this.getProjectById(id);
     } catch (error) {
       console.error("Failed to update project:", error);
       throw error;
@@ -1645,48 +1580,48 @@ export class DatabaseService {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    const client = await this.pool.connect();
+    // SQLite doesn't use connection pooling - adapter is already connected
     try {
-      await client.query("BEGIN");
+      // SQLite doesn't need explicit BEGIN
 
       // Delete related data in correct order
-      await client.query(
+      await this.adapter.query(
         "DELETE FROM documents WHERE collection_id IN (SELECT id FROM collections WHERE project_id = $1)",
         [id]
       );
-      await client.query("DELETE FROM collections WHERE project_id = $1", [id]);
-      await client.query("DELETE FROM project_users WHERE project_id = $1", [
+      await this.adapter.query("DELETE FROM collections WHERE project_id = $1", [id]);
+      await this.adapter.query("DELETE FROM project_users WHERE project_id = $1", [
         id,
       ]);
-      await client.query("DELETE FROM files WHERE project_id = $1", [id]);
-      await client.query("DELETE FROM changelog WHERE project_id = $1", [id]);
-      await client.query("DELETE FROM api_keys WHERE owner_id = $1", [id]);
+      await this.adapter.query("DELETE FROM files WHERE project_id = $1", [id]);
+      await this.adapter.query("DELETE FROM changelog WHERE project_id = $1", [id]);
+      await this.adapter.query("DELETE FROM api_keys WHERE owner_id = $1", [id]);
 
       // Finally delete the project
-      const result = await client.query("DELETE FROM projects WHERE id = $1", [
+      const result = await this.adapter.query("DELETE FROM projects WHERE id = $1", [
         id,
       ]);
 
-      await client.query("COMMIT");
+      // SQLite auto-commits
       return result.rowCount > 0;
     } catch (error) {
-      await client.query("ROLLBACK");
+      // SQLite handles rollback automatically
       console.error("Failed to delete project:", error);
       throw error;
     } finally {
-      client.release();
+      // SQLite doesn't need connection release
     }
   }
 
   async regenerateProjectApiKey(id: string): Promise<string | null> {
     const apiKey = `pk_${uuidv4().replace(/-/g, "")}`;
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE projects SET api_key = $1 WHERE id = $2 RETURNING api_key",
       [apiKey, id]
     );
 
-    return result.rows.length > 0 ? result.rows[0].api_key : null;
+    return result.rows.length > 0 ? (result.rows[0]?.api_key as string) : null;
   }
 
   async updateProjectStats(
@@ -1710,7 +1645,7 @@ export class DatabaseService {
 
     if (updates.length > 0) {
       values.push(projectId);
-      await this.pool.query(
+      await this.adapter.query(
         `UPDATE projects SET ${updates.join(", ")} WHERE id = $${paramCount}`,
         values
       );
@@ -1735,7 +1670,7 @@ export class DatabaseService {
     // Hash the password
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `INSERT INTO project_users (project_id, username, email, password_hash, phone, scopes, is_verified) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
@@ -1758,7 +1693,7 @@ export class DatabaseService {
     userId: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM project_users WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
@@ -1768,7 +1703,7 @@ export class DatabaseService {
 
   async getProjectUserById(userId: string): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM project_users WHERE id = $1",
       [userId]
     );
@@ -1781,7 +1716,7 @@ export class DatabaseService {
     email: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM project_users WHERE project_id = $1 AND email = $2",
       [projectId, email]
     );
@@ -1794,7 +1729,7 @@ export class DatabaseService {
     username: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM project_users WHERE project_id = $1 AND username = $2",
       [projectId, username]
     );
@@ -1819,13 +1754,13 @@ export class DatabaseService {
     }
 
     // Get total count
-    const countResult = await this.pool.query(
+    const countResult = await this.adapter.query(
       `SELECT COUNT(*) FROM project_users ${whereClause}`,
       params
     );
 
     // Get paginated results
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `SELECT * FROM project_users ${whereClause} 
        ORDER BY created_at DESC 
        LIMIT $${++paramCount} OFFSET $${++paramCount}`,
@@ -1834,7 +1769,7 @@ export class DatabaseService {
 
     return {
       users: result.rows.map((row) => this.mapProjectUser(row)),
-      total: parseInt(countResult.rows[0].count),
+      total: parseInt(String(countResult.rows[0]?.count || 0)),
     };
   }
 
@@ -1888,7 +1823,7 @@ export class DatabaseService {
     if (fields.length === 0) return this.getProjectUser(projectId, userId);
 
     values.push(projectId, userId);
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `UPDATE project_users 
        SET ${fields.join(", ")} 
        WHERE project_id = $${paramCount} AND id = $${paramCount + 1} 
@@ -1901,7 +1836,7 @@ export class DatabaseService {
 
   async deleteProjectUser(projectId: string, userId: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "DELETE FROM project_users WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
@@ -1912,7 +1847,7 @@ export class DatabaseService {
   // Project user account management methods
   async enableProjectUser(projectId: string, userId: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE project_users SET is_active = true WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
@@ -1924,7 +1859,7 @@ export class DatabaseService {
     userId: string
   ): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE project_users SET is_active = false WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
@@ -1936,7 +1871,7 @@ export class DatabaseService {
     userId: string
   ): Promise<{ is_active: boolean } | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT is_active FROM project_users WHERE project_id = $1 AND id = $2",
       [projectId, userId]
     );
@@ -1953,7 +1888,7 @@ export class DatabaseService {
     await this.ensureReady();
 
     // Username could be either username or email
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `SELECT * FROM project_users 
        WHERE project_id = $1 AND (username = $2 OR email = $2) AND is_active = true`,
       [projectId, username]
@@ -1961,13 +1896,13 @@ export class DatabaseService {
 
     if (result.rows.length === 0) return null;
 
-    const user = result.rows[0];
-    const isValid = await bcrypt.compare(password, user.password_hash);
+    const user = result.rows[0] as Record<string, unknown>;
+    const isValid = await bcrypt.compare(password, user.password_hash as string);
 
     if (!isValid) return null;
 
     // Update last login
-    await this.pool.query(
+    await this.adapter.query(
       "UPDATE project_users SET last_login = CURRENT_TIMESTAMP WHERE id = $1",
       [user.id]
     );
@@ -1976,7 +1911,7 @@ export class DatabaseService {
   }
 
   async getUserProjects(adminUserId: string): Promise<BackendProject[]> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `SELECT p.* 
        FROM projects p 
        JOIN project_users pu ON p.id = pu.project_id 
@@ -1992,7 +1927,7 @@ export class DatabaseService {
     projectId: string,
     adminUserId: string
   ): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "DELETE FROM project_users WHERE project_id = $1 AND admin_user_id = $2",
       [projectId, adminUserId]
     );
@@ -2004,7 +1939,7 @@ export class DatabaseService {
     projectId: string,
     adminUserId: string
   ): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT id FROM project_users WHERE project_id = $1 AND admin_user_id = $2",
       [projectId, adminUserId]
     );
@@ -2024,7 +1959,7 @@ export class DatabaseService {
     createdBy: string
   ): Promise<Collection> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
          VALUES ($1, $2, $3, $4, $5, $6) 
          RETURNING *`,
@@ -2067,7 +2002,7 @@ export class DatabaseService {
     projectId: string,
     collectionName: string
   ): Promise<Collection | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, collectionName]
     );
@@ -2076,7 +2011,7 @@ export class DatabaseService {
   }
 
   async getCollectionById(collectionId: string): Promise<Collection | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM collections WHERE id = $1",
       [collectionId]
     );
@@ -2085,7 +2020,7 @@ export class DatabaseService {
   }
 
   async getProjectCollections(projectId: string): Promise<Collection[]> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
@@ -2102,7 +2037,7 @@ export class DatabaseService {
       indexes?: CollectionIndex[];
     }
   ): Promise<Collection | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `UPDATE collections 
        SET description = $1, fields = $2, indexes = $3 
        WHERE project_id = $4 AND name = $5 
@@ -2123,29 +2058,29 @@ export class DatabaseService {
     projectId: string,
     collectionName: string
   ): Promise<boolean> {
-    const client = await this.pool.connect();
+    // SQLite doesn't use connection pooling - adapter is already connected
     try {
-      await client.query("BEGIN");
+      // SQLite doesn't need explicit BEGIN
 
       // Delete all documents for this collection
-      await client.query(
+      await this.adapter.query(
         "DELETE FROM documents WHERE project_id = $1 AND collection_name = $2",
         [projectId, collectionName]
       );
 
       // Delete the collection
-      const result = await client.query(
+      const result = await this.adapter.query(
         "DELETE FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, collectionName]
       );
 
-      await client.query("COMMIT");
+      // SQLite auto-commits
       return result.rowCount > 0;
     } catch (error) {
-      await client.query("ROLLBACK");
+      // SQLite handles rollback automatically
       throw error;
     } finally {
-      client.release();
+      // SQLite doesn't need connection release
     }
   }
 
@@ -2154,7 +2089,7 @@ export class DatabaseService {
     options?: { limit?: number; offset?: number }
   ): Promise<{ documents: Document[]; total: number }> {
     // First get the collection to get project_id and collection_name
-    const collectionResult = await this.pool.query(
+    const collectionResult = await this.adapter.query(
       "SELECT project_id, name FROM collections WHERE id = $1",
       [collectionId]
     );
@@ -2163,8 +2098,8 @@ export class DatabaseService {
       return { documents: [], total: 0 };
     }
 
-    const { project_id, name } = collectionResult.rows[0];
-    return this.getDocuments(project_id, name, options);
+    const row = collectionResult.rows[0] as { project_id: string; name: string };
+    return this.getDocuments(row.project_id, row.name, options);
   }
 
   // Table Schema Methods (keeping for backward compatibility)
@@ -2178,7 +2113,7 @@ export class DatabaseService {
     },
     createdBy: string
   ): Promise<Collection> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
@@ -2199,7 +2134,7 @@ export class DatabaseService {
     projectId: string,
     tableName: string
   ): Promise<Collection | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, tableName]
     );
@@ -2208,7 +2143,7 @@ export class DatabaseService {
   }
 
   async getProjectTableSchemas(projectId: string): Promise<Collection[]> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
@@ -2225,7 +2160,7 @@ export class DatabaseService {
       indexes?: CollectionIndex[];
     }
   ): Promise<Collection | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `UPDATE collections 
        SET description = $1, fields = $2, indexes = $3 
        WHERE project_id = $4 AND name = $5 
@@ -2246,29 +2181,29 @@ export class DatabaseService {
     projectId: string,
     tableName: string
   ): Promise<boolean> {
-    const client = await this.pool.connect();
+    // SQLite doesn't use connection pooling - adapter is already connected
     try {
-      await client.query("BEGIN");
+      // SQLite doesn't need explicit BEGIN
 
       // Delete all documents for this table
-      await client.query(
+      await this.adapter.query(
         "DELETE FROM documents WHERE project_id = $1 AND collection_name = $2",
         [projectId, tableName]
       );
 
       // Delete the schema
-      const result = await client.query(
+      const result = await this.adapter.query(
         "DELETE FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, tableName]
       );
 
-      await client.query("COMMIT");
+      // SQLite auto-commits
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
-      await client.query("ROLLBACK");
+      // SQLite handles rollback automatically
       throw error;
     } finally {
-      client.release();
+      // SQLite doesn't need connection release
     }
   }
 
@@ -2282,7 +2217,7 @@ export class DatabaseService {
     await this.ensureReady();
 
     // First, get the collection_id using project_id and collection_name
-    const collectionResult = await this.pool.query(
+    const collectionResult = await this.adapter.query(
       "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, collectionName]
     );
@@ -2293,15 +2228,30 @@ export class DatabaseService {
       );
     }
 
-    const collectionId = collectionResult.rows[0].id;
+    const collectionId = collectionResult.rows[0]?.id as string;
+
+    // Generate document ID (SQLite doesn't support RETURNING *)
+    const documentId = uuidv4();
 
     // Now insert the document with the collection_id
-    const result = await this.pool.query(
-      `INSERT INTO documents (collection_id, data, created_by) 
-       VALUES ($1, $2, $3) 
-       RETURNING *`,
-      [collectionId, data, createdBy]
+    // JSON stringify data since SQLite stores it as TEXT
+    await this.adapter.query(
+      `INSERT INTO documents (id, collection_id, data, created_by) 
+       VALUES ($1, $2, $3, $4)`,
+      [documentId, collectionId, JSON.stringify(data), createdBy]
     );
+
+    // Query back the inserted row (SQLite doesn't support RETURNING *)
+    const result = await this.adapter.query(
+      `SELECT * FROM documents WHERE id = $1`,
+      [documentId]
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      throw new Error(
+        `Failed to retrieve created document with id ${documentId}`
+      );
+    }
 
     return this.mapDocument(result.rows[0]);
   }
@@ -2311,7 +2261,7 @@ export class DatabaseService {
     collectionName: string,
     documentId: string
   ): Promise<Document | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3",
       [documentId, projectId, collectionName]
     );
@@ -2320,7 +2270,7 @@ export class DatabaseService {
   }
 
   async getDocumentById(documentId: string): Promise<Document | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM documents WHERE id = $1",
       [documentId]
     );
@@ -2358,11 +2308,11 @@ export class DatabaseService {
     }
 
     // Get total count
-    const countResult = await this.pool.query(
+    const countResult = await this.adapter.query(
       `SELECT COUNT(*) FROM documents ${whereClause}`,
       params
     );
-    const total = parseInt(countResult.rows[0].count);
+    const total = parseInt(String(countResult.rows[0]?.count || 0));
 
     // Get documents
     let orderClause = `ORDER BY ${orderBy} ${order.toUpperCase()}`;
@@ -2386,7 +2336,7 @@ export class DatabaseService {
       }
     }
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `SELECT * FROM documents ${whereClause} 
        ${orderClause}
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -2406,15 +2356,40 @@ export class DatabaseService {
     data: Record<string, unknown>,
     updatedBy?: string
   ): Promise<Document | null> {
-    const result = await this.pool.query(
-      `UPDATE documents 
-       SET data = $1, updated_by = $2 
-       WHERE id = $3 AND project_id = $4 AND collection_name = $5 
-       RETURNING *`,
-      [data, updatedBy, documentId, projectId, collectionName]
+    // First, get the collection_id using project_id and collection_name
+    const collectionResult = await this.adapter.query(
+      "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
+      [projectId, collectionName]
     );
 
-    return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
+    if (collectionResult.rows.length === 0) {
+      throw new Error(
+        `Collection '${collectionName}' not found in project '${projectId}'`
+      );
+    }
+
+    const collectionId = collectionResult.rows[0]?.id as string;
+
+    // Update the document (SQLite doesn't support RETURNING *)
+    // JSON stringify data since SQLite stores it as TEXT
+    await this.adapter.query(
+      `UPDATE documents 
+       SET data = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+       WHERE id = $3 AND collection_id = $4`,
+      [JSON.stringify(data), updatedBy || null, documentId, collectionId]
+    );
+
+    // Query back the updated document
+    const result = await this.adapter.query(
+      `SELECT * FROM documents WHERE id = $1 AND collection_id = $2`,
+      [documentId, collectionId]
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      return null;
+    }
+
+    return this.mapDocument(result.rows[0]);
   }
 
   async deleteDocument(
@@ -2422,7 +2397,7 @@ export class DatabaseService {
     collectionName: string,
     documentId: string
   ): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "DELETE FROM documents WHERE id = $1 AND project_id = $2 AND collection_name = $3",
       [documentId, projectId, collectionName]
     );
@@ -2467,7 +2442,7 @@ export class DatabaseService {
     }`;
     params.push(limit, offset);
 
-    const result = await this.pool.query(query, params);
+    const result = await this.adapter.query(query, params);
     return result.rows.map((row) => this.mapDocument(row));
   }
 
@@ -2477,12 +2452,12 @@ export class DatabaseService {
   ): Promise<number> {
     await this.ensureReady();
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT COUNT(*) FROM documents WHERE project_id = $1 AND collection_name = $2",
       [projectId, collectionName]
     );
 
-    return parseInt(result.rows[0].count);
+    return parseInt(String(result.rows[0]?.count || 0));
   }
 
   async getDocumentsByTable(
@@ -2490,7 +2465,7 @@ export class DatabaseService {
     options?: { limit?: number; offset?: number }
   ): Promise<{ documents: Document[]; total: number }> {
     // First get the table schema to get project_id and table_name
-    const tableResult = await this.pool.query(
+    const tableResult = await this.adapter.query(
       "SELECT project_id, name FROM collections WHERE id = $1",
       [tableId]
     );
@@ -2499,15 +2474,15 @@ export class DatabaseService {
       return { documents: [], total: 0 };
     }
 
-    const { project_id, name } = tableResult.rows[0];
-    return this.getDocuments(project_id, name, options);
+    const row = tableResult.rows[0] as { project_id: string; name: string };
+    return this.getDocuments(row.project_id, row.name, options);
   }
 
   // File Methods
   async createFile(
     data: Omit<FileRecord, "id" | "createdAt">
   ): Promise<FileRecord> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `INSERT INTO files (project_id, filename, original_name, mime_type, size, path, metadata, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
@@ -2528,7 +2503,7 @@ export class DatabaseService {
   }
 
   async getFile(fileId: string): Promise<FileRecord | null> {
-    const result = await this.pool.query("SELECT * FROM files WHERE id = $1", [
+    const result = await this.adapter.query("SELECT * FROM files WHERE id = $1", [
       fileId,
     ]);
 
@@ -2536,7 +2511,7 @@ export class DatabaseService {
   }
 
   async getProjectFiles(projectId: string): Promise<FileRecord[]> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM files WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
@@ -2545,7 +2520,7 @@ export class DatabaseService {
   }
 
   async deleteFile(fileId: string): Promise<FileRecord | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "DELETE FROM files WHERE id = $1 RETURNING *",
       [fileId]
     );
@@ -2563,38 +2538,47 @@ export class DatabaseService {
   async createSession(
     data: Omit<BackendSession, "id" | "createdAt" | "lastActivity">
   ): Promise<BackendSession> {
-    const result = await this.pool.query(
-      `INSERT INTO sessions (token, user_id, project_id, type, scopes, metadata, created_at, expires_at, consumed, is_active) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-       RETURNING *`,
+    // Generate session ID (SQLite doesn't support RETURNING *)
+    const sessionId = uuidv4();
+    
+    await this.adapter.query(
+      `INSERT INTO sessions (id, token, user_id, project_id, type, scopes, metadata, created_at, expires_at, consumed, is_active) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
+        sessionId,
         data.token,
         data.user_id,
         data.project_id,
         data.type,
-        data.scopes || [],
-        data.metadata || {},
+        JSON.stringify(data.scopes || []), // SQLite stores arrays as JSON strings
+        JSON.stringify(data.metadata || {}), // SQLite stores objects as JSON strings
         data.created_at,
         data.expires_at,
-        data.consumed || false,
-        true, // is_active
+        data.consumed ? 1 : 0, // SQLite uses INTEGER 1/0 for booleans
+        1, // is_active (SQLite uses INTEGER 1 for true)
       ]
+    );
+
+    // Query back the inserted row (SQLite doesn't support RETURNING *)
+    const result = await this.adapter.query(
+      "SELECT * FROM sessions WHERE id = $1",
+      [sessionId]
     );
 
     return this.mapSession(result.rows[0]);
   }
 
   async getSessionByToken(token: string): Promise<BackendSession | null> {
-    const result = await this.pool.query(
-      "SELECT * FROM sessions WHERE token = $1 AND is_active = true AND expires_at > CURRENT_TIMESTAMP",
+    const result = await this.adapter.query(
+      "SELECT * FROM sessions WHERE token = $1 AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP",
       [token]
     );
 
     if (result.rows.length > 0) {
       // Update last activity
-      await this.pool.query(
+      await this.adapter.query(
         "UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = $1",
-        [result.rows[0].id]
+        [result.rows[0]?.id as string]
       );
       return this.mapSession(result.rows[0]);
     }
@@ -2603,7 +2587,7 @@ export class DatabaseService {
   }
 
   async invalidateSession(token: string): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE sessions SET is_active = false WHERE token = $1",
       [token]
     );
@@ -2612,7 +2596,7 @@ export class DatabaseService {
   }
 
   async consumeSession(token: string): Promise<BackendSession | null> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `UPDATE sessions 
        SET consumed = true, consumed_at = CURRENT_TIMESTAMP 
        WHERE token = $1 AND consumed = false 
@@ -2633,7 +2617,7 @@ export class DatabaseService {
 
     if (updates.consumed !== undefined) {
       setClauses.push(`consumed = $${paramCount++}`);
-      values.push(updates.consumed);
+      values.push(updates.consumed ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
       if (updates.consumed) {
         setClauses.push(`consumed_at = CURRENT_TIMESTAMP`);
       }
@@ -2649,20 +2633,21 @@ export class DatabaseService {
     }
 
     values.push(token);
-    const result = await this.pool.query(
+    // SQLite doesn't support RETURNING *, so update and query back separately
+    await this.adapter.query(
       `UPDATE sessions 
        SET ${setClauses.join(", ")} 
-       WHERE token = $${paramCount}
-       RETURNING *`,
+       WHERE token = $${paramCount}`,
       values
     );
 
-    return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
+    // Query back the updated row
+    return this.getSessionByToken(token);
   }
 
   async getSessionById(sessionId: string): Promise<BackendSession | null> {
-    const result = await this.pool.query(
-      "SELECT * FROM sessions WHERE id = $1 AND is_active = true AND expires_at > CURRENT_TIMESTAMP",
+    const result = await this.adapter.query(
+      "SELECT * FROM sessions WHERE id = $1 AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP",
       [sessionId]
     );
 
@@ -2710,14 +2695,14 @@ export class DatabaseService {
   }
 
   async invalidateUserSessions(userId: string): Promise<void> {
-    await this.pool.query(
+    await this.adapter.query(
       "UPDATE sessions SET is_active = false WHERE user_id = $1",
       [userId]
     );
   }
 
   async cleanupExpiredSessions(): Promise<number> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP OR is_active = false"
     );
 
@@ -2728,19 +2713,29 @@ export class DatabaseService {
   async createChangelogEntry(
     data: CreateBackendChangelogEntry
   ): Promise<BackendChangelogEntry> {
-    const result = await this.pool.query(
-      `INSERT INTO changelog (project_id, entity_type, entity_id, action, changes, performed_by, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
-       RETURNING *`,
+    // Generate changelog entry ID (SQLite doesn't support RETURNING *)
+    const entryId = uuidv4();
+    const createdAt = new Date().toISOString();
+    
+    await this.adapter.query(
+      `INSERT INTO changelog (id, project_id, entity_type, entity_id, action, changes, performed_by, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
-        data.project_id,
+        entryId,
+        data.project_id || null,
         data.entity_type,
         data.entity_id,
         data.action,
-        data.changes || {},
-        data.performed_by,
-        new Date().toISOString(),
+        JSON.stringify(data.changes || {}), // SQLite stores objects as JSON strings
+        data.performed_by || null,
+        createdAt,
       ]
+    );
+
+    // Query back the inserted row (SQLite doesn't support RETURNING *)
+    const result = await this.adapter.query(
+      "SELECT * FROM changelog WHERE id = $1",
+      [entryId]
     );
 
     return this.mapChangelogEntry(result.rows[0]);
@@ -2750,7 +2745,7 @@ export class DatabaseService {
     projectId: string,
     limit = 100
   ): Promise<BackendChangelogEntry[]> {
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `SELECT c.*, au.username 
        FROM changelog c 
        LEFT JOIN admin_users au ON c.performed_by = au.id 
@@ -2846,7 +2841,7 @@ export class DatabaseService {
     const whereClause =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `SELECT c.*, au.username 
        FROM changelog c 
        LEFT JOIN admin_users au ON c.performed_by = au.id 
@@ -2872,7 +2867,7 @@ export class DatabaseService {
     await this.ensureReady();
     const key = `krapi_${uuidv4().replace(/-/g, "")}`;
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `INSERT INTO api_keys (key, name, scopes, project_id, user_id, expires_at, rate_limit, metadata, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
@@ -2894,7 +2889,7 @@ export class DatabaseService {
 
   async getApiKey(key: string): Promise<BackendApiKey | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM api_keys WHERE key = $1 AND is_active = true",
       [key]
     );
@@ -2902,7 +2897,7 @@ export class DatabaseService {
     if (result.rows.length === 0) return null;
 
     // Update last_used_at
-    await this.pool.query(
+    await this.adapter.query(
       "UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key = $1",
       [key]
     );
@@ -2912,7 +2907,7 @@ export class DatabaseService {
 
   async getApiKeysByOwner(ownerId: string): Promise<BackendApiKey[]> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM api_keys WHERE owner_id = $1 ORDER BY created_at DESC",
       [ownerId]
     );
@@ -2953,7 +2948,7 @@ export class DatabaseService {
     if (fields.length === 0) return this.getApiKeyById(id);
 
     values.push(id);
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `UPDATE api_keys SET ${fields.join(
         ", "
       )} WHERE id = $${paramCount} RETURNING *`,
@@ -2965,7 +2960,7 @@ export class DatabaseService {
 
   async deleteApiKey(id: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "UPDATE api_keys SET is_active = false WHERE id = $1",
       [id]
     );
@@ -2975,7 +2970,7 @@ export class DatabaseService {
 
   async getApiKeyById(id: string): Promise<BackendApiKey | null> {
     await this.ensureReady();
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       "SELECT * FROM api_keys WHERE id = $1",
       [id]
     );
@@ -3020,7 +3015,7 @@ export class DatabaseService {
       now,
     ];
 
-    const result = await this.pool.query(query, values);
+    const result = await this.adapter.query(query, values);
     return this.mapApiKey(result.rows[0]);
   }
 
@@ -3034,7 +3029,7 @@ export class DatabaseService {
       ORDER BY created_at DESC
     `;
 
-    const result = await this.pool.query(query, [projectId]);
+    const result = await this.adapter.query(query, [projectId]);
     return result.rows.map((row) => this.mapApiKey(row));
   }
 
@@ -3047,7 +3042,7 @@ export class DatabaseService {
       WHERE id = $1 AND type = 'project'
     `;
 
-    const result = await this.pool.query(query, [keyId]);
+    const result = await this.adapter.query(query, [keyId]);
 
     if (result.rows.length === 0) {
       return null;
@@ -3067,7 +3062,7 @@ export class DatabaseService {
       RETURNING id
     `;
 
-    const result = await this.pool.query(query, [keyId]);
+    const result = await this.adapter.query(query, [keyId]);
     return result.rows.length > 0;
   }
 
@@ -3081,7 +3076,7 @@ export class DatabaseService {
       ORDER BY created_at DESC
     `;
 
-    const result = await this.pool.query(query, [userId]);
+    const result = await this.adapter.query(query, [userId]);
     return result.rows.map((row) => this.mapApiKey(row));
   }
 
@@ -3121,7 +3116,7 @@ export class DatabaseService {
       apiKey.active,
     ];
 
-    const result = await this.pool.query(query, values);
+    const result = await this.adapter.query(query, values);
     return this.mapApiKey(result.rows[0]);
   }
 
@@ -3476,7 +3471,7 @@ export class DatabaseService {
       ORDER BY created_at DESC
     `;
 
-    const result = await this.pool.query(query);
+    const result = await this.adapter.query(query);
     return result.rows.map((row) => this.mapSession(row));
   }
 
@@ -3524,7 +3519,7 @@ export class DatabaseService {
     query += ` OFFSET $${paramCount}`;
     values.push(options.offset);
 
-    const result = await this.pool.query(query, values);
+    const result = await this.adapter.query(query, values);
     return result.rows.map((row) => this.mapChangelogEntry(row));
   }
 
@@ -3621,11 +3616,24 @@ export class DatabaseService {
   }
 
   private mapDocument(row: Record<string, unknown>): Document {
+    // Parse data from JSON string (SQLite stores JSON as TEXT)
+    let parsedData: Record<string, unknown> = {};
+    if (typeof row.data === "string") {
+      try {
+        parsedData = JSON.parse(row.data);
+      } catch (error) {
+        console.error("Error parsing document data JSON:", error);
+        parsedData = {};
+      }
+    } else if (typeof row.data === "object" && row.data !== null) {
+      parsedData = row.data as Record<string, unknown>;
+    }
+
     return {
       id: row.id as string,
       project_id: row.project_id as string,
       collection_id: row.collection_id as string,
-      data: row.data as Record<string, unknown>,
+      data: parsedData,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
       created_by: row.created_by as string | undefined,
@@ -3709,7 +3717,7 @@ export class DatabaseService {
 
   // Close connection pool
   async close(): Promise<void> {
-    await this.pool.end();
+    await this.adapter.end();
   }
 
   // Enhanced query method with retry logic
@@ -3723,8 +3731,8 @@ export class DatabaseService {
     for (let i = 0; i < retries; i++) {
       try {
         await this.ensureReady();
-        const result = await this.pool.query(queryText, values);
-        return result.rows;
+        const result = await this.adapter.query(queryText, values);
+        return result.rows as T[];
       } catch (error) {
         lastError = error as Error;
         console.error(`Query attempt ${i + 1} failed:`, error);
@@ -3763,39 +3771,39 @@ export class DatabaseService {
     await this.ensureReady();
 
     // Get document count
-    const docResult = await this.pool.query(
+    const docResult = await this.adapter.query(
       "SELECT COUNT(*) FROM documents WHERE project_id = $1",
       [projectId]
     );
-    const totalDocuments = parseInt(docResult.rows[0].count);
+    const totalDocuments = parseInt(String(docResult.rows[0]?.count || 0));
 
     // Get collection count
-    const colResult = await this.pool.query(
-      "SELECT COUNT(*) FROM collections WHERE project_id = $1",
+    const colResult = await this.adapter.query(
+      "SELECT COUNT(*) as count FROM collections WHERE project_id = $1",
       [projectId]
     );
-    const totalCollections = parseInt(colResult.rows[0].count);
+    const totalCollections = parseInt(String(colResult.rows[0]?.count || 0));
 
     // Get file count
-    const fileResult = await this.pool.query(
-      "SELECT COUNT(*) FROM files WHERE project_id = $1",
+    const fileResult = await this.adapter.query(
+      "SELECT COUNT(*) as count FROM files WHERE project_id = $1",
       [projectId]
     );
-    const totalFiles = parseInt(fileResult.rows[0].count);
+    const totalFiles = parseInt(String(fileResult.rows[0]?.count || 0));
 
     // Get user count
-    const userResult = await this.pool.query(
-      "SELECT COUNT(*) FROM project_users WHERE project_id = $1",
+    const userResult = await this.adapter.query(
+      "SELECT COUNT(*) as count FROM project_users WHERE project_id = $1",
       [projectId]
     );
-    const totalUsers = parseInt(userResult.rows[0].count);
+    const totalUsers = parseInt(String(userResult.rows[0]?.count || 0));
 
     // Get project info
-    const projectResult = await this.pool.query(
+    const projectResult = await this.adapter.query(
       "SELECT storage_used, api_calls_count, last_api_call FROM projects WHERE id = $1",
       [projectId]
     );
-    const project = projectResult.rows[0];
+    const project = projectResult.rows[0] as { storage_used?: number; api_calls_count?: number; last_api_call?: string } | undefined;
 
     return {
       totalDocuments,
@@ -3837,14 +3845,14 @@ export class DatabaseService {
     }
 
     // Get total count
-    const countResult = await this.pool.query(
+    const countResult = await this.adapter.query(
       `SELECT COUNT(*) FROM changelog ${whereClause}`,
       params
     );
-    const total = parseInt(countResult.rows[0].count);
+    const total = parseInt(String(countResult.rows[0]?.count || 0));
 
     // Get activities
-    const activitiesResult = await this.pool.query(
+    const activitiesResult = await this.adapter.query(
       `SELECT * FROM changelog ${whereClause} 
        ORDER BY created_at DESC 
        LIMIT $${++paramCount} OFFSET $${++paramCount}`,
@@ -3910,34 +3918,36 @@ export class DatabaseService {
     await this.ensureReady();
 
     // Get total files and size
-    const filesResult = await this.pool.query(
+    const filesResult = await this.adapter.query(
       "SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM files WHERE project_id = $1",
       [projectId]
     );
 
-    const totalFiles = parseInt(filesResult.rows[0].count);
-    const totalSize = parseInt(filesResult.rows[0].total_size);
+    const fileRow = filesResult.rows[0] as { count: unknown; total_size: unknown } | undefined;
+    const totalFiles = parseInt(String(fileRow?.count || 0));
+    const totalSize = parseInt(String(fileRow?.total_size || 0));
 
     // Get file type distribution
-    const typesResult = await this.pool.query(
+    const typesResult = await this.adapter.query(
       "SELECT mime_type, COUNT(*) as count FROM files WHERE project_id = $1 GROUP BY mime_type",
       [projectId]
     );
 
     const fileTypes: Record<string, number> = {};
     typesResult.rows.forEach((row) => {
-      fileTypes[row.mime_type] = parseInt(row.count);
+      const typedRow = row as { mime_type: string; count: unknown };
+      fileTypes[typedRow.mime_type] = parseInt(String(typedRow.count || 0));
     });
 
     // Get last upload
-    const lastUploadResult = await this.pool.query(
+    const lastUploadResult = await this.adapter.query(
       "SELECT created_at FROM files WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1",
       [projectId]
     );
 
     const lastUpload =
       lastUploadResult.rows.length > 0
-        ? new Date(lastUploadResult.rows[0].created_at)
+        ? new Date(lastUploadResult.rows[0]?.created_at as string)
         : null;
 
     return {
@@ -3961,43 +3971,45 @@ export class DatabaseService {
   }> {
     try {
       // Get total files and size
-      const filesResult = await this.pool.query(
+      const filesResult = await this.adapter.query(
         "SELECT COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM files WHERE project_id = $1",
         [projectId]
       );
 
-      const totalFiles = parseInt(filesResult.rows[0].count);
-      const totalSize = parseInt(filesResult.rows[0].total_size);
+      const fileRow = filesResult.rows[0] as { count: unknown; total_size: unknown } | undefined;
+      const totalFiles = parseInt(String(fileRow?.count || 0));
+      const totalSize = parseInt(String(fileRow?.total_size || 0));
 
       // Get file type distribution
-      const fileTypesResult = await this.pool.query(
+      const fileTypesResult = await this.adapter.query(
         "SELECT mime_type, COUNT(*) as count FROM files WHERE project_id = $1 GROUP BY mime_type",
         [projectId]
       );
 
       const fileTypes: Record<string, number> = {};
       fileTypesResult.rows.forEach((row) => {
-        fileTypes[row.mime_type] = parseInt(row.count);
+        const typedRow = row as { mime_type: string; count: unknown };
+        fileTypes[typedRow.mime_type] = parseInt(String(typedRow.count || 0));
       });
 
       // Get last upload time
-      const lastUploadResult = await this.pool.query(
+      const lastUploadResult = await this.adapter.query(
         "SELECT created_at FROM files WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1",
         [projectId]
       );
 
       const lastUpload =
         lastUploadResult.rows.length > 0
-          ? new Date(lastUploadResult.rows[0].created_at)
+          ? new Date(lastUploadResult.rows[0]?.created_at as string)
           : null;
 
       // Get project storage info
-      const projectResult = await this.pool.query(
+      const projectResult = await this.adapter.query(
         "SELECT storage_used, storage_limit FROM projects WHERE id = $1",
         [projectId]
       );
 
-      const project = projectResult.rows[0];
+      const project = projectResult.rows[0] as { storage_used?: number; storage_limit?: number } | undefined;
       const storageUsed = project?.storage_used || 0;
       const storageLimit = project?.storage_limit || 1073741824; // 1GB default
 
@@ -4035,20 +4047,45 @@ export class DatabaseService {
     created_at: string;
   }> {
     try {
-      const result = await this.pool.query(
-        `INSERT INTO folders (project_id, name, parent_folder_id, metadata, created_by, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      const result = await this.adapter.query(
+        `INSERT INTO folders (id, project_id, name, parent_folder_id, metadata, created_by, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
+          uuidv4(),
           data.project_id,
           data.name,
-          data.parent_folder_id,
+          data.parent_folder_id || null,
           data.metadata ? JSON.stringify(data.metadata) : null,
           data.created_by,
           data.created_at,
         ]
       );
 
-      return result.rows[0];
+      // SQLite doesn't support RETURNING, query back to get the inserted row
+      const insertedResult = await this.adapter.query(
+        "SELECT * FROM folders WHERE project_id = $1 AND name = $2 ORDER BY created_at DESC LIMIT 1",
+        [data.project_id, data.name]
+      );
+
+      const row = insertedResult.rows[0] as {
+        id: string;
+        project_id: string;
+        name: string;
+        parent_folder_id?: string;
+        metadata?: string;
+        created_by: string;
+        created_at: string;
+      };
+
+      return {
+        id: row.id,
+        project_id: row.project_id,
+        name: row.name,
+        parent_folder_id: row.parent_folder_id || undefined,
+        metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+        created_by: row.created_by,
+        created_at: row.created_at,
+      };
     } catch (error) {
       console.error("Error creating folder:", error);
       throw error;
@@ -4078,16 +4115,16 @@ export class DatabaseService {
 
       query += " ORDER BY name";
 
-      const result = await this.pool.query(query, params);
+      const result = await this.adapter.query(query, params);
       const folders = result.rows;
 
       if (options.include_files) {
         for (const folder of folders) {
-          const filesResult = await this.pool.query(
+          const filesResult = await this.adapter.query(
             "SELECT COUNT(*) as count FROM files WHERE folder_id = $1",
             [folder.id]
           );
-          folder.file_count = parseInt(filesResult.rows[0].count);
+          folder.file_count = parseInt(String(filesResult.rows[0]?.count || 0));
         }
       }
 
@@ -4104,30 +4141,30 @@ export class DatabaseService {
   async deleteFolder(projectId: string, folderId: string): Promise<void> {
     try {
       // Check if folder has files
-      const filesResult = await this.pool.query(
+      const filesResult = await this.adapter.query(
         "SELECT COUNT(*) as count FROM files WHERE folder_id = $1",
         [folderId]
       );
 
-      if (parseInt(filesResult.rows[0].count) > 0) {
+      if (parseInt(String(filesResult.rows[0]?.count || 0)) > 0) {
         throw new Error(
           "Cannot delete folder with files. Move or delete files first."
         );
       }
 
       // Check if folder has subfolders
-      const subfoldersResult = await this.pool.query(
+      const subfoldersResult = await this.adapter.query(
         "SELECT COUNT(*) as count FROM folders WHERE parent_folder_id = $1",
         [folderId]
       );
 
-      if (parseInt(subfoldersResult.rows[0].count) > 0) {
+      if (parseInt(String(subfoldersResult.rows[0]?.count || 0)) > 0) {
         throw new Error(
           "Cannot delete folder with subfolders. Delete subfolders first."
         );
       }
 
-      await this.pool.query(
+      await this.adapter.query(
         "DELETE FROM folders WHERE id = $1 AND project_id = $2",
         [folderId, projectId]
       );
@@ -4145,7 +4182,7 @@ export class DatabaseService {
     fileId: string
   ): Promise<FileRecord | null> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "SELECT * FROM files WHERE id = $1 AND project_id = $2",
         [fileId, projectId]
       );
@@ -4244,7 +4281,7 @@ export class DatabaseService {
 
       for (const fileId of fileIds) {
         try {
-          await this.pool.query(
+          await this.adapter.query(
             "UPDATE files SET folder_id = $1 WHERE id = $2 AND project_id = $3",
             [destinationFolderId, fileId, projectId]
           );
@@ -4283,7 +4320,7 @@ export class DatabaseService {
 
       for (const fileId of fileIds) {
         try {
-          await this.pool.query(
+          await this.adapter.query(
             "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3",
             [JSON.stringify(metadata), fileId, projectId]
           );
@@ -4321,7 +4358,7 @@ export class DatabaseService {
       const newFilename = options.new_name || `copy_${originalFile.filename}`;
       const newPath = `copies/${Date.now()}_${newFilename}`;
 
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `INSERT INTO files (project_id, filename, original_name, mime_type, size, path, metadata, uploaded_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
         [
@@ -4379,7 +4416,7 @@ export class DatabaseService {
       }
 
       values.push(fileId, projectId);
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `UPDATE files SET ${updates.join(
           ", "
         )} WHERE id = $${paramCount} AND project_id = $${
@@ -4404,7 +4441,7 @@ export class DatabaseService {
     newName: string
   ): Promise<FileRecord> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET filename = $1 WHERE id = $2 AND project_id = $3 RETURNING *",
         [newName, fileId, projectId]
       );
@@ -4429,7 +4466,7 @@ export class DatabaseService {
     metadata: Record<string, unknown>
   ): Promise<FileRecord> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
         [JSON.stringify(metadata), fileId, projectId]
       );
@@ -4462,7 +4499,7 @@ export class DatabaseService {
       const currentTags = (file.metadata?.tags as string[]) || [];
       const newTags = [...new Set([...currentTags, ...tags])];
 
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
         [JSON.stringify({ tags: newTags }), fileId, projectId]
       );
@@ -4491,7 +4528,7 @@ export class DatabaseService {
       const currentTags = (file.metadata?.tags as string[]) || [];
       const newTags = currentTags.filter((tag) => !tags.includes(tag));
 
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
         [JSON.stringify({ tags: newTags }), fileId, projectId]
       );
@@ -4511,7 +4548,7 @@ export class DatabaseService {
     fileId: string
   ): Promise<Record<string, unknown>[]> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `SELECT fp.*, u.username, u.email 
          FROM file_permissions fp 
          JOIN project_users u ON fp.user_id = u.id 
@@ -4536,7 +4573,7 @@ export class DatabaseService {
     permission: string
   ): Promise<Record<string, unknown>> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `INSERT INTO file_permissions (project_id, file_id, user_id, permission, granted_by, granted_at)
          VALUES ($1, $2, $3, $4, $5, $6) 
          ON CONFLICT (project_id, file_id, user_id) 
@@ -4568,7 +4605,7 @@ export class DatabaseService {
     userId: string
   ): Promise<void> {
     try {
-      await this.pool.query(
+      await this.adapter.query(
         "DELETE FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
         [projectId, fileId, userId]
       );
@@ -4586,7 +4623,7 @@ export class DatabaseService {
     fileId: string
   ): Promise<Record<string, unknown>[]> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "SELECT * FROM file_versions WHERE project_id = $1 AND file_id = $2 ORDER BY version_number DESC",
         [projectId, fileId]
       );
@@ -4609,14 +4646,14 @@ export class DatabaseService {
   ): Promise<Record<string, unknown>> {
     try {
       // Get current version number
-      const versionResult = await this.pool.query(
+      const versionResult = await this.adapter.query(
         "SELECT COALESCE(MAX(version_number), 0) + 1 as next_version FROM file_versions WHERE project_id = $1 AND file_id = $2",
         [projectId, fileId]
       );
 
-      const versionNumber = versionResult.rows[0].next_version;
+      const versionNumber = (versionResult.rows[0] as { next_version: unknown })?.next_version as number;
 
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `INSERT INTO file_versions (project_id, file_id, version_number, filename, path, size, uploaded_by, uploaded_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
         [
@@ -4647,7 +4684,7 @@ export class DatabaseService {
     versionId: string
   ): Promise<FileRecord> {
     try {
-      const version = await this.pool.query(
+      const version = await this.adapter.query(
         "SELECT * FROM file_versions WHERE id = $1 AND project_id = $2 AND file_id = $3",
         [versionId, projectId, fileId]
       );
@@ -4657,12 +4694,12 @@ export class DatabaseService {
       }
 
       // Update the main file with version data
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET filename = $1, path = $2, size = $3 WHERE id = $4 AND project_id = $5 RETURNING *",
         [
-          version.rows[0].filename,
-          version.rows[0].path,
-          version.rows[0].size,
+          (version.rows[0] as { filename: string; path: string; size: number }).filename,
+          (version.rows[0] as { filename: string; path: string; size: number }).path,
+          (version.rows[0] as { filename: string; path: string; size: number }).size,
           fileId,
           projectId,
         ]
@@ -4680,7 +4717,7 @@ export class DatabaseService {
    */
   async makeFilePublic(projectId: string, fileId: string): Promise<FileRecord> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
         [
           JSON.stringify({ public: true, public_at: new Date().toISOString() }),
@@ -4708,7 +4745,7 @@ export class DatabaseService {
     fileId: string
   ): Promise<FileRecord> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "UPDATE files SET metadata = metadata || $1 WHERE id = $2 AND project_id = $3 RETURNING *",
         [
           JSON.stringify({
@@ -4737,38 +4774,38 @@ export class DatabaseService {
   async resetProjectData(projectId: string): Promise<void> {
     try {
       // Delete all documents
-      await this.pool.query("DELETE FROM documents WHERE project_id = $1", [
+      await this.adapter.query("DELETE FROM documents WHERE project_id = $1", [
         projectId,
       ]);
 
       // Delete all collections
-      await this.pool.query("DELETE FROM collections WHERE project_id = $1", [
+      await this.adapter.query("DELETE FROM collections WHERE project_id = $1", [
         projectId,
       ]);
 
       // Delete all files
-      await this.pool.query("DELETE FROM files WHERE project_id = $1", [
+      await this.adapter.query("DELETE FROM files WHERE project_id = $1", [
         projectId,
       ]);
 
       // Delete all folders
-      await this.pool.query("DELETE FROM folders WHERE project_id = $1", [
+      await this.adapter.query("DELETE FROM folders WHERE project_id = $1", [
         projectId,
       ]);
 
       // Delete all API keys
-      await this.pool.query("DELETE FROM api_keys WHERE project_id = $1", [
+      await this.adapter.query("DELETE FROM api_keys WHERE project_id = $1", [
         projectId,
       ]);
 
       // Delete all project users except the creator
-      await this.pool.query(
+      await this.adapter.query(
         "DELETE FROM project_users WHERE project_id = $1 AND role != 'owner'",
         [projectId]
       );
 
       // Reset project stats
-      await this.pool.query(
+      await this.adapter.query(
         "UPDATE projects SET storage_used = 0, api_calls_count = 0, last_api_call = NULL WHERE id = $1",
         [projectId]
       );
@@ -4785,13 +4822,13 @@ export class DatabaseService {
    */
   async resetAllTestData(): Promise<void> {
     try {
-      // Get all test projects
-      const testProjects = await this.pool.query(
-        "SELECT id FROM projects WHERE settings->>'isTestProject' = 'true' OR name ILIKE '%test%'"
+      // Get all test projects (SQLite doesn't support JSON operators or ILIKE)
+      const testProjects = await this.adapter.query(
+        "SELECT id FROM projects WHERE name LIKE '%test%' OR name LIKE '%Test%'"
       );
 
       for (const project of testProjects.rows) {
-        await this.resetProjectData(project.id);
+        await this.resetProjectData((project as { id: string }).id);
       }
 
       console.log("Reset all test data");
@@ -4829,12 +4866,12 @@ export class DatabaseService {
 
       for (const table of requiredTables) {
         try {
-          const result = await this.pool.query(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)",
+          const result = await this.adapter.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
             [table]
           );
 
-          if (result.rows[0].exists) {
+          if (result.rows.length > 0) {
             tables.push(table);
           } else {
             issues.push(`Missing table: ${table}`);
@@ -4855,12 +4892,13 @@ export class DatabaseService {
       for (const [table, columns] of Object.entries(requiredColumns)) {
         for (const column of columns) {
           try {
-            const result = await this.pool.query(
-              "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name = $1 AND column_name = $2)",
-              [table, column]
+            // PRAGMA doesn't support parameters - use string interpolation (table is validated)
+            const result = await this.adapter.query(
+              `PRAGMA table_info("${table}")`
             );
-
-            if (!result.rows[0].exists) {
+            
+            const columnExists = result.rows.some((row) => (row as { name: string }).name === column);
+            if (!columnExists) {
               issues.push(`Missing column: ${table}.${column}`);
             }
           } catch (error) {
@@ -5141,59 +5179,65 @@ export class DatabaseService {
       }
 
       // Get total entries
-      const totalResult = await this.pool.query(
+      const totalResult = await this.adapter.query(
         `SELECT COUNT(*) as count FROM changelog ${whereClause}`,
         params
       );
-      const totalEntries = parseInt(totalResult.rows[0].count);
+      const totalEntries = parseInt(String(totalResult.rows[0]?.count || 0));
 
       // Get by action type
-      const actionTypeResult = await this.pool.query(
+      const actionTypeResult = await this.adapter.query(
         `SELECT action, COUNT(*) as count FROM changelog ${whereClause} GROUP BY action`,
         params
       );
       const byActionType: Record<string, number> = {};
       actionTypeResult.rows.forEach((row) => {
-        byActionType[row.action] = parseInt(row.count);
+        const typedRow = row as { action: string; count: unknown };
+        byActionType[typedRow.action] = parseInt(String(typedRow.count || 0));
       });
 
       // Get by user
-      const userResult = await this.pool.query(
+      const userResult = await this.adapter.query(
         `SELECT performed_by, COUNT(*) as count FROM changelog ${whereClause} GROUP BY performed_by`,
         params
       );
       const byUser: Record<string, number> = {};
       userResult.rows.forEach((row) => {
-        byUser[row.performed_by] = parseInt(row.count);
+        const typedRow = row as { performed_by: string; count: unknown };
+        byUser[typedRow.performed_by] = parseInt(String(typedRow.count || 0));
       });
 
       // Get by entity type
-      const entityTypeResult = await this.pool.query(
+      const entityTypeResult = await this.adapter.query(
         `SELECT entity_type, COUNT(*) as count FROM changelog ${whereClause} GROUP BY entity_type`,
         params
       );
       const byEntityType: Record<string, number> = {};
       entityTypeResult.rows.forEach((row) => {
-        byEntityType[row.entity_type] = parseInt(row.count);
+        const typedRow = row as { entity_type: string; count: unknown };
+        byEntityType[typedRow.entity_type] = parseInt(String(typedRow.count || 0));
       });
 
-      // Get timeline data
-      let timelineQuery = `SELECT DATE(created_at) as date, COUNT(*) as count FROM changelog ${whereClause}`;
+      // Get timeline data (SQLite doesn't support DATE_TRUNC, use strftime instead)
+      let timelineQuery = `SELECT strftime('%Y-%m-%d', created_at) as date, COUNT(*) as count FROM changelog ${whereClause}`;
       if (options.period === "day") {
-        timelineQuery += " GROUP BY DATE(created_at) ORDER BY date";
+        timelineQuery += " GROUP BY date(created_at) ORDER BY date";
       } else if (options.period === "week") {
         timelineQuery +=
-          " GROUP BY DATE_TRUNC('week', created_at) ORDER BY date";
+          " GROUP BY strftime('%Y-%W', created_at) ORDER BY date";
       } else if (options.period === "month") {
         timelineQuery +=
-          " GROUP BY DATE_TRUNC('month', created_at) ORDER BY date";
+          " GROUP BY strftime('%Y-%m', created_at) ORDER BY date";
       }
 
-      const timelineResult = await this.pool.query(timelineQuery, params);
-      const timeline = timelineResult.rows.map((row) => ({
-        date: row.date,
-        count: parseInt(row.count),
-      }));
+      const timelineResult = await this.adapter.query(timelineQuery, params);
+      const timeline = timelineResult.rows.map((row) => {
+        const typedRow = row as { date: unknown; count: unknown };
+        return {
+          date: String(typedRow.date || ""),
+          count: parseInt(String(typedRow.count || 0)),
+        };
+      });
 
       return {
         total_entries: totalEntries,
@@ -5262,7 +5306,7 @@ export class DatabaseService {
         params.push(options.entity_type);
       }
 
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         `SELECT * FROM changelog ${whereClause} ORDER BY created_at DESC`,
         params
       );
@@ -5326,7 +5370,7 @@ export class DatabaseService {
         params.push(options.entity_type);
       }
 
-      const deleteResult = await this.pool.query(
+      const deleteResult = await this.adapter.query(
         `DELETE FROM changelog ${whereClause} RETURNING id`,
         params
       );
@@ -5358,7 +5402,7 @@ export class DatabaseService {
     await this.ensureReady();
     const key = `krapi_${uuidv4().replace(/-/g, "")}`;
 
-    const result = await this.pool.query(
+    const result = await this.adapter.query(
       `INSERT INTO api_keys (key, name, scopes, project_id, user_id, expires_at, rate_limit, metadata, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
@@ -5389,7 +5433,7 @@ export class DatabaseService {
    */
   async getCollections(projectId: string): Promise<Collection[]> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC",
         [projectId]
       );
@@ -5408,7 +5452,7 @@ export class DatabaseService {
     collectionName: string
   ): Promise<Collection | null> {
     try {
-      const result = await this.pool.query(
+      const result = await this.adapter.query(
         "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, collectionName]
       );
@@ -5424,10 +5468,11 @@ export class DatabaseService {
     try {
       console.log("🔧 Fast database initialization for development...");
 
+      // Connect to the database first
+      await this.adapter.connect();
+
       // Test basic connection
-      const client = await this.pool.connect();
-      await client.query("SELECT 1");
-      client.release();
+      await this.adapter.query("SELECT 1");
 
       console.log("✅ Database connection successful");
 
@@ -5461,22 +5506,21 @@ export class DatabaseService {
   // Check if database is already initialized by looking for key tables
   private async isDatabaseInitialized(): Promise<boolean> {
     try {
-      const client = await this.pool.connect();
+      // SQLite doesn't use connection pooling - adapter is already connected
       try {
-        // Check if admin_users table exists and has data
-        const result = await client.query(`
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = 'admin_users'
-          ) AND EXISTS (
-            SELECT FROM admin_users LIMIT 1
-          )
-        `);
+        // Check if admin_users table exists and has data (SQLite uses sqlite_master)
+        const tableExistsResult = await this.adapter.query(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name='admin_users'`
+        );
+        const hasDataResult = await this.adapter.query(`SELECT COUNT(*) as count FROM admin_users LIMIT 1`);
+        const tableExists = tableExistsResult.rows.length > 0;
+        const hasData = parseInt(String(hasDataResult.rows[0]?.count || 0)) > 0;
+        const result = { rows: [{ exists: tableExists && hasData ? 1 : 0 }] };
 
-        return result.rows[0]?.exists === true;
+        const exists = result.rows[0]?.exists as number;
+        return exists === 1;
       } finally {
-        client.release();
+        // SQLite doesn't need connection release
       }
     } catch {
       // If we can't check, assume not initialized
@@ -5495,206 +5539,187 @@ export class DatabaseService {
     }
 
     DatabaseService.isCreatingTables = true;
-    const client = await this.pool.connect();
     try {
-      await client.query("BEGIN");
-
-      // Check if uuid-ossp extension exists first (provides uuid_generate_v4)
-      const uuidExtensionExists = await client.query(
-        "SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp'"
-      );
-
-      if (uuidExtensionExists.rows.length === 0) {
-        try {
-          await client.query('CREATE EXTENSION "uuid-ossp"');
-          console.log("✅ uuid-ossp extension created successfully");
-        } catch {
-          console.log(
-            "⚠️ uuid-ossp extension creation failed, continuing without it"
-          );
-          // Continue without the extension - we'll use alternative UUID generation
-        }
-      } else {
-        console.log("✅ uuid-ossp extension already exists");
-      }
-
-      // Only create the most essential tables
-      await client.query(`
+      // SQLite doesn't have PostgreSQL extensions - UUIDs are generated in application code
+      // Only create the most essential tables with SQLite-compatible syntax
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS admin_users (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          username VARCHAR(255) UNIQUE NOT NULL,
-          email VARCHAR(255) UNIQUE NOT NULL,
-          password_hash VARCHAR(255) NOT NULL,
-          role VARCHAR(50) NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
-          access_level VARCHAR(50) NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
-          permissions TEXT[] DEFAULT '{}',
-          scopes TEXT[] DEFAULT '{}',
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_login TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          username TEXT UNIQUE NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
+          access_level TEXT NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
+          permissions TEXT DEFAULT '[]',
+          scopes TEXT DEFAULT '[]',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_login TEXT,
           login_count INTEGER DEFAULT 0,
-          api_key VARCHAR(255) UNIQUE
+          api_key TEXT UNIQUE
         )
       `);
 
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS projects (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          name VARCHAR(255) UNIQUE NOT NULL,
+          id TEXT PRIMARY KEY,
+          name TEXT UNIQUE NOT NULL,
           description TEXT,
-          owner_id UUID NOT NULL REFERENCES admin_users(id),
-          api_key VARCHAR(255) UNIQUE NOT NULL,
-          allowed_origins TEXT[] DEFAULT '{}',
-          settings JSONB DEFAULT '{}'::jsonb,
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          storage_used BIGINT DEFAULT 0,
-          api_calls_count BIGINT DEFAULT 0,
-          last_api_call TIMESTAMP
+          owner_id TEXT NOT NULL REFERENCES admin_users(id),
+          api_key TEXT UNIQUE NOT NULL,
+          project_url TEXT,
+          allowed_origins TEXT DEFAULT '[]',
+          settings TEXT DEFAULT '{}',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          storage_used INTEGER DEFAULT 0,
+          api_calls_count INTEGER DEFAULT 0,
+          last_api_call TEXT,
+          created_by TEXT NOT NULL REFERENCES admin_users(id)
         )
       `);
 
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS collections (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          name VARCHAR(255) NOT NULL,
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
           description TEXT,
-          fields JSONB NOT NULL DEFAULT '[]'::jsonb,
-          indexes JSONB NOT NULL DEFAULT '[]'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID NOT NULL REFERENCES admin_users(id),
+          fields TEXT NOT NULL DEFAULT '[]',
+          indexes TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT NOT NULL REFERENCES admin_users(id),
           UNIQUE(project_id, name)
         )
       `);
 
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS documents (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-          data JSONB NOT NULL DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID NOT NULL REFERENCES admin_users(id)
+          id TEXT PRIMARY KEY,
+          collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+          data TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT NOT NULL REFERENCES admin_users(id)
         )
       `);
 
       // Project Users Table (for project-specific user accounts)
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS project_users (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          username VARCHAR(255) NOT NULL,
-          email VARCHAR(255) NOT NULL,
-          password_hash VARCHAR(255) NOT NULL,
-          phone VARCHAR(50),
-          is_verified BOOLEAN DEFAULT false,
-          is_active BOOLEAN DEFAULT true,
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_login TIMESTAMP,
-          email_verified_at TIMESTAMP,
-          phone_verified_at TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          username TEXT NOT NULL,
+          email TEXT NOT NULL,
+          password_hash TEXT NOT NULL,
+          phone TEXT,
+          is_verified INTEGER DEFAULT 0,
+          is_active INTEGER DEFAULT 1,
+          scopes TEXT NOT NULL DEFAULT '[]',
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_login TEXT,
+          email_verified_at TEXT,
+          phone_verified_at TEXT,
           UNIQUE(project_id, username),
           UNIQUE(project_id, email)
         )
       `);
 
       // Create indexes for project users
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id)
       `);
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email)
       `);
-      await client.query(`
+      await this.adapter.query(`
         CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username)
       `);
 
       // Add missing essential tables for auth system
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS sessions (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          token VARCHAR(500) UNIQUE NOT NULL,
-          user_id UUID REFERENCES admin_users(id),
-          project_id UUID REFERENCES projects(id),
-          type VARCHAR(50) NOT NULL CHECK (type IN ('admin', 'project')),
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          expires_at TIMESTAMP NOT NULL,
-          consumed BOOLEAN DEFAULT false,
-          consumed_at TIMESTAMP,
-          last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          is_active BOOLEAN DEFAULT true
+          id TEXT PRIMARY KEY,
+          token TEXT UNIQUE NOT NULL,
+          user_id TEXT REFERENCES admin_users(id),
+          project_id TEXT REFERENCES projects(id),
+          type TEXT NOT NULL CHECK (type IN ('admin', 'project')),
+          scopes TEXT NOT NULL DEFAULT '[]',
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          expires_at TEXT NOT NULL,
+          consumed INTEGER DEFAULT 0,
+          consumed_at TEXT,
+          last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
+          is_active INTEGER DEFAULT 1
         )
       `);
 
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS api_keys (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          key VARCHAR(255) UNIQUE NOT NULL,
-          name VARCHAR(255),
-          type VARCHAR(50) DEFAULT 'admin',
-          owner_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-          scopes TEXT[] DEFAULT '{}',
-          project_ids UUID[] DEFAULT '{}',
-          expires_at TIMESTAMP,
+          id TEXT PRIMARY KEY,
+          key TEXT UNIQUE NOT NULL,
+          name TEXT,
+          type TEXT DEFAULT 'admin',
+          owner_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+          scopes TEXT DEFAULT '[]',
+          project_ids TEXT DEFAULT '[]',
+          expires_at TEXT,
           rate_limit INTEGER,
-          metadata JSONB DEFAULT '{}'::jsonb,
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_used_at TIMESTAMP,
-          usage_count BIGINT DEFAULT 0
+          metadata TEXT DEFAULT '{}',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_used_at TEXT,
+          usage_count INTEGER DEFAULT 0
         )
       `);
 
       // Add files table for project statistics
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS files (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          filename VARCHAR(255) NOT NULL,
-          original_name VARCHAR(255) NOT NULL,
-          mime_type VARCHAR(255) NOT NULL,
-          size BIGINT NOT NULL,
-          path VARCHAR(500) NOT NULL,
-          metadata JSONB DEFAULT '{}'::jsonb,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          uploaded_by UUID REFERENCES admin_users(id)
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          filename TEXT NOT NULL,
+          original_name TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          path TEXT NOT NULL,
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          uploaded_by TEXT REFERENCES admin_users(id)
         )
       `);
 
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS changelog (
-          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-          project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-          entity_type VARCHAR(50) NOT NULL,
-          entity_id VARCHAR(255) NOT NULL,
-          action VARCHAR(50) NOT NULL,
-          changes JSONB DEFAULT '{}'::jsonb,
-          performed_by UUID REFERENCES admin_users(id),
-          session_id VARCHAR(255),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          changes TEXT DEFAULT '{}',
+          performed_by TEXT REFERENCES admin_users(id),
+          session_id TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS migrations (
           version INTEGER PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          name TEXT NOT NULL,
+          executed_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
       // Create default admin user if it doesn't exist
-      const adminCount = await client.query("SELECT COUNT(*) FROM admin_users");
-      if (parseInt(adminCount.rows[0].count) === 0) {
+      const adminCount = await this.adapter.query("SELECT COUNT(*) as count FROM admin_users");
+      if (parseInt(String(adminCount.rows[0]?.["count"] || 0)) === 0) {
         const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
         const defaultPassword =
           process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
@@ -5702,65 +5727,69 @@ export class DatabaseService {
           process.env.DEFAULT_ADMIN_EMAIL || "admin@krapi.local";
 
         const hashedPassword = await this.hashPassword(defaultPassword);
+        const adminId = uuidv4();
         const masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        await client.query(
-          `INSERT INTO admin_users (username, email, password_hash, role, access_level, api_key, is_active) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        await this.adapter.query(
+          `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key, is_active) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
+            adminId,
             defaultUsername,
             defaultEmail,
             hashedPassword,
             "master_admin",
             "full",
             masterApiKey,
-            true,
+            1,
           ]
         );
         console.log(`✅ Default admin user created: ${defaultUsername}`);
         console.log(`🔑 Master API Key: ${masterApiKey}`);
       }
 
-      await client.query("COMMIT");
+      // SQLite auto-commits
       console.log("✅ Essential tables and admin user created");
       return true;
     } catch (error) {
-      await client.query("ROLLBACK");
+      // SQLite handles rollback automatically
       throw error;
     } finally {
-      client.release();
+      // SQLite doesn't need connection release
       DatabaseService.isCreatingTables = false;
     }
   }
 
   // Ensure default admin user exists
   private async ensureDefaultAdmin(): Promise<void> {
-    const client = await this.pool.connect();
+    // SQLite doesn't use connection pooling - adapter is already connected
     try {
       const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
       const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
       const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL || "admin@localhost";
 
-      const result = await client.query(
+      const result = await this.adapter.query(
         "SELECT id FROM admin_users WHERE username = $1",
         [defaultUsername]
       );
 
       if (result.rows.length === 0) {
         const hashedPassword = await this.hashPassword(defaultPassword);
+        const adminId = uuidv4();
         const masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        await client.query(
-          `INSERT INTO admin_users (username, email, password_hash, role, access_level, api_key, is_active) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        await this.adapter.query(
+          `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key, is_active) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
+            adminId,
             defaultUsername,
             defaultEmail,
             hashedPassword,
             "master_admin",
             "full",
             masterApiKey,
-            true, // Default admin is active by default
+            1, // Default admin is active by default (SQLite uses INTEGER 1 for true)
           ]
         );
         console.log(`✅ Default admin user created: ${defaultUsername}`);
@@ -5773,7 +5802,7 @@ export class DatabaseService {
       console.error("Failed to create default admin:", error);
       // Don't throw - this is not critical for development
     } finally {
-      client.release();
+      // SQLite doesn't need connection release
     }
   }
 
@@ -5784,10 +5813,11 @@ export class DatabaseService {
         "🚀 Ultra-fast database connection (skipping initialization)..."
       );
 
+      // Connect to the database first
+      await this.adapter.connect();
+
       // Test basic connection
-      const client = await this.pool.connect();
-      await client.query("SELECT 1");
-      client.release();
+      await this.adapter.query("SELECT 1");
 
       console.log("✅ Database connection successful");
 
@@ -5806,6 +5836,9 @@ export class DatabaseService {
       console.log(
         "⚡ Instant database initialization (checking if tables exist)..."
       );
+
+      // Connect to the database first
+      await this.adapter.connect();
 
       // Check if database is already initialized
       const isInitialized = await this.isDatabaseInitialized();

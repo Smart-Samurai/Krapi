@@ -4852,7 +4852,7 @@ class KrapiWrapper implements KrapiSocketInterface {
           throw new Error(`Activity logging failed: ${response.status}`);
         }
 
-        return await response.json();
+        return await response.json() as ActivityLoggerType;
       } else {
         // For server mode, use activity logger directly
         if (!this.activityLogger) {
@@ -4901,7 +4901,7 @@ class KrapiWrapper implements KrapiSocketInterface {
           throw new Error(`Activity query failed: ${response.status}`);
         }
 
-        return await response.json();
+        return await response.json() as { logs: ActivityLoggerType[]; total: number };
       } else {
         // For server mode, use activity logger directly
         if (!this.activityLogger) {

@@ -108,8 +108,16 @@ export async function GET(
         );
       }
 
-      const countData = await countResponse.json();
-      return NextResponse.json({ success: true, data: countData });
+      const backendResponse = await countResponse.json();
+      // Backend returns { success: true, count: number }
+      // Test expects response.data.count to be a number (not nested in data.data.count)
+      // Extract count directly from backend response - don't wrap in data again
+      const countValue = backendResponse.count;
+      // Ensure count is a number
+      const count = typeof countValue === "number" ? countValue : parseInt(String(countValue || 0), 10);
+      
+      // Return directly with success and count (test expects response.data.count, not response.data.data.count)
+      return NextResponse.json({ success: true, count });
     }
 
     // Regular document fetching
@@ -141,8 +149,11 @@ export async function GET(
       );
     }
 
-    const documents = await response.json();
-    return NextResponse.json({ success: true, data: documents });
+    const backendResponse = await response.json();
+    // Backend returns { data: [...], total: ..., limit: ..., offset: ... }
+    // Test expects response.data.data to be the array of documents
+    // So we should return { success: true, data: backendResponse.data }
+    return NextResponse.json({ success: true, data: backendResponse.data });
   } catch (error) {
     console.error("Error fetching documents:", error);
     return NextResponse.json(
@@ -250,10 +261,17 @@ export async function POST(
       );
     }
 
-    const document = JSON.parse(responseText);
+    const backendResponse = JSON.parse(responseText);
+    console.log(`✅ [FRONTEND DOCUMENTS] Backend response:`, backendResponse);
+    
+    // Extract document from backend response
+    // Backend returns { success: true, data: document }, extract document
+    const document = backendResponse.data || backendResponse;
     console.log(`✅ [FRONTEND DOCUMENTS] Document created:`, document);
+    
+    // Test expects response.data.id, so return document directly in data field
     return NextResponse.json(
-      { success: true, data: document },
+      { success: true, ...document },
       { status: 201 }
     );
   } catch (error) {

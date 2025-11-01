@@ -1,5 +1,6 @@
 import { CollectionsSchemaManager } from "./collections-schema-manager";
 import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
+import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import {
   Collection,
   CollectionField,
@@ -93,7 +94,7 @@ export interface DatabaseConnection {
  */
 export class CollectionsService {
   private schemaManager: CollectionsSchemaManager;
-  private schemaInspector: PostgreSQLSchemaInspector;
+  private schemaInspector: SQLiteSchemaInspector;
   private db: DatabaseConnection;
 
   constructor(
@@ -105,7 +106,7 @@ export class CollectionsService {
       databaseConnection,
       logger
     );
-    this.schemaInspector = new PostgreSQLSchemaInspector(
+    this.schemaInspector = new SQLiteSchemaInspector(
       databaseConnection,
       logger
     );
@@ -115,11 +116,24 @@ export class CollectionsService {
    * Map database row to Document interface
    */
   private mapDocument(row: any): Document {
+    // Parse data from JSON string (SQLite stores JSON as TEXT)
+    let parsedData: Record<string, unknown> = {};
+    if (typeof row.data === "string") {
+      try {
+        parsedData = JSON.parse(row.data);
+      } catch (error) {
+        this.logger.error("Error parsing document data JSON:", error);
+        parsedData = {};
+      }
+    } else if (typeof row.data === "object" && row.data !== null) {
+      parsedData = row.data;
+    }
+
     return {
       id: row.id,
       collection_id: row.collection_id,
       project_id: row.project_id,
-      data: row.data || {},
+      data: parsedData,
       version: row.version || 1,
       is_deleted: row.is_deleted || false,
       created_at: row.created_at,
@@ -1036,7 +1050,8 @@ export class CollectionsService {
 
         if (filter.search) {
           paramCount++;
-          query += ` AND data::text ILIKE $${paramCount}`;
+          // SQLite uses LIKE with lower() for case-insensitive search
+          query += ` AND lower(data) LIKE lower($${paramCount})`;
           params.push(`%${filter.search}%`);
         }
 
@@ -1154,7 +1169,16 @@ export class CollectionsService {
         [collection.id, documentId]
       );
 
-      return result.rows.length > 0 ? (result.rows[0] as Document) : null;
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      // Use mapDocument to parse JSON data and ensure proper formatting
+      const document = this.mapDocument(result.rows[0]);
+      // Ensure project_id is set from collection
+      document.project_id = collection.project_id || projectId;
+      
+      return document;
     } catch (error) {
       this.logger.error("Failed to get document by ID:", error);
       throw new Error("Failed to get document by ID");
@@ -1187,18 +1211,31 @@ export class CollectionsService {
 
       await this.validateDocumentData(collection, actualDocumentData);
 
-      const result = await this.db.query(
-        `INSERT INTO documents (collection_id, data, created_by)
-         VALUES ($1, $2, $3) RETURNING *`,
+      // Generate document ID (SQLite doesn't support RETURNING *)
+      const documentId = typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+      // SQLite-compatible INSERT (no RETURNING *)
+      await this.db.query(
+        `INSERT INTO documents (id, collection_id, data, created_by)
+         VALUES ($1, $2, $3, $4)`,
         [
+          documentId,
           collection.id,
           JSON.stringify(actualDocumentData),
-          documentData.created_by || documentData.data?.created_by,
+          documentData.created_by || documentData.data?.created_by || "system",
         ]
       );
 
+      // Query back the inserted row (SQLite doesn't support RETURNING *)
+      const result = await this.db.query(
+        `SELECT * FROM documents WHERE id = $1`,
+        [documentId]
+      );
+
       this.logger.info(`Created document in collection "${collectionName}"`);
-      return result.rows[0] as Document;
+      return this.mapDocument(result.rows[0]);
     } catch (error) {
       this.logger.error("Failed to create document:", error);
 
@@ -1256,17 +1293,32 @@ export class CollectionsService {
       // Validate merged data against collection schema
       await this.validateDocumentData(collection, mergedData);
 
-      const result = await this.db.query(
+      // Update the document (SQLite doesn't support RETURNING *)
+      await this.db.query(
         `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP
-         WHERE collection_id = $2 AND id = $3
-         RETURNING *`,
+         WHERE collection_id = $2 AND id = $3`,
         [JSON.stringify(mergedData), collection.id, documentId]
       );
+
+      // Query back the updated document
+      const result = await this.db.query(
+        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2`,
+        [collection.id, documentId]
+      );
+
+      if (!result.rows || result.rows.length === 0) {
+        throw new Error("Document not found after update");
+      }
 
       this.logger.info(
         `Updated document ${documentId} in collection "${collectionName}"`
       );
-      return result.rows.length > 0 ? (result.rows[0] as Document) : null;
+      
+      const updatedDocument = this.mapDocument(result.rows[0]);
+      // Ensure project_id is set from collection
+      updatedDocument.project_id = collection.project_id || projectId;
+      
+      return updatedDocument;
     } catch (error) {
       this.logger.error("Failed to update document:", error);
 
@@ -1408,7 +1460,7 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT COUNT(*) FROM documents WHERE collection_id = $1`;
+      let query = `SELECT COUNT(*) as count FROM documents WHERE collection_id = $1`;
       const params: unknown[] = [collection.id];
       let paramCount = 1;
 
@@ -1421,20 +1473,46 @@ export class CollectionsService {
         if (filter.field_filters) {
           for (const [field, value] of Object.entries(filter.field_filters)) {
             paramCount++;
-            query += ` AND data->>'${field}' = $${paramCount}`;
+            // SQLite uses json_extract for JSON fields
+            query += ` AND json_extract(data, '$."${field}"') = $${paramCount}`;
             params.push(value);
           }
         }
 
         if (filter.search) {
           paramCount++;
-          query += ` AND data::text ILIKE $${paramCount}`;
+          // SQLite uses LIKE for text search (case-insensitive with lower())
+          query += ` AND lower(data) LIKE lower($${paramCount})`;
           params.push(`%${filter.search}%`);
         }
       }
 
       const result = await this.db.query(query, params);
-      return parseInt((result.rows[0] as { count: string }).count);
+      // SQLite returns COUNT(*) with alias 'count' - better-sqlite3 returns integers as numbers
+      const countRow = result.rows[0];
+      if (!countRow) {
+        this.logger.warn("No count row returned from query");
+        return 0;
+      }
+      
+      // Get count from the row - SQLite with better-sqlite3 returns integers as numbers
+      // Try multiple possible column names
+      const countValue = (countRow as { count?: string | number; [key: string]: unknown }).count
+        ?? Object.values(countRow)[0];
+      
+      // Ensure we return a number
+      const count = typeof countValue === "number" 
+        ? countValue 
+        : typeof countValue === "string"
+        ? parseInt(countValue, 10)
+        : Number(countValue) || 0;
+      
+      if (isNaN(count)) {
+        this.logger.error("Count value is NaN:", { countRow, countValue });
+        return 0;
+      }
+      
+      return count;
     } catch (error) {
       this.logger.error("Failed to count documents:", error);
       throw new Error("Failed to count documents");
@@ -1561,9 +1639,9 @@ export class CollectionsService {
       let paramCount = 1;
 
       if (searchQuery) {
-        // Search all fields
+        // Search all fields (SQLite uses LIKE with lower() for case-insensitive search)
         paramCount++;
-        query += ` AND data::text ILIKE $${paramCount}`;
+        query += ` AND lower(data) LIKE lower($${paramCount})`;
         params.push(`%${searchQuery}%`);
       }
 
@@ -1617,11 +1695,24 @@ export class CollectionsService {
       // Create all documents
       const results: Document[] = [];
       for (const doc of documents) {
-        const result = await this.db.query(
-          `INSERT INTO documents (collection_id, data, created_by)
-           VALUES ($1, $2, $3) RETURNING *`,
-          [collection.id, JSON.stringify(doc.data), doc.created_by || "system"]
+        // Generate document ID (SQLite doesn't support RETURNING *)
+        const documentId = typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+        // SQLite-compatible INSERT (no RETURNING *)
+        await this.db.query(
+          `INSERT INTO documents (id, collection_id, data, created_by)
+           VALUES ($1, $2, $3, $4)`,
+          [documentId, collection.id, JSON.stringify(doc.data), doc.created_by || "system"]
         );
+
+        // Query back the inserted row (SQLite doesn't support RETURNING *)
+        const result = await this.db.query(
+          `SELECT * FROM documents WHERE id = $1`,
+          [documentId]
+        );
+
         results.push(this.mapDocument(result.rows[0]));
       }
 
@@ -1690,12 +1781,26 @@ export class CollectionsService {
         // Validate the merged data
         await this.validateDocumentData(collection, mergedData);
 
-        // Update the document
-        const result = await this.db.query(
-          `UPDATE documents SET data = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+        // Update the document (SQLite doesn't support RETURNING * or NOW())
+        await this.db.query(
+          `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
           [JSON.stringify(mergedData), update.id]
         );
-        results.push(result.rows[0] as Document);
+        
+        // Query back the updated document
+        const result = await this.db.query(
+          `SELECT * FROM documents WHERE id = $1`,
+          [update.id]
+        );
+        
+        if (!result.rows || result.rows.length === 0) {
+          throw new Error(`Document ${update.id} not found after update`);
+        }
+        
+        const updatedDocument = this.mapDocument(result.rows[0]);
+        // Ensure project_id is set from collection
+        updatedDocument.project_id = collection.project_id || projectId;
+        results.push(updatedDocument);
       }
 
       this.logger.info(
@@ -1843,3 +1948,4 @@ export class CollectionsService {
     }
   }
 }
+

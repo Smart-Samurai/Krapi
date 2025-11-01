@@ -1,7 +1,13 @@
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 import eslint from "@eslint/js";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
 import importPlugin from "eslint-plugin-import";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const tsconfigRootDir = resolve(__dirname);
 
 export default [
   eslint.configs.recommended,
@@ -26,10 +32,10 @@ export default [
     languageOptions: {
       parser: tsparser,
       parserOptions: {
-        project: "./tsconfig.json",
+        project: resolve(__dirname, "tsconfig.json"),
         ecmaVersion: 2020,
         sourceType: "module",
-        tsconfigRootDir: ".",
+        tsconfigRootDir,
       },
       globals: {
         console: "readonly",
@@ -101,10 +107,10 @@ export default [
     languageOptions: {
       parser: tsparser,
       parserOptions: {
-        project: "./tsconfig.json",
+        project: resolve(__dirname, "tsconfig.json"),
         ecmaVersion: 2020,
         sourceType: "module",
-        tsconfigRootDir: ".",
+        tsconfigRootDir,
       },
       globals: {
         console: "readonly",

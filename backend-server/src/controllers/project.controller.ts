@@ -316,6 +316,7 @@ export class ProjectController {
             description,
             settings,
             allowed_origins: [],
+            created_by: currentUser.id, // Required for owner_id
           });
 
           if (project) {
@@ -337,6 +338,7 @@ export class ProjectController {
           description,
           settings,
           allowed_origins: [],
+          created_by: currentUser.id, // Required for owner_id
         });
 
         if (project) {

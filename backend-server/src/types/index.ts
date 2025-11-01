@@ -301,7 +301,19 @@ export interface ApiResponse<T = unknown> {
 }
 
 // Backend-specific authenticated request interface
-export interface AuthenticatedRequest extends ExpressRequest {
+// Intersection type ensures all Express Request properties are available
+// Explicitly include Express Request properties for better IDE recognition
+export type AuthenticatedRequest = ExpressRequest & {
+  // Explicitly redeclare inherited properties for IDE/linter recognition
+  params: ExpressRequest["params"];
+  body: ExpressRequest["body"];
+  query: ExpressRequest["query"];
+  originalUrl: ExpressRequest["originalUrl"];
+  app: ExpressRequest["app"];
+  headers: ExpressRequest["headers"];
+  method: ExpressRequest["method"];
+  url: ExpressRequest["url"];
+  // Custom properties
   user: {
     id: string;
     project_id: string;

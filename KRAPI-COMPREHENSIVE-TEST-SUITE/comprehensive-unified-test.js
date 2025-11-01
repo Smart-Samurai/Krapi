@@ -231,10 +231,12 @@ class ComprehensiveTestSuite {
     console.log("-".repeat(30));
 
     await this.test("Create test project", async () => {
+      // Use unique project name to avoid UNIQUE constraint errors from previous runs
+      const projectName = `Test Project ${Date.now()}`;
       const response = await axios.post(
         `${CONFIG.FRONTEND_URL}/api/projects`,
         {
-          name: "Test Project",
+          name: projectName,
           description: "A test project for comprehensive testing",
         },
         {
@@ -285,10 +287,12 @@ class ComprehensiveTestSuite {
     });
 
     await this.test("Update project", async () => {
+      // Use unique project name to avoid UNIQUE constraint errors from previous runs
+      const updatedName = `Updated Test Project ${Date.now()}`;
       const response = await axios.put(
         `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}`,
         {
-          name: "Updated Test Project",
+          name: updatedName,
           description: "Updated description",
         },
         {
@@ -298,7 +302,7 @@ class ComprehensiveTestSuite {
       this.assert(response.status === 200, "Should return 200");
       this.assert(response.data.success === true, "Should succeed");
       this.assert(
-        response.data.project.name === "Updated Test Project",
+        response.data.project.name === updatedName,
         "Should update name"
       );
     });
@@ -656,9 +660,13 @@ class ComprehensiveTestSuite {
       );
       this.assert(response.status === 200, "Should return 200");
       this.assert(response.data.success === true, "Should succeed");
+      // Debug logging
+      console.log("Count response data:", JSON.stringify(response.data));
+      console.log("Count value:", response.data.count);
+      console.log("Count type:", typeof response.data.count);
       this.assert(
         typeof response.data.count === "number",
-        "Should return count as number"
+        `Should return count as number (got: ${typeof response.data.count}, value: ${JSON.stringify(response.data.count)})`
       );
     });
 

@@ -132,6 +132,83 @@ router.get(
   }
 );
 
+// Get storage info endpoint (must come before /project/:projectId to avoid route conflicts)
+// Route is mounted at /projects/:projectId/storage, so projectId is in params
+router.get(
+  "/info",
+  authenticate,
+  requireScopes({
+    scopes: [Scope.STORAGE_READ],
+    projectSpecific: true,
+  }),
+  async (req, res) => {
+    try {
+      // projectId comes from parent route /projects/:projectId/storage
+      // Express should merge params from parent route, but we also check req.params directly
+      const projectId = (req.params as Record<string, string>).projectId || 
+                       (req as { params?: Record<string, string> }).params?.projectId ||
+                       (req as { project?: { id?: string } }).project?.id;
+
+      console.log(`🔍 [STORAGE DEBUG] projectId from params:`, (req.params as Record<string, string>).projectId);
+      console.log(`🔍 [STORAGE DEBUG] all params:`, req.params);
+
+      if (!projectId) {
+        console.error(`❌ [STORAGE DEBUG] Project ID not found in request`);
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
+
+      // Use BackendSDK if available, otherwise use StorageService
+      const backendSDK = (req as { app?: { locals?: { backendSDK?: unknown } } }).app?.locals?.backendSDK;
+      
+      if (backendSDK && typeof backendSDK === "object" && "storage" in backendSDK) {
+        const storageService = (backendSDK as { storage?: { getStorageInfo?: (projectId: string) => Promise<unknown> } }).storage;
+        if (storageService?.getStorageInfo) {
+          const info = await storageService.getStorageInfo(projectId);
+          return res.status(200).json({
+            success: true,
+            data: info,
+          });
+        }
+      }
+
+      // Fallback: use DatabaseService
+      const { DatabaseService } = await import("@/services/database.service");
+      const db = DatabaseService.getInstance();
+      
+      // Get storage statistics
+      const stats = await db.getStorageStatistics(projectId);
+      
+      // Get project info for quota
+      const project = await db.getProjectById(projectId);
+      const quota = (project?.settings as { storage_limit?: number } | undefined)?.storage_limit || 1073741824; // 1GB default
+      const storageUsed = stats.storageUsed || 0;
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          total_files: stats.totalFiles || 0,
+          total_size: stats.totalSize || 0,
+          storage_used_percentage: quota > 0 ? (storageUsed / quota) * 100 : 0,
+          quota: quota,
+        },
+      });
+    } catch (error) {
+      console.error("Get storage info error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get storage info",
+        details:
+          process.env.NODE_ENV === "development"
+            ? (error instanceof Error ? error.message : "Unknown error")
+            : undefined,
+      });
+    }
+  }
+);
+
 // List files in project endpoint
 router.get(
   "/project/:projectId",

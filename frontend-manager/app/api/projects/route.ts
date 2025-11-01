@@ -54,15 +54,24 @@ export async function GET(request: NextRequest): Promise<Response> {
       );
     }
 
-    const projects = await response.json();
+    const backendResponse = await response.json();
 
     console.log(
       "🔍 [FRONTEND DEBUG] Backend returned projects:",
-      JSON.stringify(projects, null, 2)
+      JSON.stringify(backendResponse, null, 2)
     );
 
-    // Return the projects data directly
-    return NextResponse.json(projects);
+    // Wrap response to match test expectations: { success: true, projects: [...] }
+    if (backendResponse.success && Array.isArray(backendResponse.data)) {
+      return NextResponse.json({
+        success: true,
+        projects: backendResponse.data,
+        pagination: backendResponse.pagination,
+      });
+    }
+
+    // Return the backend response as-is if format is different
+    return NextResponse.json(backendResponse);
   } catch (error) {
     console.error("🔍 [FRONTEND ERROR] Failed to get projects:", error);
     return NextResponse.json(
@@ -133,14 +142,25 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const project = await response.json();
+    const backendResponse = await response.json();
 
     console.log(
       "🔍 [FRONTEND DEBUG] Backend created project:",
-      JSON.stringify(project, null, 2)
+      JSON.stringify(backendResponse, null, 2)
     );
 
-    return NextResponse.json(project, { status: 201 });
+    // Wrap response to match test expectations: { success: true, project: ... }
+    if (backendResponse.success && backendResponse.data) {
+      return NextResponse.json(
+        {
+          success: true,
+          project: backendResponse.data,
+        },
+        { status: 201 }
+      );
+    }
+
+    return NextResponse.json(backendResponse, { status: 201 });
   } catch (error) {
     console.error("🔍 [FRONTEND ERROR] Failed to create project:", error);
     return NextResponse.json(

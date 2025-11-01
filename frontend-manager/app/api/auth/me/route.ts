@@ -54,9 +54,12 @@ export async function GET(request: NextRequest): Promise<Response> {
 
       const userData = await response.json();
 
-      // Flatten the response to match what the tests expect
+      // Preserve success field and wrap data in user field for consistency
       if (userData.success && userData.data) {
-        return NextResponse.json(userData.data);
+        return NextResponse.json({
+          success: true,
+          user: userData.data,
+        });
       } else {
         return NextResponse.json(userData);
       }

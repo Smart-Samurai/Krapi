@@ -67,9 +67,16 @@ export async function GET(
       );
     }
 
-    const collections = await response.json();
-    // Return collections array directly from the backend response
-    return NextResponse.json({ data: collections.collections });
+    const backendResponse = await response.json();
+    
+    // Wrap response to match test expectations: { success: true, collections: [...] }
+    // Backend might return { collections: [...] } or { data: [...] } or just an array
+    const collectionsArray = backendResponse.collections || backendResponse.data || (Array.isArray(backendResponse) ? backendResponse : []);
+    
+    return NextResponse.json({
+      success: true,
+      collections: collectionsArray,
+    });
   } catch (error) {
     console.error("Error fetching collections:", error);
     return NextResponse.json(
@@ -140,15 +147,16 @@ export async function POST(
       );
     }
 
-    const collection = await response.json();
-    console.log("🔍 [FRONTEND COLLECTIONS] Backend response:", collection);
+    const backendResponse = await response.json();
+    console.log("🔍 [FRONTEND COLLECTIONS] Backend response:", backendResponse);
     console.log(
       "🔍 [FRONTEND COLLECTIONS] Returning collection:",
-      collection.collection
+      backendResponse.data || backendResponse.collection
     );
-    // Return the collection data wrapped in success/data structure
+    // Wrap response to match test expectations: { success: true, collection: ... }
+    const collection = backendResponse.data || backendResponse.collection;
     return NextResponse.json(
-      { success: true, data: collection.collection },
+      { success: true, collection: collection },
       { status: 201 }
     );
   } catch (error) {

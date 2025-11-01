@@ -1,16 +1,25 @@
 import { BackendSDK } from "@krapi/sdk";
 import { Response } from "express";
+import type { Request as ExpressRequest } from "express";
 
 import { AuthenticatedRequest } from "@/types";
 
 // Extend the AuthenticatedRequest interface to include app.locals.backendSDK
-interface ExtendedRequest extends AuthenticatedRequest {
-  app: AuthenticatedRequest["app"] & {
-    locals: AuthenticatedRequest["app"]["locals"] & {
-      backendSDK?: BackendSDK;
+// Explicitly include all Express Request properties to ensure TypeScript recognition
+type ExtendedRequest = ExpressRequest &
+  AuthenticatedRequest & {
+    // Explicitly redeclare Express Request properties that TypeScript needs
+    params: ExpressRequest["params"];
+    body: ExpressRequest["body"];
+    query: ExpressRequest["query"];
+    originalUrl: ExpressRequest["originalUrl"];
+    // Override app to add backendSDK to locals
+    app: ExpressRequest["app"] & {
+      locals: ExpressRequest["app"]["locals"] & {
+        backendSDK?: BackendSDK;
+      };
     };
   };
-}
 
 export class CollectionsController {
   private backendSDK?: BackendSDK;
@@ -20,12 +29,25 @@ export class CollectionsController {
   }
 
   /**
+   * Sanitize project ID while preserving UUID format (with dashes)
+   */
+  private sanitizeProjectId(projectId: string): string {
+    // Preserve UUID format (with dashes) - only sanitize non-UUID IDs
+    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(projectId)
+      ? projectId // Keep UUIDs as-is (with dashes)
+      : projectId.replace(/[^a-zA-Z0-9_-]/g, ""); // For non-UUIDs, allow dashes and underscores
+  }
+
+  /**
    * Get all collections for a project
    */
   async getAllCollections(req: ExtendedRequest, res: Response) {
     try {
       const { projectId } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -63,7 +85,7 @@ export class CollectionsController {
   async getCollectionByName(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -126,7 +148,7 @@ export class CollectionsController {
         });
       }
 
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { name, fields, description, indexes } = req.body;
 
       // Validate collection data before creating
@@ -228,7 +250,7 @@ export class CollectionsController {
     try {
       const { projectId, collectionName } = req.params;
       const { description, fields, indexes } = req.body;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -272,7 +294,7 @@ export class CollectionsController {
   async deleteCollection(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -318,7 +340,7 @@ export class CollectionsController {
   async getCollectionStatistics(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -373,7 +395,7 @@ export class CollectionsController {
   async validateCollectionSchema(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -469,7 +491,7 @@ export class CollectionsController {
   async createDocument(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { data } = req.body;
 
       console.log(
@@ -508,7 +530,20 @@ export class CollectionsController {
         `✅ [DOCUMENT DEBUG] Document created successfully:`,
         document
       );
-      res.status(201).json(document);
+
+      // Ensure document is not undefined before returning
+      if (!document) {
+        console.error("❌ [DOCUMENT DEBUG] Document is undefined");
+        return res.status(500).json({
+          success: false,
+          error: "Document creation failed: document is undefined",
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        data: document,
+      });
     } catch (error) {
       console.error("❌ [DOCUMENT DEBUG] Error creating document:", error);
       console.error(
@@ -599,7 +634,7 @@ export class CollectionsController {
   async getDocuments(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const {
         limit = 100,
         offset = 0,
@@ -710,7 +745,7 @@ export class CollectionsController {
   async countDocuments(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { filter } = req.query;
 
       // Get the backendSDK from the instance
@@ -743,9 +778,27 @@ export class CollectionsController {
         documentFilter
       );
 
+      // Ensure count is a number
+      const countValue =
+        typeof count === "number" ? count : parseInt(String(count || 0), 10);
+
+      // Debug logging
+      console.log(
+        "Backend countDocuments - count:",
+        count,
+        "type:",
+        typeof count
+      );
+      console.log(
+        "Backend countDocuments - countValue:",
+        countValue,
+        "type:",
+        typeof countValue
+      );
+
       res.status(200).json({
         success: true,
-        count,
+        count: countValue,
       });
     } catch (error) {
       console.error("Error counting documents:", error);
@@ -766,7 +819,7 @@ export class CollectionsController {
   async getDocumentById(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName, documentId } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -810,7 +863,7 @@ export class CollectionsController {
   async updateDocument(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName, documentId } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { data } = req.body;
 
       // Get the backendSDK from the instance
@@ -849,7 +902,7 @@ export class CollectionsController {
   async deleteDocument(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName, documentId } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
@@ -896,7 +949,7 @@ export class CollectionsController {
   async searchDocuments(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { query: searchQuery, limit = 100, offset = 0 } = req.body;
 
       // Get the backendSDK from the instance
@@ -957,13 +1010,13 @@ export class CollectionsController {
   async bulkCreateDocuments(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const _sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { documents } = req.body;
 
       console.log(
         `🔍 [BULK CREATE DEBUG] Creating ${
           documents?.length || 0
-        } documents in project ${_sanitizedId}, collection ${collectionName}`
+        } documents in project ${sanitizedId}, collection ${collectionName}`
       );
       console.log(`🔍 [BULK CREATE DEBUG] Request body:`, req.body);
       console.log(`🔍 [BULK CREATE DEBUG] User ID:`, req.user?.id);
@@ -1001,7 +1054,7 @@ export class CollectionsController {
         `🔍 [BULK CREATE DEBUG] Calling SDK createDocuments method...`
       );
       const createdDocuments = await this.backendSDK.createDocuments(
-        _sanitizedId,
+        sanitizedId,
         collectionName,
         documentRequests
       );
@@ -1016,7 +1069,7 @@ export class CollectionsController {
         created: createdDocuments,
         errors: [],
         total: createdDocuments.length,
-      });
+      } as { success: true; created: unknown[]; errors: unknown[]; total: number });
     } catch (error) {
       console.error(
         "❌ [BULK CREATE DEBUG] Error bulk creating documents:",
@@ -1039,7 +1092,7 @@ export class CollectionsController {
   async bulkUpdateDocuments(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const _sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { updates } = req.body;
 
       // Get the backendSDK from the instance
@@ -1052,7 +1105,7 @@ export class CollectionsController {
 
       // Use SDK method to update documents
       const updatedDocuments = await this.backendSDK.updateDocuments(
-        _sanitizedId,
+        sanitizedId,
         collectionName,
         updates
       );
@@ -1083,11 +1136,11 @@ export class CollectionsController {
     console.log("[BULK DELETE] Controller called");
     try {
       const { projectId, collectionName } = req.params;
-      const _sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { document_ids: documentIds } = req.body;
 
       console.log(
-        `[BULK DELETE] Project: ${_sanitizedId}, Collection: ${collectionName}`
+        `[BULK DELETE] Project: ${sanitizedId}, Collection: ${collectionName}`
       );
       console.log(`[BULK DELETE] Document IDs:`, documentIds);
 
@@ -1103,7 +1156,7 @@ export class CollectionsController {
       console.log("[BULK DELETE] Calling SDK deleteDocuments");
       // Use SDK method to delete documents
       const deleteResults = await this.backendSDK.deleteDocuments(
-        _sanitizedId,
+        sanitizedId,
         collectionName,
         documentIds
       );
@@ -1138,7 +1191,7 @@ export class CollectionsController {
   async aggregateDocuments(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const sanitizedId = this.sanitizeProjectId(projectId);
       const { group_by, aggregations } = req.body;
 
       // Get the backendSDK from the instance

@@ -192,18 +192,39 @@ export class ProjectsService {
         ...projectData.settings,
       };
 
-      const result = await this.db.query(
-        `INSERT INTO projects (name, description, owner_id, api_key, allowed_origins, settings) 
-         VALUES ($1, $2, $3, $4, $5, $6) 
-         RETURNING *`,
+      // Generate project ID using UUID format (matches database service and frontend expectations)
+      // Use crypto.randomUUID() if available (Node.js 14.17+), otherwise fall back to simple random ID
+      let projectId: string;
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        projectId = crypto.randomUUID();
+      } else {
+        // Fallback: generate a UUID-like string manually
+        const hex = () => Math.floor(Math.random() * 16).toString(16);
+        projectId = `${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}-${hex()}${hex()}${hex()}${hex()}-4${hex()}${hex()}${hex()}-${((Math.floor(Math.random() * 4) + 8).toString(16))}${hex()}${hex()}${hex()}-${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}${hex()}`;
+      }
+
+      // SQLite-compatible INSERT (no RETURNING *)
+      await this.db.query(
+        `INSERT INTO projects (id, name, description, project_url, owner_id, api_key, allowed_origins, settings, is_active, created_by) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
+          projectId,
           projectData.name,
-          projectData.description || "",
+          projectData.description || null,
+          null, // project_url is optional, not in CreateProjectRequest type
           ownerId,
           apiKey,
-          projectData.allowed_origins || [],
+          JSON.stringify(projectData.allowed_origins || []), // SQLite stores arrays as JSON strings
           JSON.stringify(defaultSettings),
+          1, // is_active (SQLite uses INTEGER 1 for true)
+          ownerId, // created_by defaults to owner_id
         ]
+      );
+
+      // Query back the inserted row (SQLite doesn't support RETURNING *)
+      const result = await this.db.query(
+        `SELECT * FROM projects WHERE id = $1`,
+        [projectId]
       );
 
       return result.rows[0] as Project;
@@ -232,7 +253,7 @@ export class ProjectsService {
       }
       if (updates.allowed_origins !== undefined) {
         fields.push(`allowed_origins = $${paramCount++}`);
-        values.push(updates.allowed_origins);
+        values.push(JSON.stringify(updates.allowed_origins)); // SQLite stores arrays as JSON strings
       }
       if (updates.settings !== undefined) {
         // Get current settings and merge
@@ -248,7 +269,7 @@ export class ProjectsService {
       }
       if (updates.is_active !== undefined) {
         fields.push(`is_active = $${paramCount++}`);
-        values.push(updates.is_active);
+        values.push(updates.is_active ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
       }
 
       if (fields.length === 0) {
@@ -258,14 +279,16 @@ export class ProjectsService {
       fields.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(projectId);
 
-      const result = await this.db.query(
+      // SQLite doesn't support RETURNING *, so update and query back separately
+      await this.db.query(
         `UPDATE projects SET ${fields.join(
           ", "
-        )} WHERE id = $${paramCount} RETURNING *`,
+        )} WHERE id = $${paramCount}`,
         values
       );
 
-      return result.rows.length > 0 ? (result.rows[0] as Project) : null;
+      // Query back the updated row
+      return this.getProjectById(projectId);
     } catch (error) {
       this.logger.error("Failed to update project:", error);
       throw new Error("Failed to update project");
@@ -582,12 +605,14 @@ export class ProjectsService {
 
       const mergedSettings = { ...currentProject.settings, ...settings };
 
-      const result = await this.db.query(
-        "UPDATE projects SET settings = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+      // SQLite doesn't support RETURNING *, so update and query back separately
+      await this.db.query(
+        "UPDATE projects SET settings = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
         [JSON.stringify(mergedSettings), projectId]
       );
 
-      return result.rows.length > 0 ? (result.rows[0] as Project) : null;
+      // Query back the updated row
+      return this.getProjectById(projectId);
     } catch (error) {
       this.logger.error("Failed to update project settings:", error);
       throw new Error("Failed to update project settings");
@@ -610,7 +635,7 @@ export class ProjectsService {
   async getProjectByApiKey(apiKey: string): Promise<Project | null> {
     try {
       const result = await this.db.query(
-        "SELECT * FROM projects WHERE api_key = $1 AND is_active = true",
+        "SELECT * FROM projects WHERE api_key = $1 AND is_active = 1",
         [apiKey]
       );
       return result.rows.length > 0 ? (result.rows[0] as Project) : null;

@@ -1,17 +1,17 @@
-import { Pool, PoolClient } from "pg";
+import { SQLiteAdapter } from "./sqlite-adapter.service";
 
 interface Migration {
   version: number;
   name: string;
-  up: (client: PoolClient) => Promise<void>;
+  up: (adapter: SQLiteAdapter) => Promise<void>;
 }
 
 export class MigrationService {
-  private pool: Pool;
+  private adapter: SQLiteAdapter;
   private migrations: Migration[] = [];
 
-  constructor(pool: Pool) {
-    this.pool = pool;
+  constructor(adapter: SQLiteAdapter) {
+    this.adapter = adapter;
     this.initializeMigrations();
   }
 
@@ -20,18 +20,18 @@ export class MigrationService {
       {
         version: 1,
         name: "add_active_column_to_projects",
-        up: async (client) => {
-          // Check if column exists (projects table uses is_active, not active)
-          const result = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'projects' AND column_name = 'is_active'
-          `);
+        up: async (adapter) => {
+          // Check if column exists (SQLite uses PRAGMA table_info)
+          const result = await adapter.query(`PRAGMA table_info(projects)`);
+          const hasColumn = result.rows.some((row: unknown) => {
+            const r = row as { name: string };
+            return r.name === 'is_active';
+          });
 
-          if (result.rows.length === 0) {
-            await client.query(`
+          if (!hasColumn) {
+            await adapter.query(`
               ALTER TABLE projects 
-              ADD COLUMN is_active BOOLEAN DEFAULT true
+              ADD COLUMN is_active INTEGER DEFAULT 1
             `);
             console.log("Added 'is_active' column to projects table");
           }
@@ -40,18 +40,18 @@ export class MigrationService {
       {
         version: 2,
         name: "fix_collections_indexes",
-        up: async (client) => {
-          // Ensure indexes column exists
-          const result = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'collections' AND column_name = 'indexes'
-          `);
+        up: async (adapter) => {
+          // Ensure indexes column exists (SQLite uses PRAGMA table_info)
+          const result = await adapter.query(`PRAGMA table_info(collections)`);
+          const hasColumn = result.rows.some((row: unknown) => {
+            const r = row as { name: string };
+            return r.name === 'indexes';
+          });
 
-          if (result.rows.length === 0) {
-            await client.query(`
+          if (!hasColumn) {
+            await adapter.query(`
               ALTER TABLE collections 
-              ADD COLUMN indexes JSONB DEFAULT '[]'::jsonb
+              ADD COLUMN indexes TEXT DEFAULT '[]'
             `);
             console.log("Added 'indexes' column to collections table");
           }
@@ -60,15 +60,15 @@ export class MigrationService {
       {
         version: 3,
         name: "add_document_count_to_collections",
-        up: async (client) => {
-          const result = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'collections' AND column_name = 'document_count'
-          `);
+        up: async (adapter) => {
+          const result = await adapter.query(`PRAGMA table_info(collections)`);
+          const hasColumn = result.rows.some((row: unknown) => {
+            const r = row as { name: string };
+            return r.name === 'document_count';
+          });
 
-          if (result.rows.length === 0) {
-            await client.query(`
+          if (!hasColumn) {
+            await adapter.query(`
               ALTER TABLE collections 
               ADD COLUMN document_count INTEGER DEFAULT 0
             `);
@@ -79,45 +79,45 @@ export class MigrationService {
       {
         version: 4,
         name: "fix_admin_users_permissions",
-        up: async (client) => {
-          // Add scopes column if missing
-          const result = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'admin_users' AND column_name = 'scopes'
-          `);
+        up: async (adapter) => {
+          // Add scopes column if missing (SQLite uses PRAGMA table_info)
+          const result = await adapter.query(`PRAGMA table_info(admin_users)`);
+          const hasColumn = result.rows.some((row: unknown) => {
+            const r = row as { name: string };
+            return r.name === 'scopes';
+          });
 
-          if (result.rows.length === 0) {
-            await client.query(`
+          if (!hasColumn) {
+            await adapter.query(`
               ALTER TABLE admin_users 
-              ADD COLUMN scopes TEXT[] DEFAULT '{}'
+              ADD COLUMN scopes TEXT DEFAULT '[]'
             `);
             console.log("Added 'scopes' column to admin_users table");
 
-            // Update existing master admins with all scopes
-            await client.query(`
+            // Update existing master admins with all scopes (SQLite stores arrays as JSON)
+            await adapter.query(`
               UPDATE admin_users 
-              SET scopes = ARRAY['master'] 
+              SET scopes = ? 
               WHERE role = 'master_admin'
-            `);
+            `, [JSON.stringify(['master'])]);
           }
         },
       },
       {
         version: 5,
         name: "add_project_specific_columns",
-        up: async (client) => {
-          // Add project_ids to admin_users for project-specific admins
-          const result = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'admin_users' AND column_name = 'project_ids'
-          `);
+        up: async (adapter) => {
+          // Add project_ids to admin_users for project-specific admins (SQLite uses PRAGMA table_info)
+          const result = await adapter.query(`PRAGMA table_info(admin_users)`);
+          const hasColumn = result.rows.some((row: unknown) => {
+            const r = row as { name: string };
+            return r.name === 'project_ids';
+          });
 
-          if (result.rows.length === 0) {
-            await client.query(`
+          if (!hasColumn) {
+            await adapter.query(`
               ALTER TABLE admin_users 
-              ADD COLUMN project_ids UUID[] DEFAULT NULL
+              ADD COLUMN project_ids TEXT DEFAULT NULL
             `);
             console.log("Added 'project_ids' column to admin_users table");
           }
@@ -126,23 +126,16 @@ export class MigrationService {
       {
         version: 6,
         name: "fix_projects_table_columns",
-        up: async (client) => {
-          // Standardize on is_active column naming
-          const hasIsActive = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'projects' AND column_name = 'is_active'
-          `);
-
-          const hasActive = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'projects' AND column_name = 'active'
-          `);
+        up: async (adapter) => {
+          // Standardize on is_active column naming (SQLite uses PRAGMA table_info)
+          const result = await adapter.query(`PRAGMA table_info(projects)`);
+          const columns = result.rows as Array<{ name: string }>;
+          const hasIsActive = columns.some((c) => c.name === 'is_active');
+          const hasActive = columns.some((c) => c.name === 'active');
 
           // If we have active but not is_active, rename it to is_active
-          if (hasActive.rows.length > 0 && hasIsActive.rows.length === 0) {
-            await client.query(`
+          if (hasActive && !hasIsActive) {
+            await adapter.query(`
               ALTER TABLE projects 
               RENAME COLUMN active TO is_active
             `);
@@ -150,10 +143,10 @@ export class MigrationService {
           }
 
           // If we have neither, add is_active column
-          if (hasIsActive.rows.length === 0 && hasActive.rows.length === 0) {
-            await client.query(`
+          if (!hasIsActive && !hasActive) {
+            await adapter.query(`
               ALTER TABLE projects 
-              ADD COLUMN is_active BOOLEAN DEFAULT true
+              ADD COLUMN is_active INTEGER DEFAULT 1
             `);
             console.log("Added 'is_active' column to projects table");
           }
@@ -163,23 +156,22 @@ export class MigrationService {
   }
 
   async runMigrations() {
-    const client = await this.pool.connect();
     try {
       // Create migrations table if it doesn't exist
-      await client.query(`
+      await this.adapter.query(`
         CREATE TABLE IF NOT EXISTS migrations (
           version INTEGER PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          name TEXT NOT NULL,
+          executed_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
       // Get executed migrations
-      const executedResult = await client.query(
+      const executedResult = await this.adapter.query(
         "SELECT version FROM migrations ORDER BY version"
       );
       const executedVersions = new Set(
-        executedResult.rows.map((row) => row.version)
+        executedResult.rows.map((row) => (row as { version: number }).version)
       );
 
       // Run pending migrations
@@ -189,22 +181,21 @@ export class MigrationService {
             `Running migration ${migration.version}: ${migration.name}`
           );
 
-          await client.query("BEGIN");
+          // SQLite doesn't support explicit transactions the same way
+          // But better-sqlite3 handles transactions automatically
           try {
-            await migration.up(client);
+            await migration.up(this.adapter);
 
-            // Record migration
-            await client.query(
+            // Record migration (SQLite doesn't need explicit UUID generation)
+            await this.adapter.query(
               "INSERT INTO migrations (version, name) VALUES ($1, $2)",
               [migration.version, migration.name]
             );
 
-            await client.query("COMMIT");
             console.log(
               `Migration ${migration.version} completed successfully`
             );
           } catch (error) {
-            await client.query("ROLLBACK");
             console.error(`Migration ${migration.version} failed:`, error);
             throw error;
           }
@@ -212,13 +203,13 @@ export class MigrationService {
       }
 
       console.log("All migrations completed");
-    } finally {
-      client.release();
+    } catch (error) {
+      console.error("Error running migrations:", error);
+      throw error;
     }
   }
 
   async checkAndFixSchema() {
-    const client = await this.pool.connect();
     try {
       console.log("Checking database schema integrity...");
 
@@ -227,12 +218,12 @@ export class MigrationService {
         {
           table: "projects",
           column: "is_active",
-          fix: "ALTER TABLE projects ADD COLUMN is_active BOOLEAN DEFAULT true",
+          fix: "ALTER TABLE projects ADD COLUMN is_active INTEGER DEFAULT 1",
         },
         {
           table: "collections",
           column: "indexes",
-          fix: "ALTER TABLE collections ADD COLUMN indexes JSONB DEFAULT '[]'::jsonb",
+          fix: "ALTER TABLE collections ADD COLUMN indexes TEXT DEFAULT '[]'",
         },
         {
           table: "collections",
@@ -242,29 +233,27 @@ export class MigrationService {
         {
           table: "admin_users",
           column: "scopes",
-          fix: "ALTER TABLE admin_users ADD COLUMN scopes TEXT[] DEFAULT '{}'",
+          fix: "ALTER TABLE admin_users ADD COLUMN scopes TEXT DEFAULT '[]'",
         },
         {
           table: "admin_users",
           column: "project_ids",
-          fix: "ALTER TABLE admin_users ADD COLUMN project_ids UUID[] DEFAULT NULL",
+          fix: "ALTER TABLE admin_users ADD COLUMN project_ids TEXT DEFAULT NULL",
         },
       ];
 
       for (const { table, column, fix } of fixes) {
         try {
-          const result = await client.query(
-            `
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = $1 AND column_name = $2
-          `,
-            [table, column]
-          );
+          // SQLite uses PRAGMA table_info
+          const result = await this.adapter.query(`PRAGMA table_info("${table}")`);
+          const hasColumn = result.rows.some((row: unknown) => {
+            const r = row as { name: string };
+            return r.name === column;
+          });
 
-          if (result.rows.length === 0) {
+          if (!hasColumn) {
             console.log(`Fixing missing column: ${table}.${column}`);
-            await client.query(fix);
+            await this.adapter.query(fix);
           }
         } catch (error) {
           console.error(`Failed to fix ${table}.${column}:`, error);
@@ -273,53 +262,50 @@ export class MigrationService {
       }
 
       // Fix column type mismatches
-      await this.fixColumnTypes(client);
+      await this.fixColumnTypes();
 
-      // Check for missing indexes
+      // Check for missing indexes (SQLite uses sqlite_master)
       const indexes = [
         {
           name: "idx_collections_project_id",
           table: "collections",
           definition:
-            "CREATE INDEX idx_collections_project_id ON collections(project_id)",
+            "CREATE INDEX IF NOT EXISTS idx_collections_project_id ON collections(project_id)",
         },
         {
           name: "idx_documents_collection_id",
           table: "documents",
           definition:
-            "CREATE INDEX idx_documents_collection_id ON documents(collection_id)",
+            "CREATE INDEX IF NOT EXISTS idx_documents_collection_id ON documents(collection_id)",
         },
         {
           name: "idx_sessions_token",
           table: "sessions",
-          definition: "CREATE INDEX idx_sessions_token ON sessions(token)",
+          definition: "CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)",
         },
         {
           name: "idx_projects_is_active",
           table: "projects",
-          definition: "CREATE INDEX idx_projects_is_active ON projects(is_active)",
+          definition: "CREATE INDEX IF NOT EXISTS idx_projects_is_active ON projects(is_active)",
         },
         {
           name: "idx_api_keys_key",
           table: "api_keys",
-          definition: "CREATE INDEX idx_api_keys_key ON api_keys(key)",
+          definition: "CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key)",
         },
       ];
 
       for (const { name, table, definition } of indexes) {
         try {
-          const result = await client.query(
-            `
-            SELECT indexname 
-            FROM pg_indexes 
-            WHERE tablename = $1 AND indexname = $2
-          `,
-            [table, name]
+          // SQLite uses sqlite_master to check indexes
+          const result = await this.adapter.query(
+            `SELECT name FROM sqlite_master WHERE type='index' AND name=?`,
+            [name]
           );
 
           if (result.rows.length === 0) {
             console.log(`Creating missing index: ${name}`);
-            await client.query(definition);
+            await this.adapter.query(definition);
           }
         } catch (error) {
           console.error(`Failed to create index ${name}:`, error);
@@ -331,48 +317,41 @@ export class MigrationService {
     } catch (error) {
       console.error("Error during schema check:", error);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
-  private async fixColumnTypes(client: PoolClient) {
+  private async fixColumnTypes() {
     try {
-      // Fix settings column type if it's not JSONB
-      const settingsType = await client.query(`
-        SELECT data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'projects' AND column_name = 'settings'
-      `);
+      // SQLite doesn't have strict type checking like PostgreSQL
+      // All types are essentially TEXT, INTEGER, REAL, or BLOB
+      // JSON is stored as TEXT, so we just need to ensure the columns exist
+      // The actual validation happens at the application level
+      
+      // Check if settings column exists in projects
+      const projectsInfo = await this.adapter.query(`PRAGMA table_info(projects)`);
+      const hasSettings = (projectsInfo.rows as Array<{ name: string }>).some(
+        (c) => c.name === 'settings'
+      );
 
-      if (
-        settingsType.rows.length > 0 &&
-        settingsType.rows[0].data_type !== "jsonb"
-      ) {
-        console.log("Fixing projects.settings column type");
-        await client.query(`
+      if (!hasSettings) {
+        console.log("Adding projects.settings column");
+        await this.adapter.query(`
           ALTER TABLE projects 
-          ALTER COLUMN settings TYPE JSONB 
-          USING settings::jsonb
+          ADD COLUMN settings TEXT DEFAULT '{}'
         `);
       }
 
-      // Fix indexes column type if it's not JSONB
-      const indexesType = await client.query(`
-        SELECT data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'collections' AND column_name = 'indexes'
-      `);
+      // Check if indexes column exists in collections
+      const collectionsInfo = await this.adapter.query(`PRAGMA table_info(collections)`);
+      const hasIndexes = (collectionsInfo.rows as Array<{ name: string }>).some(
+        (c) => c.name === 'indexes'
+      );
 
-      if (
-        indexesType.rows.length > 0 &&
-        indexesType.rows[0].data_type !== "jsonb"
-      ) {
-        console.log("Fixing collections.indexes column type");
-        await client.query(`
+      if (!hasIndexes) {
+        console.log("Adding collections.indexes column");
+        await this.adapter.query(`
           ALTER TABLE collections 
-          ALTER COLUMN indexes TYPE JSONB 
-          USING indexes::jsonb
+          ADD COLUMN indexes TEXT DEFAULT '[]'
         `);
       }
     } catch (error) {

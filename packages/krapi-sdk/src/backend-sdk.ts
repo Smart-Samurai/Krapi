@@ -26,6 +26,7 @@ import { MetadataManager } from "./metadata-manager";
 import { PerformanceMonitor } from "./performance-monitor";
 import { PostgreSQLAutoFixer } from "./postgresql-auto-fixer";
 import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
+import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import { ProjectsService } from "./projects-service";
 import { SchemaGenerator } from "./schema-generator";
 import { StorageService } from "./storage-service";
@@ -53,7 +54,7 @@ export class BackendSDK {
     typeValidator: CollectionsTypeValidator;
     schemaManager: CollectionsSchemaManager;
     service: CollectionsService;
-    schemaInspector: PostgreSQLSchemaInspector;
+    schemaInspector: SQLiteSchemaInspector;
   };
   public admin: AdminService;
   public auth: AuthService;
@@ -152,6 +153,7 @@ export class BackendSDK {
     this.system = new SystemService("", ""); // Backend SDK doesn't need HTTP endpoints
 
     // Initialize collections management system
+    // Use SQLite schema inspector since we're using SQLite
     this.collections = {
       typeManager: new CollectionsTypeManager(
         config.databaseConnection,
@@ -169,7 +171,7 @@ export class BackendSDK {
         config.databaseConnection,
         this.logger as Console
       ),
-      schemaInspector: new PostgreSQLSchemaInspector(
+      schemaInspector: new SQLiteSchemaInspector(
         config.databaseConnection,
         this.logger as Console
       ),

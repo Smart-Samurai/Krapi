@@ -69,9 +69,15 @@ export async function GET(
       );
     }
 
-    const collection = await response.json();
-    // Extract the collection data from the backend response and return it directly
-    return NextResponse.json(collection.collection);
+    const backendResponse = await response.json();
+    
+    // Wrap response to match test expectations: { success: true, collection: ... }
+    const collection = backendResponse.collection || backendResponse.data || backendResponse;
+    
+    return NextResponse.json({
+      success: true,
+      collection: collection,
+    });
   } catch (error) {
     console.error("Error fetching collection:", error);
     return NextResponse.json(
@@ -147,9 +153,15 @@ export async function PUT(
       );
     }
 
-    const collection = await response.json();
-    // Extract the collection data from the backend response and return it directly
-    return NextResponse.json(collection.collection);
+    const backendResponse = await response.json();
+    
+    // Wrap response to match test expectations: { success: true, collection: ... }
+    const collection = backendResponse.collection || backendResponse.data || backendResponse;
+    
+    return NextResponse.json({
+      success: true,
+      collection: collection,
+    });
   } catch (error) {
     console.error("Error updating collection:", error);
     return NextResponse.json(

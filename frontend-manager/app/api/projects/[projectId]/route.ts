@@ -83,7 +83,11 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(project.data);
+    // Wrap response to match test expectations: { success: true, project: ... }
+    return NextResponse.json({
+      success: true,
+      project: project.data,
+    });
   } catch (error) {
     return NextResponse.json(
       {
@@ -129,7 +133,12 @@ export async function PUT(
     const authenticatedSdk = createAuthenticatedSdk(authToken);
 
     const project = await authenticatedSdk.projects.update(projectId, updates);
-    return NextResponse.json(project);
+    
+    // Wrap response to match test expectations: { success: true, project: ... }
+    return NextResponse.json({
+      success: true,
+      project: project,
+    });
   } catch (error) {
     return NextResponse.json(
       {

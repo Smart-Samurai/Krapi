@@ -548,7 +548,8 @@ export class CollectionsSchemaManager {
   }
 
   private async dropCollectionTable(tableName: string): Promise<void> {
-    const sql = `DROP TABLE IF EXISTS "${tableName}" CASCADE`;
+    // SQLite doesn't support CASCADE in DROP TABLE
+    const sql = `DROP TABLE IF EXISTS "${tableName}"`;
     await this.dbConnection.query(sql);
   }
 
@@ -608,29 +609,30 @@ export class CollectionsSchemaManager {
   // }
 
   private getFieldTypeString(field: CollectionField): string {
+    // SQLite-compatible type mapping
     switch (field.type) {
       case "string":
-        return "VARCHAR(255)";
+        return "TEXT";
       case "number":
         return "INTEGER";
       case "boolean":
-        return "BOOLEAN";
+        return "INTEGER"; // SQLite uses INTEGER 1/0 for booleans
       case "date":
-        return "TIMESTAMP";
+        return "TEXT"; // SQLite stores dates as TEXT
       case "array":
-        return "JSONB";
+        return "TEXT"; // SQLite stores arrays as JSON strings
       case "object":
-        return "JSONB";
+        return "TEXT"; // SQLite stores objects as JSON strings
       case "uniqueID":
-        return "UUID";
+        return "TEXT"; // SQLite stores UUIDs as TEXT
       case "relation":
-        return "UUID";
+        return "TEXT"; // SQLite stores UUIDs as TEXT
       case "json":
-        return "JSONB";
+        return "TEXT"; // SQLite stores JSON as TEXT
       case "text":
         return "TEXT";
       default:
-        return "VARCHAR(255)";
+        return "TEXT";
     }
   }
 
@@ -688,13 +690,13 @@ export class CollectionsSchemaManager {
   }
 
   private buildCreateTableSQL(collection: Collection): string {
-    let sql = `CREATE TABLE "${collection.name}" (\n`;
+    let sql = `CREATE TABLE IF NOT EXISTS "${collection.name}" (\n`;
 
-    // Add essential system fields first
-    sql += `  "id" UUID PRIMARY KEY,\n`;
-    sql += `  "project_id" UUID NOT NULL,\n`;
-    sql += `  "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n`;
-    sql += `  "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+    // Add essential system fields first (SQLite-compatible syntax)
+    sql += `  "id" TEXT PRIMARY KEY,\n`;
+    sql += `  "project_id" TEXT NOT NULL,\n`;
+    sql += `  "created_at" TEXT DEFAULT CURRENT_TIMESTAMP,\n`;
+    sql += `  "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP`;
 
     // Add custom fields, filtering out any that conflict with system fields
     const systemFields = ["id", "created_at", "updated_at", "project_id"];

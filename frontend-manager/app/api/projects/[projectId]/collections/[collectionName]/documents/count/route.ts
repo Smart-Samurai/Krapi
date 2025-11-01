@@ -95,8 +95,14 @@ export async function GET(
       );
     }
 
-    const countData = await response.json();
-    return NextResponse.json({ success: true, data: countData });
+    const backendResponse = await response.json();
+    // Backend returns { success: true, count: number }
+    // Test expects response.data.count to be a number
+    const countValue = backendResponse.count;
+    // Ensure count is a number
+    const count = typeof countValue === "number" ? countValue : parseInt(String(countValue || 0), 10);
+    
+    return NextResponse.json({ success: true, count });
   } catch (error) {
     console.error("Error counting documents:", error);
     return NextResponse.json(
