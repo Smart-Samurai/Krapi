@@ -29,6 +29,17 @@ import {
 } from "./types";
 
 export interface IAuthService {
+  register(registerData: {
+    username: string;
+    email: string;
+    password: string;
+    role?: string;
+    access_level?: string;
+    permissions?: string[];
+  }): Promise<ApiResponse<{ success: boolean; user: AdminUser }>>;
+
+  logout(sessionId?: string): Promise<ApiResponse<{ success: boolean }>>;
+
   adminLogin(credentials: { username: string; password: string }): Promise<
     ApiResponse<{
       user: AdminUser & { scopes: string[] };
@@ -153,6 +164,30 @@ export interface ICollectionService {
     options?: QueryOptions
   ): Promise<PaginatedResponse<Collection>>;
   getById(id: string): Promise<ApiResponse<Collection>>;
+
+  getCollectionsByProject(projectId: string): Promise<Collection[]>;
+
+  getDocuments(
+    collectionId: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      orderBy?: string;
+      order?: "asc" | "desc";
+      search?: string;
+      filter?: Array<{
+        field: string;
+        operator: string;
+        value: unknown;
+      }>;
+    }
+  ): Promise<Document[]>;
+
+  createDocument(
+    collectionId: string,
+    data: Record<string, unknown>
+  ): Promise<Document>;
+
   create(
     projectId: string,
     collectionData: Partial<Collection>
@@ -311,6 +346,13 @@ export interface IDocumentService {
 }
 
 export interface IStorageService {
+  getStorageInfo(projectId: string): Promise<{
+    total_files: number;
+    total_size: number;
+    storage_used_percentage: number;
+    quota: number;
+  }>;
+
   uploadFile(
     projectId: string,
     file: File | Buffer,
@@ -402,8 +444,12 @@ export interface IEmailService {
 
 export interface ISystemService {
   getSettings(): Promise<ApiResponse<SystemSettings>>;
-  updateSettings(updates: Partial<SystemSettings>): Promise<ApiResponse<SystemSettings>>;
-  testEmailConfig(config: EmailConfig): Promise<ApiResponse<{ success: boolean }>>;
+  updateSettings(
+    updates: Partial<SystemSettings>
+  ): Promise<ApiResponse<SystemSettings>>;
+  testEmailConfig(
+    config: EmailConfig
+  ): Promise<ApiResponse<{ success: boolean }>>;
   getSystemInfo(): Promise<ApiResponse<SystemInfo>>;
   getDatabaseHealth(): Promise<ApiResponse<DatabaseHealth>>;
 }

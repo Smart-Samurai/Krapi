@@ -248,14 +248,16 @@ export class TestingService {
 
     try {
       // Use built-in fetch (Node 18+/browsers). If unavailable, throw.
-      const fetchFn: typeof fetch | undefined = (globalThis as any).fetch;
+      const fetchFn: typeof fetch | undefined = (
+        globalThis as Record<string, unknown>
+      ).fetch as typeof fetch | undefined;
       if (!fetchFn) {
         throw new Error(
           "No fetch implementation available. Please run on Node 18+ or provide a global fetch."
         );
       }
       const url = `${baseUrl}${endpoint}`;
-      const options: any = {
+      const options: Record<string, unknown> = {
         method,
         headers: {
           "Content-Type": "application/json",

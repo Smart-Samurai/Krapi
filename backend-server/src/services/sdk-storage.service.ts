@@ -3,6 +3,10 @@ import { StorageService } from "@krapi/sdk";
 export class SDKStorageService {
   constructor(private storageService: StorageService) {}
 
+  async getStorageInfo(projectId: string): Promise<unknown> {
+    return await this.storageService.getStorageInfo(projectId);
+  }
+
   async uploadFile(
     projectId: string,
     fileData: {

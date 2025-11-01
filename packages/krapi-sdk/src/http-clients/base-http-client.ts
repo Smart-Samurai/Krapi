@@ -4,7 +4,12 @@
  * Provides common HTTP functionality that all service clients extend
  */
 
-import axios from "axios";
+import axios, {
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+  AxiosResponse,
+} from "axios";
+
 import { ApiResponse, PaginatedResponse, QueryOptions } from "../core";
 
 export interface HttpClientConfig {
@@ -18,7 +23,7 @@ export class BaseHttpClient {
   protected baseUrl: string;
   protected apiKey?: string;
   protected sessionToken?: string;
-  protected httpClient: any; // Axios instance
+  protected httpClient: AxiosInstance;
 
   constructor(config: HttpClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, ""); // Remove trailing slash
@@ -38,24 +43,33 @@ export class BaseHttpClient {
     });
 
     // Add request interceptor for authentication
-    this.httpClient.interceptors.request.use((config: any) => {
-      if (this.sessionToken) {
-        config.headers.Authorization = `Bearer ${this.sessionToken}`;
-      } else if (this.apiKey) {
-        config.headers["X-API-Key"] = this.apiKey;
+    this.httpClient.interceptors.request.use(
+      (config: InternalAxiosRequestConfig) => {
+        if (this.sessionToken) {
+          config.headers.Authorization = `Bearer ${this.sessionToken}`;
+        } else if (this.apiKey) {
+          config.headers["X-API-Key"] = this.apiKey;
+        }
+        return config;
       }
-      return config;
-    });
+    );
 
     // Add response interceptor for error handling
     this.httpClient.interceptors.response.use(
-      (response: any) => response.data, // Return just the data
-      (error: any) => {
-        if (error.response) {
-          const { status, data } = error.response;
+      (response: AxiosResponse) => response.data, // Return just the data
+      (error: unknown) => {
+        if (error && typeof error === "object" && "response" in error) {
+          const axiosError = error as {
+            response: {
+              status: number;
+              data: { error?: string; message?: string };
+            };
+            message?: string;
+          };
+          const { status, data } = axiosError.response;
           const enhancedError = {
             ...error,
-            message: data?.error || data?.message || error.message,
+            message: data?.error || data?.message || axiosError.message,
             status,
             isApiError: true,
             originalError: error,

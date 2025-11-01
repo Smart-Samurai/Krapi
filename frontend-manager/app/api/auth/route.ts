@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { serverSdk } from "@/app/api/lib/sdk-client";
 
 /**
@@ -36,25 +37,33 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         // Call backend directly for admin login
-        const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3470'}/krapi/k1/auth/admin/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: body.username,
-            password: body.password,
-          }),
-        });
-        
+        const response = await fetch(
+          `${
+            process.env.BACKEND_URL || "http://localhost:3470"
+          }/krapi/k1/auth/admin/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              username: body.username,
+              password: body.password,
+            }),
+          }
+        );
+
         if (!response.ok) {
           const errorData = await response.json();
           return NextResponse.json(
-            { success: false, error: errorData.error || 'Authentication failed' },
+            {
+              success: false,
+              error: errorData.error || "Authentication failed",
+            },
             { status: response.status }
           );
         }
-        
+
         const session = await response.json();
         return NextResponse.json(session);
 

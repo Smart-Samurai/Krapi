@@ -71,10 +71,24 @@ When tests find missing functionality, follow this exact order:
    - Backend has NO unique methods - it's purely a routing layer
    - All business logic lives in the SDK
    - Backend imports and calls SDK methods with proper TypeScript types
+   - **NEVER create separate, disconnected controllers or services that bypass the SDK**
 
 3. **Frontend Implementation**: Frontend API routes MUST use SDK methods
    - Frontend calls SDK client methods or forwards to backend SDK methods
    - Consistent type safety between frontend and backend through shared SDK types
+
+#### CRITICAL ARCHITECTURAL RULE - NO EXCEPTIONS
+
+**NEVER EVER create non-SDK routes, controllers, APIs, or any functionality in frontend or backend that is not connected to the SDK code.**
+
+- **Backend**: Must use `backendSDK.methodName()` for ALL operations
+- **Frontend**: Must use `krapi.methodName()` for ALL operations
+- **No standalone implementations**: Every piece of functionality must go through the SDK
+- **SDK is the single source of truth**: All business logic, validation, and data operations live in the SDK
+- **Backend is just HTTP routing**: Backend only wires SDK methods to HTTP endpoints
+- **Frontend is just UI**: Frontend only calls SDK methods and displays results
+
+This ensures perfect plug-and-socket compatibility between frontend and backend.
 
 #### Implementation Order
 

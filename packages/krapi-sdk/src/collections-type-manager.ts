@@ -297,7 +297,7 @@ export class CollectionsTypeManager {
       });
     }
 
-    const validationDuration = Date.now() - startTime;
+    const _validationDuration = Date.now() - startTime;
 
     return {
       isValid: issues.filter((i) => i.severity === "error").length === 0,
@@ -500,14 +500,16 @@ export class CollectionsTypeManager {
     // Check relation type
     if (
       !["one-to-one", "one-to-many", "many-to-one", "many-to-many"].includes(
-        relation.type
+        relation.type as string
       )
     ) {
       issues.push({
         type: "type_mismatch",
         severity: "error",
         field: field.name,
-        description: `Field '${field.name}' has invalid relation type: ${relation.type}`,
+        description: `Field '${field.name}' has invalid relation type: ${
+          relation.type as string
+        }`,
         auto_fixable: false,
       });
     }
@@ -515,7 +517,7 @@ export class CollectionsTypeManager {
     // Check target collection
     if (
       !relation.target_collection ||
-      relation.target_collection.trim() === ""
+      (relation.target_collection as string).trim() === ""
     ) {
       issues.push({
         type: "type_mismatch",
@@ -1043,5 +1045,141 @@ export class CollectionsTypeManager {
    */
   setValidationStrict(strict: boolean): void {
     this.typeRegistry.validation_strict = strict;
+  }
+
+  /**
+   * Generate TypeScript types for a collection schema
+   */
+  async generateTypeScriptTypes(
+    schema: CollectionTypeDefinition
+  ): Promise<string> {
+    try {
+      let typescriptCode = `// Generated TypeScript types for collection: ${schema.name}\n`;
+      typescriptCode += `// Generated at: ${new Date().toISOString()}\n\n`;
+
+      // Generate interface for the collection
+      typescriptCode += `export interface ${this.toPascalCase(
+        schema.name
+      )} {\n`;
+
+      // Add fields
+      for (const field of schema.fields) {
+        const fieldType = this.mapFieldTypeToTypeScript(field.type);
+        const optional = field.required ? "" : "?";
+        typescriptCode += `  ${field.name}${optional}: ${fieldType};\n`;
+      }
+
+      typescriptCode += `}\n\n`;
+
+      // Generate input type for creation (without required fields that have defaults)
+      typescriptCode += `export interface Create${this.toPascalCase(
+        schema.name
+      )} {\n`;
+      for (const field of schema.fields) {
+        if (
+          field.name === "id" ||
+          field.name === "created_at" ||
+          field.name === "updated_at"
+        ) {
+          continue; // Skip system fields
+        }
+        const fieldType = this.mapFieldTypeToTypeScript(field.type);
+        const optional = field.required && !field.default ? "" : "?";
+        typescriptCode += `  ${field.name}${optional}: ${fieldType};\n`;
+      }
+      typescriptCode += `}\n\n`;
+
+      // Generate update type (all fields optional)
+      typescriptCode += `export interface Update${this.toPascalCase(
+        schema.name
+      )} {\n`;
+      for (const field of schema.fields) {
+        if (
+          field.name === "id" ||
+          field.name === "created_at" ||
+          field.name === "updated_at"
+        ) {
+          continue; // Skip system fields
+        }
+        const fieldType = this.mapFieldTypeToTypeScript(field.type);
+        typescriptCode += `  ${field.name}?: ${fieldType};\n`;
+      }
+      typescriptCode += `}\n\n`;
+
+      // Generate query type for filtering
+      typescriptCode += `export interface ${this.toPascalCase(
+        schema.name
+      )}Query {\n`;
+      for (const field of schema.fields) {
+        if (
+          field.name === "id" ||
+          field.name === "created_at" ||
+          field.name === "updated_at"
+        ) {
+          continue; // Skip system fields
+        }
+        const fieldType = this.mapFieldTypeToTypeScript(field.type);
+        typescriptCode += `  ${field.name}?: ${fieldType} | { $eq?: ${fieldType}; $ne?: ${fieldType}; $gt?: ${fieldType}; $lt?: ${fieldType}; $gte?: ${fieldType}; $lte?: ${fieldType}; $in?: ${fieldType}[]; $nin?: ${fieldType}[]; $regex?: string; };\n`;
+      }
+      typescriptCode += `}\n\n`;
+
+      return typescriptCode;
+    } catch (error) {
+      this.logger.error(`Failed to generate TypeScript types:`, error);
+      throw new Error(
+        `Type generation failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  /**
+   * Map database field types to TypeScript types
+   */
+  private mapFieldTypeToTypeScript(dbType: string): string {
+    switch (dbType.toLowerCase()) {
+      case "string":
+      case "text":
+      case "varchar":
+      case "char":
+        return "string";
+      case "integer":
+      case "int":
+      case "bigint":
+      case "smallint":
+        return "number";
+      case "decimal":
+      case "numeric":
+      case "real":
+      case "double":
+        return "number";
+      case "boolean":
+      case "bool":
+        return "boolean";
+      case "date":
+      case "timestamp":
+      case "timestamptz":
+        return "Date | string";
+      case "json":
+      case "jsonb":
+        return "Record<string, unknown> | any";
+      case "uuid":
+        return "string";
+      case "array":
+        return "unknown[]";
+      default:
+        return "unknown";
+    }
+  }
+
+  /**
+   * Convert string to PascalCase
+   */
+  private toPascalCase(str: string): string {
+    return str
+      .split(/[-_\s]+/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join("");
   }
 }

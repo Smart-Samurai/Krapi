@@ -12,11 +12,16 @@
  * NO types should be defined elsewhere.
  */
 
+import { FieldType } from "./core";
+
+// Re-export FieldType for external use
+export { FieldType };
+
 // ===================================
 // CORE SYSTEM TYPES
 // ===================================
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -24,7 +29,7 @@ export interface ApiResponse<T = any> {
   timestamp?: string;
 }
 
-export interface PaginatedResponse<T = any> {
+export interface PaginatedResponse<T = unknown> {
   data: T[];
   pagination: {
     page: number;
@@ -46,7 +51,7 @@ export interface PaginationOptions {
 export interface SearchOptions {
   search?: string;
   query?: string;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 }
 
 export interface SortOptions {
@@ -97,7 +102,7 @@ export interface Session {
   type?: SessionType;
   project_id?: string;
   scopes?: Scope[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   consumed?: boolean;
   user_type?: "admin" | "project";
 }
@@ -189,7 +194,7 @@ export interface UserProfile {
   display_name?: string;
   avatar_url?: string;
   bio?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export type UserRole =
@@ -206,6 +211,7 @@ export enum AdminRole {
   SUPER_ADMIN = "super_admin",
   ADMIN = "admin",
   MODERATOR = "moderator",
+  DEVELOPER = "developer",
   // Additional roles for backend compatibility
   MASTER_ADMIN = "master_admin",
   PROJECT_ADMIN = "project_admin",
@@ -217,6 +223,9 @@ export enum AccessLevel {
   WRITE = "write",
   DELETE = "delete",
   ADMIN = "admin",
+  READ_ONLY = "read_only",
+  READ_WRITE = "read_write",
+  FULL = "full",
 }
 
 export enum Scope {
@@ -228,6 +237,7 @@ export enum Scope {
   MASTER = "master",
   ADMIN_READ = "admin:read",
   ADMIN_WRITE = "admin:write",
+  ADMIN_DELETE = "admin:delete",
   PROJECTS_READ = "projects:read",
   PROJECTS_WRITE = "projects:write",
   PROJECTS_DELETE = "projects:delete",
@@ -245,6 +255,18 @@ export enum Scope {
   FUNCTIONS_EXECUTE = "functions:execute",
   FUNCTIONS_WRITE = "functions:write",
   FUNCTIONS_DELETE = "functions:delete",
+  // User management scopes
+  USERS_READ = "users:read",
+  USERS_WRITE = "users:write",
+  USERS_DELETE = "users:delete",
+  // Data management scopes
+  DATA_READ = "data:read",
+  DATA_WRITE = "data:write",
+  DATA_DELETE = "data:delete",
+  // File management scopes
+  FILES_READ = "files:read",
+  FILES_WRITE = "files:write",
+  FILES_DELETE = "files:delete",
 }
 
 export enum ProjectScope {
@@ -252,6 +274,22 @@ export enum ProjectScope {
   WRITE = "projects:write",
   DELETE = "projects:delete",
   ADMIN = "projects:admin",
+  // User management scopes
+  USERS_READ = "users:read",
+  USERS_WRITE = "users:write",
+  USERS_DELETE = "users:delete",
+  // Data management scopes
+  DATA_READ = "data:read",
+  DATA_WRITE = "data:write",
+  DATA_DELETE = "data:delete",
+  // File management scopes
+  FILES_READ = "files:read",
+  FILES_WRITE = "files:write",
+  FILES_DELETE = "files:delete",
+  // Function execution scopes
+  FUNCTIONS_EXECUTE = "functions:execute",
+  // Email scopes
+  EMAIL_SEND = "email:send",
 }
 
 export interface CreateUserRequest {
@@ -260,7 +298,7 @@ export interface CreateUserRequest {
   password: string;
   role?: UserRole;
   profile?: Partial<UserProfile>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UpdateUserRequest {
@@ -270,7 +308,7 @@ export interface UpdateUserRequest {
   role?: UserRole;
   status?: UserStatus;
   profile?: Partial<UserProfile>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UserListOptions extends QueryOptions {
@@ -295,7 +333,7 @@ export interface ApiKey {
   last_used_at?: string;
   usage_count: number;
   rate_limit?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   // Backend-specific properties
   project_ids?: string[];
 }
@@ -330,7 +368,7 @@ export interface CreateApiKeyRequest {
   project_id?: string;
   expires_at?: string;
   rate_limit?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ApiKeyListOptions extends QueryOptions {
@@ -356,7 +394,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   settings: ProjectSettings;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   stats?: ProjectStats;
   // Additional properties for backend compatibility
   storage_used?: number;
@@ -435,7 +473,7 @@ export interface CreateProjectRequest {
   name: string;
   description?: string;
   settings?: Partial<ProjectSettings>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UpdateProjectRequest {
@@ -443,12 +481,13 @@ export interface UpdateProjectRequest {
   description?: string;
   status?: ProjectStatus;
   settings?: Partial<ProjectSettings>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProjectListOptions extends QueryOptions {
   status?: ProjectStatus;
   owner_id?: string;
+  page?: number;
 }
 
 // ===================================
@@ -465,7 +504,7 @@ export interface Collection {
   settings: CollectionSettings;
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   stats?: CollectionStats;
   // Backward compatibility - direct access to schema properties
   fields?: FieldDefinition[];
@@ -488,14 +527,14 @@ export interface FieldDefinition {
   description?: string;
   required: boolean;
   unique: boolean;
-  default_value?: any;
+  default_value?: unknown;
   validation?: FieldValidation;
   options?: FieldOptions;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   // Backward compatibility properties
   indexed?: boolean;
-  default?: any;
-  relation?: any;
+  default?: unknown;
+  relation?: Record<string, unknown>;
   // Additional properties for specific field types
   length?: number;
   precision?: number;
@@ -504,36 +543,8 @@ export interface FieldDefinition {
   primary?: boolean;
 }
 
-export type FieldType =
-  | "string"
-  | "text"
-  | "number"
-  | "integer"
-  | "float"
-  | "boolean"
-  | "date"
-  | "datetime"
-  | "time"
-  | "timestamp"
-  | "email"
-  | "url"
-  | "phone"
-  | "uuid"
-  | "uniqueID"
-  | "json"
-  | "array"
-  | "object"
-  | "file"
-  | "image"
-  | "video"
-  | "audio"
-  | "reference"
-  | "relation"
-  | "enum"
-  | "password"
-  | "encrypted"
-  | "varchar"
-  | "decimal";
+// FieldType is now imported from core.ts to avoid duplication
+// import { FieldType } from "./core";
 
 export interface FieldValidation {
   min_length?: number;
@@ -541,7 +552,7 @@ export interface FieldValidation {
   min_value?: number;
   max_value?: number;
   pattern?: string;
-  allowed_values?: any[];
+  allowed_values?: unknown[];
   custom_validator?: string;
   // Alternative naming for backward compatibility
   minLength?: number;
@@ -604,7 +615,7 @@ export interface CollectionSettings {
 
 export interface Permission {
   role: UserRole;
-  conditions?: Record<string, any>;
+  conditions?: Record<string, unknown>;
 }
 
 export interface CollectionStats {
@@ -620,7 +631,7 @@ export interface CreateCollectionRequest {
   description?: string;
   schema: Partial<CollectionSchema>;
   settings?: Partial<CollectionSettings>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UpdateCollectionRequest {
@@ -629,7 +640,7 @@ export interface UpdateCollectionRequest {
   description?: string;
   schema?: Partial<CollectionSchema>;
   settings?: Partial<CollectionSettings>;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CollectionListOptions extends QueryOptions {
@@ -644,28 +655,29 @@ export interface Document {
   id: string;
   collection_id: string;
   project_id: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   version: number;
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
   created_by: string;
   updated_by: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export type DocumentStatus = "draft" | "published" | "archived" | "deleted";
 
 export interface CreateDocumentRequest {
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   status?: DocumentStatus;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+  created_by?: string;
 }
 
 export interface UpdateDocumentRequest {
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   status?: DocumentStatus;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface DocumentListOptions extends QueryOptions {
@@ -677,7 +689,7 @@ export interface DocumentListOptions extends QueryOptions {
 
 export interface DocumentSearchRequest {
   text?: string;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   collections?: string[];
   limit?: number;
   offset?: number;
@@ -685,7 +697,7 @@ export interface DocumentSearchRequest {
 
 export interface BulkDocumentRequest {
   operation: "create" | "update" | "delete";
-  documents: any[];
+  documents: Record<string, unknown>[];
 }
 
 export interface BulkDocumentResponse {
@@ -704,7 +716,7 @@ export interface AggregationRequest {
     type: "count" | "sum" | "avg" | "min" | "max" | "group";
     field?: string;
     group_by?: string;
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
   }>;
 }
 
@@ -712,7 +724,7 @@ export interface AggregationResponse {
   results: Array<{
     type: string;
     field?: string;
-    value: any;
+    value: unknown;
     group?: string;
   }>;
 }
@@ -725,6 +737,7 @@ export interface FileInfo {
   id: string;
   name: string;
   original_name: string;
+  filename: string; // Alias for name for backward compatibility
   path: string;
   url: string;
   mime_type: string;
@@ -732,9 +745,17 @@ export interface FileInfo {
   project_id: string;
   uploaded_by?: string;
   created_at: string;
+  updated_at: string; // For tracking modifications
   metadata?: FileMetadata;
   public: boolean;
   folder?: string;
+  relations?: Array<{
+    id: string;
+    type: string;
+    target_id: string;
+    target_type: string;
+    metadata?: Record<string, unknown>;
+  }>;
 }
 
 export interface FileMetadata {
@@ -745,7 +766,7 @@ export interface FileMetadata {
   alt_text?: string;
   caption?: string;
   tags?: string[];
-  custom?: Record<string, any>;
+  custom?: Record<string, unknown>;
 }
 
 export interface UploadFileOptions {
@@ -776,7 +797,7 @@ export interface EmailTemplate {
   variables?: string[];
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EmailConfig {
@@ -805,7 +826,7 @@ export interface CreateEmailTemplateRequest {
   body: string;
   type: EmailTemplateType;
   variables?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SendEmailRequest {
@@ -813,7 +834,7 @@ export interface SendEmailRequest {
   subject: string;
   body?: string;
   template_id?: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
   from?: string;
   reply_to?: string;
   attachments?: Array<{
@@ -844,10 +865,12 @@ export interface ActivityLog {
   action: string;
   resource_type: string;
   resource_id?: string;
-  details?: Record<string, any>;
+  details: Record<string, unknown>;
   ip_address?: string;
   user_agent?: string;
-  created_at: string;
+  timestamp: Date;
+  severity: "info" | "warning" | "error" | "critical";
+  metadata?: Record<string, unknown>;
 }
 
 // ===================================
@@ -985,7 +1008,7 @@ export interface DiagnosticResult {
     name: string;
     status: "pass" | "fail" | "warning";
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
   }>;
   summary: {
     total: number;
@@ -1091,7 +1114,7 @@ export interface KrapiConfig {
 export interface KrapiError {
   code: string;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
   timestamp: string;
   request_id?: string;
 }
@@ -1152,7 +1175,7 @@ export interface CollectionTypeDefinition {
   indexes: CollectionTypeIndex[];
   constraints: CollectionTypeConstraint[];
   relations: CollectionTypeRelation[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CollectionTypeSchema {
@@ -1168,7 +1191,7 @@ export interface CollectionTypeField {
   required: boolean;
   unique: boolean;
   indexed: boolean;
-  default?: any;
+  default?: unknown;
   description?: string;
   validation?: FieldValidation;
   length?: number;
@@ -1178,7 +1201,7 @@ export interface CollectionTypeField {
   primary?: boolean;
   postgresql_type?: string; // For PostgreSQL-specific type mapping
   typescript_type?: string; // For TypeScript type mapping
-  relation?: any; // For relation fields
+  relation?: Record<string, unknown>; // For relation fields
 }
 
 export interface CollectionTypeIndex {
@@ -1234,7 +1257,7 @@ export interface CollectionTypeAutoFixRule {
     | "add_index"
     | "add_constraint"
     | "drop_field";
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
   priority: number;
 }
 
@@ -1305,7 +1328,7 @@ export interface CollectionTypeFix {
   field?: string;
   description: string;
   sql: string;
-  parameters?: Record<string, any>; // Made optional
+  parameters?: Record<string, unknown>; // Made optional
   applied?: boolean; // Made optional
   error?: string;
   success?: boolean; // For backward compatibility
@@ -1334,9 +1357,9 @@ export interface ChangelogEntry {
   action: string;
   resource_type: string;
   resource_id: string;
-  changes: Record<string, any>;
+  changes: Record<string, unknown>;
   created_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   // Backend-specific properties
   project_id?: string;
   entity_type?: string;
@@ -1370,7 +1393,7 @@ export interface EmailSendRequest {
   html?: boolean;
   attachments?: EmailAttachment[];
   template_id?: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
 }
 
 export interface EmailAttachment {
@@ -1399,7 +1422,7 @@ export interface TestResult {
   status: "passed" | "failed" | "skipped";
   duration: number;
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export interface SystemSettings {
@@ -1437,7 +1460,7 @@ export interface FileRelation {
   file_id: string;
   related_file_id: string;
   relation_type: "parent" | "child" | "sibling" | "version";
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface FileAttachment {
@@ -1446,7 +1469,7 @@ export interface FileAttachment {
   attached_to_type: "document" | "email" | "project";
   attached_to_id: string;
   attachment_type: "inline" | "attachment";
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface FilterCondition {
@@ -1464,7 +1487,7 @@ export interface FilterCondition {
     | "ilike"
     | "regex"
     | "exists";
-  value: any;
+  value: unknown;
   case_sensitive?: boolean;
 }
 
@@ -1545,5 +1568,5 @@ export interface FileRecord {
   uploaded_by: string;
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }

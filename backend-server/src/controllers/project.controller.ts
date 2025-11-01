@@ -1,4 +1,4 @@
-import { ApiKeyScope } from "@krapi/sdk";
+import { BackendSDK, ProjectSettings } from "@krapi/sdk";
 import { Request, Response } from "express";
 
 import { DatabaseService } from "@/services/database.service";
@@ -15,11 +15,19 @@ import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
  * - Project settings management
  *
  * All methods require authentication and proper scopes.
+ *
+ * Follows SDK-first architecture: all methods use BackendSDK when available.
  */
 export class ProjectController {
   private db: DatabaseService;
+  private backendSDK: BackendSDK | null = null;
+
   constructor() {
     this.db = DatabaseService.getInstance();
+  }
+
+  setBackendSDK(sdk: BackendSDK) {
+    this.backendSDK = sdk;
   }
 
   /**
@@ -38,26 +46,76 @@ export class ProjectController {
       const pageNum = parseInt(page as string);
       const limitNum = parseInt(limit as string);
 
-      // Get all projects from database
-      const projects = await this.db.getAllProjects();
+      // Use SDK method for getting all projects (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const projects = await this.backendSDK.projects.getAllProjects({
+            limit: limitNum,
+            offset: (pageNum - 1) * limitNum,
+          });
 
-      // Apply pagination
-      const startIndex = (pageNum - 1) * limitNum;
-      const endIndex = startIndex + limitNum;
-      const paginatedProjects = projects.slice(startIndex, endIndex);
+          // Apply pagination
+          const startIndex = (pageNum - 1) * limitNum;
+          const endIndex = startIndex + limitNum;
+          const paginatedProjects = projects.slice(startIndex, endIndex);
 
-      res.status(200).json({
-        success: true,
-        data: paginatedProjects,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: projects.length,
-          totalPages: Math.ceil(projects.length / limitNum),
-          hasNext: endIndex < projects.length,
-          hasPrev: pageNum > 1,
-        },
-      } as ApiResponse);
+          res.status(200).json({
+            success: true,
+            data: paginatedProjects,
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: projects.length,
+              totalPages: Math.ceil(projects.length / limitNum),
+              hasNext: endIndex < projects.length,
+              hasPrev: pageNum > 1,
+            },
+          } as ApiResponse);
+        } catch (sdkError) {
+          console.error("SDK getAllProjects error:", sdkError);
+          // Fall back to database method if SDK fails
+          const projects = await this.db.getAllProjects();
+
+          // Apply pagination
+          const startIndex = (pageNum - 1) * limitNum;
+          const endIndex = startIndex + limitNum;
+          const paginatedProjects = projects.slice(startIndex, endIndex);
+
+          res.status(200).json({
+            success: true,
+            data: paginatedProjects,
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: projects.length,
+              totalPages: Math.ceil(projects.length / limitNum),
+              hasNext: endIndex < projects.length,
+              hasPrev: pageNum > 1,
+            },
+          } as ApiResponse);
+        }
+      } else {
+        // Fall back to database method if SDK not available
+        const projects = await this.db.getAllProjects();
+
+        // Apply pagination
+        const startIndex = (pageNum - 1) * limitNum;
+        const endIndex = startIndex + limitNum;
+        const paginatedProjects = projects.slice(startIndex, endIndex);
+
+        res.status(200).json({
+          success: true,
+          data: paginatedProjects,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: projects.length,
+            totalPages: Math.ceil(projects.length / limitNum),
+            hasNext: endIndex < projects.length,
+            hasPrev: pageNum > 1,
+          },
+        } as ApiResponse);
+      }
     } catch (error) {
       console.error("Get all projects error:", error);
       const errorMessage =
@@ -111,19 +169,56 @@ export class ProjectController {
         return;
       }
 
-      // Get project from database
-      const project = await this.db.getProjectById(sanitizedId);
+      // Use SDK method for getting project by ID (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const project = await this.backendSDK.projects.getProjectById(
+            sanitizedId
+          );
 
-      if (project) {
-        res.status(200).json({
-          success: true,
-          data: project,
-        } as ApiResponse);
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: project,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK getProjectById error:", sdkError);
+          // Fall back to database method if SDK fails
+          const project = await this.db.getProjectById(sanitizedId);
+
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: project,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const project = await this.db.getProjectById(sanitizedId);
+
+        if (project) {
+          res.status(200).json({
+            success: true,
+            data: project,
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
@@ -157,51 +252,120 @@ export class ProjectController {
    */
   createProject = async (req: Request, res: Response): Promise<void> => {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
       const { name, description, settings } = req.body;
 
-      if (!name || typeof name !== "string" || name.trim().length === 0) {
-        res.status(400).json({
+      if (!currentUser) {
+        res.status(401).json({
           success: false,
-          error: "Project name is required and must be a non-empty string",
-          code: "INVALID_NAME",
+          error: "Unauthorized",
         } as ApiResponse);
         return;
       }
 
-      if (name.trim().length > 100) {
+      if (!name) {
         res.status(400).json({
           success: false,
-          error: "Project name must be 100 characters or less",
-          code: "NAME_TOO_LONG",
+          error: "Project name is required",
         } as ApiResponse);
         return;
       }
 
-      // Create project directly using database service
-      const project = await this.db.createProject({
-        name: name.trim(),
-        description: description?.trim() || undefined,
-        settings: settings || {},
-        allowed_origins: [],
-      });
+      // Use SDK method for creating project (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          console.log("🔍 [PROJECT DEBUG] Attempting to create project with:", {
+            ownerId: currentUser.id,
+            projectData: { name, description, settings },
+          });
 
-      res.status(201).json({
-        success: true,
-        data: project,
-        message: `Project created successfully`,
-      } as ApiResponse);
+          const project = await this.backendSDK.projects.createProject(
+            currentUser.id,
+            {
+              name,
+              description,
+              settings,
+            }
+          );
+
+          if (project) {
+            res.status(201).json({
+              success: true,
+              data: project,
+            } as ApiResponse);
+          } else {
+            res.status(500).json({
+              success: false,
+              error: "Failed to create project",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error(
+            "🔍 [PROJECT DEBUG] SDK createProject error:",
+            sdkError
+          );
+          console.error("🔍 [PROJECT DEBUG] Error details:", {
+            message: sdkError.message,
+            stack: sdkError.stack,
+            name: sdkError.name,
+          });
+          // Fall back to database method if SDK fails
+          const project = await this.db.createProject({
+            name,
+            description,
+            settings,
+            allowed_origins: [],
+          });
+
+          if (project) {
+            res.status(201).json({
+              success: true,
+              data: project,
+            } as ApiResponse);
+          } else {
+            res.status(500).json({
+              success: false,
+              error: "Failed to create project",
+            } as ApiResponse);
+          }
+        }
+      } else {
+        // Fall back to database method if SDK not available
+        const project = await this.db.createProject({
+          name,
+          description,
+          settings,
+          allowed_origins: [],
+        });
+
+        if (project) {
+          res.status(201).json({
+            success: true,
+            data: project,
+          } as ApiResponse);
+        } else {
+          res.status(500).json({
+            success: false,
+            error: "Failed to create project",
+          } as ApiResponse);
+        }
+      }
       return;
     } catch (error) {
       console.error("Create project error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
 
-      res.status(500).json({
+      res.status(isDbError ? 503 : 500).json({
         success: false,
         error: "Failed to create project",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
@@ -213,26 +377,94 @@ export class ProjectController {
       const { projectId } = req.params;
       const updates = req.body;
 
-      // Use the SDK as the single source of truth
-      const project = await this.db.updateProject(projectId, updates);
+      // Use validation utilities
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      if (project) {
-        res.status(200).json({
-          success: true,
-          data: project,
-        } as ApiResponse);
-      } else {
-        res.status(404).json({
+      if (!sanitizedId) {
+        res.status(400).json({
           success: false,
-          error: "Project not found",
+          error: "Invalid project ID: ID is empty or invalid",
+          code: "INVALID_ID",
         } as ApiResponse);
+        return;
+      }
+
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
+
+      // Use SDK method for updating project (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const project = await this.backendSDK.projects.updateProject(
+            sanitizedId,
+            updates
+          );
+
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: project,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK updateProject error:", sdkError);
+          // Fall back to database method if SDK fails
+          const project = await this.db.updateProject(projectId, updates);
+
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: project,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
+      } else {
+        // Fall back to database method if SDK not available
+        const project = await this.db.updateProject(projectId, updates);
+
+        if (project) {
+          res.status(200).json({
+            success: true,
+            data: project,
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
       console.error("Update project error:", error);
-      res.status(500).json({
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
+
+      res.status(isDbError ? 503 : 500).json({
         success: false,
         error: "Failed to update project",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
@@ -243,26 +475,93 @@ export class ProjectController {
     try {
       const { projectId } = req.params;
 
-      // Use the SDK as the single source of truth
-      const project = await this.db.deleteProject(projectId);
+      // Use validation utilities
+      const sanitizedId = sanitizeProjectId(projectId);
 
-      if (project) {
-        res.status(200).json({
-          success: true,
-          message: "Project deleted successfully",
-        } as ApiResponse);
-      } else {
-        res.status(404).json({
+      if (!sanitizedId) {
+        res.status(400).json({
           success: false,
-          error: "Project not found",
+          error: "Invalid project ID: ID is empty or invalid",
+          code: "INVALID_ID",
         } as ApiResponse);
+        return;
+      }
+
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
+          success: false,
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
+        } as ApiResponse);
+        return;
+      }
+
+      // Use SDK method for deleting project (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const success = await this.backendSDK.projects.deleteProject(
+            sanitizedId
+          );
+
+          if (success) {
+            res.status(200).json({
+              success: true,
+              message: "Project deleted successfully",
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK deleteProject error:", sdkError);
+          // Fall back to database method if SDK fails
+          const success = await this.db.deleteProject(projectId);
+
+          if (success) {
+            res.status(200).json({
+              success: true,
+              message: "Project deleted successfully",
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
+      } else {
+        // Fall back to database method if SDK not available
+        const success = await this.db.deleteProject(projectId);
+
+        if (success) {
+          res.status(200).json({
+            success: true,
+            message: "Project deleted successfully",
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
       console.error("Delete project error:", error);
-      res.status(500).json({
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
+
+      res.status(isDbError ? 503 : 500).json({
         success: false,
         error: "Failed to delete project",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
@@ -294,30 +593,87 @@ export class ProjectController {
         return;
       }
 
-      // Get project stats from database
-      const stats = await this.db.getProjectStats(sanitizedId);
+      // Use SDK method for project statistics (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const stats = await this.backendSDK.projects.getProjectStatistics(
+            sanitizedId
+          );
 
-      if (stats) {
-        // Transform stats to match test expectations
-        const transformedStats = {
-          totalCollections: stats.totalCollections || 0,
-          totalDocuments: stats.totalDocuments || 0,
-          totalUsers: stats.totalUsers || 0,
-          storageUsed: stats.storageUsed || 0,
-          apiCalls: stats.apiCallsCount || 0,
-          lastActivity: stats.lastApiCall || null,
-          ...stats, // Include any additional stats
-        };
+          if (stats) {
+            // Transform stats to match test expectations
+            const transformedStats = {
+              totalCollections: stats.totalCollections || 0,
+              totalDocuments: stats.totalDocuments || 0,
+              totalUsers: 0, // Not available in SDK stats, default to 0
+              storageUsed: stats.storageUsed || 0,
+              apiCalls: stats.apiCallsToday || 0,
+              lastActivity: stats.lastActivity || null,
+              ...stats, // Include any additional stats
+            };
 
-        res.status(200).json({
-          success: true,
-          data: transformedStats,
-        } as ApiResponse);
+            res.status(200).json({
+              success: true,
+              data: transformedStats,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project stats not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK getStatistics error:", sdkError);
+          // Fall back to database method if SDK fails
+          const stats = await this.db.getProjectStats(sanitizedId);
+
+          if (stats) {
+            const transformedStats = {
+              totalCollections: stats.totalCollections || 0,
+              totalDocuments: stats.totalDocuments || 0,
+              totalUsers: stats.totalUsers || 0,
+              storageUsed: stats.storageUsed || 0,
+              apiCalls: stats.apiCallsCount || 0,
+              lastActivity: stats.lastApiCall || null,
+              ...stats, // Include any additional stats
+            };
+
+            res.status(200).json({
+              success: true,
+              data: transformedStats,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project stats not found",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(404).json({
-          success: false,
-          error: "Project stats not found",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const stats = await this.db.getProjectStats(sanitizedId);
+
+        if (stats) {
+          const transformedStats = {
+            totalCollections: stats.totalCollections || 0,
+            totalDocuments: stats.totalDocuments || 0,
+            totalUsers: stats.totalUsers || 0,
+            storageUsed: stats.storageUsed || 0,
+            apiCalls: stats.apiCallsCount || 0,
+            lastActivity: stats.lastApiCall || null,
+            ...stats, // Include any additional stats
+          };
+
+          res.status(200).json({
+            success: true,
+            data: transformedStats,
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project stats not found",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
@@ -357,25 +713,68 @@ export class ProjectController {
         return;
       }
 
-      // Get project activity logs from database
-      const activity = await this.db.getProjectActivity(sanitizedId, {
-        limit: parseInt(limit as string) || 100,
-      });
+      // Use SDK method for project activity (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          console.log("🔍 [DEBUG] Calling getProjectActivity with:", {
+            sanitizedId,
+            limit,
+            days,
+          });
 
-      if (activity) {
+          const activity = await this.backendSDK.getProjectActivity(
+            sanitizedId,
+            {
+              limit: parseInt(limit as string) || 100,
+              days: days ? parseInt(days as string) : undefined,
+            }
+          );
+
+          console.log("🔍 [DEBUG] getProjectActivity returned:", activity);
+
+          // Always return success, even with empty activity array
+          res.status(200).json({
+            success: true,
+            data: {
+              activities: activity || [],
+              total: Array.isArray(activity) ? activity.length : 0,
+              limit: parseInt(limit as string) || 100,
+              days: days ? parseInt(days as string) : undefined,
+            },
+          } as ApiResponse);
+        } catch (sdkError) {
+          console.error("SDK getProjectActivity error:", sdkError);
+          // Fall back to database method if SDK fails
+          const activity = await this.db.getProjectActivity(sanitizedId, {
+            limit: parseInt(limit as string) || 100,
+          });
+
+          // Always return success, even with empty activity array
+          res.status(200).json({
+            success: true,
+            data: {
+              activities: activity || [],
+              total: Array.isArray(activity) ? activity.length : 0,
+              limit: parseInt(limit as string) || 100,
+              days: days ? parseInt(days as string) : undefined,
+            },
+          } as ApiResponse);
+        }
+      } else {
+        // Fall back to database method if SDK not available
+        const activity = await this.db.getProjectActivity(sanitizedId, {
+          limit: parseInt(limit as string) || 100,
+        });
+
+        // Always return success, even with empty activity array
         res.status(200).json({
           success: true,
           data: {
-            activities: activity,
+            activities: activity || [],
             total: Array.isArray(activity) ? activity.length : 0,
             limit: parseInt(limit as string) || 100,
             days: days ? parseInt(days as string) : undefined,
           },
-        } as ApiResponse);
-      } else {
-        res.status(500).json({
-          success: false,
-          error: "Failed to fetch project activity",
         } as ApiResponse);
       }
       return;
@@ -389,7 +788,6 @@ export class ProjectController {
     }
   };
 
-  // Regenerate API key
   regenerateApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;
@@ -416,27 +814,74 @@ export class ProjectController {
         return;
       }
 
-      // Regenerate API key in database
-      const newApiKey = await this.db.regenerateProjectApiKey(sanitizedId);
+      // Use SDK method for regenerating API key (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const newApiKey =
+            await this.backendSDK.projects.regenerateProjectApiKey(sanitizedId);
 
-      if (newApiKey) {
-        res.status(200).json({
-          success: true,
-          data: { apiKey: newApiKey },
-          message: "API key regenerated successfully",
-        });
+          if (newApiKey) {
+            res.status(200).json({
+              success: true,
+              data: { apiKey: newApiKey },
+              message: "API key regenerated successfully",
+            });
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK regenerateProjectApiKey error:", sdkError);
+          // Fall back to database method if SDK fails
+          const newApiKey = await this.db.regenerateProjectApiKey(sanitizedId);
+
+          if (newApiKey) {
+            res.status(200).json({
+              success: true,
+              data: { apiKey: newApiKey },
+              message: "API key regenerated successfully",
+            });
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const newApiKey = await this.db.regenerateProjectApiKey(sanitizedId);
+
+        if (newApiKey) {
+          res.status(200).json({
+            success: true,
+            data: { apiKey: newApiKey },
+            message: "API key regenerated successfully",
+          });
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
       console.error("Regenerate API key error:", error);
-      res.status(500).json({
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
+
+      res.status(isDbError ? 503 : 500).json({
         success: false,
         error: "Failed to regenerate API key",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
@@ -468,26 +913,83 @@ export class ProjectController {
         return;
       }
 
-      // Get project settings from database
-      const project = await this.db.getProjectById(sanitizedId);
+      // Use SDK method for getting project settings (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const project = await this.backendSDK.projects.getProjectById(
+            sanitizedId
+          );
 
-      if (project) {
-        res.status(200).json({
-          success: true,
-          data: project.settings || {},
-        } as ApiResponse);
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: {
+                ...project.settings,
+                allowed_origins: project.allowed_origins || [],
+              },
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK getProjectSettings error:", sdkError);
+          // Fall back to database method if SDK fails
+          const project = await this.db.getProjectById(sanitizedId);
+
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: {
+                ...project.settings,
+                allowed_origins: project.allowed_origins || [],
+              },
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const project = await this.db.getProjectById(sanitizedId);
+
+        if (project) {
+          res.status(200).json({
+            success: true,
+            data: {
+              ...project.settings,
+              allowed_origins: project.allowed_origins || [],
+            },
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
       }
+      return;
     } catch (error) {
       console.error("Get project settings error:", error);
-      res.status(500).json({
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
+
+      res.status(isDbError ? 503 : 500).json({
         success: false,
         error: "Failed to fetch project settings",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
+      return;
     }
   };
 
@@ -507,7 +1009,7 @@ export class ProjectController {
   ): Promise<void> => {
     try {
       const { projectId } = req.params;
-      const { settings } = req.body;
+      const { settings, allowed_origins } = req.body;
 
       // Use validation utilities
       const sanitizedId = sanitizeProjectId(projectId);
@@ -530,42 +1032,94 @@ export class ProjectController {
         return;
       }
 
-      if (!settings || typeof settings !== "object") {
-        res.status(400).json({
-          success: false,
-          error: "Settings object is required",
-          code: "INVALID_SETTINGS",
-        } as ApiResponse);
-        return;
-      }
+      // Use SDK method for updating project settings (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          // Map allowed_origins to cors_origins in settings
+          const projectSettings: Partial<ProjectSettings> = {
+            ...settings,
+            cors_origins: allowed_origins,
+          };
 
-      // Update project settings in database
-      const project = await this.db.updateProject(sanitizedId, {
-        settings,
-      });
+          const project = await this.backendSDK.projects.updateProjectSettings(
+            sanitizedId,
+            projectSettings
+          );
 
-      if (project) {
-        res.status(200).json({
-          success: true,
-          data: project.settings,
-        } as ApiResponse);
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: {
+                ...project.settings,
+                allowed_origins: project.allowed_origins || [],
+              },
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK updateProjectSettings error:", sdkError);
+          // Fall back to database method if SDK fails
+          const project = await this.db.updateProject(sanitizedId, {
+            settings,
+            allowed_origins,
+          });
+
+          if (project) {
+            res.status(200).json({
+              success: true,
+              data: {
+                ...project.settings,
+                allowed_origins: project.allowed_origins || [],
+              },
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const project = await this.db.updateProject(sanitizedId, {
+          settings,
+          allowed_origins,
+        });
+
+        if (project) {
+          res.status(200).json({
+            success: true,
+            data: {
+              ...project.settings,
+              allowed_origins: project.allowed_origins || [],
+            },
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
       }
+      return;
     } catch (error) {
       console.error("Update project settings error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
 
-      res.status(500).json({
+      res.status(isDbError ? 503 : 500).json({
         success: false,
         error: "Failed to update project settings",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
@@ -584,10 +1138,8 @@ export class ProjectController {
    */
   createProjectApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
       const { projectId } = req.params;
-      const { name, scopes } = req.body;
+      const { name, scopes, expires_at } = req.body;
 
       // Use validation utilities
       const sanitizedId = sanitizeProjectId(projectId);
@@ -610,65 +1162,89 @@ export class ProjectController {
         return;
       }
 
-      if (!name || typeof name !== "string" || name.trim().length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "API key name is required and must be a non-empty string",
-          code: "INVALID_NAME",
-        } as ApiResponse);
-        return;
-      }
+      // Use SDK method for creating project API key (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const apiKey = await this.backendSDK.projects.createProjectApiKey(
+            sanitizedId,
+            {
+              name,
+              scopes,
+              expires_at,
+            }
+          );
 
-      // Create API key in database
-      const apiKey = await this.db.createProjectApiKey({
-        project_id: sanitizedId,
-        name: name.trim(),
-        scopes: (scopes || []) as ApiKeyScope[],
-        user_id: currentUser.id,
-      });
+          if (apiKey) {
+            res.status(201).json({
+              success: true,
+              data: apiKey,
+            } as ApiResponse);
+          } else {
+            res.status(500).json({
+              success: false,
+              error: "Failed to create API key",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK createProjectApiKey error:", sdkError);
+          // Fall back to database method if SDK fails
+          const apiKey = await this.db.createProjectApiKey({
+            project_id: sanitizedId,
+            name,
+            scopes,
+            expires_at,
+            user_id: "system", // Use system user as fallback
+          });
 
-      if (apiKey) {
-        // Update the user_id field since the SDK sets it to "system"
-        await this.db.updateProjectApiKey(sanitizedId, apiKey.id, {
-          user_id: currentUser.id,
-        });
-
-        // Log the action
-        await this.db.createChangelogEntry({
-          project_id: sanitizedId,
-          entity_type: "api_key",
-          entity_id: apiKey.id,
-          action: "created",
-          changes: { name, scopes },
-          performed_by: currentUser.id,
-          user_id: currentUser.id,
-          resource_type: "api_key",
-          resource_id: apiKey.id,
-        });
-
-        res.status(201).json({
-          success: true,
-          data: apiKey,
-          message: "API key created successfully",
-        } as ApiResponse);
+          if (apiKey) {
+            res.status(201).json({
+              success: true,
+              data: apiKey,
+            } as ApiResponse);
+          } else {
+            res.status(500).json({
+              success: false,
+              error: "Failed to create API key",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(500).json({
-          success: false,
-          error: "Failed to create API key",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const apiKey = await this.db.createProjectApiKey({
+          project_id: sanitizedId,
+          name,
+          scopes,
+          expires_at,
+          user_id: "system", // Use system user as fallback
+        });
+
+        if (apiKey) {
+          res.status(201).json({
+            success: true,
+            data: apiKey,
+          } as ApiResponse);
+        } else {
+          res.status(500).json({
+            success: false,
+            error: "Failed to create API key",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
       console.error("Create project API key error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
 
-      res.status(500).json({
+      res.status(isDbError ? 503 : 500).json({
         success: false,
-        error: "Failed to create API key",
+        error: "Failed to create project API key",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }
@@ -691,26 +1267,83 @@ export class ProjectController {
         return;
       }
 
-      // Get API keys from database
-      const apiKeys = await this.db.getProjectApiKeys(sanitizedId);
-
-      if (apiKeys) {
-        res.status(200).json({
-          success: true,
-          data: apiKeys,
-        } as ApiResponse);
-      } else {
-        res.status(500).json({
+      if (!isValidProjectId(sanitizedId)) {
+        res.status(400).json({
           success: false,
-          error: "Failed to fetch API keys",
+          error: "Invalid project ID format",
+          code: "INVALID_ID_FORMAT",
         } as ApiResponse);
+        return;
       }
+
+      // Use SDK method for getting project API keys (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const apiKeys = await this.backendSDK.projects.getProjectApiKeys(
+            sanitizedId
+          );
+
+          if (apiKeys) {
+            res.status(200).json({
+              success: true,
+              data: apiKeys,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK getProjectApiKeys error:", sdkError);
+          // Fall back to database method if SDK fails
+          const apiKeys = await this.db.getProjectApiKeys(sanitizedId);
+
+          if (apiKeys) {
+            res.status(200).json({
+              success: true,
+              data: apiKeys,
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "Project not found",
+            } as ApiResponse);
+          }
+        }
+      } else {
+        // Fall back to database method if SDK not available
+        const apiKeys = await this.db.getProjectApiKeys(sanitizedId);
+
+        if (apiKeys) {
+          res.status(200).json({
+            success: true,
+            data: apiKeys,
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "Project not found",
+          } as ApiResponse);
+        }
+      }
+      return;
     } catch (error) {
       console.error("Get project API keys error:", error);
-      res.status(500).json({
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
+
+      res.status(isDbError ? 503 : 500).json({
         success: false,
-        error: "Failed to fetch API keys",
+        error: "Failed to fetch project API keys",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
+      return;
     }
   };
 
@@ -725,8 +1358,6 @@ export class ProjectController {
    */
   deleteProjectApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
       const { projectId, keyId } = req.params;
 
       // Use validation utilities
@@ -750,66 +1381,72 @@ export class ProjectController {
         return;
       }
 
-      if (!keyId) {
-        res.status(400).json({
-          success: false,
-          error: "API key ID is required",
-          code: "INVALID_KEY_ID",
-        } as ApiResponse);
-        return;
-      }
+      // Use SDK method for deleting project API key (SDK-first architecture)
+      if (this.backendSDK) {
+        try {
+          const success = await this.backendSDK.projects.deleteProjectApiKey(
+            keyId
+          );
 
-      // Get the API key first to check if it exists
-      const apiKey = await this.db.getProjectApiKeyById(keyId);
+          if (success) {
+            res.status(200).json({
+              success: true,
+              message: "API key deleted successfully",
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "API key not found",
+            } as ApiResponse);
+          }
+        } catch (sdkError) {
+          console.error("SDK deleteProjectApiKey error:", sdkError);
+          // Fall back to database method if SDK fails
+          const result = await this.db.deleteProjectApiKey(keyId);
 
-      if (!apiKey) {
-        res.status(404).json({
-          success: false,
-          error: "API key not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Delete API key from database
-      const result = await this.db.deleteProjectApiKey(keyId);
-
-      if (result) {
-        // Log the action
-        await this.db.createChangelogEntry({
-          project_id: sanitizedId,
-          entity_type: "api_key",
-          entity_id: keyId,
-          action: "deleted",
-          changes: { name: apiKey.name },
-          performed_by: currentUser.id,
-          user_id: currentUser.id,
-          resource_type: "api_key",
-          resource_id: keyId,
-        });
-
-        res.status(200).json({
-          success: true,
-          data: { id: keyId },
-          message: "API key deleted successfully",
-        } as ApiResponse);
+          if (result) {
+            res.status(200).json({
+              success: true,
+              message: "API key deleted successfully",
+            } as ApiResponse);
+          } else {
+            res.status(404).json({
+              success: false,
+              error: "API key not found",
+            } as ApiResponse);
+          }
+        }
       } else {
-        res.status(500).json({
-          success: false,
-          error: "Failed to delete API key",
-        } as ApiResponse);
+        // Fall back to database method if SDK not available
+        const result = await this.db.deleteProjectApiKey(keyId);
+
+        if (result) {
+          res.status(200).json({
+            success: true,
+            message: "API key deleted successfully",
+          } as ApiResponse);
+        } else {
+          res.status(404).json({
+            success: false,
+            error: "API key not found",
+          } as ApiResponse);
+        }
       }
       return;
     } catch (error) {
       console.error("Delete project API key error:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      const isDbError =
+        errorMessage.includes("connection") ||
+        errorMessage.includes("ECONNREFUSED");
 
-      res.status(500).json({
+      res.status(isDbError ? 503 : 500).json({
         success: false,
-        error: "Failed to delete API key",
+        error: "Failed to delete project API key",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
+        code: isDbError ? "DATABASE_ERROR" : "INTERNAL_ERROR",
       } as ApiResponse);
       return;
     }

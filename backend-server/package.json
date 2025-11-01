@@ -22,6 +22,9 @@
   "description": "KRAPI - Project-driven API backend with session-based authentication",
   "dependencies": {
     "@krapi/sdk": "file:../packages/krapi-sdk",
+    "@krapi/logger": "file:../packages/krapi-logger",
+    "@krapi/error-handler": "file:../packages/krapi-error-handler",
+    "@krapi/monitor": "file:../packages/krapi-monitor",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",

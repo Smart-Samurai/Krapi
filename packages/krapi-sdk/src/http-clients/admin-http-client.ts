@@ -16,7 +16,7 @@ export class AdminHttpClient extends BaseHttpClient {
     role?: string;
     status?: string;
     project_id?: string;
-  }): Promise<PaginatedResponse<any>> {
+  }): Promise<PaginatedResponse<Record<string, unknown>>> {
     const params = new URLSearchParams();
     if (options?.limit) params.append("limit", options.limit.toString());
     if (options?.offset) params.append("offset", options.offset.toString());
@@ -27,11 +27,11 @@ export class AdminHttpClient extends BaseHttpClient {
 
     const url = params.toString() ? `/admin/users?${params}` : "/admin/users";
 
-    return this.getPaginated<any>(url);
+    return this.getPaginated<Record<string, unknown>>(url);
   }
 
-  async getUser(userId: string): Promise<ApiResponse<any>> {
-    return this.get<any>(`/admin/users/${userId}`);
+  async getUser(userId: string): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get<Record<string, unknown>>(`/admin/users/${userId}`);
   }
 
   async createUser(userData: {
@@ -44,8 +44,8 @@ export class AdminHttpClient extends BaseHttpClient {
     project_id?: string;
     permissions?: string[];
     metadata?: Record<string, unknown>;
-  }): Promise<ApiResponse<any>> {
-    return this.post<any>("/admin/users", userData);
+  }): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post<Record<string, unknown>>("/admin/users", userData);
   }
 
   async updateUser(
@@ -60,8 +60,8 @@ export class AdminHttpClient extends BaseHttpClient {
       permissions: string[];
       metadata: Record<string, unknown>;
     }>
-  ): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/users/${userId}`, updates);
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(`/admin/users/${userId}`, updates);
   }
 
   async deleteUser(userId: string): Promise<ApiResponse<{ success: boolean }>> {
@@ -71,23 +71,38 @@ export class AdminHttpClient extends BaseHttpClient {
   async updateUserRole(
     userId: string,
     role: string
-  ): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/users/${userId}/role`, { role });
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(`/admin/users/${userId}/role`, {
+      role,
+    });
   }
 
   async updateUserPermissions(
     userId: string,
     permissions: string[]
-  ): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/users/${userId}/permissions`, { permissions });
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(
+      `/admin/users/${userId}/permissions`,
+      { permissions }
+    );
   }
 
-  async activateUser(userId: string): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/users/${userId}/activate`, {});
+  async activateUser(
+    userId: string
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(
+      `/admin/users/${userId}/activate`,
+      {}
+    );
   }
 
-  async deactivateUser(userId: string): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/users/${userId}/deactivate`, {});
+  async deactivateUser(
+    userId: string
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(
+      `/admin/users/${userId}/deactivate`,
+      {}
+    );
   }
 
   // API Key Management
@@ -98,11 +113,14 @@ export class AdminHttpClient extends BaseHttpClient {
       permissions: string[];
       expires_at?: string;
     }
-  ): Promise<ApiResponse<{ key: string; data: any }>> {
-    return this.post<{ key: string; data: any }>(`/admin/api-keys`, {
-      user_id: userId,
-      ...keyData,
-    });
+  ): Promise<ApiResponse<{ key: string; data: Record<string, unknown> }>> {
+    return this.post<{ key: string; data: Record<string, unknown> }>(
+      `/admin/api-keys`,
+      {
+        user_id: userId,
+        ...keyData,
+      }
+    );
   }
 
   // Project Management
@@ -112,7 +130,7 @@ export class AdminHttpClient extends BaseHttpClient {
     search?: string;
     status?: string;
     owner_id?: string;
-  }): Promise<PaginatedResponse<any>> {
+  }): Promise<PaginatedResponse<Record<string, unknown>>> {
     const params = new URLSearchParams();
     if (options?.limit) params.append("limit", options.limit.toString());
     if (options?.offset) params.append("offset", options.offset.toString());
@@ -124,11 +142,13 @@ export class AdminHttpClient extends BaseHttpClient {
       ? `/admin/projects?${params}`
       : "/admin/projects";
 
-    return this.getPaginated<any>(url);
+    return this.getPaginated<Record<string, unknown>>(url);
   }
 
-  async getProject(projectId: string): Promise<ApiResponse<any>> {
-    return this.get<any>(`/admin/projects/${projectId}`);
+  async getProject(
+    projectId: string
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get<Record<string, unknown>>(`/admin/projects/${projectId}`);
   }
 
   async updateProject(
@@ -139,8 +159,11 @@ export class AdminHttpClient extends BaseHttpClient {
       status: string;
       settings: Record<string, unknown>;
     }>
-  ): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/projects/${projectId}`, updates);
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(
+      `/admin/projects/${projectId}`,
+      updates
+    );
   }
 
   async deleteProject(
@@ -152,12 +175,20 @@ export class AdminHttpClient extends BaseHttpClient {
   async suspendProject(
     projectId: string,
     reason?: string
-  ): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/projects/${projectId}/suspend`, { reason });
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(
+      `/admin/projects/${projectId}/suspend`,
+      { reason }
+    );
   }
 
-  async activateProject(projectId: string): Promise<ApiResponse<any>> {
-    return this.put<any>(`/admin/projects/${projectId}/activate`, {});
+  async activateProject(
+    projectId: string
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put<Record<string, unknown>>(
+      `/admin/projects/${projectId}/activate`,
+      {}
+    );
   }
 
   // System Monitoring

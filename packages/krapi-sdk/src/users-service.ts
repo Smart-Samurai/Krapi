@@ -9,9 +9,10 @@
  * - User activity tracking
  */
 
+import bcrypt from "bcryptjs";
+
 import { DatabaseConnection, Logger } from "./core";
 import { CountRow } from "./database-types";
-import bcrypt from "bcryptjs";
 
 export interface ProjectUser {
   id: string;

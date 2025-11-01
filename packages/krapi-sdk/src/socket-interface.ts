@@ -21,8 +21,8 @@ import type {
   FileInfo,
   EmailConfig,
   EmailTemplate,
-  ApiKey
-} from './types';
+  ApiKey,
+} from "./types";
 
 export interface KrapiSocketInterface {
   // Authentication methods
@@ -65,6 +65,10 @@ export interface KrapiSocketInterface {
       oldPassword: string,
       newPassword: string
     ): Promise<{ success: boolean }>;
+
+    regenerateApiKey(
+      req: unknown
+    ): Promise<{ success: boolean; data?: { apiKey: string }; error?: string }>;
   };
 
   // Projects management
@@ -382,7 +386,14 @@ export interface KrapiSocketInterface {
         start_date?: string;
         end_date?: string;
       }
-    ): Promise<{ id: string; action: string; timestamp: string; details: Record<string, unknown> }[]>;
+    ): Promise<
+      {
+        id: string;
+        action: string;
+        timestamp: string;
+        details: Record<string, unknown>;
+      }[]
+    >;
 
     getStatistics(projectId: string): Promise<{
       total_users: number;
@@ -432,12 +443,24 @@ export interface KrapiSocketInterface {
         parent_folder_id?: string;
         metadata?: Record<string, unknown>;
       }
-    ): Promise<{ id: string; name: string; parent_folder_id?: string; metadata?: Record<string, unknown> }>;
+    ): Promise<{
+      id: string;
+      name: string;
+      parent_folder_id?: string;
+      metadata?: Record<string, unknown>;
+    }>;
 
     getFolders(
       projectId: string,
       parentFolderId?: string
-    ): Promise<{ id: string; name: string; parent_folder_id?: string; metadata?: Record<string, unknown> }[]>;
+    ): Promise<
+      {
+        id: string;
+        name: string;
+        parent_folder_id?: string;
+        metadata?: Record<string, unknown>;
+      }[]
+    >;
 
     deleteFolder(
       projectId: string,
@@ -551,7 +574,15 @@ export interface KrapiSocketInterface {
         start_date?: string;
         end_date?: string;
       }
-    ): Promise<{ id: string; to: string; subject: string; status: string; sent_at: string }[]>;
+    ): Promise<
+      {
+        id: string;
+        to: string;
+        subject: string;
+        status: string;
+        sent_at: string;
+      }[]
+    >;
   };
 
   // API Keys management
@@ -605,6 +636,30 @@ export interface KrapiSocketInterface {
         scopes: string[];
         project_id?: string;
       };
+    }>;
+  };
+
+  // Database initialization and management
+  database: {
+    initialize(): Promise<{
+      success: boolean;
+      message: string;
+      tablesCreated: string[];
+      defaultDataInserted: boolean;
+    }>;
+
+    getHealth(): Promise<{
+      database: boolean;
+      storage: boolean;
+      email: boolean;
+      overall: boolean;
+      details: Record<string, unknown>;
+    }>;
+
+    createDefaultAdmin(): Promise<{
+      success: boolean;
+      message: string;
+      adminUser?: unknown;
     }>;
   };
 
@@ -675,6 +730,11 @@ export interface KrapiSocketInterface {
         disk_usage: number;
       };
     }>;
+
+    repairDatabase(): Promise<{
+      success: boolean;
+      actions: string[];
+    }>;
   };
 
   // Testing utilities
@@ -727,6 +787,11 @@ export interface KrapiSocketInterface {
 
   // Utility methods
   getMode(): "client" | "server" | null;
-  getConfig(): { mode: "client" | "server" | null; endpoint?: string; apiKey?: string; database?: any };
+  getConfig(): {
+    mode: "client" | "server" | null;
+    endpoint?: string;
+    apiKey?: string;
+    database?: Record<string, unknown>;
+  };
   close(): Promise<void>;
 }

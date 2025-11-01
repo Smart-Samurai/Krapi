@@ -19,26 +19,34 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Call backend directly for session validation
-    const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3470'}/krapi/k1/auth/session/validate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        token: body.token,
-      }),
-    });
-    
+    const response = await fetch(
+      `${
+        process.env.KRAPI_BACKEND_URL || "http://localhost:3470"
+      }/krapi/k1/auth/session/validate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token: body.token,
+        }),
+      }
+    );
+
     if (!response.ok) {
       const errorData = await response.json();
       return NextResponse.json(
-        { success: false, error: errorData.error || 'Session validation failed' },
+        {
+          success: false,
+          error: errorData.error || "Session validation failed",
+        },
         { status: response.status }
       );
     }
-    
+
     const validationResult = await response.json();
-    
+
     // Flatten the response to match what the tests expect
     if (validationResult.success && validationResult.data) {
       return NextResponse.json(validationResult.data);
@@ -49,7 +57,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Session validation failed",
+        error:
+          error instanceof Error ? error.message : "Session validation failed",
       },
       { status: 500 }
     );

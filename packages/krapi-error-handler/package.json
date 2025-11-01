@@ -1,0 +1,26 @@
+{
+  "name": "@krapi/error-handler",
+  "version": "2.0.0",
+  "description": "KRAPI Error Handling and Recovery System",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "error-handling",
+    "krapi",
+    "recovery",
+    "monitoring"
+  ],
+  "author": "KRAPI Team",
+  "license": "MIT"
+}
+

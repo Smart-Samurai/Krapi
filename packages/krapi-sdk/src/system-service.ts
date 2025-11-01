@@ -44,7 +44,7 @@ export class SystemService implements ISystemService {
       if (!response.ok) {
         const message =
           typeof data === "object" && data !== null && "error" in data
-            ? (data as any).error
+            ? ((data as Record<string, unknown>).error as string)
             : `HTTP ${response.status}: ${response.statusText}`;
         return {
           success: false,

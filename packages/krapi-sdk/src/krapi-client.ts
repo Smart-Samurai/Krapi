@@ -6,6 +6,8 @@
  * 2. HTTP Mode: API client for remote access (for frontend/external)
  */
 
+import axios from "axios";
+
 import { AdminService } from "./admin-service";
 import { AuthService } from "./auth-service";
 import { CollectionsSchemaManager } from "./collections-schema-manager";
@@ -25,7 +27,6 @@ import { SystemService } from "./system-service";
 import { TestingService } from "./testing-service";
 import { FieldType } from "./types";
 import { UsersService } from "./users-service";
-import axios from "axios";
 
 // Client mode type
 export type ClientMode = "database" | "http";
@@ -39,7 +40,7 @@ export interface KrapiClientConfig {
 // Base service interface for mode switching (currently unused)
 // interface ServiceProvider {
 //   database?: DatabaseConnection;
-//   httpClient?: any; // Will be axios instance for HTTP mode
+//   httpClient?: Record<string, unknown>; // Will be axios instance for HTTP mode
 //   logger: Logger;
 // }
 
@@ -73,7 +74,7 @@ export class KrapiClient implements BaseClient {
 
   private config: KrapiClientConfig;
   private logger: Logger;
-  private httpClient?: any; // Axios instance for HTTP mode
+  private httpClient?: Record<string, unknown>; // Axios instance for HTTP mode
 
   constructor(config: KrapiClientConfig) {
     this.config = config;
@@ -152,19 +153,21 @@ export class KrapiClient implements BaseClient {
     });
 
     // Add request interceptor for authentication
-    this.httpClient.interceptors.request.use((config: any) => {
-      if (httpConfig.sessionToken) {
-        config.headers.Authorization = `Bearer ${httpConfig.sessionToken}`;
-      } else if (httpConfig.apiKey) {
-        config.headers["X-API-Key"] = httpConfig.apiKey;
+    this.httpClient.interceptors.request.use(
+      (config: Record<string, unknown>) => {
+        if (httpConfig.sessionToken) {
+          config.headers.Authorization = `Bearer ${httpConfig.sessionToken}`;
+        } else if (httpConfig.apiKey) {
+          config.headers["X-API-Key"] = httpConfig.apiKey;
+        }
+        return config;
       }
-      return config;
-    });
+    );
 
     // Add response interceptor for error handling
     this.httpClient.interceptors.response.use(
-      (response: any) => response,
-      (error: any) => {
+      (response: Record<string, unknown>) => response,
+      (error: Record<string, unknown>) => {
         // Enhanced error handling
         if (error.response) {
           const { status, data } = error.response;
@@ -181,7 +184,7 @@ export class KrapiClient implements BaseClient {
       }
     );
 
-    // TODO: Initialize HTTP-based services
+    // HTTP-based services initialization
     // These would make HTTP calls instead of direct database calls
     this.logger.info(
       "HTTP mode initialized, but HTTP services not yet implemented"

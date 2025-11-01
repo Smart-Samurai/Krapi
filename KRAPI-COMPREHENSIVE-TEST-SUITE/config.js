@@ -7,15 +7,15 @@
 
 export const CONFIG = {
   // Base URLs for testing - MUST go through frontend
-  FRONTEND_URL: "http://localhost:3469",
-  FRONTEND_API_URL: "http://localhost:3469/api", // Frontend API endpoints
-  BACKEND_URL: "http://localhost:3469/api", // Frontend API endpoints (not proxy)
+  FRONTEND_URL: "http://localhost:3498",
+  FRONTEND_API_URL: "http://localhost:3498/api", // Frontend API endpoints
+  BACKEND_URL: "http://localhost:3498/api", // Frontend API endpoints (not proxy)
   DIRECT_BACKEND_URL: "http://localhost:3470", // Direct backend URL for health checks
 
   // Test credentials
   ADMIN_CREDENTIALS: {
-    username: "admin",
-    password: "admin123", // Default password
+    username: process.env.DEFAULT_ADMIN_USERNAME || "admin",
+    password: process.env.DEFAULT_ADMIN_PASSWORD || "admin123", // Default password
   },
 
   // Test data

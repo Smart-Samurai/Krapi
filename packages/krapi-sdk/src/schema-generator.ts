@@ -1,8 +1,8 @@
+import { FieldType } from "./core";
 import {
   ExpectedSchema,
   TableDefinition,
   FieldDefinition,
-  FieldType,
   IndexDefinition,
   ConstraintDefinition,
   RelationDefinition,
@@ -384,37 +384,37 @@ export class SchemaGenerator {
 
   private mapFieldType(type: string): FieldType {
     // Map SQL types to FieldType enum values
-    if (type.startsWith("VARCHAR")) return "varchar";
-    if (type.startsWith("DECIMAL")) return "decimal";
-    if (type === "TIMESTAMP") return "timestamp";
-    if (type === "INTEGER") return "integer";
-    if (type === "BOOLEAN") return "boolean";
-    if (type === "TEXT") return "text";
-    if (type === "UUID") return "uuid";
-    if (type === "JSON") return "json";
-    if (type === "ARRAY") return "array";
-    if (type === "OBJECT") return "object";
-    if (type === "FILE") return "file";
-    if (type === "IMAGE") return "image";
-    if (type === "VIDEO") return "video";
-    if (type === "AUDIO") return "audio";
-    if (type === "REFERENCE") return "reference";
-    if (type === "RELATION") return "relation";
-    if (type === "ENUM") return "enum";
-    if (type === "PASSWORD") return "password";
-    if (type === "ENCRYPTED") return "encrypted";
-    if (type === "EMAIL") return "email";
-    if (type === "URL") return "url";
-    if (type === "PHONE") return "phone";
-    if (type === "UNIQUEID") return "uniqueID";
-    if (type === "DATE") return "date";
-    if (type === "DATETIME") return "datetime";
-    if (type === "TIME") return "time";
-    if (type === "NUMBER") return "number";
-    if (type === "FLOAT") return "float";
-    if (type === "STRING") return "string";
+    if (type.startsWith("VARCHAR")) return FieldType.varchar;
+    if (type.startsWith("DECIMAL")) return FieldType.decimal;
+    if (type === "TIMESTAMP") return FieldType.timestamp;
+    if (type === "INTEGER") return FieldType.integer;
+    if (type === "BOOLEAN") return FieldType.boolean;
+    if (type === "TEXT") return FieldType.text;
+    if (type === "UUID") return FieldType.uuid;
+    if (type === "JSON") return FieldType.json;
+    if (type === "ARRAY") return FieldType.array;
+    if (type === "OBJECT") return FieldType.object;
+    if (type === "FILE") return FieldType.file;
+    if (type === "IMAGE") return FieldType.image;
+    if (type === "VIDEO") return FieldType.video;
+    if (type === "AUDIO") return FieldType.audio;
+    if (type === "REFERENCE") return FieldType.reference;
+    if (type === "RELATION") return FieldType.relation;
+    if (type === "ENUM") return FieldType.enum;
+    if (type === "PASSWORD") return FieldType.password;
+    if (type === "ENCRYPTED") return FieldType.encrypted;
+    if (type === "EMAIL") return FieldType.email;
+    if (type === "URL") return FieldType.url;
+    if (type === "PHONE") return FieldType.phone;
+    if (type === "UNIQUEID") return FieldType.uniqueID;
+    if (type === "DATE") return FieldType.date;
+    if (type === "DATETIME") return FieldType.datetime;
+    if (type === "TIME") return FieldType.time;
+    if (type === "NUMBER") return FieldType.number;
+    if (type === "FLOAT") return FieldType.float;
+    if (type === "STRING") return FieldType.string;
 
-    return "string"; // Default fallback
+    return FieldType.string; // Default fallback
   }
 
   private isOptionalProperty(propertyDef: unknown): boolean {

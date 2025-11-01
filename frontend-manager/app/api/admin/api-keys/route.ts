@@ -22,19 +22,27 @@ export async function POST(request: NextRequest): Promise<Response> {
     const body = await request.json();
 
     // Call backend directly for API key creation
-    const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3470'}/krapi/k1/admin/api-keys`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const response = await fetch(
+      `${
+        process.env.BACKEND_URL || "http://localhost:3470"
+      }/krapi/k1/admin/api-keys`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
       return NextResponse.json(
-        { success: false, error: errorData.error || 'Failed to create API key' },
+        {
+          success: false,
+          error: errorData.error || "Failed to create API key",
+        },
         { status: response.status }
       );
     }
@@ -45,7 +53,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create API key",
+        error:
+          error instanceof Error ? error.message : "Failed to create API key",
       },
       { status: 500 }
     );

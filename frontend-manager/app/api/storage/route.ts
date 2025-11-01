@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { serverSdk } from "@/app/api/lib/sdk-client";
 
 /**
@@ -50,20 +51,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Convert file to buffer for SDK
-    const buffer = Buffer.from(await file.arrayBuffer());
-
     // Upload file using SDK
-    const fileInfo = await serverSdk.storage.uploadFile(
-      projectId,
-      {
-        name: file.name,
-        data: buffer,
-        mimeType: file.type,
-        size: file.size,
-      },
-      "admin" // Default uploader
-    );
+    const fileInfo = await serverSdk.storage.uploadFile(projectId, file, {
+      metadata: { uploaded_by: "admin" },
+    });
 
     return NextResponse.json(
       { success: true, data: fileInfo },

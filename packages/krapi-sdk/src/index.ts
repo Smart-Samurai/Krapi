@@ -72,6 +72,7 @@ export { AdminRole, AccessLevel, Scope, ProjectScope } from "./types";
 // Export all individual services (can be used directly)
 export { AdminService } from "./admin-service";
 export { AuthService } from "./auth-service";
+export { ChangelogService } from "./changelog-service";
 export { CollectionsSchemaManager } from "./collections-schema-manager";
 export { CollectionsService } from "./collections-service";
 export { CollectionsTypeManager } from "./collections-type-manager";
@@ -82,6 +83,9 @@ export { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
 export { ProjectsService } from "./projects-service";
 export { StorageService } from "./storage-service";
 export { SystemService } from "./system-service";
+export { ActivityLogger } from "./activity-logger";
+export { MetadataManager } from "./metadata-manager";
+export { PerformanceMonitor } from "./performance-monitor";
 
 export { UsersService } from "./users-service";
 
@@ -116,6 +120,23 @@ export type {
 } from "./admin-service";
 
 export type {
+  ActivityLog as ActivityLogType,
+  ActivityQuery,
+} from "./activity-logger";
+
+export type {
+  CustomField,
+  CollectionMetadata,
+  MetadataQuery,
+} from "./metadata-manager";
+
+export type {
+  PerformanceMetric,
+  LoadTestResult,
+  QueryPerformance,
+} from "./performance-monitor";
+
+export type {
   Session,
   LoginRequest,
   LoginResponse,
@@ -126,7 +147,6 @@ export type {
 } from "./auth-service";
 
 export type {
-  Document,
   DocumentFilter,
   DocumentQueryOptions,
   CreateDocumentRequest,

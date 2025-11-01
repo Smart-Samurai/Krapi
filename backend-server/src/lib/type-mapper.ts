@@ -50,16 +50,13 @@ export class TypeMapper {
     let sdkRole: AdminRole;
     switch (backendUser.role) {
       case "master_admin":
-        sdkRole = AdminRole.ADMIN;
+        sdkRole = AdminRole.MASTER_ADMIN;
         break;
       case "admin":
         sdkRole = AdminRole.ADMIN;
         break;
-      case "project_admin":
-        sdkRole = AdminRole.ADMIN; // Map project_admin to admin
-        break;
-      case "limited_admin":
-        sdkRole = AdminRole.ADMIN; // Map limited_admin to admin
+      case "developer":
+        sdkRole = AdminRole.DEVELOPER;
         break;
       default:
         sdkRole = AdminRole.ADMIN;
@@ -159,6 +156,7 @@ export class TypeMapper {
       id: backendFile.id,
       project_id: backendFile.project_id,
       name: backendFile.filename,
+      filename: backendFile.filename, // Alias for backward compatibility
       original_name: backendFile.original_name,
       mime_type: backendFile.mime_type,
       size: backendFile.size,
@@ -167,6 +165,7 @@ export class TypeMapper {
       uploaded_by: backendFile.uploaded_by,
       // relations not available in SDK FileInfo
       created_at: backendFile.created_at,
+      updated_at: backendFile.updated_at || backendFile.created_at, // Use created_at as fallback
       public: false,
     };
   }

@@ -19,35 +19,40 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Call backend directly for admin login
-    const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:3470'}/krapi/k1/auth/admin/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: body.username,
-        password: body.password,
-      }),
-    });
-    
+    const response = await fetch(
+      `${
+        process.env.KRAPI_BACKEND_URL || "http://localhost:3470"
+      }/krapi/k1/auth/admin/login`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: body.username,
+          password: body.password,
+        }),
+      }
+    );
+
     if (!response.ok) {
       const errorData = await response.json();
       return NextResponse.json(
-        { success: false, error: errorData.error || 'Authentication failed' },
+        { success: false, error: errorData.error || "Authentication failed" },
         { status: response.status }
       );
     }
-    
-            const session = await response.json();
-        
-        // Flatten the response to match what the tests expect
-        return NextResponse.json({
-          success: session.success,
-          session_token: session.data.session_token,
-          user: session.data.user,
-          expires_at: session.data.expires_at,
-          scopes: session.data.user.scopes,
-        });
+
+    const session = await response.json();
+
+    // Flatten the response to match what the tests expect
+    return NextResponse.json({
+      success: session.success,
+      session_token: session.data.session_token,
+      user: session.data.user,
+      expires_at: session.data.expires_at,
+      scopes: session.data.user.scopes,
+    });
   } catch (error) {
     return NextResponse.json(
       {

@@ -19,6 +19,29 @@ import { BaseHttpClient } from "./base-http-client";
 export class AuthHttpClient extends BaseHttpClient {
   // Constructor inherited from BaseHttpClient
 
+  async register(registerData: {
+    username: string;
+    email: string;
+    password: string;
+    role?: string;
+    access_level?: string;
+    permissions?: string[];
+  }): Promise<
+    ApiResponse<{ success: boolean; user: Record<string, unknown> }>
+  > {
+    return await this.post<{ success: boolean; user: Record<string, unknown> }>(
+      "/auth/register",
+      registerData
+    );
+  }
+
+  async logout(sessionId?: string): Promise<ApiResponse<{ success: boolean }>> {
+    return await this.post<{ success: boolean }>(
+      "/auth/logout",
+      sessionId ? { session_id: sessionId } : {}
+    );
+  }
+
   // Admin Authentication
   async adminLogin(credentials: {
     username: string;
@@ -94,11 +117,6 @@ export class AuthHttpClient extends BaseHttpClient {
   }
 
   // Session Management
-  async logout(): Promise<ApiResponse<{ success: boolean }>> {
-    const response = await this.post<{ success: boolean }>("/auth/logout");
-    this.clearAuth(); // Clear local auth state
-    return response;
-  }
 
   async getCurrentSession(): Promise<ApiResponse<Session>> {
     return this.get<Session>("/auth/me");
@@ -228,5 +246,17 @@ export class AuthHttpClient extends BaseHttpClient {
     }>("/auth/validate-key", {
       api_key: apiKey,
     });
+  }
+
+  async regenerateApiKey(
+    req: unknown
+  ): Promise<
+    ApiResponse<{ success: boolean; data?: { apiKey: string }; error?: string }>
+  > {
+    return this.post<{
+      success: boolean;
+      data?: { apiKey: string };
+      error?: string;
+    }>("/auth/regenerate-api-key", req);
   }
 }

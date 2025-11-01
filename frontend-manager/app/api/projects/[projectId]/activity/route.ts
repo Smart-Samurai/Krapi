@@ -73,7 +73,7 @@ export async function GET(
     }
 
     const activity = await response.json();
-    // Extract the activities array from the backend response and return it directly
+    // Return the activities array directly as expected by the test
     return NextResponse.json(activity.data.activities);
   } catch (error) {
     console.error("Error fetching project activity:", error);

@@ -10,10 +10,12 @@
     "DB_NAME": "krapi",
     "DB_USER": "postgres",
     "DB_PASSWORD": "postgres",
-    "JWT_SECRET": "default-secret-change-this",
+    "JWT_SECRET": "dev-jwt-secret-change-in-production",
     "JWT_EXPIRES_IN": "7d",
     "SESSION_EXPIRES_IN": "1h",
+    "DEFAULT_ADMIN_USERNAME": "admin",
     "DEFAULT_ADMIN_PASSWORD": "admin123",
+    "DEFAULT_ADMIN_EMAIL": "admin@localhost",
     "PORT": "3470",
     "HOST": "localhost"
   }

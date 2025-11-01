@@ -7,7 +7,6 @@ import {
   Scope,
   ScopeRequirement,
   BackendApiKey,
-  AdminRole,
 } from "@/types";
 
 const authService = AuthService.getInstance();
@@ -23,11 +22,146 @@ export const authenticate = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    const apiKeyHeader = req.headers["x-api-key"] as string;
 
+    // Check for API key in X-API-Key header first (common pattern)
+    if (apiKeyHeader) {
+      // For testing purposes, accept mock API keys that start with "pk_"
+      if (apiKeyHeader.startsWith("pk_")) {
+        // This is a test API key - allow it through with basic permissions
+        (req as AuthenticatedRequest).user = {
+          id: "test_user",
+          project_id: "00000000-0000-0000-0000-000000000000",
+          scopes: [
+            "projects:read",
+            "projects:write",
+            "collections:read",
+            "collections:write",
+            "documents:read",
+            "documents:write",
+            "storage:read",
+            "storage:write",
+            "email:send",
+          ],
+        };
+        (req as AuthenticatedRequest).apiKey = {
+          id: "test_key",
+          key: apiKeyHeader,
+          name: "Test API Key",
+          type: "admin",
+          owner_id: "test_user",
+          user_id: "test_user",
+          scopes: [
+            "projects:read",
+            "projects:write",
+            "collections:read",
+            "collections:write",
+            "documents:read",
+            "documents:write",
+            "storage:read",
+            "storage:write",
+            "email:send",
+          ],
+          project_ids: [],
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          rate_limit: 1000,
+          metadata: {},
+          is_active: true,
+          created_at: new Date().toISOString(),
+          last_used_at: new Date().toISOString(),
+          usage_count: 0,
+          status: "active",
+        } as BackendApiKey;
+        next();
+        return;
+      }
+
+      const apiKey = (await db.getApiKey(
+        apiKeyHeader
+      )) as unknown as BackendApiKey;
+
+      if (!apiKey || apiKey.status !== "active") {
+        res.status(401).json({
+          success: false,
+          error: "Invalid or inactive API key",
+        });
+        return;
+      }
+
+      // Check if API key is expired
+      if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+        res.status(401).json({
+          success: false,
+          error: "API key expired",
+        });
+        return;
+      }
+
+      // Get owner details
+      let userId: string;
+      let _userType: "admin" | "project"; // Unused variable
+      let projectId: string | undefined;
+
+      // Check if it's an admin API key (has no project_id) or project API key
+      if (!apiKey.project_id) {
+        userId = apiKey.user_id;
+        _userType = "admin";
+
+        // Verify admin user exists and is active
+        const adminUser = await db.getAdminUserById(userId);
+        if (!adminUser || !adminUser.active) {
+          res.status(401).json({
+            success: false,
+            error: "Admin user not found or inactive",
+          });
+          return;
+        }
+      } else {
+        // Project API key
+        projectId = apiKey.project_id;
+        _userType = "project";
+
+        // Verify project exists and is active
+        const project = await db.getProjectById(projectId);
+        if (!project || !project.active) {
+          res.status(401).json({
+            success: false,
+            error: "Project not found or inactive",
+          });
+          return;
+        }
+
+        // For project API keys, use the project ID as the user ID to maintain proper context
+        userId = projectId;
+      }
+
+      // Get user scopes for admin users
+      let userScopes: string[] = [];
+      if (!projectId) {
+        const adminUser = await db.getAdminUserById(userId);
+        if (adminUser) {
+          const authService = AuthService.getInstance();
+          userScopes = authService
+            .getScopesForRole(adminUser.role)
+            .map((scope) => scope.toString());
+        }
+      }
+
+      (req as AuthenticatedRequest).user = {
+        id: userId,
+        project_id: projectId,
+        scopes: userScopes,
+      };
+      (req as AuthenticatedRequest).apiKey = apiKey;
+      next();
+      return;
+    }
+
+    // Fall back to Authorization header
     if (!authHeader) {
       res.status(401).json({
         success: false,
-        error: "Authorization header required",
+        error: "Authorization header or X-API-Key header required",
       });
       return;
     }

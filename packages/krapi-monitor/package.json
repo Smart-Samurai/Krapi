@@ -1,0 +1,33 @@
+{
+  "name": "@krapi/monitor",
+  "version": "2.0.0",
+  "description": "KRAPI System Monitor - Built-in health checks and monitoring",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "jest"
+  },
+  "keywords": [
+    "krapi",
+    "monitor",
+    "health-check",
+    "system-monitoring"
+  ],
+  "author": "KRAPI Team",
+  "license": "MIT",
+  "dependencies": {
+    "@krapi/logger": "file:../krapi-logger",
+    "@krapi/error-handler": "file:../krapi-error-handler"
+  },
+  "devDependencies": {
+    "@types/node": "^22.17.2",
+    "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "@krapi/logger": "^2.0.0",
+    "@krapi/error-handler": "^2.0.0"
+  }
+}

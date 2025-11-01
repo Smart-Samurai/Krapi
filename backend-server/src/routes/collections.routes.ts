@@ -1,59 +1,17 @@
+import { BackendSDK } from "@krapi/sdk";
 import { Router } from "express";
-import { CollectionsController } from "../controllers/collections.controller";
-import { requireScopes } from "../middleware/auth.middleware";
-import { Scope } from "@krapi/sdk";
 
 const router = Router();
-const controller = new CollectionsController();
 
-// Get all collections for a project
-router.get(
-  "/",
-  requireScopes({
-    scopes: [Scope.COLLECTIONS_READ],
-    projectSpecific: true,
-  }),
-  controller.getAllCollections
-);
+// Initialize the BackendSDK - will be set from app.ts
+let _backendSDK: BackendSDK;
 
-// Get a specific collection by name
-router.get(
-  "/:collectionName",
-  requireScopes({
-    scopes: [Scope.COLLECTIONS_READ],
-    projectSpecific: true,
-  }),
-  controller.getCollectionByName
-);
+export const initializeCollectionsSDK = (sdk: BackendSDK) => {
+  _backendSDK = sdk;
+  // Note: Collections are handled by project routes, not these routes
+};
 
-// Create a new collection
-router.post(
-  "/",
-  requireScopes({
-    scopes: [Scope.COLLECTIONS_WRITE],
-    projectSpecific: true,
-  }),
-  controller.createCollection
-);
-
-// Update a collection
-router.put(
-  "/:collectionName",
-  requireScopes({
-    scopes: [Scope.COLLECTIONS_WRITE],
-    projectSpecific: true,
-  }),
-  controller.updateCollection
-);
-
-// Delete a collection
-router.delete(
-  "/:collectionName",
-  requireScopes({
-    scopes: [Scope.COLLECTIONS_DELETE],
-    projectSpecific: true,
-  }),
-  controller.deleteCollection
-);
+// These routes are not currently used - collections are handled by project routes
+// Keeping the file for future reference but routes are disabled
 
 export default router;

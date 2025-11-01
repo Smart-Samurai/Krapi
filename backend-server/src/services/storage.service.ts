@@ -82,6 +82,7 @@ export class StorageService {
       id: fileRecord.id,
       project_id: fileRecord.project_id,
       name: fileRecord.filename,
+      filename: fileRecord.filename, // Alias for backward compatibility
       original_name: fileRecord.original_name,
       path: fileRecord.path,
       mime_type: fileRecord.mime_type,
@@ -91,6 +92,7 @@ export class StorageService {
       }${fileRecord.filename}`,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
+      updated_at: fileRecord.updated_at,
       public: false,
     };
   }
@@ -142,6 +144,7 @@ export class StorageService {
       id: fileRecord.id,
       project_id: fileRecord.project_id,
       name: fileRecord.filename,
+      filename: fileRecord.filename, // Alias for backward compatibility
       original_name: fileRecord.original_name,
       path: fileRecord.path,
       mime_type: fileRecord.mime_type,
@@ -149,6 +152,7 @@ export class StorageService {
       url: `${fileRecord.path}${fileRecord.filename}`,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
+      updated_at: fileRecord.updated_at || fileRecord.created_at, // Use created_at as fallback
       public: false,
     };
   }
@@ -160,6 +164,7 @@ export class StorageService {
       id: file.id,
       project_id: file.project_id,
       name: file.filename,
+      filename: file.filename, // Alias for backward compatibility
       original_name: file.original_name,
       path: file.path,
       mime_type: file.mime_type,
@@ -167,6 +172,7 @@ export class StorageService {
       url: `${file.path}${file.filename}`,
       uploaded_by: file.uploaded_by,
       created_at: file.created_at,
+      updated_at: file.updated_at || file.created_at, // Use created_at as fallback
       public: false,
     }));
   }
@@ -181,10 +187,19 @@ export class StorageService {
     const storage_limit = 1024 * 1024 * 1024; // 1GB
     const _usage_percentage = (total_size / storage_limit) * 100;
 
+    // Get collections count from database
+    let collections_count = 0;
+    try {
+      const collections = await this.db.getProjectCollections(projectId);
+      collections_count = collections.length;
+    } catch (error) {
+      console.error("Error getting collections count:", error);
+    }
+
     return {
       total_size,
       file_count,
-      collections_count: 0, // TODO: Get from database
+      collections_count,
       projects_count: 1, // Current project
       last_updated: new Date().toISOString(),
     };

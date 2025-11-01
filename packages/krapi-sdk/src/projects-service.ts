@@ -339,7 +339,7 @@ export class ProjectsService {
           projectId,
         ]),
         this.db.query(
-          "SELECT COALESCE(SUM(file_size), 0) as total_storage FROM files WHERE project_id = $1",
+          "SELECT COALESCE(SUM(size), 0) as total_storage FROM files WHERE project_id = $1",
           [projectId]
         ),
         this.db.query(
@@ -495,6 +495,64 @@ export class ProjectsService {
     } catch (error) {
       this.logger.error("Failed to regenerate project API key:", error);
       throw new Error("Failed to regenerate project API key");
+    }
+  }
+
+  // Project Activity Methods
+  async getProjectActivity(
+    projectId: string,
+    options: {
+      limit?: number;
+      days?: number;
+    } = {}
+  ): Promise<Array<{
+    id: string;
+    type: string;
+    timestamp: string;
+    details: Record<string, unknown>;
+  }>> {
+    try {
+      const { limit = 50, days } = options;
+      
+      let query = `
+        SELECT 
+          c.id,
+          c.action as type,
+          c.created_at as timestamp,
+          c.changes as details
+        FROM changelog c
+        WHERE c.project_id = $1
+      `;
+      
+      const queryParams: unknown[] = [projectId];
+      const paramIndex = 2;
+      
+      if (days) {
+        query += ` AND c.created_at >= CURRENT_DATE - INTERVAL '${days} days'`;
+      }
+      
+      query += ` ORDER BY c.created_at DESC LIMIT $${paramIndex}`;
+      queryParams.push(limit);
+      
+      const result = await this.db.query(query, queryParams);
+      
+      return result.rows.map((row) => {
+        const typedRow = row as {
+          id: string;
+          type: string;
+          timestamp: string;
+          details: Record<string, unknown>;
+        };
+        return {
+          id: typedRow.id,
+          type: typedRow.type,
+          timestamp: typedRow.timestamp,
+          details: typedRow.details || {},
+        };
+      });
+    } catch (error) {
+      this.logger.error("Failed to get project activity:", error);
+      throw new Error("Failed to get project activity");
     }
   }
 

@@ -2,26 +2,16 @@
   "name": "krapi-comprehensive-test-suite",
   "version": "1.0.0",
   "description": "Comprehensive test suite for KRAPI Backend-as-a-Service",
-  "main": "index.js",
+  "main": "comprehensive-unified-test.js",
   "type": "module",
   "scripts": {
-    "test": "node index.js",
-    "test:auth": "node tests/auth.test.js",
-    "test:projects": "node tests/projects.test.js",
-    "test:collections": "node tests/collections.test.js",
-    "test:documents": "node tests/documents.test.js",
-    "test:users": "node tests/users.test.js",
-    "test:storage": "node tests/storage.test.js",
-    "test:email": "node tests/email.test.js",
-    "test:apikeys": "node tests/apikeys.test.js",
-    "test:health": "node tests/health.test.js",
-    "test:full": "node full-system-test.js",
-    "test:enhanced": "node enhanced-test-runner.js",
-    "test:comprehensive": "node run-comprehensive-tests.js"
+    "test": "node comprehensive-test-runner.js",
+    "test:comprehensive": "node comprehensive-test-runner.js",
+    "test:runner": "node comprehensive-test-runner.js"
   },
   "dependencies": {
     "@krapi/sdk": "file:../packages/krapi-sdk",
-    "axios": "^1.6.0",
+    "axios": "^1.11.0",
     "chalk": "^5.3.0",
     "form-data": "^4.0.0"
   },

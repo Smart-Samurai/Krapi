@@ -1,707 +1,1201 @@
-import { ApiResponse } from "@krapi/sdk";
+import { BackendSDK } from "@krapi/sdk";
 import { Response } from "express";
-
-import { DatabaseService } from "../services/database.service";
-import { isValidProjectId, sanitizeProjectId } from "../utils/validation";
 
 import { AuthenticatedRequest } from "@/types";
 
-export class CollectionsController {
-  private db: DatabaseService;
+// Extend the AuthenticatedRequest interface to include app.locals.backendSDK
+interface ExtendedRequest extends AuthenticatedRequest {
+  app: AuthenticatedRequest["app"] & {
+    locals: AuthenticatedRequest["app"]["locals"] & {
+      backendSDK?: BackendSDK;
+    };
+  };
+}
 
-  constructor() {
-    this.db = DatabaseService.getInstance();
+export class CollectionsController {
+  private backendSDK?: BackendSDK;
+
+  setBackendSDK(sdk: BackendSDK) {
+    this.backendSDK = sdk;
   }
 
   /**
    * Get all collections for a project
-   * GET /krapi/k1/projects/:projectId/collections
    */
-  getAllCollections = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async getAllCollections(req: ExtendedRequest, res: Response) {
     try {
       const { projectId } = req.params;
-      const sanitizedId = sanitizeProjectId(projectId);
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
 
-      if (!sanitizedId) {
-        res.status(400).json({
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
           success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      // Get collections from database
-      const collections = await this.db.getProjectCollections(sanitizedId);
+      // Use SDK method to get collections
+      const collections = await this.backendSDK.getProjectCollections(
+        sanitizedId
+      );
 
       res.status(200).json({
         success: true,
-        data: collections || [],
-      } as ApiResponse);
-      return;
+        collections,
+      });
     } catch (error) {
-      console.error("Get collections error:", error);
+      console.error("Error getting collections:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
-        error: "Failed to fetch collections",
+        error: "Failed to get collections",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
+  }
 
   /**
    * Get a specific collection by name
-   * GET /krapi/k1/projects/:projectId/collections/:collectionName
    */
-  getCollectionByName = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async getCollectionByName(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = sanitizeProjectId(projectId);
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
 
-      if (!sanitizedId) {
-        res.status(400).json({
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
           success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!collectionName) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name is required",
-          code: "MISSING_COLLECTION_NAME",
-        } as ApiResponse);
-        return;
-      }
-
-      // Get collection from database
-      const collection = await this.db.getCollectionByName(
+      // Use SDK method to get collection
+      const collection = await this.backendSDK.getCollection(
         sanitizedId,
         collectionName
       );
 
-      if (collection) {
-        res.status(200).json({
-          success: true,
-          data: collection,
-        } as ApiResponse);
-      } else {
-        res.status(404).json({
+      if (!collection) {
+        return res.status(404).json({
           success: false,
           error: "Collection not found",
-        } as ApiResponse);
+        });
       }
-      return;
+
+      res.status(200).json({
+        success: true,
+        collection,
+      });
     } catch (error) {
-      console.error("Get collection error:", error);
+      console.error("Error getting collection:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
-        error: "Failed to fetch collection",
+        error: "Failed to get collection",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
+  }
 
   /**
    * Create a new collection
-   * POST /krapi/k1/projects/:projectId/collections
    */
-  createCollection = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async createCollection(req: ExtendedRequest, res: Response) {
     try {
-      const { projectId } = req.params;
-      const { name, description, fields, indexes } = req.body;
-      const sanitizedId = sanitizeProjectId(projectId);
+      let projectId = req.params.projectId;
 
-      if (!sanitizedId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!name || typeof name !== "string" || name.trim().length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name is required and must be a non-empty string",
-          code: "INVALID_NAME",
-        } as ApiResponse);
-        return;
-      }
-
-      if (name.trim().length > 100) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name must be 100 characters or less",
-          code: "NAME_TOO_LONG",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!fields || !Array.isArray(fields) || fields.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "Collection fields are required and must be a non-empty array",
-          code: "INVALID_FIELDS",
-        } as ApiResponse);
-        return;
-      }
-
-      // Validate field data
-      const fieldValidation = this.validateFieldData(fields);
-      if (!fieldValidation.isValid) {
-        res.status(400).json({
-          success: false,
-          error: "Field validation failed",
-          details: fieldValidation.issues,
-          code: "FIELD_VALIDATION_ERROR",
-        } as ApiResponse);
-        return;
-      }
-
-      // Validate indexes if provided
-      if (indexes && Array.isArray(indexes) && indexes.length > 0) {
-        const indexValidation = this.validateIndexData(indexes, fields);
-        if (!indexValidation.isValid) {
-          res.status(400).json({
-            success: false,
-            error: "Index validation failed",
-            details: indexValidation.issues,
-            code: "INDEX_VALIDATION_ERROR",
-          } as ApiResponse);
-          return;
+      // If projectId is not in params, extract it from the URL path
+      if (!projectId) {
+        const urlParts = req.originalUrl?.split("/") || [];
+        const projectIndex = urlParts.findIndex((part) => part === "projects");
+        if (projectIndex !== -1 && projectIndex + 1 < urlParts.length) {
+          projectId = urlParts[projectIndex + 1];
         }
       }
 
-      // Create collection using database service
-      const collection = await this.db.createCollection(
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
+
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { name, fields, description, indexes } = req.body;
+
+      // Validate collection data before creating
+      const validationErrors = [];
+
+      // Check for empty or invalid field names
+      if (!fields || !Array.isArray(fields)) {
+        validationErrors.push("Fields must be an array");
+      } else {
+        fields.forEach((field, index) => {
+          if (!field.name || field.name.trim() === "") {
+            validationErrors.push(`Field ${index + 1} must have a name`);
+          } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field.name)) {
+            validationErrors.push(
+              `Field name "${field.name}" must contain only letters, numbers, and underscores, and cannot start with a number`
+            );
+          }
+          if (!field.type) {
+            validationErrors.push(`Field "${field.name}" must have a type`);
+          }
+        });
+      }
+
+      // Check for empty collection name
+      if (!name || name.trim() === "") {
+        validationErrors.push("Collection name is required");
+      } else if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) {
+        validationErrors.push(
+          `Collection name "${name}" must start with a letter and contain only letters, numbers, and underscores`
+        );
+      }
+
+      // If there are validation errors, return them
+      if (validationErrors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          issues: validationErrors,
+        });
+      }
+
+      // Check if collection with same name already exists in this project
+      const existingCollections = await this.backendSDK.getProjectCollections(
+        sanitizedId
+      );
+      const duplicateCollection = existingCollections.find(
+        (collection) => collection.name === name
+      );
+
+      if (duplicateCollection) {
+        return res.status(400).json({
+          success: false,
+          error: "Collection with this name already exists",
+          issues: [`Collection "${name}" already exists in this project`],
+        });
+      }
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Use SDK method to create collection
+      const collection = await this.backendSDK.createCollection(
         sanitizedId,
-        name.trim(),
+        name,
         {
-          description: description?.trim() || undefined,
+          description,
           fields,
-          indexes: indexes || [],
+          indexes,
         },
         req.user.id
       );
 
       res.status(201).json({
         success: true,
-        data: collection,
-        message: `Collection created successfully`,
-      } as ApiResponse);
-      return;
+        collection,
+      });
     } catch (error) {
-      console.error("Create collection error:", error);
+      console.error("Error creating collection:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
         error: "Failed to create collection",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
+  }
 
   /**
-   * Update a collection
-   * PUT /krapi/k1/projects/:projectId/collections/:collectionName
+   * Update an existing collection
    */
-  updateCollection = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async updateCollection(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const updates = req.body;
-      const sanitizedId = sanitizeProjectId(projectId);
+      const { description, fields, indexes } = req.body;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
 
-      if (!sanitizedId) {
-        res.status(400).json({
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
           success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!collectionName) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name is required",
-          code: "MISSING_COLLECTION_NAME",
-        } as ApiResponse);
-        return;
-      }
-
-      // Update collection using database service
-      const collection = await this.db.updateCollection(
+      // Use SDK method to update collection
+      const updatedCollection = await this.backendSDK.updateCollection(
         sanitizedId,
         collectionName,
-        updates
+        {
+          description,
+          fields,
+          indexes,
+        }
       );
 
-      if (collection) {
-        res.status(200).json({
-          success: true,
-          data: collection,
-          message: `Collection updated successfully`,
-        } as ApiResponse);
-      } else {
-        res.status(404).json({
-          success: false,
-          error: "Collection not found",
-        } as ApiResponse);
-      }
-      return;
+      res.status(200).json({
+        success: true,
+        collection: updatedCollection,
+      });
     } catch (error) {
-      console.error("Update collection error:", error);
+      console.error("Error updating collection:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
         error: "Failed to update collection",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
+  }
 
   /**
    * Delete a collection
-   * DELETE /krapi/k1/projects/:projectId/collections/:collectionName
    */
-  deleteCollection = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async deleteCollection(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = sanitizeProjectId(projectId);
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
 
-      if (!sanitizedId) {
-        res.status(400).json({
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
           success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!collectionName) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name is required",
-          code: "MISSING_COLLECTION_NAME",
-        } as ApiResponse);
-        return;
-      }
-
-      // Delete collection using database service
-      const deleted = await this.db.deleteCollection(
+      // Use SDK method to delete collection
+      const success = await this.backendSDK.deleteCollection(
         sanitizedId,
         collectionName
       );
 
-      if (deleted) {
-        res.status(200).json({
-          success: true,
-          message: `Collection deleted successfully`,
-        } as ApiResponse);
-      } else {
-        res.status(404).json({
+      if (!success) {
+        return res.status(404).json({
           success: false,
           error: "Collection not found",
-        } as ApiResponse);
+        });
       }
-      return;
+
+      res.status(200).json({
+        success: true,
+        message: "Collection deleted successfully",
+      });
     } catch (error) {
-      console.error("Delete collection error:", error);
+      console.error("Error deleting collection:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
         error: "Failed to delete collection",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
+  }
 
   /**
    * Get collection statistics
-   * GET /krapi/k1/projects/:projectId/collections/:collectionName/statistics
    */
-  getCollectionStatistics = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async getCollectionStatistics(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = sanitizeProjectId(projectId);
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
 
-      if (!sanitizedId) {
-        res.status(400).json({
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
           success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!collectionName) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name is required",
-          code: "MISSING_COLLECTION_NAME",
-        } as ApiResponse);
-        return;
-      }
-
-      // Get the collection to get statistics for
-      const collection = await this.db.getCollection(
+      // Get collection info from SDK
+      const collection = await this.backendSDK.getCollection(
         sanitizedId,
         collectionName
       );
 
       if (!collection) {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Collection not found",
-          code: "COLLECTION_NOT_FOUND",
-        } as ApiResponse);
-        return;
+        });
       }
 
-      // For now, return mock statistics since the database service doesn't have this method yet
-      // TODO: Implement actual statistics collection in DatabaseService
-      const statistics = {
-        total_documents: 0,
-        total_size_bytes: 0,
-        field_count: collection.fields?.length || 0,
-        index_count: collection.indexes?.length || 0,
-        created_at: collection.created_at,
-        updated_at: collection.updated_at
-      };
-
+      // Return the structure the frontend expects
       res.status(200).json({
         success: true,
-        data: statistics,
-      } as ApiResponse);
-      return;
+        data: {
+          total_documents: 0, // Will be implemented when document operations are available
+          total_size_bytes: 0, // Will be implemented when document operations are available
+          collectionId: collection.id,
+          name: collection.name,
+          fieldCount: collection.fields?.length || 0,
+          createdAt: collection.created_at,
+          updatedAt: collection.updated_at,
+        },
+      });
     } catch (error) {
-      console.error("Get collection statistics error:", error);
+      console.error("Error getting collection statistics:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
         error: "Failed to get collection statistics",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
+  }
 
   /**
-   * Validate collection schema
-   * POST /krapi/k1/projects/:projectId/collections/:collectionName/validate-schema
+   * Validate a collection schema
    */
-  validateCollectionSchema = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> => {
+  async validateCollectionSchema(req: ExtendedRequest, res: Response) {
     try {
       const { projectId, collectionName } = req.params;
-      const sanitizedId = sanitizeProjectId(projectId);
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
 
-      if (!sanitizedId) {
-        res.status(400).json({
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
           success: false,
-          error: "Project ID is required",
-          code: "MISSING_PROJECT_ID",
-        } as ApiResponse);
-        return;
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!isValidProjectId(sanitizedId)) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid project ID format",
-          code: "INVALID_ID_FORMAT",
-        } as ApiResponse);
-        return;
-      }
-
-      if (!collectionName) {
-        res.status(400).json({
-          success: false,
-          error: "Collection name is required",
-          code: "MISSING_COLLECTION_NAME",
-        } as ApiResponse);
-        return;
-      }
-
-      // Get the collection to validate
-      const collection = await this.db.getCollection(
+      // Get collection from SDK to validate it exists
+      const collection = await this.backendSDK.getCollection(
         sanitizedId,
         collectionName
       );
 
       if (!collection) {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Collection not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Basic schema validation
-      const issues: string[] = [];
-      let isValid = true;
-
-      // Validate fields
-      if (collection.fields && Array.isArray(collection.fields)) {
-        collection.fields.forEach((field, index) => {
-          if (!field.name || field.name.trim() === "") {
-            issues.push(`Field ${index}: Name is required`);
-            isValid = false;
-          }
-
-          if (
-            !field.type ||
-            ![
-              "string",
-              "text",
-              "integer",
-              "decimal",
-              "boolean",
-              "date",
-              "timestamp",
-              "json",
-              "uuid",
-            ].includes(field.type)
-          ) {
-            issues.push(`Field ${field.name}: Invalid type '${field.type}'`);
-            isValid = false;
-          }
         });
       }
 
-      // Validate indexes
-      if (collection.indexes && Array.isArray(collection.indexes)) {
-        collection.indexes.forEach((index, indexIndex) => {
-          if (!index.name || index.name.trim() === "") {
-            issues.push(`Index ${indexIndex}: Name is required`);
-            isValid = false;
-          }
+      // Implement proper schema validation
+      const validationResult = {
+        isValid: true,
+        issues: [] as string[],
+        warnings: [] as string[],
+        suggestions: [] as string[],
+      };
 
-          if (
-            !index.fields ||
-            !Array.isArray(index.fields) ||
-            index.fields.length === 0
-          ) {
-            issues.push(`Index ${index.name}: Must have at least one field`);
-            isValid = false;
+      // Validate collection fields
+      if (collection.fields && Array.isArray(collection.fields)) {
+        for (const field of collection.fields) {
+          if (!field.name || field.name.trim() === "") {
+            validationResult.issues.push(`Field must have a name`);
+            validationResult.isValid = false;
           }
+          if (!field.type) {
+            validationResult.issues.push(
+              `Field "${field.name}" must have a type`
+            );
+            validationResult.isValid = false;
+          }
+          if (field.name && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field.name)) {
+            validationResult.issues.push(
+              `Field name "${field.name}" must contain only letters, numbers, and underscores, and cannot start with a number`
+            );
+            validationResult.isValid = false;
+          }
+        }
+      }
+
+      // Validate collection name
+      if (!collection.name || collection.name.trim() === "") {
+        validationResult.issues.push("Collection name is required");
+        validationResult.isValid = false;
+      } else if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(collection.name)) {
+        validationResult.issues.push(
+          `Collection name "${collection.name}" must start with a letter and contain only letters, numbers, and underscores`
+        );
+        validationResult.isValid = false;
+      }
+
+      res.status(200).json({
+        success: true,
+        valid: validationResult.isValid,
+        issues: validationResult.issues,
+        warnings: validationResult.warnings,
+        suggestions: validationResult.suggestions,
+        collection: {
+          id: collection.id,
+          name: collection.name,
+          fields: collection.fields,
+          description: collection.description,
+        },
+      });
+    } catch (error) {
+      console.error("Error validating collection schema:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to validate collection schema",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Create a new document in a collection
+   */
+  async createDocument(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { data } = req.body;
+
+      console.log(
+        `🔍 [DOCUMENT DEBUG] Creating document in project ${sanitizedId}, collection ${collectionName}`
+      );
+      console.log(`🔍 [DOCUMENT DEBUG] Request body:`, req.body);
+      console.log(`🔍 [DOCUMENT DEBUG] Document data:`, data);
+      console.log(`🔍 [DOCUMENT DEBUG] User ID:`, req.user?.id);
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        console.log(`❌ [DOCUMENT DEBUG] Backend SDK not initialized`);
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      console.log(`✅ [DOCUMENT DEBUG] Backend SDK is available`);
+
+      // Set current user ID for the SDK
+      this.backendSDK.setCurrentUserId(req.user?.id || "system");
+
+      // Use SDK method to create document
+      console.log(`🔍 [DOCUMENT DEBUG] Calling SDK createDocument method...`);
+      const document = await this.backendSDK.createDocument(
+        sanitizedId,
+        collectionName,
+        {
+          data,
+          created_by: req.user?.id,
+        }
+      );
+
+      console.log(
+        `✅ [DOCUMENT DEBUG] Document created successfully:`,
+        document
+      );
+      res.status(201).json(document);
+    } catch (error) {
+      console.error("❌ [DOCUMENT DEBUG] Error creating document:", error);
+      console.error(
+        "❌ [DOCUMENT DEBUG] Error stack:",
+        error instanceof Error ? error.stack : "No stack"
+      );
+
+      // Check if it's a validation error by looking at the original error
+      let isValidationError = false;
+      let originalErrorMessage = "";
+
+      if (error instanceof Error) {
+        // Check the current error message
+        if (
+          error.message.includes("Required field") ||
+          error.message.includes("validation") ||
+          error.message.includes("missing")
+        ) {
+          isValidationError = true;
+          originalErrorMessage = error.message;
+        }
+
+        // Also check if there's a cause property (for wrapped errors)
+        if (error.cause && error.cause instanceof Error) {
+          const causeMessage = error.cause.message;
+          if (
+            causeMessage.includes("Required field") ||
+            causeMessage.includes("validation") ||
+            causeMessage.includes("missing")
+          ) {
+            isValidationError = true;
+            originalErrorMessage = causeMessage;
+          }
+        }
+
+        // Check the error stack trace for validation keywords
+        if (error.stack) {
+          const stackLines = error.stack.split("\n");
+          for (const line of stackLines) {
+            if (
+              line.includes("Required field") ||
+              line.includes("validation") ||
+              line.includes("missing")
+            ) {
+              isValidationError = true;
+              originalErrorMessage = line.trim();
+              break;
+            }
+          }
+        }
+
+        // Check if the error name indicates validation
+        if (error.name === "ValidationError" || error.name === "TypeError") {
+          isValidationError = true;
+          originalErrorMessage = error.message;
+        }
+      }
+
+      console.log("Is validation error:", isValidationError);
+      console.log("Original error message:", originalErrorMessage);
+      console.log(
+        "Error stack:",
+        error instanceof Error ? error.stack : "No stack"
+      );
+
+      if (isValidationError) {
+        console.log("Returning 400 validation error");
+        res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          details: originalErrorMessage || error.message,
+        });
+      } else {
+        console.log("Returning 500 server error");
+        res.status(500).json({
+          success: false,
+          error: "Failed to create document",
+          details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+    }
+  }
+
+  /**
+   * Get documents from a collection
+   */
+  async getDocuments(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const {
+        limit = 100,
+        offset = 0,
+        sortBy: _sortBy,
+        sortOrder: _sortOrder,
+        orderBy,
+        order,
+        filter,
+      } = req.query;
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Parse filter parameters
+      let documentFilter: Record<string, unknown> | undefined = undefined;
+
+      // Handle different filter formats
+      if (filter && typeof filter === "object") {
+        documentFilter = {
+          field_filters: {},
+        };
+
+        // Cast filter to Record<string, unknown> to access properties dynamically
+        const filterObj = filter as Record<string, unknown>;
+
+        // Handle nested filter format: filter[status]=todo becomes { filter: { status: "todo" } }
+        if (filterObj.status || filterObj.priority || filterObj.is_active) {
+          // Direct field filters
+          if (filterObj.status)
+            (documentFilter.field_filters as Record<string, unknown>).status =
+              filterObj.status;
+          if (filterObj.priority)
+            (documentFilter.field_filters as Record<string, unknown>).priority =
+              filterObj.priority;
+          if (filterObj.is_active !== undefined)
+            (
+              documentFilter.field_filters as Record<string, unknown>
+            ).is_active = filterObj.is_active;
+        }
+
+        // Handle complex filters like filter[priority][gte]=5
+        for (const [key, value] of Object.entries(filterObj)) {
+          if (key !== "status" && key !== "priority" && key !== "is_active") {
+            if (typeof value === "string") {
+              (documentFilter.field_filters as Record<string, unknown>)[key] =
+                value;
+            } else if (typeof value === "object" && value !== null) {
+              (documentFilter.field_filters as Record<string, unknown>)[key] =
+                value;
+            }
+          }
+        }
+      }
+
+      console.log(
+        "🔍 [DOCUMENTS DEBUG] Raw query:",
+        JSON.stringify(req.query, null, 2)
+      );
+      console.log(
+        "🔍 [DOCUMENTS DEBUG] Filter:",
+        JSON.stringify(filter, null, 2)
+      );
+      console.log(
+        "🔍 [DOCUMENTS DEBUG] Parsed filter:",
+        JSON.stringify(documentFilter, null, 2)
+      );
+
+      const documents = await this.backendSDK.getDocuments(
+        sanitizedId,
+        collectionName,
+        documentFilter,
+        {
+          limit: Number(limit),
+          offset: Number(offset),
+          orderBy: (orderBy || _sortBy) as string,
+          order: (order || _sortOrder) as "asc" | "desc",
+        }
+      );
+
+      // Return the documents in the expected format
+      res.status(200).json({
+        data: documents,
+        total: documents.length,
+        limit: Number(limit),
+        offset: Number(offset),
+      });
+    } catch (error) {
+      console.error("Error getting documents:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to get documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Count documents in a collection
+   */
+  async countDocuments(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { filter } = req.query;
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Parse filter parameters
+      let documentFilter: Record<string, unknown> | undefined = undefined;
+      if (filter && typeof filter === "object") {
+        documentFilter = {};
+
+        // Handle simple field filters like filter[status]=todo
+        for (const [key, value] of Object.entries(filter)) {
+          if (typeof value === "string") {
+            if (!documentFilter.field_filters) {
+              documentFilter.field_filters = {};
+            }
+            documentFilter.field_filters[key] = value;
+          }
+        }
+      }
+
+      const count = await this.backendSDK.countDocuments(
+        sanitizedId,
+        collectionName,
+        documentFilter
+      );
+
+      res.status(200).json({
+        success: true,
+        count,
+      });
+    } catch (error) {
+      console.error("Error counting documents:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to count documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Get a document by ID
+   */
+  async getDocumentById(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName, documentId } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Use SDK method to get document
+      const document = await this.backendSDK.getDocument(
+        sanitizedId,
+        collectionName,
+        documentId
+      );
+
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          error: "Document not found",
+        });
+      }
+
+      res.status(200).json(document);
+    } catch (error) {
+      console.error("Error getting document:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to get document",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Update a document
+   */
+  async updateDocument(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName, documentId } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { data } = req.body;
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Use SDK method to update document
+      const document = await this.backendSDK.updateDocument(
+        sanitizedId,
+        collectionName,
+        documentId,
+        data
+      );
+
+      res.status(200).json(document);
+    } catch (error) {
+      console.error("Error updating document:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to update document",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Delete a document
+   */
+  async deleteDocument(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName, documentId } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Use SDK method to delete document
+      const success = await this.backendSDK.deleteDocument(
+        sanitizedId,
+        collectionName,
+        documentId
+      );
+
+      if (!success) {
+        return res.status(404).json({
+          success: false,
+          error: "Document not found",
         });
       }
 
       res.status(200).json({
         success: true,
-        valid: isValid,
-        issues,
-        collectionName,
-      } as ApiResponse);
-      return;
+        message: "Document deleted successfully",
+      });
     } catch (error) {
-      console.error("Schema validation error:", error);
+      console.error("Error deleting document:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-
       res.status(500).json({
         success: false,
-        error: "Failed to validate schema",
+        error: "Failed to delete document",
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        code: "INTERNAL_ERROR",
-      } as ApiResponse);
-      return;
+      });
     }
-  };
-
-  /**
-   * Validate field data for collection creation/update
-   */
-  private validateFieldData(fields: Record<string, unknown>[]): { isValid: boolean; issues: string[] } {
-    const issues: string[] = [];
-    let isValid = true;
-
-    if (!Array.isArray(fields)) {
-      return { isValid: false, issues: ["Fields must be an array"] };
-    }
-
-    fields.forEach((field, index) => {
-      if (!field.name || typeof field.name !== "string" || field.name.trim() === "") {
-        issues.push(`Field ${index}: Name is required and cannot be empty`);
-        isValid = false;
-      }
-
-      // Check for invalid field names (spaces, special characters)
-      if (field.name && typeof field.name === "string" && /[^a-zA-Z0-9_]/g.test(field.name)) {
-        issues.push(`Field ${field.name}: Name cannot contain spaces or special characters (only letters, numbers, and underscores allowed)`);
-        isValid = false;
-      }
-
-      if (!field.type || typeof field.type !== "string") {
-        issues.push(`Field ${field.name || index}: Type is required`);
-        isValid = false;
-      }
-
-      const validTypes = [
-        "string",
-        "text",
-        "integer",
-        "decimal",
-        "boolean",
-        "date",
-        "timestamp",
-        "json",
-        "uuid",
-      ];
-
-      if (field.type && typeof field.type === "string" && !validTypes.includes(field.type)) {
-        issues.push(`Field ${field.name}: Invalid type '${field.type}'. Valid types are: ${validTypes.join(", ")}`);
-        isValid = false;
-      }
-    });
-
-    return { isValid, issues };
   }
 
   /**
-   * Validate index data for collection creation/update
+   * Search documents in a collection
    */
-  private validateIndexData(indexes: Record<string, unknown>[], fields: Record<string, unknown>[]): { isValid: boolean; issues: string[] } {
-    const issues: string[] = [];
-    let isValid = true;
+  async searchDocuments(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { query: searchQuery, limit = 100, offset = 0 } = req.body;
 
-    if (!Array.isArray(indexes)) {
-      return { isValid: false, issues: ["Indexes must be an array"] };
-    }
-
-    const fieldNames = fields.map(f => String(f.name || '')).filter(name => name.length > 0);
-
-    indexes.forEach((index, indexIndex) => {
-      if (!index.name || typeof index.name !== "string" || index.name.trim() === "") {
-        issues.push(`Index ${indexIndex}: Name is required and cannot be empty`);
-        isValid = false;
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
       }
 
-      if (!index.fields || !Array.isArray(index.fields) || index.fields.length === 0) {
-        issues.push(`Index ${index.name}: Must have at least one field`);
-        isValid = false;
+      // Implement document search functionality
+      if (
+        !searchQuery ||
+        typeof searchQuery !== "string" ||
+        searchQuery.trim() === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "Search query is required",
+        });
       }
 
-      // Check if index fields exist in the collection
-      (index.fields as string[]).forEach((fieldName: string) => {
-        if (!fieldNames.includes(fieldName)) {
-          issues.push(`Index ${index.name}: Field '${fieldName}' does not exist in the collection`);
-          isValid = false;
+      // Use SDK method to search documents
+      const documents = await this.backendSDK.searchDocuments(
+        sanitizedId,
+        collectionName,
+        {
+          text: searchQuery,
+          limit: Number(limit),
+          offset: Number(offset),
         }
-      });
-    });
+      );
 
-    return { isValid, issues };
+      res.status(200).json({
+        success: true,
+        documents,
+        total: documents.length,
+        limit: Number(limit),
+        offset: Number(offset),
+        query: searchQuery,
+      });
+    } catch (error) {
+      console.error("Error searching documents:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to search documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Bulk create documents
+   */
+  async bulkCreateDocuments(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const _sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { documents } = req.body;
+
+      console.log(
+        `🔍 [BULK CREATE DEBUG] Creating ${
+          documents?.length || 0
+        } documents in project ${_sanitizedId}, collection ${collectionName}`
+      );
+      console.log(`🔍 [BULK CREATE DEBUG] Request body:`, req.body);
+      console.log(`🔍 [BULK CREATE DEBUG] User ID:`, req.user?.id);
+      console.log(`🔍 [BULK CREATE DEBUG] Full req.user:`, req.user);
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        console.log(`❌ [BULK CREATE DEBUG] Backend SDK not initialized`);
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      console.log(`✅ [BULK CREATE DEBUG] Backend SDK is available`);
+
+      // Set current user ID for SDK operations
+      this.backendSDK.setCurrentUserId(req.user?.id || "system");
+
+      // Convert documents to CreateDocumentRequest format
+      const documentRequests = documents.map(
+        (doc: Record<string, unknown>) => ({
+          data: (doc as { data: unknown }).data, // Extract the data property from the document
+          created_by: req.user?.id || "system",
+        })
+      );
+
+      console.log(
+        `🔍 [BULK CREATE DEBUG] Document requests:`,
+        documentRequests
+      );
+
+      // Use SDK method to create documents
+      console.log(
+        `🔍 [BULK CREATE DEBUG] Calling SDK createDocuments method...`
+      );
+      const createdDocuments = await this.backendSDK.createDocuments(
+        _sanitizedId,
+        collectionName,
+        documentRequests
+      );
+
+      console.log(
+        `✅ [BULK CREATE DEBUG] Documents created successfully:`,
+        createdDocuments
+      );
+
+      res.status(201).json({
+        success: true,
+        created: createdDocuments,
+        errors: [],
+        total: createdDocuments.length,
+      });
+    } catch (error) {
+      console.error(
+        "❌ [BULK CREATE DEBUG] Error bulk creating documents:",
+        error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to bulk create documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Bulk update documents
+   */
+  async bulkUpdateDocuments(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const _sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { updates } = req.body;
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Use SDK method to update documents
+      const updatedDocuments = await this.backendSDK.updateDocuments(
+        _sanitizedId,
+        collectionName,
+        updates
+      );
+
+      res.status(200).json({
+        success: true,
+        updated: updatedDocuments,
+        errors: [],
+        total: updatedDocuments.length,
+      });
+    } catch (error) {
+      console.error("Error bulk updating documents:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to bulk update documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Bulk delete documents
+   */
+  async bulkDeleteDocuments(req: ExtendedRequest, res: Response) {
+    console.log("[BULK DELETE] Controller called");
+    try {
+      const { projectId, collectionName } = req.params;
+      const _sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { document_ids: documentIds } = req.body;
+
+      console.log(
+        `[BULK DELETE] Project: ${_sanitizedId}, Collection: ${collectionName}`
+      );
+      console.log(`[BULK DELETE] Document IDs:`, documentIds);
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        console.log("[BULK DELETE] SDK not initialized");
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      console.log("[BULK DELETE] Calling SDK deleteDocuments");
+      // Use SDK method to delete documents
+      const deleteResults = await this.backendSDK.deleteDocuments(
+        _sanitizedId,
+        collectionName,
+        documentIds
+      );
+      console.log("[BULK DELETE] SDK returned:", deleteResults);
+
+      // SDK now returns detailed results
+      const response = {
+        success: deleteResults.success,
+        deleted_count: deleteResults.deleted_count,
+        errors: deleteResults.errors,
+        total: documentIds.length,
+      };
+
+      console.log("[BULK DELETE] Sending response:", response);
+      res.status(200).json(response);
+    } catch (error) {
+      console.error("[BULK DELETE] Error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to bulk delete documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
+  }
+
+  /**
+   * Aggregate documents in a collection
+   */
+  async aggregateDocuments(req: ExtendedRequest, res: Response) {
+    try {
+      const { projectId, collectionName } = req.params;
+      const sanitizedId = projectId.replace(/[^a-zA-Z0-9_]/g, "");
+      const { group_by, aggregations } = req.body;
+
+      // Get the backendSDK from the instance
+      if (!this.backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+      }
+
+      // Validate input parameters
+      if (!group_by || !Array.isArray(group_by) || group_by.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "group_by array is required and must not be empty",
+        });
+      }
+
+      // Implement real aggregation functionality
+      const pipeline = [
+        {
+          $group: {
+            _id: group_by.reduce(
+              (acc: Record<string, unknown>, field: string) => ({
+                ...acc,
+                [field]: `$${field}`,
+              }),
+              {}
+            ),
+            count: { $sum: 1 },
+          },
+        },
+        ...(aggregations || []),
+      ];
+
+      const aggregationResults = await this.backendSDK.aggregateDocuments(
+        sanitizedId,
+        collectionName,
+        pipeline
+      );
+
+      res.status(200).json({
+        success: true,
+        groups: aggregationResults,
+        total_groups: aggregationResults.length,
+        aggregations: aggregations || [],
+      });
+    } catch (error) {
+      console.error("Error aggregating documents:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({
+        success: false,
+        error: "Failed to aggregate documents",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+    }
   }
 }

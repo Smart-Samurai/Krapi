@@ -27,7 +27,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     try {
       const response = await fetch(
         `${
-          process.env.BACKEND_URL || "http://localhost:3470"
+          process.env.KRAPI_BACKEND_URL || "http://localhost:3470"
         }/krapi/k1/auth/me`,
         {
           method: "GET",
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
 
       const userData = await response.json();
-      
+
       // Flatten the response to match what the tests expect
       if (userData.success && userData.data) {
         return NextResponse.json(userData.data);
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      if (fetchError.name === "AbortError") {
+      if (fetchError instanceof Error && fetchError.name === "AbortError") {
         return NextResponse.json(
           {
             success: false,

@@ -1,8 +1,9 @@
+import { EmailConfig, Project } from "@krapi/sdk";
 import nodemailer from "nodemailer";
 
 import { DatabaseService } from "./database.service";
 
-import { Project, EmailConfig } from "@/types";
+import { BackendProjectSettings } from "@/types";
 
 interface EmailTemplate {
   id: string;
@@ -53,7 +54,8 @@ export class EmailService {
       }
 
       // Get email configuration
-      let emailConfig = (project.settings as any)?.email_config;
+      let emailConfig = (project.settings as BackendProjectSettings)
+        ?.email_config;
       if (!emailConfig) {
         const defaultConfig = this.getDefaultConfig();
         if (!defaultConfig) {

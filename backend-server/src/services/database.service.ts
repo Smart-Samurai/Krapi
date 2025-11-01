@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
 
-import { ApiKeyScope } from "@krapi/sdk";
+import { ApiKeyScope, FieldType } from "@krapi/sdk";
 import bcrypt from "bcryptjs";
 import { Pool } from "pg";
 import { v4 as uuidv4 } from "uuid";
@@ -67,11 +67,33 @@ export class DatabaseService {
       console.error("Unexpected error on idle client", err);
     });
 
-    // Initialize with proper error handling
-    this.initializeWithRetry().catch((error) => {
-      console.error("Database initialization failed:", error);
-      this.readyReject(error);
-    });
+    // In development mode, skip heavy initialization for faster startup
+    if (process.env.NODE_ENV === "development") {
+      console.log("🚀 Development mode: Using instant database initialization");
+      this.initializeInstant().catch((error) => {
+        console.error("Instant database initialization failed:", error);
+        // Fall back to ultra-fast initialization if instant fails
+        console.log("🔄 Falling back to ultra-fast initialization...");
+        this.initializeUltraFast().catch((fallbackError) => {
+          console.error(
+            "Ultra-fast initialization also failed:",
+            fallbackError
+          );
+          // Final fallback to fast initialization
+          console.log("🔄 Final fallback to fast initialization...");
+          this.initializeFast().catch((finalError) => {
+            console.error("All initialization methods failed:", finalError);
+            this.readyReject(finalError);
+          });
+        });
+      });
+    } else {
+      // Production mode: full initialization with retry
+      this.initializeWithRetry().catch((error) => {
+        console.error("Database initialization failed:", error);
+        this.readyReject(error);
+      });
+    }
   }
 
   static getInstance(): DatabaseService {
@@ -101,6 +123,16 @@ export class DatabaseService {
       rows: result.rows || [],
       rowCount: result.rowCount || 0,
     };
+  }
+
+  // Method to implement DatabaseConnection interface
+  async connect(): Promise<void> {
+    await this.ensureReady();
+  }
+
+  // Method to implement DatabaseConnection interface
+  async end(): Promise<void> {
+    await this.close();
   }
 
   async runSchemaFixes(): Promise<void> {
@@ -214,7 +246,11 @@ export class DatabaseService {
       // Re-initialize tables if needed
       if (health.details?.missingTables?.length > 0) {
         console.log("Re-initializing missing tables...");
-        await this.initializeTables();
+        if (process.env.NODE_ENV === "development") {
+          await this.createEssentialTables();
+        } else {
+          await this.initializeTables();
+        }
         repairs.push("Re-initialized missing tables");
       }
 
@@ -224,7 +260,11 @@ export class DatabaseService {
 
       // Initialize tables directly instead of running migrations
       console.log("Initializing tables directly...");
-      await this.initializeTables();
+      if (process.env.NODE_ENV === "development") {
+        await this.createEssentialTables();
+      } else {
+        await this.initializeTables();
+      }
       repairs.push("Initialized tables directly");
 
       // Fix missing columns
@@ -259,6 +299,13 @@ export class DatabaseService {
   // Ensure database is ready before operations
   private async ensureReady(): Promise<void> {
     if (!this.isConnected) {
+      // In development mode, don't block on table creation
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          "🚀 Development mode: Allowing operations while tables are being created"
+        );
+        return; // Don't wait for tables to be fully created
+      }
       await this.waitForReady();
     }
 
@@ -288,7 +335,11 @@ export class DatabaseService {
         console.log("Successfully connected to PostgreSQL");
 
         // Initialize tables first
-        await this.initializeTables();
+        if (process.env.NODE_ENV === "development") {
+          await this.createEssentialTables();
+        } else {
+          await this.initializeTables();
+        }
 
         // Skip migrations for fresh database (test environment)
         console.log("Skipping migrations - using direct table initialization");
@@ -357,16 +408,18 @@ export class DatabaseService {
         CREATE TABLE IF NOT EXISTS api_keys (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           key VARCHAR(255) UNIQUE NOT NULL,
-          name VARCHAR(255) NOT NULL,
-          type VARCHAR(50) NOT NULL CHECK (type IN ('master', 'admin', 'project')),
-          owner_id UUID NOT NULL,
-          scopes TEXT[] NOT NULL DEFAULT '{}',
-          project_ids UUID[] DEFAULT NULL,
-          metadata JSONB DEFAULT '{}'::jsonb,
+          name VARCHAR(255),
+          type VARCHAR(50) DEFAULT 'admin',
+          owner_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+          scopes TEXT[] DEFAULT '{}',
+          project_ids UUID[] DEFAULT '{}',
           expires_at TIMESTAMP,
-          last_used_at TIMESTAMP,
+          rate_limit INTEGER,
+          metadata JSONB DEFAULT '{}'::jsonb,
+          is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          is_active BOOLEAN DEFAULT true
+          last_used_at TIMESTAMP,
+          usage_count BIGINT DEFAULT 0
         )
       `);
 
@@ -384,13 +437,13 @@ export class DatabaseService {
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           name VARCHAR(255) UNIQUE NOT NULL,
           description TEXT,
-          project_url VARCHAR(500),
+          owner_id UUID NOT NULL REFERENCES admin_users(id),
           api_key VARCHAR(255) UNIQUE NOT NULL,
+          allowed_origins TEXT[] DEFAULT '{}',
+          settings JSONB DEFAULT '{}'::jsonb,
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID REFERENCES admin_users(id),
-          settings JSONB DEFAULT '{}'::jsonb,
           storage_used BIGINT DEFAULT 0,
           api_calls_count BIGINT DEFAULT 0,
           last_api_call TIMESTAMP
@@ -464,25 +517,17 @@ export class DatabaseService {
       await client.query(`
         CREATE TABLE IF NOT EXISTS documents (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
           collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-          collection_name VARCHAR(255) NOT NULL,
-          data JSONB NOT NULL,
+          data JSONB NOT NULL DEFAULT '{}'::jsonb,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          created_by UUID REFERENCES admin_users(id),
-          updated_by UUID REFERENCES admin_users(id)
+          created_by UUID NOT NULL REFERENCES admin_users(id)
         )
       `);
 
       // Create indexes for documents
       await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_documents_project_collection 
-        ON documents(project_id, collection_name)
-      `);
-
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_documents_collection_id 
+        CREATE INDEX IF NOT EXISTS idx_documents_collection_id
         ON documents(collection_id)
       `);
 
@@ -514,9 +559,9 @@ export class DatabaseService {
           metadata JSONB DEFAULT '{}'::jsonb,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           expires_at TIMESTAMP NOT NULL,
-          last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           consumed BOOLEAN DEFAULT false,
           consumed_at TIMESTAMP,
+          last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           is_active BOOLEAN DEFAULT true
         )
       `);
@@ -594,6 +639,66 @@ export class DatabaseService {
           FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
         `);
       }
+
+      // Add missing essential tables for auth system
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          token VARCHAR(500) UNIQUE NOT NULL,
+          user_id UUID REFERENCES admin_users(id),
+          project_id UUID REFERENCES projects(id),
+          type VARCHAR(50) NOT NULL CHECK (type IN ('admin', 'project')),
+          scopes TEXT[] NOT NULL DEFAULT '{}',
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          expires_at TIMESTAMP NOT NULL,
+                  consumed BOOLEAN DEFAULT false,
+        consumed_at TIMESTAMP,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT true
+      )
+    `);
+
+      await client.query(`
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        key VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255),
+        type VARCHAR(50) DEFAULT 'admin',
+        owner_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+        scopes TEXT[] DEFAULT '{}',
+        project_ids UUID[] DEFAULT '{}',
+        expires_at TIMESTAMP,
+        rate_limit INTEGER,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used_at TIMESTAMP,
+        usage_count BIGINT DEFAULT 0
+      )
+    `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS changelog (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID REFERENCES admin_users(id),
+          action VARCHAR(100) NOT NULL,
+          entity_type VARCHAR(50) NOT NULL,
+          entity_id UUID,
+          changes JSONB,
+          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ip_address INET,
+          user_agent TEXT
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS migrations (
+          version INTEGER PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
 
       await client.query("COMMIT");
 
@@ -1332,6 +1437,38 @@ export class DatabaseService {
     );
   }
 
+  // Admin account management methods
+  async enableAdminAccount(adminUserId: string): Promise<boolean> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "UPDATE admin_users SET is_active = true WHERE id = $1",
+      [adminUserId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async disableAdminAccount(adminUserId: string): Promise<boolean> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "UPDATE admin_users SET is_active = false WHERE id = $1",
+      [adminUserId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getAdminAccountStatus(
+    adminUserId: string
+  ): Promise<{ is_active: boolean } | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "SELECT is_active FROM admin_users WHERE id = $1",
+      [adminUserId]
+    );
+    return result.rows.length > 0
+      ? (result.rows[0] as { is_active: boolean })
+      : null;
+  }
+
   async deleteAdminUser(id: string): Promise<boolean> {
     await this.ensureReady();
     const result = await this.pool.query(
@@ -1772,6 +1909,42 @@ export class DatabaseService {
     return (result.rowCount ?? 0) > 0;
   }
 
+  // Project user account management methods
+  async enableProjectUser(projectId: string, userId: string): Promise<boolean> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "UPDATE project_users SET is_active = true WHERE project_id = $1 AND id = $2",
+      [projectId, userId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async disableProjectUser(
+    projectId: string,
+    userId: string
+  ): Promise<boolean> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "UPDATE project_users SET is_active = false WHERE project_id = $1 AND id = $2",
+      [projectId, userId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getProjectUserStatus(
+    projectId: string,
+    userId: string
+  ): Promise<{ is_active: boolean } | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      "SELECT is_active FROM project_users WHERE project_id = $1 AND id = $2",
+      [projectId, userId]
+    );
+    return result.rows.length > 0
+      ? (result.rows[0] as { is_active: boolean })
+      : null;
+  }
+
   async authenticateProjectUser(
     projectId: string,
     username: string,
@@ -1850,21 +2023,44 @@ export class DatabaseService {
     },
     createdBy: string
   ): Promise<Collection> {
-    const result = await this.pool.query(
-      `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING *`,
-      [
-        projectId,
-        collectionName,
-        schema.description,
-        JSON.stringify(schema.fields),
-        JSON.stringify(schema.indexes),
-        createdBy,
-      ]
-    );
+    try {
+      const result = await this.pool.query(
+        `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING *`,
+        [
+          projectId,
+          collectionName,
+          schema.description,
+          JSON.stringify(schema.fields),
+          JSON.stringify(schema.indexes),
+          createdBy,
+        ]
+      );
 
-    return this.mapCollection(result.rows[0]);
+      return this.mapCollection(result.rows[0]);
+    } catch (error) {
+      // Check for duplicate collection name error (PostgreSQL error code 23505)
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "23505"
+      ) {
+        const duplicateError = new Error(
+          "Collection with this name already exists in this project"
+        );
+        (duplicateError as Error & { code: string; statusCode: number }).code =
+          "DUPLICATE_COLLECTION_NAME";
+        (
+          duplicateError as Error & { code: string; statusCode: number }
+        ).statusCode = 409;
+        throw duplicateError;
+      }
+
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async getCollection(
@@ -2101,10 +2297,10 @@ export class DatabaseService {
 
     // Now insert the document with the collection_id
     const result = await this.pool.query(
-      `INSERT INTO documents (project_id, collection_id, collection_name, data, created_by, updated_by) 
-       VALUES ($1, $2, $3, $4, $5, $5) 
+      `INSERT INTO documents (collection_id, data, created_by) 
+       VALUES ($1, $2, $3) 
        RETURNING *`,
-      [projectId, collectionId, collectionName, data, createdBy]
+      [collectionId, data, createdBy]
     );
 
     return this.mapDocument(result.rows[0]);
@@ -2169,9 +2365,30 @@ export class DatabaseService {
     const total = parseInt(countResult.rows[0].count);
 
     // Get documents
+    let orderClause = `ORDER BY ${orderBy} ${order.toUpperCase()}`;
+
+    // If ordering by a JSON field (not a database column), use JSON extraction
+    if (
+      orderBy !== "created_at" &&
+      orderBy !== "updated_at" &&
+      orderBy !== "id"
+    ) {
+      // For numeric fields like priority, cast to numeric for proper sorting
+      if (
+        orderBy === "priority" ||
+        orderBy === "score" ||
+        orderBy === "rating" ||
+        orderBy === "count"
+      ) {
+        orderClause = `ORDER BY CAST(data->>'${orderBy}' AS NUMERIC) ${order.toUpperCase()}`;
+      } else {
+        orderClause = `ORDER BY data->>'${orderBy}' ${order.toUpperCase()}`;
+      }
+    }
+
     const result = await this.pool.query(
       `SELECT * FROM documents ${whereClause} 
-       ORDER BY ${orderBy} ${order.toUpperCase()} 
+       ${orderClause}
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, limit, offset]
     );
@@ -2211,6 +2428,61 @@ export class DatabaseService {
     );
 
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async searchDocuments(
+    projectId: string,
+    collectionName: string,
+    searchTerm: string,
+    searchFields?: string[],
+    options?: {
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<Document[]> {
+    await this.ensureReady();
+
+    const { limit = 50, offset = 0 } = options || {};
+
+    let query = `SELECT * FROM documents WHERE project_id = $1 AND collection_name = $2`;
+    const params: unknown[] = [projectId, collectionName];
+
+    if (searchTerm) {
+      if (searchFields && searchFields.length > 0) {
+        // Search in specific fields
+        const fieldConditions = searchFields.map((field) => {
+          params.push(`%${searchTerm}%`);
+          return `data->>'${field}' ILIKE $${params.length}`;
+        });
+        query += ` AND (${fieldConditions.join(" OR ")})`;
+      } else {
+        // Search in all data
+        params.push(`%${searchTerm}%`);
+        query += ` AND data::text ILIKE $${params.length}`;
+      }
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
+    params.push(limit, offset);
+
+    const result = await this.pool.query(query, params);
+    return result.rows.map((row) => this.mapDocument(row));
+  }
+
+  async countDocuments(
+    projectId: string,
+    collectionName: string
+  ): Promise<number> {
+    await this.ensureReady();
+
+    const result = await this.pool.query(
+      "SELECT COUNT(*) FROM documents WHERE project_id = $1 AND collection_name = $2",
+      [projectId, collectionName]
+    );
+
+    return parseInt(result.rows[0].count);
   }
 
   async getDocumentsByTable(
@@ -2457,8 +2729,8 @@ export class DatabaseService {
     data: CreateBackendChangelogEntry
   ): Promise<BackendChangelogEntry> {
     const result = await this.pool.query(
-      `INSERT INTO changelog (project_id, entity_type, entity_id, action, changes, performed_by, session_id, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      `INSERT INTO changelog (project_id, entity_type, entity_id, action, changes, performed_by, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
       [
         data.project_id,
@@ -2467,7 +2739,6 @@ export class DatabaseService {
         data.action,
         data.changes || {},
         data.performed_by,
-        data.session_id,
         new Date().toISOString(),
       ]
     );
@@ -4639,13 +4910,13 @@ export class DatabaseService {
               fields: [
                 {
                   name: "name",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "email",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: true,
                 },
@@ -4656,13 +4927,13 @@ export class DatabaseService {
               fields: [
                 {
                   name: "title",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "price",
-                  type: "number" as const,
+                  type: FieldType.number,
                   required: true,
                   unique: false,
                 },
@@ -4690,19 +4961,19 @@ export class DatabaseService {
               fields: [
                 {
                   name: "name",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "email",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: true,
                 },
                 {
                   name: "age",
-                  type: "number" as const,
+                  type: FieldType.number,
                   required: false,
                   unique: false,
                 },
@@ -4713,19 +4984,19 @@ export class DatabaseService {
               fields: [
                 {
                   name: "title",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "price",
-                  type: "number" as const,
+                  type: FieldType.number,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "description",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: false,
                   unique: false,
                 },
@@ -4736,19 +5007,19 @@ export class DatabaseService {
               fields: [
                 {
                   name: "user_id",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "total",
-                  type: "number" as const,
+                  type: FieldType.number,
                   required: true,
                   unique: false,
                 },
                 {
                   name: "status",
-                  type: "string" as const,
+                  type: FieldType.string,
                   required: false,
                   unique: false,
                 },
@@ -5145,6 +5416,431 @@ export class DatabaseService {
     } catch (error) {
       console.error("Error getting collection by name:", error);
       throw error;
+    }
+  }
+
+  // Fast initialization for development mode - skips heavy operations
+  private async initializeFast(): Promise<void> {
+    try {
+      console.log("🔧 Fast database initialization for development...");
+
+      // Test basic connection
+      const client = await this.pool.connect();
+      await client.query("SELECT 1");
+      client.release();
+
+      console.log("✅ Database connection successful");
+
+      // Check if database is already initialized (tables exist)
+      const isInitialized = await this.isDatabaseInitialized();
+
+      if (isInitialized) {
+        console.log("✅ Database already initialized, skipping table creation");
+      } else {
+        console.log("🆕 First time setup: Creating essential tables...");
+        // Create only essential tables without heavy validation
+        const tablesCreated = await this.createEssentialTables();
+
+        if (tablesCreated) {
+          // Create default admin user if it doesn't exist
+          await this.ensureDefaultAdmin();
+          console.log("✅ Database initialization completed");
+        } else {
+          console.log("⚠️ Tables were not created, skipping admin creation");
+        }
+      }
+
+      this.isConnected = true;
+      this.readyResolve();
+    } catch (error) {
+      console.error("Fast initialization failed:", error);
+      throw error;
+    }
+  }
+
+  // Check if database is already initialized by looking for key tables
+  private async isDatabaseInitialized(): Promise<boolean> {
+    try {
+      const client = await this.pool.connect();
+      try {
+        // Check if admin_users table exists and has data
+        const result = await client.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'admin_users'
+          ) AND EXISTS (
+            SELECT FROM admin_users LIMIT 1
+          )
+        `);
+
+        return result.rows[0]?.exists === true;
+      } finally {
+        client.release();
+      }
+    } catch {
+      // If we can't check, assume not initialized
+      return false;
+    }
+  }
+
+  // Create only essential tables for development
+  private static isCreatingTables = false;
+
+  public async createEssentialTables(): Promise<boolean> {
+    // Prevent multiple simultaneous calls
+    if (DatabaseService.isCreatingTables) {
+      console.log("⚠️ Table creation already in progress, skipping...");
+      return false;
+    }
+
+    DatabaseService.isCreatingTables = true;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Check if uuid-ossp extension exists first (provides uuid_generate_v4)
+      const uuidExtensionExists = await client.query(
+        "SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp'"
+      );
+
+      if (uuidExtensionExists.rows.length === 0) {
+        try {
+          await client.query('CREATE EXTENSION "uuid-ossp"');
+          console.log("✅ uuid-ossp extension created successfully");
+        } catch {
+          console.log(
+            "⚠️ uuid-ossp extension creation failed, continuing without it"
+          );
+          // Continue without the extension - we'll use alternative UUID generation
+        }
+      } else {
+        console.log("✅ uuid-ossp extension already exists");
+      }
+
+      // Only create the most essential tables
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          username VARCHAR(255) UNIQUE NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(50) NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
+          access_level VARCHAR(50) NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
+          permissions TEXT[] DEFAULT '{}',
+          scopes TEXT[] DEFAULT '{}',
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          last_login TIMESTAMP,
+          login_count INTEGER DEFAULT 0,
+          api_key VARCHAR(255) UNIQUE
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS projects (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          name VARCHAR(255) UNIQUE NOT NULL,
+          description TEXT,
+          owner_id UUID NOT NULL REFERENCES admin_users(id),
+          api_key VARCHAR(255) UNIQUE NOT NULL,
+          allowed_origins TEXT[] DEFAULT '{}',
+          settings JSONB DEFAULT '{}'::jsonb,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          storage_used BIGINT DEFAULT 0,
+          api_calls_count BIGINT DEFAULT 0,
+          last_api_call TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS collections (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+          indexes JSONB NOT NULL DEFAULT '[]'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_by UUID NOT NULL REFERENCES admin_users(id),
+          UNIQUE(project_id, name)
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS documents (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+          data JSONB NOT NULL DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_by UUID NOT NULL REFERENCES admin_users(id)
+        )
+      `);
+
+      // Project Users Table (for project-specific user accounts)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS project_users (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          username VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          phone VARCHAR(50),
+          is_verified BOOLEAN DEFAULT false,
+          is_active BOOLEAN DEFAULT true,
+          scopes TEXT[] NOT NULL DEFAULT '{}',
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          last_login TIMESTAMP,
+          email_verified_at TIMESTAMP,
+          phone_verified_at TIMESTAMP,
+          UNIQUE(project_id, username),
+          UNIQUE(project_id, email)
+        )
+      `);
+
+      // Create indexes for project users
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id)
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email)
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username)
+      `);
+
+      // Add missing essential tables for auth system
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          token VARCHAR(500) UNIQUE NOT NULL,
+          user_id UUID REFERENCES admin_users(id),
+          project_id UUID REFERENCES projects(id),
+          type VARCHAR(50) NOT NULL CHECK (type IN ('admin', 'project')),
+          scopes TEXT[] NOT NULL DEFAULT '{}',
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          expires_at TIMESTAMP NOT NULL,
+          consumed BOOLEAN DEFAULT false,
+          consumed_at TIMESTAMP,
+          last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_active BOOLEAN DEFAULT true
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS api_keys (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          key VARCHAR(255) UNIQUE NOT NULL,
+          name VARCHAR(255),
+          type VARCHAR(50) DEFAULT 'admin',
+          owner_id UUID NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+          scopes TEXT[] DEFAULT '{}',
+          project_ids UUID[] DEFAULT '{}',
+          expires_at TIMESTAMP,
+          rate_limit INTEGER,
+          metadata JSONB DEFAULT '{}'::jsonb,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          last_used_at TIMESTAMP,
+          usage_count BIGINT DEFAULT 0
+        )
+      `);
+
+      // Add files table for project statistics
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS files (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          filename VARCHAR(255) NOT NULL,
+          original_name VARCHAR(255) NOT NULL,
+          mime_type VARCHAR(255) NOT NULL,
+          size BIGINT NOT NULL,
+          path VARCHAR(500) NOT NULL,
+          metadata JSONB DEFAULT '{}'::jsonb,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          uploaded_by UUID REFERENCES admin_users(id)
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS changelog (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+          entity_type VARCHAR(50) NOT NULL,
+          entity_id VARCHAR(255) NOT NULL,
+          action VARCHAR(50) NOT NULL,
+          changes JSONB DEFAULT '{}'::jsonb,
+          performed_by UUID REFERENCES admin_users(id),
+          session_id VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS migrations (
+          version INTEGER PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Create default admin user if it doesn't exist
+      const adminCount = await client.query("SELECT COUNT(*) FROM admin_users");
+      if (parseInt(adminCount.rows[0].count) === 0) {
+        const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
+        const defaultPassword =
+          process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
+        const defaultEmail =
+          process.env.DEFAULT_ADMIN_EMAIL || "admin@krapi.local";
+
+        const hashedPassword = await this.hashPassword(defaultPassword);
+        const masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+
+        await client.query(
+          `INSERT INTO admin_users (username, email, password_hash, role, access_level, api_key, is_active) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            defaultUsername,
+            defaultEmail,
+            hashedPassword,
+            "master_admin",
+            "full",
+            masterApiKey,
+            true,
+          ]
+        );
+        console.log(`✅ Default admin user created: ${defaultUsername}`);
+        console.log(`🔑 Master API Key: ${masterApiKey}`);
+      }
+
+      await client.query("COMMIT");
+      console.log("✅ Essential tables and admin user created");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+      DatabaseService.isCreatingTables = false;
+    }
+  }
+
+  // Ensure default admin user exists
+  private async ensureDefaultAdmin(): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
+      const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL || "admin@localhost";
+
+      const result = await client.query(
+        "SELECT id FROM admin_users WHERE username = $1",
+        [defaultUsername]
+      );
+
+      if (result.rows.length === 0) {
+        const hashedPassword = await this.hashPassword(defaultPassword);
+        const masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+
+        await client.query(
+          `INSERT INTO admin_users (username, email, password_hash, role, access_level, api_key, is_active) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            defaultUsername,
+            defaultEmail,
+            hashedPassword,
+            "master_admin",
+            "full",
+            masterApiKey,
+            true, // Default admin is active by default
+          ]
+        );
+        console.log(`✅ Default admin user created: ${defaultUsername}`);
+        console.log(`🔑 Master API Key: ${masterApiKey}`);
+        console.log(
+          "⚠️  IMPORTANT: Change the default admin password after first login!"
+        );
+      }
+    } catch (error) {
+      console.error("Failed to create default admin:", error);
+      // Don't throw - this is not critical for development
+    } finally {
+      client.release();
+    }
+  }
+
+  // Ultra-fast initialization - just connect, no initialization
+  private async initializeUltraFast(): Promise<void> {
+    try {
+      console.log(
+        "🚀 Ultra-fast database connection (skipping initialization)..."
+      );
+
+      // Test basic connection
+      const client = await this.pool.connect();
+      await client.query("SELECT 1");
+      client.release();
+
+      console.log("✅ Database connection successful");
+
+      // Mark as connected immediately
+      this.isConnected = true;
+      this.readyResolve();
+    } catch (error) {
+      console.error("Ultra-fast initialization failed:", error);
+      throw error;
+    }
+  }
+
+  // Instant initialization - no database operations at all
+  private async initializeInstant(): Promise<void> {
+    try {
+      console.log(
+        "⚡ Instant database initialization (checking if tables exist)..."
+      );
+
+      // Check if database is already initialized
+      const isInitialized = await this.isDatabaseInitialized();
+
+      if (isInitialized) {
+        console.log("✅ Database already initialized, marking as ready");
+        this.isConnected = true;
+        this.readyResolve();
+      } else {
+        console.log(
+          "🔄 Tables don't exist, falling back to fast initialization..."
+        );
+
+        // In development mode, mark as ready immediately and create tables in background
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "🚀 Development mode: Marking database as ready immediately"
+          );
+          this.isConnected = true;
+          this.readyResolve();
+
+          // Create tables in background (non-blocking)
+          this.initializeFast().catch((error) => {
+            console.error("Background table creation failed:", error);
+          });
+        } else {
+          // Fall back to fast initialization to create tables
+          await this.initializeFast();
+        }
+      }
+    } catch (error) {
+      console.error("Instant initialization failed:", error);
+      // Fall back to fast initialization
+      console.log("🔄 Falling back to fast initialization due to error...");
+      await this.initializeFast();
     }
   }
 }

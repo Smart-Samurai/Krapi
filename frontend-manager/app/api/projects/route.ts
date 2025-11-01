@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  serverSdk,
-  createAuthenticatedSdk,
-  getAuthToken,
-} from "@/app/api/lib/sdk-client";
 
-// Use basic types for now - can enhance later
-interface ProjectListOptions {
-  limit?: number;
-  offset?: number;
-  search?: string;
-  status?: string;
+/**
+ * Extract auth token from request headers
+ */
+function getAuthToken(headers: Headers): string | undefined {
+  const authorization = headers.get("authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    return authorization.substring(7);
+  }
+  return undefined;
 }
 
 /**
@@ -19,8 +17,19 @@ interface ProjectListOptions {
  */
 export async function GET(request: NextRequest): Promise<Response> {
   try {
+    // Debug: Log all headers received
+    console.log("🔍 [FRONTEND DEBUG] GET - All headers received:");
+    request.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`);
+    });
+
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
+
+    console.log(
+      "🔍 [FRONTEND DEBUG] GET - Extracted authToken:",
+      authToken ? `Bearer token of length ${authToken.length}` : "undefined"
+    );
 
     if (!authToken) {
       return NextResponse.json(
@@ -29,40 +38,31 @@ export async function GET(request: NextRequest): Promise<Response> {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const options: ProjectListOptions = {
-      limit: searchParams.get("limit")
-        ? parseInt(searchParams.get("limit")!)
-        : undefined,
-      offset: searchParams.get("offset")
-        ? parseInt(searchParams.get("offset")!)
-        : undefined,
-      search: searchParams.get("search") || undefined,
-      status: (searchParams.get("status") as any) || undefined,
-    };
+    // Call backend directly
+    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    const response = await fetch(`${backendUrl}/krapi/k1/projects`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+    });
 
-    // Create authenticated SDK instance using the session token
-    const authenticatedSdk = createAuthenticatedSdk(authToken);
+    if (!response.ok) {
+      throw new Error(
+        `Backend request failed: ${response.status} ${response.statusText}`
+      );
+    }
 
-    const projects = await authenticatedSdk.projects.getAll(options);
+    const projects = await response.json();
 
     console.log(
-      "🔍 [FRONTEND DEBUG] SDK returned projects:",
+      "🔍 [FRONTEND DEBUG] Backend returned projects:",
       JSON.stringify(projects, null, 2)
     );
 
-    // Return paginated structure that the test expects
-    return NextResponse.json({
-      data: projects,
-      total: projects.length,
-      limit: options.limit || projects.length,
-      offset: options.offset || 0,
-      page: options.page || 1,
-      perPage: options.limit || projects.length,
-      has_next: false,
-      has_prev: false,
-      total_pages: 1,
-    });
+    // Return the projects data directly
+    return NextResponse.json(projects);
   } catch (error) {
     console.error("🔍 [FRONTEND ERROR] Failed to get projects:", error);
     return NextResponse.json(
@@ -82,8 +82,19 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
+    // Debug: Log all headers received
+    console.log("🔍 [FRONTEND DEBUG] POST - All headers received:");
+    request.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`);
+    });
+
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
+
+    console.log(
+      "🔍 [FRONTEND DEBUG] POST - Extracted authToken:",
+      authToken ? `Bearer token of length ${authToken.length}` : "undefined"
+    );
 
     if (!authToken) {
       return NextResponse.json(
@@ -101,24 +112,37 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Create authenticated SDK instance using the session token
-    const authenticatedSdk = createAuthenticatedSdk(authToken);
-
-    // Use the authenticated SDK to create project
-    // SDK expects: projects.create(projectData: { name, description, settings })
-    const project = await authenticatedSdk.projects.create({
-      name: projectData.name,
-      description: projectData.description,
-      settings: projectData.settings,
+    // Call backend directly
+    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    const response = await fetch(`${backendUrl}/krapi/k1/projects`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: projectData.name,
+        description: projectData.description,
+        settings: projectData.settings,
+      }),
     });
 
+    if (!response.ok) {
+      throw new Error(
+        `Backend request failed: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const project = await response.json();
+
     console.log(
-      "🔍 [FRONTEND DEBUG] SDK returned project:",
+      "🔍 [FRONTEND DEBUG] Backend created project:",
       JSON.stringify(project, null, 2)
     );
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
+    console.error("🔍 [FRONTEND ERROR] Failed to create project:", error);
     return NextResponse.json(
       {
         success: false,

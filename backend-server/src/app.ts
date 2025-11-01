@@ -93,6 +93,11 @@
  *    - Use appropriate scopes when creating API keys for limited access
  */
 
+import path from "path";
+
+import KrapiErrorHandler from "@krapi/error-handler";
+import KrapiLogger from "@krapi/logger";
+import KrapiMonitor from "@krapi/monitor";
 import { BackendSDK } from "@krapi/sdk";
 import compression from "compression";
 import cors from "cors";
@@ -100,16 +105,49 @@ import dotenv from "dotenv";
 import express, { Express, Request, Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
-import morgan from "morgan";
+// import morgan from "morgan";
+
+// Load environment variables from root directory
+dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
+import { DatabaseService } from "./services/database.service";
 import { SDKServiceManager } from "./services/sdk-service-manager";
 
 // Types imported but used in route files
 
-// Load environment variables
-dotenv.config();
+// Initialize logging and error handling
+const logger = KrapiLogger.getInstance({
+  level: process.env.LOG_LEVEL || "info",
+  enableFileLogging: true,
+  enableConsoleLogging: true,
+  logFilePath: process.env.LOG_FILE_PATH || "./logs",
+  maxLogFiles: parseInt(process.env.MAX_LOG_FILES || "10"),
+  maxLogSize: process.env.MAX_LOG_SIZE || "10MB",
+  enableMetrics: process.env.ENABLE_METRICS === "true",
+});
+
+const errorHandler = KrapiErrorHandler.getInstance({
+  enableAutoRecovery: process.env.ENABLE_ERROR_RECOVERY === "true",
+  maxRecoveryAttempts: parseInt(process.env.MAX_ERROR_RETRIES || "3"),
+  recoveryDelayMs: parseInt(process.env.ERROR_RECOVERY_DELAY || "5000"),
+  logErrors: process.env.ENABLE_CRASH_REPORTING === "true",
+  enableGracefulShutdown: true,
+});
+
+const monitor = KrapiMonitor.getInstance({
+  healthCheckInterval: parseInt(process.env.HEALTH_CHECK_INTERVAL || "30000"),
+  metricsInterval: 10000,
+  enableAutoRecovery: process.env.ENABLE_AUTO_RECOVERY === "true",
+  alertThresholds: {
+    memoryUsage: parseInt(process.env.MEMORY_ALERT_THRESHOLD || "80"),
+    cpuUsage: parseInt(process.env.CPU_ALERT_THRESHOLD || "80"),
+    errorRate: parseInt(process.env.ERROR_RATE_THRESHOLD || "5"),
+    responseTime: parseInt(process.env.RESPONSE_TIME_THRESHOLD || "1000"),
+  },
+  enableNotifications: process.env.ENABLE_ALERTS === "true",
+});
 
 // Create Express app
 const app: Express = express();
@@ -138,8 +176,26 @@ app.use(
 // Compression
 app.use(compression());
 
-// Request logging
-app.use(morgan(process.env.LOG_FORMAT || "combined"));
+// Request logging with custom logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  const originalSend = res.send;
+
+  res.send = function (data) {
+    const duration = Date.now() - start;
+    logger.info("api", `${req.method} ${req.path}`, {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      duration,
+      userAgent: req.get("User-Agent"),
+      ip: req.ip,
+    });
+    return originalSend.call(this, data);
+  };
+
+  next();
+});
 
 // Body parsing
 app.use(express.json({ limit: "10mb" }));
@@ -153,6 +209,43 @@ const generalLimiter = rateLimit({
 });
 
 app.use("/krapi/k1", generalLimiter);
+
+// Initialize database service
+const databaseService = DatabaseService.getInstance();
+
+// Initialize SDK service manager with real database connection
+const sdkServiceManager = new SDKServiceManager(
+  {
+    query: async (sql: string, params?: unknown[]) => {
+      return await databaseService.query(sql, params);
+    },
+    connect: async () => {
+      await databaseService.connect();
+    },
+    end: async () => {
+      await databaseService.end();
+    },
+  },
+  console
+);
+
+// Initialize BackendSDK with real database connection
+const backendSDK = new BackendSDK({
+  databaseConnection: {
+    query: async (sql: string, params?: unknown[]) => {
+      return await databaseService.query(sql, params);
+    },
+    connect: async () => {
+      await databaseService.connect();
+    },
+    end: async () => {
+      await databaseService.end();
+    },
+  },
+  logger: console,
+  enableAutoFix: true,
+  enableHealthChecks: true,
+});
 
 // Health check endpoint (no auth required)
 app.get("/health", async (req: Request, res: Response) => {
@@ -177,52 +270,93 @@ app.get("/health", async (req: Request, res: Response) => {
   }
 });
 
-// Initialize SDK service manager with database connection
-const sdkServiceManager = new SDKServiceManager(
-  {
-    query: async (_sql: string, _params?: unknown[]) => {
-      // For now, we'll use a simple database connection
-      // This will be replaced with the actual SDK database connection
-      return {
-        rows: [],
-        rowCount: 0,
-      };
-    },
-    connect: async () => {
-      // Connection logic will be handled by SDK
-    },
-    end: async () => {
-      // Disconnection logic will be handled by SDK
-    },
-  },
-  console
-);
-
-// Initialize BackendSDK with the service manager
-const backendSDK = new BackendSDK({
-  databaseConnection: {
-    query: async (_sql: string, _params?: unknown[]) => {
-      // For now, we'll use a simple database connection
-      // This will be replaced with the actual SDK database connection
-      return {
-        rows: [],
-        rowCount: 0,
-      };
-    },
-    connect: async () => {
-      // Connection logic will be handled by SDK
-    },
-    end: async () => {
-      // Disconnection logic will be handled by SDK
-    },
-  },
-  logger: console,
-  enableAutoFix: true,
-  enableHealthChecks: true,
-});
-
 // Initialize the router with the BackendSDK
 initializeBackendSDK(backendSDK);
+
+// System status and logging routes
+app.get("/system/status", (req, res) => {
+  try {
+    const status = {
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.env.APP_VERSION || "2.0.0",
+      environment: process.env.NODE_ENV || "development",
+      logger: logger.getSystemStatus(),
+      errorHandler: {
+        isHealthy: true, // errorHandler.isHealthy() method doesn't exist
+        errorStats: errorHandler.getRecoveryStats(),
+        recoveryStats: errorHandler.getRecoveryStats(),
+      },
+      monitor: {
+        isHealthy: monitor.isHealthy(),
+        overallHealth: monitor.getOverallHealth(),
+        healthChecks: monitor.getHealthStatus(),
+        recentMetrics: monitor.getMetrics(5),
+      },
+    };
+
+    res.json({
+      success: true,
+      data: status,
+    });
+  } catch (error) {
+    logger.error("system", "Failed to get system status", {
+      error: error.message,
+    });
+    res.status(500).json({
+      success: false,
+      error: "Failed to get system status",
+    });
+  }
+});
+
+app.get("/system/logs", (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const level = req.query.level as string;
+    const service = req.query.service as string;
+
+    const logs = logger.getLogs(limit, level, service);
+
+    res.json({
+      success: true,
+      data: {
+        logs,
+        total: logs.length,
+        limit,
+        level,
+        service,
+      },
+    });
+  } catch (error) {
+    logger.error("system", "Failed to get logs", { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: "Failed to get logs",
+    });
+  }
+});
+
+app.get("/system/metrics", (req, res) => {
+  try {
+    const metrics = logger.getMetrics();
+
+    res.json({
+      success: true,
+      data: {
+        metrics: Object.fromEntries(metrics),
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    logger.error("system", "Failed to get metrics", { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: "Failed to get metrics",
+    });
+  }
+});
 
 // Mount routes
 app.use("/krapi/k1", routes);
@@ -235,7 +369,11 @@ app.use(
     res: express.Response,
     _next: express.NextFunction
   ): void => {
-    console.error("Global error handler:", err);
+    errorHandler.handleError(err, {
+      source: "api",
+      requestId: req.headers["x-request-id"] as string,
+      timestamp: new Date(),
+    });
 
     if (err.name === "ValidationError") {
       const validationError = err as Error & { details?: unknown };
@@ -276,7 +414,7 @@ app.use(
 );
 
 // Start server
-const PORT = parseInt(process.env.PORT || "3470");
+const PORT = parseInt(process.env.BACKEND_PORT || process.env.PORT || "3470");
 const HOST = process.env.HOST || "localhost";
 
 // Async startup function
@@ -314,8 +452,21 @@ async function startServer() {
     }
 
     const server = app.listen(PORT, () => {
+      logger.info("system", `KRAPI Backend Server started`, {
+        host: HOST,
+        port: PORT,
+        environment: process.env.NODE_ENV || "development",
+        version: process.env.APP_VERSION || "2.0.0",
+      });
+
+      // Start built-in monitoring
+      monitor.start();
+
       console.log(`🚀 KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
       console.log(`📚 API Base URL: http://${HOST}:${PORT}/krapi/k1`);
+      console.log(`📋 System Status: http://${HOST}:${PORT}/system/status`);
+      console.log(`📝 System Logs: http://${HOST}:${PORT}/system/logs`);
+      console.log(`🔍 Health Monitor: Built-in monitoring active`);
       console.log(
         `🔐 Default admin credentials available in environment or database`
       );
@@ -338,6 +489,7 @@ async function startServer() {
     // Graceful shutdown
     process.on("SIGTERM", () => {
       console.log("SIGTERM received, shutting down gracefully...");
+      monitor.stop();
       server.close(() => {
         console.log("Server closed");
         process.exit(0);
@@ -346,6 +498,7 @@ async function startServer() {
 
     process.on("SIGINT", () => {
       console.log("SIGINT received, shutting down gracefully...");
+      monitor.stop();
       server.close(() => {
         console.log("Server closed");
         process.exit(0);

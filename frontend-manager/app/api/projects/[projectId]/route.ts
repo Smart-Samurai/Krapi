@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
 
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
+
 // UUID validation function - more permissive to accept any valid UUID format
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -60,6 +65,24 @@ export async function GET(
     }
 
     const project = await response.json();
+
+    // Check if the response has the expected structure
+    if (!project || typeof project !== "object") {
+      console.error("Invalid project response:", project);
+      return NextResponse.json(
+        { success: false, error: "Invalid response format from backend" },
+        { status: 500 }
+      );
+    }
+
+    if (!project.data) {
+      console.error("Project response missing data property:", project);
+      return NextResponse.json(
+        { success: false, error: "Backend response missing data property" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(project.data);
   } catch (error) {
     return NextResponse.json(

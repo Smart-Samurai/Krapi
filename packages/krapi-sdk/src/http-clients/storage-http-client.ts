@@ -17,6 +17,21 @@ import {
 
 import { BaseHttpClient } from "./base-http-client";
 export class StorageHttpClient extends BaseHttpClient {
+  async getStorageInfo(projectId: string): Promise<{
+    total_files: number;
+    total_size: number;
+    storage_used_percentage: number;
+    quota: number;
+  }> {
+    const response = await this.get<{
+      total_files: number;
+      total_size: number;
+      storage_used_percentage: number;
+      quota: number;
+    }>(`/projects/${projectId}/storage/info`);
+    return response.data || {};
+  }
+
   // File Management
   async uploadFile(
     projectId: string,

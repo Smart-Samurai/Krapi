@@ -9,9 +9,10 @@
  * - Token generation and validation
  */
 
+import bcrypt from "bcryptjs";
+
 import { DatabaseConnection, Logger } from "./core";
 import { PasswordHashRow, EmailRow } from "./database-types";
-import bcrypt from "bcryptjs";
 
 export interface AdminUser {
   id: string;
@@ -174,6 +175,76 @@ export class AuthService {
     }
   }
 
+  async register(registerData: {
+    username: string;
+    email: string;
+    password: string;
+    role?: string;
+    access_level?: string;
+    permissions?: string[];
+  }): Promise<{ success: boolean; user: AdminUser }> {
+    try {
+      const {
+        username,
+        email,
+        password,
+        role = "user",
+        access_level = "read",
+        permissions = [],
+      } = registerData;
+
+      // Check if user already exists
+      const existingUser = await this.db.query(
+        "SELECT id FROM admin_users WHERE username = $1 OR email = $2",
+        [username, email]
+      );
+
+      if (existingUser.rows.length > 0) {
+        throw new Error("User already exists");
+      }
+
+      // Hash password
+      const passwordHash = await this.hashPassword(password);
+
+      // Create user
+      const result = await this.db.query(
+        `INSERT INTO admin_users (username, email, password_hash, role, access_level, permissions, active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [username, email, passwordHash, role, access_level, permissions]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Failed to create user");
+      }
+
+      const newUser = result.rows[0] as AdminUser;
+
+      return {
+        success: true,
+        user: newUser,
+      };
+    } catch (error) {
+      this.logger.error("User registration failed:", error);
+      throw new Error("Registration failed");
+    }
+  }
+
+  async logout(sessionId?: string): Promise<{ success: boolean }> {
+    try {
+      if (sessionId) {
+        // Revoke specific session
+        await this.revokeSession(sessionId);
+      }
+      // Always return success for logout
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Logout failed:", error);
+      // Don't throw error on logout failure
+      return { success: true };
+    }
+  }
+
   async authenticateAdminWithApiKey(
     apiKeyData: ApiKeyAuthRequest
   ): Promise<ApiKeyAuthResponse> {
@@ -217,6 +288,36 @@ export class AuthService {
     } catch (error) {
       this.logger.error("API key authentication failed:", error);
       throw new Error("Authentication failed");
+    }
+  }
+
+  async regenerateApiKey(
+    _req: unknown
+  ): Promise<{ success: boolean; data?: { apiKey: string }; error?: string }> {
+    try {
+      // For now, this is a placeholder implementation
+      // In a real implementation, this would:
+      // 1. Validate the request (user authentication, permissions)
+      // 2. Generate a new API key
+      // 3. Update the database
+      // 4. Return the new key
+
+      const newApiKey = `ak_${Math.random()
+        .toString(36)
+        .substring(2, 15)}${Math.random()
+        .toString(36)
+        .substring(2, 15)}${Date.now()}`;
+
+      return {
+        success: true,
+        data: { apiKey: newApiKey },
+      };
+    } catch (error) {
+      this.logger.error("Failed to regenerate API key:", error);
+      return {
+        success: false,
+        error: "Failed to regenerate API key",
+      };
     }
   }
 

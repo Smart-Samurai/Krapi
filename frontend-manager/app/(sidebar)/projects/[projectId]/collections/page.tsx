@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Collection, CollectionField } from "@/lib/krapi";
+import { FieldType, type Collection, type CollectionField } from "@/lib/krapi";
 import {
   fetchCollections,
   createCollection,
@@ -67,45 +67,68 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
-type FieldType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "date"
-  | "array"
-  | "object"
-  | "uniqueID"
-  | "relation"
-  | "json"
-  | "text";
+// FieldType is now imported from the SDK
 
-const fieldTypeIcons: Record<
-  FieldType,
-  React.ComponentType<{ className?: string }>
+// Common field type icons - only include the most commonly used types for UI
+const fieldTypeIcons: Partial<
+  Record<FieldType, React.ComponentType<{ className?: string }>>
 > = {
-  string: Type,
-  text: FileText,
-  number: Hash,
-  boolean: Type,
-  date: Calendar,
-  array: Code,
-  object: Code,
-  uniqueID: Hash,
-  relation: LinkIcon,
-  json: Code,
+  [FieldType.string]: Type,
+  [FieldType.text]: FileText,
+  [FieldType.number]: Hash,
+  [FieldType.integer]: Hash,
+  [FieldType.float]: Hash,
+  [FieldType.boolean]: Type,
+  [FieldType.date]: Calendar,
+  [FieldType.datetime]: Calendar,
+  [FieldType.time]: Calendar,
+  [FieldType.array]: Code,
+  [FieldType.object]: Code,
+  [FieldType.uniqueID]: Hash,
+  [FieldType.uuid]: Hash,
+  [FieldType.relation]: LinkIcon,
+  [FieldType.json]: Code,
+  [FieldType.email]: Type,
+  [FieldType.url]: LinkIcon,
+  [FieldType.phone]: Type,
+  [FieldType.password]: Type,
+  [FieldType.file]: FileText,
+  [FieldType.image]: FileText,
+  [FieldType.video]: FileText,
+  [FieldType.audio]: FileText,
 };
 
+// Field type labels for display
 const fieldTypeLabels: Record<FieldType, string> = {
-  string: "String",
-  text: "Text (Long)",
-  number: "Number",
-  boolean: "Boolean",
-  date: "Date",
-  array: "Array",
-  object: "Object",
-  uniqueID: "Unique ID",
-  relation: "Relation",
-  json: "JSON",
+  [FieldType.string]: "String",
+  [FieldType.text]: "Text (Long)",
+  [FieldType.number]: "Number",
+  [FieldType.integer]: "Integer",
+  [FieldType.float]: "Float",
+  [FieldType.boolean]: "Boolean",
+  [FieldType.date]: "Date",
+  [FieldType.datetime]: "Date & Time",
+  [FieldType.time]: "Time",
+  [FieldType.timestamp]: "Timestamp",
+  [FieldType.email]: "Email",
+  [FieldType.url]: "URL",
+  [FieldType.phone]: "Phone",
+  [FieldType.uuid]: "UUID",
+  [FieldType.uniqueID]: "Unique ID",
+  [FieldType.json]: "JSON",
+  [FieldType.array]: "Array",
+  [FieldType.object]: "Object",
+  [FieldType.file]: "File",
+  [FieldType.image]: "Image",
+  [FieldType.video]: "Video",
+  [FieldType.audio]: "Audio",
+  [FieldType.reference]: "Reference",
+  [FieldType.relation]: "Relation",
+  [FieldType.enum]: "Enum",
+  [FieldType.password]: "Password",
+  [FieldType.encrypted]: "Encrypted",
+  [FieldType.varchar]: "Varchar",
+  [FieldType.decimal]: "Decimal",
 };
 
 export default function CollectionsPage() {
@@ -248,7 +271,7 @@ export default function CollectionsPage() {
         ...prev.fields,
         {
           name: "",
-          type: "string" as FieldType,
+          type: FieldType.string,
           required: false,
           unique: false,
           indexed: false,
@@ -276,7 +299,7 @@ export default function CollectionsPage() {
     setFormData({
       name: collection.name,
       description: collection.description || "",
-      fields: collection.fields,
+      fields: collection.fields || [],
     });
     setIsEditDialogOpen(true);
   };
@@ -368,7 +391,7 @@ export default function CollectionsPage() {
                   </div>
                   <div className="space-y-3">
                     {formData.fields.map((field, _index) => {
-                      const _Icon = fieldTypeIcons[field.type];
+                      const _Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <div
                           key={`collections-field-${_index}-${
@@ -397,7 +420,8 @@ export default function CollectionsPage() {
                                 {Object.entries(fieldTypeLabels).map(
                                   ([value, label]) => {
                                     const Icon =
-                                      fieldTypeIcons[value as FieldType];
+                                      fieldTypeIcons[value as FieldType] ||
+                                      Type;
                                     return (
                                       <SelectItem key={value} value={value}>
                                         <div className="flex items-center gap-2">
@@ -704,7 +728,7 @@ response = requests.delete(
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">
-                      {collection.fields.length} fields
+                      {collection.fields?.length || 0} fields
                     </Badge>
                     <Button
                       variant="outline"
@@ -746,8 +770,8 @@ response = requests.delete(
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {collection.fields.map((field, _index) => {
-                      const Icon = fieldTypeIcons[field.type];
+                    {collection.fields?.map((field, _index) => {
+                      const Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <TableRow
                           key={`collections-table-field-${
@@ -837,7 +861,7 @@ response = requests.delete(
               </div>
               <div className="space-y-3">
                 {formData.fields.map((field, _index) => {
-                  const _Icon = fieldTypeIcons[field.type];
+                  const _Icon = fieldTypeIcons[field.type] || Type;
                   return (
                     <div
                       key={`collections-edit-field-${
@@ -865,7 +889,8 @@ response = requests.delete(
                           <SelectContent>
                             {Object.entries(fieldTypeLabels).map(
                               ([value, label]) => {
-                                const Icon = fieldTypeIcons[value as FieldType];
+                                const Icon =
+                                  fieldTypeIcons[value as FieldType] || Type;
                                 return (
                                   <SelectItem key={value} value={value}>
                                     <div className="flex items-center gap-2">

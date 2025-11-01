@@ -41,7 +41,7 @@ export class CollectionsTypeValidator {
     typeDefinition: CollectionTypeDefinition,
     tableName: string
   ): Promise<CollectionTypeValidationResult> {
-    const startTime = Date.now();
+    const _startTime = Date.now();
     const issues: CollectionTypeIssue[] = [];
     const warnings: CollectionTypeIssue[] = [];
     const recommendations: string[] = [];
@@ -100,56 +100,94 @@ export class CollectionsTypeValidator {
       }
 
       // Generate recommendations
-      if (typeDefinition.fields.length === 0) {
-        recommendations.push("Collection should have at least one field");
-      }
-
-      if (!typeDefinition.fields.some((f) => f.name === "id")) {
-        recommendations.push("Consider adding an 'id' field for primary key");
-      }
-
-      if (typeDefinition.indexes.length === 0) {
+      if (issues.length === 0 && warnings.length === 0) {
         recommendations.push(
-          "Consider adding indexes for frequently queried fields"
+          "Collection type definition is valid and matches database schema"
+        );
+      } else if (issues.length === 0) {
+        recommendations.push(
+          "Collection type definition is valid but has some warnings"
+        );
+      } else {
+        recommendations.push(
+          "Fix the identified issues to ensure schema consistency"
         );
       }
 
-      // Check for potential performance issues
-      const performanceIssues = this.checkPerformanceIssues(typeDefinition);
-      warnings.push(
-        ...performanceIssues.map(
-          (msg): CollectionTypeIssue => ({
-            type: "warning",
-            severity: "warning",
-            description: msg,
-            auto_fixable: false,
-          })
-        )
-      );
+      const _validationDuration = Date.now() - _startTime;
+
+      return {
+        isValid: issues.length === 0,
+        issues,
+        warnings,
+        suggestions: recommendations.map((msg) => ({
+          type: "suggestion" as const,
+          severity: "info" as const,
+          description: msg,
+          auto_fixable: false,
+        })),
+      };
     } catch (error) {
-      issues.push({
-        type: "type_mismatch",
-        severity: "error",
-        description: `Validation failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        auto_fixable: false,
-      });
+      this.logger.error(`Validation failed for collection type:`, error);
+      return {
+        isValid: false,
+        issues: [
+          {
+            type: "error" as const,
+            severity: "error" as const,
+            description: `Validation failed: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+            auto_fixable: false,
+          },
+        ],
+        warnings: [],
+        suggestions: [
+          {
+            type: "suggestion" as const,
+            severity: "info" as const,
+            description: "Check database connection and try again",
+            auto_fixable: false,
+          },
+        ],
+      };
     }
+  }
 
-    const suggestions: CollectionTypeIssue[] = recommendations.map((msg) => ({
-      type: "suggestion",
-      severity: "info",
-      description: msg,
-      auto_fixable: false,
-    }));
-
-    return {
-      isValid: issues.filter((i) => i.severity === "error").length === 0,
-      issues,
-      warnings,
-      suggestions,
-    };
+  /**
+   * Validate collection types for a project (batch validation)
+   */
+  async validateCollectionTypes(
+    schema: CollectionTypeDefinition
+  ): Promise<CollectionTypeValidationResult> {
+    try {
+      // For single schema validation, delegate to the main validation method
+      return await this.validateCollectionType(schema, schema.name);
+    } catch (error) {
+      this.logger.error(`Failed to validate collection types:`, error);
+      return {
+        isValid: false,
+        issues: [
+          {
+            type: "error" as const,
+            severity: "error" as const,
+            description: `Collection type validation failed: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+            auto_fixable: false,
+          },
+        ],
+        warnings: [],
+        suggestions: [
+          {
+            type: "suggestion" as const,
+            severity: "info" as const,
+            description: "Check schema definition and database connection",
+            auto_fixable: false,
+          },
+        ],
+      };
+    }
   }
 
   /**

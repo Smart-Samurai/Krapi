@@ -5,6 +5,7 @@
  * The EXACT same methods work in both environments with identical interfaces.
  */
 
+import { DatabaseConnection } from "./core";
 import { krapi } from "./krapi";
 
 /**
@@ -191,7 +192,7 @@ export async function clientExample() {
  *
  * This shows how to use the EXACT SAME TaskManager in a server application
  */
-export async function serverExample(databaseConnection: any) {
+export async function serverExample(databaseConnection: DatabaseConnection) {
   console.log("=== SERVER EXAMPLE (The Socket) ===");
 
   // Connect to database directly

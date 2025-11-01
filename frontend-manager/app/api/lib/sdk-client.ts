@@ -3,10 +3,10 @@ import { krapi } from "@krapi/sdk";
 // Initialize the SDK connection to the backend
 krapi
   .connect({
-    endpoint: process.env.BACKEND_URL || "http://localhost:3470",
+    endpoint: process.env.KRAPI_BACKEND_URL || "http://localhost:3470",
     apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
   })
-  .catch((error) => {
+  .catch((_error) => {
     // Failed to connect SDK to backend
   });
 

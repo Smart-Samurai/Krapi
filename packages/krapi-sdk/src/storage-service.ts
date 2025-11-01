@@ -884,4 +884,57 @@ export class StorageService {
       // Don't throw here as this shouldn't break the main operation
     }
   }
+
+  /**
+   * Get storage information for a project
+   */
+  async getStorageInfo(projectId: string): Promise<{
+    total_files: number;
+    total_size: number;
+    storage_used_percentage: number;
+    quota: number;
+  }> {
+    try {
+      const [totalFilesResult, totalSizeResult, quotaResult] =
+        await Promise.all([
+          this.db.query(
+            "SELECT COUNT(*) FROM files WHERE project_id = $1 AND is_deleted = false",
+            [projectId]
+          ),
+          this.db.query(
+            "SELECT COALESCE(SUM(file_size), 0) as total_size FROM files WHERE project_id = $1 AND is_deleted = false",
+            [projectId]
+          ),
+          this.db.query(
+            "SELECT max_storage_bytes FROM storage_quotas WHERE project_id = $1",
+            [projectId]
+          ),
+        ]);
+
+      const totalFiles = parseInt((totalFilesResult.rows[0] as CountRow).count);
+      const totalSize = parseInt(
+        (totalSizeResult.rows[0] as { total_size: string }).total_size
+      );
+      const quota =
+        quotaResult.rows.length > 0
+          ? parseInt(
+              (quotaResult.rows[0] as { max_storage_bytes: string })
+                .max_storage_bytes
+            )
+          : 1073741824; // 1GB default
+
+      return {
+        total_files: totalFiles,
+        total_size: totalSize,
+        storage_used_percentage: (totalSize / quota) * 100,
+        quota,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting storage info for project ${projectId}:`,
+        error
+      );
+      throw new Error("Failed to get storage info");
+    }
+  }
 }

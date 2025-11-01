@@ -2,7 +2,8 @@ import { BackendSDK } from "@krapi/sdk";
 import { Router, IRouter } from "express";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
-import { Scope } from "@/types";
+import { DatabaseService } from "@/services/database.service";
+import { Scope, AuthenticatedRequest } from "@/types";
 
 /**
  * Admin Routes
@@ -258,7 +259,7 @@ router.post(
       const { name, permissions, expires_at } = req.body;
 
       // Get current user ID from authenticated request
-      const currentUser = (req as any).user;
+      const currentUser = (req as AuthenticatedRequest).user;
       if (!currentUser || !currentUser.id) {
         return res
           .status(401)
@@ -459,6 +460,109 @@ router.post(
   }
 );
 
+// Admin account management routes
+router.put(
+  "/users/:userId/enable",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const db = DatabaseService.getInstance();
+
+      const success = await db.enableAdminAccount(userId);
+      if (success) {
+        res.json({
+          success: true,
+          message: "Admin account enabled successfully",
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Admin account not found",
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to enable admin account",
+      });
+    }
+  }
+);
+
+router.put(
+  "/users/:userId/disable",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const db = DatabaseService.getInstance();
+
+      const success = await db.disableAdminAccount(userId);
+      if (success) {
+        res.json({
+          success: true,
+          message: "Admin account disabled successfully",
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Admin account not found",
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to disable admin account",
+      });
+    }
+  }
+);
+
+router.get(
+  "/users/:userId/status",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const db = DatabaseService.getInstance();
+
+      const status = await db.getAdminAccountStatus(userId);
+      if (status) {
+        res.json({
+          success: true,
+          data: status,
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Admin account not found",
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get admin account status",
+      });
+    }
+  }
+);
+
 // Activity logs
 router.get(
   "/activity",
@@ -487,6 +591,97 @@ router.get(
           error instanceof Error
             ? error.message
             : "Failed to get activity logs",
+      });
+    }
+  }
+);
+
+// Activity logging
+router.post(
+  "/activity/log",
+  requireScopes({
+    scopes: [Scope.ADMIN_WRITE],
+  }),
+  async (req, res) => {
+    try {
+      if (!backendSDK) {
+        return res
+          .status(500)
+          .json({ success: false, error: "BackendSDK not initialized" });
+      }
+
+      const activityData = req.body;
+      const loggedActivity = await backendSDK.activity.log(activityData);
+
+      res.json({ success: true, data: loggedActivity });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to log activity",
+      });
+    }
+  }
+);
+
+// Activity query
+router.get(
+  "/activity/query",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  async (req, res) => {
+    try {
+      if (!backendSDK) {
+        return res
+          .status(500)
+          .json({ success: false, error: "BackendSDK not initialized" });
+      }
+
+      const queryOptions = req.query;
+      const result = await backendSDK.activity.query(queryOptions);
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to query activity logs",
+      });
+    }
+  }
+);
+
+// Activity statistics
+router.get(
+  "/activity/stats",
+  requireScopes({
+    scopes: [Scope.ADMIN_READ],
+  }),
+  async (req, res) => {
+    try {
+      if (!backendSDK) {
+        return res
+          .status(500)
+          .json({ success: false, error: "BackendSDK not initialized" });
+      }
+
+      const { project_id, days } = req.query;
+      const stats = await backendSDK.activity.getActivityStats(
+        project_id ? (project_id as string) : undefined,
+        days ? parseInt(days as string) : 30
+      );
+
+      res.json({ success: true, ...stats });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get activity statistics",
       });
     }
   }

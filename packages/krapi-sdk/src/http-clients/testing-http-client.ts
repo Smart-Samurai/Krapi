@@ -14,8 +14,11 @@ export class TestingHttpClient extends BaseHttpClient {
     with_collections?: boolean;
     with_documents?: boolean;
     document_count?: number;
-  }): Promise<ApiResponse<any>> {
-    return this.post<any>("/testing/projects", options || {});
+  }): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post<Record<string, unknown>>(
+      "/testing/projects",
+      options || {}
+    );
   }
 
   async cleanup(projectId?: string): Promise<
@@ -101,8 +104,8 @@ export class TestingHttpClient extends BaseHttpClient {
   }
 
   // Test Data Management
-  async getTestProjects(): Promise<ApiResponse<any[]>> {
-    return this.get<any[]>("/testing/projects");
+  async getTestProjects(): Promise<ApiResponse<Record<string, unknown>[]>> {
+    return this.get<Record<string, unknown>[]>("/testing/projects");
   }
 
   async deleteTestProject(
@@ -127,13 +130,13 @@ export class TestingHttpClient extends BaseHttpClient {
   ): Promise<
     ApiResponse<{
       success: boolean;
-      results: any;
+      results: Record<string, unknown>;
       duration: number;
     }>
   > {
     return this.post<{
       success: boolean;
-      results: any;
+      results: Record<string, unknown>;
       duration: number;
     }>(`/testing/scenarios/${scenarioName}`, options);
   }
@@ -148,7 +151,7 @@ export class TestingHttpClient extends BaseHttpClient {
     method: "GET" | "POST" | "PUT" | "DELETE";
     iterations: number;
     concurrent_users: number;
-    payload?: any;
+    payload?: Record<string, unknown>;
   }): Promise<
     ApiResponse<{
       success: boolean;
@@ -187,7 +190,7 @@ export class TestingHttpClient extends BaseHttpClient {
     method: "GET" | "POST" | "PUT" | "DELETE";
     duration_seconds: number;
     users_per_second: number;
-    payload?: any;
+    payload?: Record<string, unknown>;
   }): Promise<
     ApiResponse<{
       success: boolean;

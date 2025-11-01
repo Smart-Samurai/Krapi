@@ -1,6 +1,15 @@
 "use client";
 
-import { Plus, Edit, Trash2, Users, Mail, Phone, Eye, EyeOff } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  Mail,
+  Phone,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 
@@ -47,6 +56,10 @@ import {
 } from "@/store/usersSlice";
 
 const scopeLabels: Record<ProjectScope, string> = {
+  [ProjectScope.READ]: "Read Projects",
+  [ProjectScope.WRITE]: "Write Projects",
+  [ProjectScope.DELETE]: "Delete Projects",
+  [ProjectScope.ADMIN]: "Admin Projects",
   [ProjectScope.USERS_READ]: "Read Users",
   [ProjectScope.USERS_WRITE]: "Write Users",
   [ProjectScope.USERS_DELETE]: "Delete Users",

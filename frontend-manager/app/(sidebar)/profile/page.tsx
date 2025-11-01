@@ -101,11 +101,19 @@ export default function ProfilePage() {
   };
 
   const handleRegenerateApiKey = async () => {
-    if (!krapi?.auth) return;
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
+    if (!krapi) {
+      toast.error("KRAPI SDK not available");
+      return;
+    }
 
     if (
       !confirm(
-        "Are you sure you want to regenerate your API key? The old key will stop working immediately."
+        "Are you sure you want to regenerate your API key? This will invalidate your current key."
       )
     ) {
       return;
@@ -113,18 +121,20 @@ export default function ProfilePage() {
 
     setIsRegeneratingKey(true);
     try {
-      // Note: regenerateApiKey method is not yet implemented in the SDK
-      // For now, we'll show a message that this feature is coming soon
-      toast.info("API key regeneration feature is coming soon");
-      // TODO: Implement when the method is available in the SDK
-      // const response = await krapi.auth.regenerateApiKey();
-      // if (response.success && response.data) {
-      //   toast.success("API key regenerated successfully");
-      // } else {
-      //   toast.error(response.error || "Failed to regenerate API key");
-      // }
-    } catch {
-      toast.error("Failed to regenerate API key");
+      const response = await krapi.auth.regenerateApiKey({});
+      if (response.success && response.data) {
+        toast.success("API key regenerated successfully");
+        // You might want to update the UI to show the new key
+        // For security reasons, you might want to show it only once
+      } else {
+        toast.error(response.error || "Failed to regenerate API key");
+      }
+    } catch (error) {
+      toast.error(
+        `Failed to regenerate API key: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsRegeneratingKey(false);
     }
@@ -519,9 +529,10 @@ export default function ProfilePage() {
                           value={
                             showApiKey
                               ? extendedUser.api_key
-                              : `${extendedUser.api_key.substring(0, 8) 
-                                }...${ 
-                                extendedUser.api_key.substring(
+                              : `${extendedUser.api_key.substring(
+                                  0,
+                                  8
+                                )}...${extendedUser.api_key.substring(
                                   extendedUser.api_key.length - 4
                                 )}`
                           }

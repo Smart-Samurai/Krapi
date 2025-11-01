@@ -8,6 +8,7 @@ import {
   validate,
   validationSchemas,
 } from "@/middleware/validation.middleware";
+import { DatabaseService } from "@/services/database.service";
 import { Scope } from "@/types";
 
 const router: IRouter = Router();
@@ -20,6 +21,10 @@ let _backendSDK: BackendSDK;
 
 export const initializeProjectSDK = (sdk: BackendSDK) => {
   _backendSDK = sdk;
+  // Initialize the controller with the SDK instance for SDK-first architecture
+  controller.setBackendSDK(sdk);
+  // Initialize the collections controller with the SDK instance
+  collectionsController.setBackendSDK(sdk);
 };
 
 // All routes require authentication
@@ -101,22 +106,24 @@ router.post(
 );
 
 // Collections routes (inline to avoid mounting issues)
+// Get all collections for a project
 router.get(
   "/:projectId/collections",
   requireScopes({
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getAllCollections
+  collectionsController.getAllCollections.bind(collectionsController)
 );
 
+// Get a specific collection by name
 router.get(
   "/:projectId/collections/:collectionName",
   requireScopes({
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getCollectionByName
+  collectionsController.getCollectionByName.bind(collectionsController)
 );
 
 router.post(
@@ -125,7 +132,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.createCollection
+  collectionsController.createCollection.bind(collectionsController)
 );
 
 router.put(
@@ -134,7 +141,7 @@ router.put(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.updateCollection
+  collectionsController.updateCollection.bind(collectionsController)
 );
 
 router.delete(
@@ -143,7 +150,7 @@ router.delete(
     scopes: [Scope.COLLECTIONS_DELETE],
     projectSpecific: true,
   }),
-  collectionsController.deleteCollection
+  collectionsController.deleteCollection.bind(collectionsController)
 );
 
 router.post(
@@ -152,7 +159,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.validateCollectionSchema
+  collectionsController.validateCollectionSchema.bind(collectionsController)
 );
 
 // Collection statistics
@@ -162,7 +169,110 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getCollectionStatistics
+  collectionsController.getCollectionStatistics.bind(collectionsController)
+);
+
+// Document routes
+router.post(
+  "/:projectId/collections/:collectionName/documents",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_WRITE],
+    projectSpecific: true,
+  }),
+  collectionsController.createDocument.bind(collectionsController)
+);
+
+router.get(
+  "/:projectId/collections/:collectionName/documents",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  collectionsController.getDocuments.bind(collectionsController)
+);
+
+router.get(
+  "/:projectId/collections/:collectionName/documents/count",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  collectionsController.countDocuments.bind(collectionsController)
+);
+
+router.post(
+  "/:projectId/collections/:collectionName/documents/search",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  collectionsController.searchDocuments.bind(collectionsController)
+);
+
+// Bulk document operations - MUST come before single document routes
+router.post(
+  "/:projectId/collections/:collectionName/documents/bulk",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_WRITE],
+    projectSpecific: true,
+  }),
+  collectionsController.bulkCreateDocuments.bind(collectionsController)
+);
+
+router.put(
+  "/:projectId/collections/:collectionName/documents/bulk",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_WRITE],
+    projectSpecific: true,
+  }),
+  collectionsController.bulkUpdateDocuments.bind(collectionsController)
+);
+
+router.post(
+  "/:projectId/collections/:collectionName/documents/bulk-delete",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_WRITE],
+    projectSpecific: true,
+  }),
+  collectionsController.bulkDeleteDocuments.bind(collectionsController)
+);
+
+// Document aggregation
+router.post(
+  "/:projectId/collections/:collectionName/aggregate",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  collectionsController.aggregateDocuments.bind(collectionsController)
+);
+
+// Single document operations - MUST come after bulk routes
+router.get(
+  "/:projectId/collections/:collectionName/documents/:documentId",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  collectionsController.getDocumentById.bind(collectionsController)
+);
+
+router.put(
+  "/:projectId/collections/:collectionName/documents/:documentId",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_WRITE],
+    projectSpecific: true,
+  }),
+  collectionsController.updateDocument.bind(collectionsController)
+);
+
+router.delete(
+  "/:projectId/collections/:collectionName/documents/:documentId",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_WRITE],
+    projectSpecific: true,
+  }),
+  collectionsController.deleteDocument.bind(collectionsController)
 );
 
 router.get(
@@ -211,6 +321,112 @@ router.get(
     projectSpecific: true,
   }),
   controller.getProjectActivity
+);
+
+// Project user management routes
+router.put(
+  "/:projectId/users/:userId/enable",
+  requireScopes({
+    scopes: [Scope.PROJECTS_WRITE],
+    projectSpecific: true,
+  }),
+  async (req, res) => {
+    try {
+      const { projectId, userId } = req.params;
+      const db = DatabaseService.getInstance();
+
+      const success = await db.enableProjectUser(projectId, userId);
+      if (success) {
+        res.json({
+          success: true,
+          message: "Project user enabled successfully",
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Project user not found",
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to enable project user",
+      });
+    }
+  }
+);
+
+router.put(
+  "/:projectId/users/:userId/disable",
+  requireScopes({
+    scopes: [Scope.PROJECTS_WRITE],
+    projectSpecific: true,
+  }),
+  async (req, res) => {
+    try {
+      const { projectId, userId } = req.params;
+      const db = DatabaseService.getInstance();
+
+      const success = await db.disableProjectUser(projectId, userId);
+      if (success) {
+        res.json({
+          success: true,
+          message: "Project user disabled successfully",
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Project user not found",
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to disable project user",
+      });
+    }
+  }
+);
+
+router.get(
+  "/:projectId/users/:userId/status",
+  requireScopes({
+    scopes: [Scope.PROJECTS_READ],
+    projectSpecific: true,
+  }),
+  async (req, res) => {
+    try {
+      const { projectId, userId } = req.params;
+      const db = DatabaseService.getInstance();
+
+      const status = await db.getProjectUserStatus(projectId, userId);
+      if (status) {
+        res.json({
+          success: true,
+          data: status,
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: "Project user not found",
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get project user status",
+      });
+    }
+  }
 );
 
 export default router;

@@ -5,8 +5,9 @@
  * and email sending functionality.
  */
 
-import { DatabaseConnection, Logger } from "./core";
 import nodemailer from "nodemailer";
+
+import { DatabaseConnection, Logger } from "./core";
 
 export interface EmailConfig {
   smtp_host: string;

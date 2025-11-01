@@ -4,10 +4,11 @@
  * Provides comprehensive health diagnostics and system health monitoring.
  */
 
-import { DatabaseConnection, Logger } from "./core";
 import fs from "fs";
-import path from "path";
 import os from "os";
+import path from "path";
+
+import { DatabaseConnection, Logger } from "./core";
 
 export interface HealthDiagnostics {
   success: boolean;

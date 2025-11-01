@@ -85,7 +85,6 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 export default function EmailPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
 

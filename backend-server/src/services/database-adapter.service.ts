@@ -111,10 +111,18 @@ export class DatabaseAdapterService {
       const collectionsCount = collections.length;
 
       // Get documents count across all collections
-      // Since getCollectionDocuments doesn't exist, we'll estimate based on collections
-      const documentsCount = 0;
-      // TODO: Implement proper document counting when the method is available
-      // For now, we'll use a placeholder value
+      // Get documents count for this project
+      let documentsCount = 0;
+      try {
+        const collections = await this.db.getProjectCollections(id);
+        for (const collection of collections) {
+          const count = await this.db.countDocuments(id, collection.name);
+          documentsCount += count;
+        }
+      } catch (error) {
+        console.error("Error counting documents:", error);
+        documentsCount = 0;
+      }
 
       // Get users count for this project
       const usersResult = await this.db.getProjectUsers(id);

@@ -6,16 +6,24 @@
  * collections operations, and auto-fixing capabilities.
  */
 
+import { ActivityLogger } from "./activity-logger";
 import { AdminService } from "./admin-service";
 import { AuthService } from "./auth-service";
+import { ChangelogService } from "./changelog-service";
 import { CollectionsSchemaManager } from "./collections-schema-manager";
-import { CollectionsService } from "./collections-service";
+import {
+  CollectionsService,
+  CreateDocumentRequest,
+  DocumentQueryOptions,
+} from "./collections-service";
 import { CollectionsTypeManager } from "./collections-type-manager";
 import { CollectionsTypeValidator } from "./collections-type-validator";
-import { Logger, DatabaseSDKConfig } from "./core";
+import { DatabaseSDKConfig, Logger } from "./core";
 import { DatabaseHealthManager } from "./database-health";
 import { EmailService } from "./email-service";
 import { HealthService } from "./health-service";
+import { MetadataManager } from "./metadata-manager";
+import { PerformanceMonitor } from "./performance-monitor";
 import { PostgreSQLAutoFixer } from "./postgresql-auto-fixer";
 import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
 import { ProjectsService } from "./projects-service";
@@ -23,10 +31,17 @@ import { SchemaGenerator } from "./schema-generator";
 import { StorageService } from "./storage-service";
 import { SystemService } from "./system-service";
 import { TestingService } from "./testing-service";
-import { FieldType } from "./types";
+import {
+  FieldType,
+  Collection,
+  CollectionTypeDefinition,
+  Document,
+} from "./types";
 import { UsersService } from "./users-service";
 
-export interface BackendSDKConfig extends DatabaseSDKConfig {}
+export interface BackendSDKConfig extends DatabaseSDKConfig {
+  currentUserId?: string;
+}
 
 export class BackendSDK {
   public database: DatabaseHealthManager;
@@ -42,15 +57,57 @@ export class BackendSDK {
   };
   public admin: AdminService;
   public auth: AuthService;
+  public changelog: ChangelogService;
   public email: EmailService;
   public health: HealthService;
   public projects: ProjectsService;
   public storage: StorageService;
   public users: UsersService;
   public testing: TestingService;
+  public activity: ActivityLogger;
+  public metadata: MetadataManager;
+  public performance: PerformanceMonitor;
+  public apiKeys: {
+    getAll(
+      projectId: string,
+      options?: Record<string, unknown>
+    ): Promise<Record<string, unknown>[]>;
+    get(
+      projectId: string,
+      keyId: string
+    ): Promise<Record<string, unknown> | null>;
+    create(
+      projectId: string,
+      keyData: {
+        name: string;
+        description?: string;
+        scopes: string[];
+        expires_at?: string;
+        created_by?: string;
+      }
+    ): Promise<Record<string, unknown>>;
+    update(
+      projectId: string,
+      keyId: string,
+      updates: Record<string, unknown>
+    ): Promise<Record<string, unknown>>;
+    delete(projectId: string, keyId: string): Promise<{ success: boolean }>;
+    regenerate(
+      projectId: string,
+      keyId: string
+    ): Promise<Record<string, unknown>>;
+    validateKey(apiKey: string): Promise<Record<string, unknown>>;
+  };
 
   private config: BackendSDKConfig;
   private logger: Logger;
+
+  /**
+   * Set the current user ID for operations that require user context
+   */
+  setCurrentUserId(userId: string): void {
+    this.config.currentUserId = userId;
+  }
 
   constructor(config: BackendSDKConfig) {
     this.config = config;
@@ -127,6 +184,82 @@ export class BackendSDK {
     // Initialize email service
     this.email = new EmailService(config.databaseConnection, this.logger);
 
+    // Initialize API keys functionality using admin service
+    this.apiKeys = {
+      getAll: async (projectId: string, _options?: Record<string, unknown>) => {
+        const result = await this.admin.getProjectApiKeys(projectId);
+        return (result as unknown as Record<string, unknown>[]) || [];
+      },
+      get: async (projectId: string, keyId: string) => {
+        const result = await this.admin.getProjectApiKey(keyId, projectId);
+        return (result as unknown as Record<string, unknown>) || null;
+      },
+      create: async (projectId: string, keyData: Record<string, unknown>) => {
+        const result = await this.admin.createProjectApiKey(
+          projectId,
+          keyData as {
+            name: string;
+            description?: string;
+            scopes: string[];
+            expires_at?: string;
+            created_by?: string;
+          }
+        );
+        return result as unknown as Record<string, unknown>;
+      },
+      update: async (
+        projectId: string,
+        keyId: string,
+        updates: Record<string, unknown>
+      ) => {
+        const result = await this.admin.updateProjectApiKey(
+          keyId,
+          projectId,
+          updates
+        );
+        return result as unknown as Record<string, unknown>;
+      },
+      delete: async (projectId: string, keyId: string) => {
+        const success = await this.admin.deleteProjectApiKey(keyId, projectId);
+        return { success };
+      },
+      regenerate: async (projectId: string, keyId: string) => {
+        const result = await this.admin.regenerateProjectApiKey(
+          keyId,
+          projectId
+        );
+        return result as unknown as Record<string, unknown>;
+      },
+      validateKey: async (apiKey: string) => {
+        try {
+          const result = await config.databaseConnection.query(
+            `SELECT id, name, type, scopes, project_ids 
+             FROM api_keys 
+             WHERE key = $1 AND is_active = true`,
+            [apiKey]
+          );
+
+          if (result.rows.length === 0) {
+            return { valid: false };
+          }
+
+          const keyData = result.rows[0] as Record<string, unknown>;
+          return {
+            valid: true,
+            key_info: {
+              id: keyData.id,
+              name: keyData.name,
+              type: keyData.type,
+              scopes: keyData.scopes || [],
+              project_id: keyData.project_ids?.[0],
+            },
+          };
+        } catch {
+          return { valid: false };
+        }
+      },
+    };
+
     // Initialize health service
     this.health = new HealthService(config.databaseConnection, this.logger);
 
@@ -141,11 +274,37 @@ export class BackendSDK {
 
     // Initialize testing service
     this.testing = new TestingService(config.databaseConnection, this.logger);
+
+    // Initialize changelog service
+    this.changelog = new ChangelogService(
+      config.databaseConnection,
+      this.logger
+    );
+
+    // Initialize activity logger
+    this.activity = new ActivityLogger(config.databaseConnection, this.logger);
+
+    // Initialize metadata manager
+    this.metadata = new MetadataManager(config.databaseConnection, this.logger);
+
+    // Initialize performance monitor
+    this.performance = new PerformanceMonitor(
+      config.databaseConnection,
+      this.logger
+    );
   }
 
   // Database health management methods
   async performHealthCheck() {
     return this.database.healthCheck();
+  }
+
+  // Project activity methods
+  async getProjectActivity(
+    projectId: string,
+    options?: { limit?: number; days?: number }
+  ) {
+    return await this.changelog.getByEntity("project", projectId, options);
   }
 
   async autoFixDatabase() {
@@ -162,7 +321,7 @@ export class BackendSDK {
 
   // Collections management methods
   async createCollection(
-    _projectId: string,
+    projectId: string,
     name: string,
     schema: {
       description?: string;
@@ -179,24 +338,29 @@ export class BackendSDK {
         fields: string[];
         unique?: boolean;
       }>;
-    }
+    },
+    createdBy?: string
   ) {
-    return this.collections.schemaManager.createCollection({
-      name,
-      ...(schema.description && { description: schema.description }),
-      fields: schema.fields.map((f) => ({
-        name: f.name,
-        type: f.type as FieldType,
-        required: f.required ?? false,
-        unique: f.unique ?? false,
-        indexed: false,
-        default: f.default,
-        ...(f.validation && {
-          validation: f.validation as Record<string, unknown>,
-        }),
-      })),
-      ...(schema.indexes && { indexes: schema.indexes }),
-    });
+    return this.collections.schemaManager.createCollection(
+      {
+        name,
+        project_id: projectId,
+        ...(schema.description && { description: schema.description }),
+        fields: schema.fields.map((f) => ({
+          name: f.name,
+          type: f.type as FieldType,
+          required: f.required ?? false,
+          unique: f.unique ?? false,
+          indexed: false,
+          default: f.default,
+          ...(f.validation && {
+            validation: f.validation as Record<string, unknown>,
+          }),
+        })),
+        ...(schema.indexes && { indexes: schema.indexes }),
+      },
+      createdBy
+    );
   }
 
   async getCollection(projectId: string, name: string) {
@@ -265,97 +429,326 @@ export class BackendSDK {
     return collections.filter((c) => c.project_id === projectId);
   }
 
+  async getProjectStatistics(projectId: string) {
+    return this.projects.getProjectStatistics(projectId);
+  }
+
   // Document management methods - these will need to be implemented in CollectionsService
   async createDocument(
-    _projectId: string,
-    _collectionName: string,
-    _data: Record<string, unknown>
+    projectId: string,
+    collectionName: string,
+    data: Record<string, unknown>
   ) {
-    // This would need to be implemented in CollectionsService
-    throw new Error(
-      "Document operations not yet implemented in CollectionsService"
+    // Create document using CollectionsService
+    return this.collections.service.createDocument(projectId, collectionName, {
+      data,
+      created_by: this.config.currentUserId || "system", // Use current user ID or fallback to system
+    });
+  }
+
+  async createDocuments(
+    projectId: string,
+    collectionName: string,
+    documents: CreateDocumentRequest[]
+  ) {
+    // Create multiple documents using CollectionsService
+    // Documents are already in the correct format, just pass them through
+    return this.collections.service.createDocuments(
+      projectId,
+      collectionName,
+      documents
     );
   }
 
   async getDocument(
-    _projectId: string,
-    _collectionName: string,
-    _documentId: string
+    projectId: string,
+    collectionName: string,
+    documentId: string
   ) {
-    // This would need to be implemented in CollectionsService
-    throw new Error(
-      "Document operations not yet implemented in CollectionsService"
+    // Get document using CollectionsService
+    return this.collections.service.getDocumentById(
+      projectId,
+      collectionName,
+      documentId
     );
   }
 
   async updateDocument(
-    _projectId: string,
-    _collectionName: string,
-    _documentId: string,
-    _data: Record<string, unknown>
+    projectId: string,
+    collectionName: string,
+    documentId: string,
+    data: Record<string, unknown>
   ) {
-    // This would need to be implemented in CollectionsService
-    throw new Error(
-      "Document operations not yet implemented in CollectionsService"
+    // Update document using CollectionsService
+    return this.collections.service.updateDocument(
+      projectId,
+      collectionName,
+      documentId,
+      {
+        data,
+        updated_by: this.config.currentUserId || "system", // Use current user ID or fallback to system
+      }
     );
   }
 
   async deleteDocument(
-    _projectId: string,
-    _collectionName: string,
-    _documentId: string
+    projectId: string,
+    collectionName: string,
+    documentId: string
   ) {
-    // This would need to be implemented in CollectionsService
-    throw new Error(
-      "Document operations not yet implemented in CollectionsService"
+    // Delete document using CollectionsService
+    return this.collections.service.deleteDocument(
+      projectId,
+      collectionName,
+      documentId
     );
   }
 
   async getDocuments(
-    _projectId: string,
-    _collectionName: string,
-    _options?: {
+    projectId: string,
+    collectionName: string,
+    filter?: {
+      field_filters?: Record<string, unknown>;
+      search?: string;
+    },
+    options?: {
       limit?: number;
       offset?: number;
-      where?: Record<string, unknown>;
       orderBy?: string;
       order?: "asc" | "desc";
     }
   ) {
-    // This would need to be implemented in CollectionsService
-    throw new Error(
-      "Document operations not yet implemented in CollectionsService"
+    // Convert options to CollectionsService format
+    const queryOptions: DocumentQueryOptions = {
+      limit: options?.limit,
+      offset: options?.offset,
+      sort_by: options?.orderBy,
+      sort_order: options?.order,
+    };
+
+    // Get documents using CollectionsService
+    return this.collections.service.getDocuments(
+      projectId,
+      collectionName,
+      filter,
+      queryOptions
+    );
+  }
+
+  async countDocuments(
+    projectId: string,
+    collectionName: string,
+    filter?: {
+      where?: Record<string, unknown>;
+      search?: string;
+    }
+  ) {
+    // Convert options to CollectionsService format
+    const documentFilter = filter?.where
+      ? { field_filters: filter.where }
+      : filter?.search
+      ? { search: filter.search }
+      : undefined;
+
+    // Get document count using CollectionsService
+    return this.collections.service.countDocuments(
+      projectId,
+      collectionName,
+      documentFilter
+    );
+  }
+
+  async updateDocuments(
+    projectId: string,
+    collectionName: string,
+    updates: Array<{
+      id: string;
+      data: Record<string, unknown>;
+    }>
+  ) {
+    // Update documents using CollectionsService
+    return this.collections.service.updateDocuments(
+      projectId,
+      collectionName,
+      updates
+    );
+  }
+
+  async deleteDocuments(
+    projectId: string,
+    collectionName: string,
+    documentIds: string[]
+  ): Promise<{
+    success: boolean;
+    results: boolean[];
+    deleted_count: number;
+    errors: string[];
+  }> {
+    const results = await this.collections.service.deleteDocuments(
+      projectId,
+      collectionName,
+      documentIds
+    );
+
+    const deletedCount = results.filter((result) => result === true).length;
+    const errors = results
+      .map((result, index) => (result === false ? documentIds[index] : null))
+      .filter((id) => id !== null) as string[];
+
+    return {
+      success: deletedCount > 0, // Success if at least one document was deleted
+      results,
+      deleted_count: deletedCount,
+      errors,
+    };
+  }
+
+  async searchDocuments(
+    projectId: string,
+    collectionName: string,
+    query: {
+      text?: string;
+      fields?: string[];
+      filters?: Record<string, unknown>;
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<Document[]> {
+    return this.collections.service.searchDocuments(
+      projectId,
+      collectionName,
+      query.text || "",
+      {
+        limit: query.limit,
+        offset: query.offset,
+      }
+    );
+  }
+
+  async aggregateDocuments(
+    projectId: string,
+    collectionName: string,
+    pipeline: Array<Record<string, unknown>>
+  ): Promise<Array<Record<string, unknown>>> {
+    return this.collections.service.aggregateDocuments(
+      projectId,
+      collectionName,
+      pipeline
     );
   }
 
   // Type management methods
-  async generateTypes(_projectId: string) {
-    // This would need to be implemented in CollectionsTypeManager
-    throw new Error(
-      "Type generation not yet implemented in CollectionsTypeManager"
+  async generateTypes(projectId: string) {
+    // Get project collections and generate types
+    const collections = await this.getProjectCollections(projectId);
+    if (collections.length === 0) {
+      throw new Error(`No collections found for project "${projectId}"`);
+    }
+
+    // Generate comprehensive TypeScript types for all collections
+    const typeDefinitions = await Promise.all(
+      collections.map(async (collection) => {
+        const collectionData =
+          await this.collections.schemaManager.getCollection(collection.id);
+        if (!collectionData) {
+          return {
+            collectionId: collection.id,
+            collectionName: collection.name,
+            fields: collection.fields,
+            typescriptTypes: "// Collection not found",
+            message: "Collection not found",
+          };
+        }
+
+        // Convert Collection to CollectionTypeDefinition format
+        const typeDefinition =
+          this.convertCollectionToTypeDefinition(collectionData);
+        const types =
+          await this.collections.typeManager.generateTypeScriptTypes(
+            typeDefinition
+          );
+
+        return {
+          collectionId: collection.id,
+          collectionName: collection.name,
+          fields: collection.fields,
+          typescriptTypes: types,
+          message: "Type generation completed successfully",
+        };
+      })
     );
+
+    return typeDefinitions;
   }
 
-  async validateTypes(_projectId: string) {
-    // This would need to be implemented in CollectionsTypeValidator
-    throw new Error(
-      "Type validation not yet implemented in CollectionsTypeValidator"
+  async validateTypes(projectId: string) {
+    // Get project collections and validate types
+    const collections = await this.getProjectCollections(projectId);
+    if (collections.length === 0) {
+      throw new Error(`No collections found for project "${projectId}"`);
+    }
+
+    // Validate types for all collections using the type validator
+    const validationResults = await Promise.all(
+      collections.map(async (collection) => {
+        const collectionData =
+          await this.collections.schemaManager.getCollection(collection.id);
+        if (!collectionData) {
+          return {
+            collectionId: collection.id,
+            collectionName: collection.name,
+            isValid: false,
+            issues: ["Collection not found"],
+            suggestions: ["Check collection ID"],
+            message: "Collection not found",
+          };
+        }
+
+        // Convert Collection to CollectionTypeDefinition format
+        const typeDefinition =
+          this.convertCollectionToTypeDefinition(collectionData);
+        const validation =
+          await this.collections.typeValidator.validateCollectionTypes(
+            typeDefinition
+          );
+
+        return {
+          collectionId: collection.id,
+          collectionName: collection.name,
+          isValid: validation.isValid,
+          issues: validation.issues,
+          suggestions: validation.suggestions,
+          message: validation.isValid
+            ? "Type validation passed"
+            : "Type validation failed",
+        };
+      })
     );
+
+    return validationResults;
   }
 
   // Schema inspection methods
-  async inspectSchema(_projectId: string) {
-    // This would need to be implemented in PostgreSQLSchemaInspector
-    throw new Error(
-      "Schema inspection not yet implemented in PostgreSQLSchemaInspector"
+  async inspectSchema(projectId: string) {
+    // Get project collections and inspect their schemas
+    const collections = await this.getProjectCollections(projectId);
+    if (collections.length === 0) {
+      throw new Error(`No collections found for project "${projectId}"`);
+    }
+
+    // Inspect schemas for all collections in the project
+    const inspections = await Promise.all(
+      collections.map(async (collection) => {
+        return this.collections.schemaInspector.getTableSchema(collection.name);
+      })
     );
+
+    return inspections;
   }
 
-  async getTableInfo(_projectId: string, _tableName: string) {
-    // This would need to be implemented in PostgreSQLSchemaInspector
-    throw new Error(
-      "Table info not yet implemented in PostgreSQLSchemaInspector"
-    );
+  async getTableInfo(projectId: string, tableName: string) {
+    // Get table info using the schema inspector
+    return this.collections.schemaInspector.getTableSchema(tableName);
   }
 
   // System methods
@@ -378,5 +771,80 @@ export class BackendSDK {
     } catch (error) {
       this.logger.error("Error closing BackendSDK:", error);
     }
+  }
+
+  /**
+   * Convert Collection to CollectionTypeDefinition format
+   */
+  private convertCollectionToTypeDefinition(
+    collection: Collection
+  ): CollectionTypeDefinition {
+    return {
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      version: "1.0.0",
+      schema: {
+        fields: collection.schema.fields.map((field) => ({
+          name: field.name,
+          type: field.type,
+          required: field.required,
+          unique: field.unique,
+          indexed: field.indexed || false,
+          default: field.default_value,
+          description: field.description,
+          validation: field.validation,
+          length: field.length,
+          precision: field.precision,
+          scale: field.scale,
+          nullable: field.nullable,
+          primary: field.primary,
+          postgresql_type: field.type,
+          typescript_type: field.type,
+          relation: field.relation,
+        })),
+        indexes: (collection.schema.indexes || []).map((index) => ({
+          name: index.name,
+          fields: index.fields,
+          unique: index.unique || false,
+          type: "btree" as const,
+        })),
+        constraints: [],
+        relations: [],
+      },
+      validation_rules: [],
+      auto_fix_rules: [],
+      created_at: collection.created_at,
+      updated_at: collection.updated_at,
+      created_by: "system",
+      project_id: collection.project_id,
+      fields: collection.schema.fields.map((field) => ({
+        name: field.name,
+        type: field.type,
+        required: field.required,
+        unique: field.unique,
+        indexed: field.indexed || false,
+        default: field.default_value,
+        description: field.description,
+        validation: field.validation,
+        length: field.length,
+        precision: field.precision,
+        scale: field.scale,
+        nullable: field.nullable,
+        primary: field.primary,
+        postgresql_type: field.type,
+        typescript_type: field.type,
+        relation: field.relation,
+      })),
+      indexes: (collection.schema.indexes || []).map((index) => ({
+        name: index.name,
+        fields: index.fields,
+        unique: index.unique || false,
+        type: "btree" as const,
+      })),
+      constraints: [],
+      relations: [],
+      metadata: collection.metadata,
+    };
   }
 }

@@ -34,6 +34,7 @@ export class CollectionsSchemaManager {
    */
   async createCollection(collectionData: {
     name: string;
+    project_id?: string;
     description?: string;
     fields: Array<{
       name: string;
@@ -51,10 +52,10 @@ export class CollectionsSchemaManager {
       fields: string[];
       unique?: boolean;
     }>;
-  }): Promise<Collection> {
+  }, createdBy?: string): Promise<Collection> {
     const collection: Collection = {
       id: this.generateCollectionId(),
-      project_id: "default", // Will be set by the caller
+      project_id: collectionData.project_id || "default",
       name: collectionData.name,
       schema: {
         fields: collectionData.fields.map((field) => {
@@ -100,16 +101,95 @@ export class CollectionsSchemaManager {
       collection.description = collectionData.description;
     }
 
+    // Add backward compatibility properties
+    collection.fields = collection.schema.fields;
+    collection.indexes = collection.schema.indexes;
+
     // Create the collection in the database
     await this.createCollectionTable(collection);
+
+    // Insert collection metadata into collections table
+    await this.insertCollectionMetadata(collection, createdBy);
 
     // Store in memory
     this.collections.set(collection.id, collection);
 
     this.logger.info(
-      `Created collection: ${collection.name} with ${collection.fields.length} fields`
+      `Created collection: ${collection.name} with ${collection.schema.fields.length} fields`
     );
     return collection;
+  }
+
+  /**
+   * Insert collection metadata into collections table
+   */
+  private async insertCollectionMetadata(collection: Collection, createdBy?: string): Promise<void> {
+    try {
+      await this.dbConnection.query(
+        `INSERT INTO collections (id, project_id, name, description, fields, indexes, created_at, updated_at, created_by) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+         ON CONFLICT (project_id, name) DO UPDATE SET
+         description = EXCLUDED.description,
+         fields = EXCLUDED.fields,
+         indexes = EXCLUDED.indexes,
+         updated_at = EXCLUDED.updated_at`,
+        [
+          collection.id,
+          collection.project_id,
+          collection.name,
+          collection.description || null,
+          JSON.stringify(collection.schema.fields),
+          JSON.stringify(collection.schema.indexes),
+          collection.created_at,
+          collection.updated_at,
+          createdBy || null,
+        ]
+      );
+    } catch (error) {
+      this.logger.error("Error inserting collection metadata:", error);
+      // Don't throw here - the collection table was created successfully
+      // This is just metadata for the SDK to find the collection
+    }
+  }
+
+  /**
+   * Update collection metadata in collections table
+   */
+  private async updateCollectionMetadata(collection: Collection): Promise<void> {
+    try {
+      await this.dbConnection.query(
+        `UPDATE collections SET
+         description = $1,
+         fields = $2,
+         indexes = $3,
+         updated_at = $4
+         WHERE project_id = $5 AND name = $6`,
+        [
+          collection.description || null,
+          JSON.stringify(collection.schema.fields),
+          JSON.stringify(collection.schema.indexes),
+          collection.updated_at,
+          collection.project_id,
+          collection.name,
+        ]
+      );
+    } catch (error) {
+      this.logger.error("Error updating collection metadata:", error);
+    }
+  }
+
+  /**
+   * Remove collection metadata from collections table
+   */
+  private async removeCollectionMetadata(projectId: string, collectionName: string): Promise<void> {
+    try {
+      await this.dbConnection.query(
+        `DELETE FROM collections WHERE project_id = $1 AND name = $2`,
+        [projectId, collectionName]
+      );
+    } catch (error) {
+      this.logger.error("Error removing collection metadata:", error);
+    }
   }
 
   /**
@@ -133,6 +213,9 @@ export class CollectionsSchemaManager {
     // Update the database schema
     await this.updateCollectionTable(collection, updatedCollection);
 
+    // Update collection metadata in collections table
+    await this.updateCollectionMetadata(updatedCollection);
+
     // Update in memory
     this.collections.set(collectionId, updatedCollection);
 
@@ -151,6 +234,9 @@ export class CollectionsSchemaManager {
 
     // Drop the table from database
     await this.dropCollectionTable(collection.name);
+
+    // Remove collection metadata from collections table
+    await this.removeCollectionMetadata(collection.project_id, collection.name);
 
     // Remove from memory
     this.collections.delete(collectionId);
@@ -216,7 +302,7 @@ export class CollectionsSchemaManager {
       );
 
       // Check for missing fields
-      for (const field of collection.fields) {
+      for (const field of collection.schema.fields) {
         const dbField = dbSchema.fields.find((f) => f.name === field.name);
         if (!dbField) {
           issues.push({
@@ -242,7 +328,7 @@ export class CollectionsSchemaManager {
 
       // Check for extra fields in database
       for (const dbField of dbSchema.fields) {
-        const expectedField = collection.fields.find(
+        const expectedField = collection.schema.fields.find(
           (f) => f.name === dbField.name
         );
         if (!expectedField) {
@@ -256,7 +342,7 @@ export class CollectionsSchemaManager {
       }
 
       // Check indexes
-      for (const index of collection.indexes || []) {
+      for (const index of collection.schema.indexes || []) {
         const dbIndex = dbSchema.indexes.find((i) => i.name === index.name);
         if (!dbIndex) {
           issues.push({
@@ -312,7 +398,7 @@ export class CollectionsSchemaManager {
         switch (issue.type) {
           case "missing_field":
             if (issue.field) {
-              const field = collection.fields.find(
+              const field = collection.schema.fields.find(
                 (f) => f.name === issue.field
               );
               if (field) {
@@ -325,7 +411,7 @@ export class CollectionsSchemaManager {
 
           case "wrong_type":
             if (issue.field && issue.expected) {
-              const field = collection.fields.find(
+              const field = collection.schema.fields.find(
                 (f) => f.name === issue.field
               );
               if (field) {
@@ -344,7 +430,7 @@ export class CollectionsSchemaManager {
 
           case "missing_index":
             if (issue.field) {
-              const index = (collection.indexes || []).find(
+              const index = (collection.schema.indexes || []).find(
                 (i) => i.fields.join(", ") === issue.field
               );
               if (index) {
@@ -397,7 +483,7 @@ export class CollectionsSchemaManager {
       collection.name
     )} {\n`;
 
-    for (const field of collection.fields) {
+    for (const field of collection.schema.fields) {
       const type = this.getTypeScriptType(field.type);
       const optional = field.required ? "" : "?";
       const comment = field.description ? ` // ${field.description}` : "";
@@ -425,7 +511,12 @@ export class CollectionsSchemaManager {
   // Private helper methods
 
   private generateCollectionId(): string {
-    return `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a proper UUID v4
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 
   private async createCollectionTable(collection: Collection): Promise<void> {
@@ -438,8 +529,10 @@ export class CollectionsSchemaManager {
     newCollection: Collection
   ): Promise<void> {
     // This is a simplified version - in production you'd want more sophisticated migration logic
-    for (const field of newCollection.fields) {
-      const oldField = oldCollection.fields.find((f) => f.name === field.name);
+    for (const field of newCollection.schema.fields) {
+      const oldField = oldCollection.schema.fields.find(
+        (f) => f.name === field.name
+      );
       if (!oldField) {
         // Add new field
         await this.addFieldToTable(newCollection.name, field);
@@ -597,21 +690,48 @@ export class CollectionsSchemaManager {
   private buildCreateTableSQL(collection: Collection): string {
     let sql = `CREATE TABLE "${collection.name}" (\n`;
 
-    // Add fields
-    const fieldDefinitions = collection.fields.map((field) => {
-      let def = `  "${field.name}" ${this.getFieldTypeString(field)}`;
-      if (!field.required) {
-        def += " NULL";
-      }
-      if (field.default !== undefined) {
-        def += ` DEFAULT ${this.formatDefaultValue(field.default)}`;
-      }
-      return def;
-    });
+    // Add essential system fields first
+    sql += `  "id" UUID PRIMARY KEY,\n`;
+    sql += `  "project_id" UUID NOT NULL,\n`;
+    sql += `  "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n`;
+    sql += `  "updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
 
-    sql += fieldDefinitions.join(",\n");
+    // Add custom fields, filtering out any that conflict with system fields
+    const systemFields = ["id", "created_at", "updated_at", "project_id"];
+    const customFields = collection.schema.fields.filter(
+      (field) => !systemFields.includes(field.name)
+    );
+
+    if (customFields.length > 0) {
+      sql += ",\n";
+      const fieldDefinitions = customFields.map((field) => {
+        let def = `  "${field.name}" ${this.getFieldTypeString(field)}`;
+        if (!field.required) {
+          def += " NULL";
+        }
+        if (field.default !== undefined) {
+          def += ` DEFAULT ${this.formatDefaultValue(field.default)}`;
+        }
+        return def;
+      });
+
+      sql += fieldDefinitions.join(",\n");
+    }
+
     sql += "\n)";
 
     return sql;
+  }
+
+  private findFieldByName(collection: Collection, fieldName: string) {
+    const expectedField = collection.schema.fields.find(
+      (f) => f.name === fieldName
+    );
+    if (!expectedField) {
+      throw new Error(
+        `Field ${fieldName} not found in collection ${collection.name}`
+      );
+    }
+    return expectedField;
   }
 }

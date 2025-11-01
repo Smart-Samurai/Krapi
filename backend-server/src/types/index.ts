@@ -6,15 +6,12 @@ import type {
   SessionType,
   FieldDefinition,
   IndexDefinition,
-  AdminRole,
-  AccessLevel,
   AdminPermission,
   ApiKeyScope,
   ApiKeyStatus,
   QueryOptions,
   ProjectStatus,
   UserRole,
-  Scope,
 } from "@krapi/sdk";
 import type { Request as ExpressRequest } from "express";
 
@@ -132,7 +129,7 @@ export interface BackendAdminUser {
   id: string;
   username: string;
   email: string;
-  role: AdminRole;
+  role: "master_admin" | "admin" | "developer";
   access_level: "full" | "read_write" | "read_only";
   permissions: AdminPermission[];
   active: boolean;

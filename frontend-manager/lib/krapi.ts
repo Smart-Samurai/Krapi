@@ -11,6 +11,7 @@ import {
   type PaginatedResponse,
   type Project,
   type ProjectSettings,
+  type ProjectListOptions,
   type Collection,
   type Document,
   type ProjectUser,
@@ -27,10 +28,12 @@ import {
   type AdminPermission,
   type ProjectStatistics,
   type EmailRequest,
+  type ProjectStatus,
   AdminRole,
   AccessLevel,
   Scope,
   ProjectScope,
+  FieldType,
 } from "@krapi/sdk";
 
 // Note: These functions are no longer needed since we're using the krapi singleton directly
@@ -43,10 +46,12 @@ export {
   AccessLevel,
   Scope,
   ProjectScope,
+  FieldType,
   type ApiResponse,
   type PaginatedResponse,
   type Project,
   type ProjectSettings,
+  type ProjectListOptions,
   type Collection,
   type Document,
   type ProjectUser,
@@ -63,6 +68,7 @@ export {
   type AdminPermission,
   type ProjectStatistics,
   type EmailRequest,
+  type ProjectStatus,
 };
 
 // Frontend compatibility: use SDK data structure directly

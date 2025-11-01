@@ -7,7 +7,6 @@
 import {
   Document,
   DocumentFilter,
-  DocumentQueryOptions,
   CreateDocumentRequest,
   UpdateDocumentRequest,
 } from "../collections-service";
@@ -40,6 +39,46 @@ export interface Collection {
 
 export class CollectionsHttpClient extends BaseHttpClient {
   // Constructor inherited from BaseHttpClient
+
+  async getCollectionsByProject(projectId: string): Promise<Collection[]> {
+    const response = await this.get<Collection[]>(
+      `/projects/${projectId}/collections`
+    );
+    return response.data || [];
+  }
+
+  async getDocuments(
+    collectionId: string,
+    options?: {
+      page?: number;
+      limit?: number;
+      orderBy?: string;
+      order?: "asc" | "desc";
+      search?: string;
+      filter?: Array<{
+        field: string;
+        operator: string;
+        value: unknown;
+      }>;
+    }
+  ): Promise<Document[]> {
+    const response = await this.get<Document[]>(
+      `/collections/${collectionId}/documents`,
+      options
+    );
+    return response.data || [];
+  }
+
+  async createDocument(
+    collectionId: string,
+    data: Record<string, unknown>
+  ): Promise<Document> {
+    const response = await this.post<Document>(
+      `/collections/${collectionId}/documents`,
+      { data }
+    );
+    return response.data || ({} as Document);
+  }
 
   // Collection Management
   async createCollection(
@@ -125,16 +164,6 @@ export class CollectionsHttpClient extends BaseHttpClient {
   }
 
   // Document Management
-  async createDocument(
-    projectId: string,
-    collectionName: string,
-    documentData: CreateDocumentRequest
-  ): Promise<ApiResponse<Document>> {
-    return this.post<Document>(
-      `/projects/${projectId}/collections/${collectionName}/documents`,
-      documentData
-    );
-  }
 
   async getDocument(
     projectId: string,
@@ -168,23 +197,6 @@ export class CollectionsHttpClient extends BaseHttpClient {
       `/projects/${projectId}/collections/${collectionName}/documents/${documentId}${
         options?.deleted_by ? `?deleted_by=${options.deleted_by}` : ""
       }`
-    );
-  }
-
-  async getDocuments(
-    projectId: string,
-    collectionName: string,
-    filter?: DocumentFilter,
-    options?: DocumentQueryOptions
-  ): Promise<PaginatedResponse<Document>> {
-    const queryParams = {
-      ...(filter && { filter: JSON.stringify(filter) }),
-      ...(options && options),
-    };
-
-    return this.getPaginated<Document>(
-      `/projects/${projectId}/collections/${collectionName}/documents`,
-      queryParams
     );
   }
 

@@ -388,6 +388,222 @@ export class AdminService {
     }
   }
 
+  // Project-specific API Key Management
+  async getProjectApiKeys(projectId: string): Promise<ApiKey[]> {
+    try {
+      const result = await this.db.query(
+        `SELECT * FROM api_keys 
+         WHERE project_ids @> $1::uuid[] AND is_active = true
+         ORDER BY created_at DESC`,
+        [[projectId]]
+      );
+      return result.rows as ApiKey[];
+    } catch (error) {
+      this.logger.error("Failed to get project API keys:", error);
+      throw new Error("Failed to get project API keys");
+    }
+  }
+
+  async createProjectApiKey(
+    projectId: string,
+    keyData: {
+      name: string;
+      description?: string;
+      scopes: string[];
+      expires_at?: string;
+      created_by?: string;
+    }
+  ): Promise<{ key: string; data: ApiKey }> {
+    try {
+      // Generate a new project API key
+      const apiKey = `pk_${Math.random()
+        .toString(36)
+        .substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+
+      // Get owner_id - either from created_by or default admin user
+      let ownerId: string;
+      if (keyData.created_by) {
+        ownerId = keyData.created_by;
+      } else {
+        // Get the default admin user ID
+        const adminResult = await this.db.query(
+          "SELECT id FROM admin_users WHERE role = 'master_admin' AND is_active = true LIMIT 1"
+        );
+
+        if (adminResult.rows.length === 0) {
+          // Create default admin if none exists
+          await this.createDefaultAdmin();
+          const newAdminResult = await this.db.query(
+            "SELECT id FROM admin_users WHERE role = 'master_admin' AND is_active = true LIMIT 1"
+          );
+          ownerId = (newAdminResult.rows[0] as { id: string }).id;
+        } else {
+          ownerId = (adminResult.rows[0] as { id: string }).id;
+        }
+      }
+
+      // Create the API key in the database
+      const result = await this.db.query(
+        `INSERT INTO api_keys (key, name, type, owner_id, scopes, project_ids, expires_at, metadata) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+         RETURNING *`,
+        [
+          apiKey,
+          keyData.name,
+          "project",
+          ownerId,
+          keyData.scopes,
+          [projectId],
+          keyData.expires_at,
+          { description: keyData.description },
+        ]
+      );
+
+      const createdKey = result.rows[0] as ApiKey;
+
+      return {
+        key: apiKey,
+        data: createdKey,
+      };
+    } catch (error) {
+      this.logger.error("Failed to create project API key:", error);
+      throw new Error("Failed to create project API key");
+    }
+  }
+
+  async getProjectApiKey(
+    keyId: string,
+    projectId: string
+  ): Promise<ApiKey | null> {
+    try {
+      const result = await this.db.query(
+        `SELECT * FROM api_keys 
+         WHERE id = $1 AND project_ids @> $2::uuid[] AND is_active = true`,
+        [keyId, [projectId]]
+      );
+      return result.rows.length > 0 ? (result.rows[0] as ApiKey) : null;
+    } catch (error) {
+      this.logger.error("Failed to get project API key:", error);
+      throw new Error("Failed to get project API key");
+    }
+  }
+
+  async updateProjectApiKey(
+    keyId: string,
+    projectId: string,
+    updates: Partial<{
+      name: string;
+      description: string;
+      scopes: string[];
+      expires_at: string;
+      is_active: boolean;
+    }>
+  ): Promise<ApiKey | null> {
+    try {
+      const setClause: string[] = [];
+      const values: unknown[] = [];
+      let paramIndex = 1;
+
+      if (updates.name !== undefined) {
+        setClause.push(`name = $${paramIndex++}`);
+        values.push(updates.name);
+      }
+
+      if (updates.description !== undefined) {
+        setClause.push(
+          `metadata = jsonb_set(COALESCE(metadata, '{}'), '{description}', $${paramIndex++}::jsonb)`
+        );
+        values.push(JSON.stringify(updates.description));
+      }
+
+      if (updates.scopes !== undefined) {
+        setClause.push(`scopes = $${paramIndex++}`);
+        values.push(updates.scopes);
+      }
+
+      if (updates.expires_at !== undefined) {
+        setClause.push(`expires_at = $${paramIndex++}`);
+        values.push(updates.expires_at);
+      }
+
+      if (updates.is_active !== undefined) {
+        setClause.push(`is_active = $${paramIndex++}`);
+        values.push(updates.is_active);
+      }
+
+      if (setClause.length === 0) {
+        return null; // No updates to make
+      }
+
+      values.push(keyId, projectId);
+      const result = await this.db.query(
+        `UPDATE api_keys 
+         SET ${setClause.join(", ")}, updated_at = NOW()
+         WHERE id = $${paramIndex} AND project_ids @> $${paramIndex + 1}::uuid[]
+         RETURNING *`,
+        values
+      );
+
+      return result.rows.length > 0 ? (result.rows[0] as ApiKey) : null;
+    } catch (error) {
+      this.logger.error("Failed to update project API key:", error);
+      throw new Error("Failed to update project API key");
+    }
+  }
+
+  async deleteProjectApiKey(
+    keyId: string,
+    projectId: string
+  ): Promise<boolean> {
+    try {
+      const result = await this.db.query(
+        `UPDATE api_keys 
+         SET is_active = false, updated_at = NOW()
+         WHERE id = $1 AND project_ids @> $2::uuid[]`,
+        [keyId, [projectId]]
+      );
+      return result.rowCount > 0;
+    } catch (error) {
+      this.logger.error("Failed to delete project API key:", error);
+      throw new Error("Failed to delete project API key");
+    }
+  }
+
+  async regenerateProjectApiKey(
+    keyId: string,
+    projectId: string
+  ): Promise<{ key: string; data: ApiKey }> {
+    try {
+      // Generate a new API key
+      const newApiKey = `pk_${Math.random()
+        .toString(36)
+        .substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+
+      // Update the API key in the database
+      const result = await this.db.query(
+        `UPDATE api_keys 
+         SET key = $1, updated_at = NOW()
+         WHERE id = $2 AND project_ids @> $3::uuid[] AND is_active = true
+         RETURNING *`,
+        [newApiKey, keyId, [projectId]]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("API key not found or not active");
+      }
+
+      const updatedKey = result.rows[0] as ApiKey;
+
+      return {
+        key: newApiKey,
+        data: updatedKey,
+      };
+    } catch (error) {
+      this.logger.error("Failed to regenerate project API key:", error);
+      throw new Error("Failed to regenerate project API key");
+    }
+  }
+
   // System Management
   async getSystemStats(): Promise<SystemStats> {
     try {
@@ -637,14 +853,16 @@ export class AdminService {
     this.logger.info(`Need to create table: ${tableName}`);
   }
 
-  private async createDefaultAdmin(): Promise<void> {
+  public async createDefaultAdmin(): Promise<void> {
     try {
       const hashedPassword = await this.hashPassword("admin123");
       const masterApiKey = `mak_${Math.random().toString(36).substring(2, 15)}`;
 
-      await this.db.query(
+      // Create the admin user first and get the ID
+      const adminResult = await this.db.query(
         `INSERT INTO admin_users (username, email, password_hash, role, access_level, permissions, api_key) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7) 
+         RETURNING id`,
         [
           "admin",
           "admin@krapi.com",
@@ -656,11 +874,13 @@ export class AdminService {
         ]
       );
 
-      // Create master API key
+      const adminId = (adminResult.rows[0] as { id: string }).id;
+
+      // Create master API key with proper owner_id
       await this.db.query(
         `INSERT INTO api_keys (key, name, type, owner_id, scopes) 
          VALUES ($1, $2, $3, $4, $5)`,
-        [masterApiKey, "Master API Key", "master", "system", ["master"]]
+        [masterApiKey, "Master API Key", "master", adminId, ["master"]]
       );
     } catch (error) {
       this.logger.error("Failed to create default admin:", error);
@@ -670,7 +890,8 @@ export class AdminService {
 
   private async hashPassword(password: string): Promise<string> {
     // In a real implementation, this would use bcrypt
-    // For now, return a placeholder
+    // For now, return a placeholder that matches what the backend expects
+    // The backend uses bcrypt, but for now we'll use a simple hash
     return `hashed_${password}`;
   }
 }

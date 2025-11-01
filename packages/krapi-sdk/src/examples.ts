@@ -5,7 +5,8 @@
  * in both frontend and backend environments.
  */
 
-import { krapi } from "./index";
+import { DatabaseConnection } from "./core";
+import { krapi, KrapiWrapper } from "./krapi";
 
 /**
  * FRONTEND USAGE EXAMPLES
@@ -220,7 +221,7 @@ export async function frontendExample3(projectId: string) {
  */
 
 // Example 4: Backend setup with database connection
-export async function backendExample1(databaseConnection: any) {
+export async function backendExample1(databaseConnection: DatabaseConnection) {
   // Connect to KRAPI for backend use with database
   await krapi.connect({
     database: databaseConnection,
@@ -260,7 +261,7 @@ export async function backendExample1(databaseConnection: any) {
 
 // Example 5: Complex backend operations
 export async function backendExample2(
-  databaseConnection: any,
+  databaseConnection: DatabaseConnection,
   projectId: string
 ) {
   // Connect to KRAPI for backend use with database
@@ -403,9 +404,9 @@ export async function backendExample2(
 
 // Example 6: Shared business logic that works in both environments
 export class TaskManager {
-  private krapi: any; // KrapiClient
+  private krapi: KrapiWrapper;
 
-  constructor(krapiClient: any) {
+  constructor(krapiClient: KrapiWrapper) {
     this.krapi = krapiClient;
   }
 
@@ -423,7 +424,7 @@ export class TaskManager {
     let collection;
     try {
       collection = await this.krapi.collections.get(projectId, "tasks");
-    } catch (_error) {
+    } catch {
       // Collection doesn't exist, create it
       collection = await this.krapi.collections.create(projectId, {
         name: "tasks",
@@ -508,7 +509,9 @@ export async function useTaskManagerInFrontend() {
 }
 
 // Example usage of TaskManager in backend
-export async function useTaskManagerInBackend(databaseConnection: any) {
+export async function useTaskManagerInBackend(
+  databaseConnection: DatabaseConnection
+) {
   // Connect to KRAPI for backend use with database
   await krapi.connect({
     database: databaseConnection,

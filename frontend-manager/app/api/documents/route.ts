@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { serverSdk } from "@/app/api/lib/sdk-client";
 
 /**
@@ -23,14 +24,14 @@ export async function GET(request: NextRequest): Promise<Response> {
     const limit = searchParams.get("limit")
       ? parseInt(searchParams.get("limit")!)
       : 50;
-    const offset = searchParams.get("offset")
-      ? parseInt(searchParams.get("offset")!)
-      : 0;
+    const page = searchParams.get("page")
+      ? parseInt(searchParams.get("page")!)
+      : 1;
 
     // Get documents from collection using SDK
     const documents = await serverSdk.collections.getDocuments(collectionId, {
       limit,
-      offset,
+      page,
     });
 
     return NextResponse.json({ success: true, data: documents });
@@ -60,8 +61,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     // Create document using SDK
     const document = await serverSdk.collections.createDocument(
       documentData.collection_id,
-      documentData.data,
-      documentData.created_by || "admin"
+      documentData.data
     );
 
     return NextResponse.json(

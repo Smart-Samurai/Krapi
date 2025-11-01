@@ -1,0 +1,27 @@
+{
+  "name": "@krapi/logger",
+  "version": "2.0.0",
+  "description": "KRAPI Unified Logging System",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "fs": "^0.0.1-security"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "logging",
+    "krapi",
+    "monitoring"
+  ],
+  "author": "KRAPI Team",
+  "license": "MIT"
+}
+

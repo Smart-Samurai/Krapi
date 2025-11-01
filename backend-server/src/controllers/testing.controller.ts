@@ -1,3 +1,4 @@
+import { FieldType } from "@krapi/sdk";
 import { Request, Response } from "express";
 
 import { AuthService } from "@/services/auth.service";
@@ -114,19 +115,19 @@ export class TestingController {
             fields: [
               {
                 name: "name",
-                type: "string" as const,
+                type: FieldType.string,
                 required: true,
                 unique: false,
               },
               {
                 name: "email",
-                type: "string" as const,
+                type: FieldType.string,
                 required: true,
                 unique: true,
               },
               {
                 name: "age",
-                type: "number" as const,
+                type: FieldType.number,
                 required: false,
                 unique: false,
               },
@@ -137,19 +138,19 @@ export class TestingController {
             fields: [
               {
                 name: "title",
-                type: "string" as const,
+                type: FieldType.string,
                 required: true,
                 unique: false,
               },
               {
                 name: "price",
-                type: "number" as const,
+                type: FieldType.number,
                 required: true,
                 unique: false,
               },
               {
                 name: "description",
-                type: "string" as const,
+                type: FieldType.string,
                 required: false,
                 unique: false,
               },

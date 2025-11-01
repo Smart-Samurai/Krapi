@@ -70,17 +70,15 @@ export async function GET(
     }
 
     const collection = await response.json();
-    // Extract the data from the backend response and return it directly
-    return NextResponse.json(collection.data);
+    // Extract the collection data from the backend response and return it directly
+    return NextResponse.json(collection.collection);
   } catch (error) {
     console.error("Error fetching collection:", error);
     return NextResponse.json(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch collection",
+          error instanceof Error ? error.message : "Failed to fetch collection",
       },
       { status: 500 }
     );
@@ -150,8 +148,8 @@ export async function PUT(
     }
 
     const collection = await response.json();
-    // Extract the data from the backend response and return it directly
-    return NextResponse.json(collection.data);
+    // Extract the collection data from the backend response and return it directly
+    return NextResponse.json(collection.collection);
   } catch (error) {
     console.error("Error updating collection:", error);
     return NextResponse.json(
@@ -227,7 +225,10 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({ success: true, message: "Collection deleted successfully" });
+    return NextResponse.json({
+      success: true,
+      message: "Collection deleted successfully",
+    });
   } catch (error) {
     console.error("Error deleting collection:", error);
     return NextResponse.json(

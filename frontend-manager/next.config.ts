@@ -3,10 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Port configuration
   serverRuntimeConfig: {
-    port: 3469,
+    port: 3498,
   },
   publicRuntimeConfig: {
-    port: 3469,
+    port: 3498,
   },
 
   // Enable proper error checking during builds (but allow for development)
@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
   // Environment variables
   env: {
     NEXT_PUBLIC_API_URL: "http://localhost:3470/krapi/k1",
-    PORT: "3469",
+    PORT: "3498",
   },
 
   // Optimize images and static assets

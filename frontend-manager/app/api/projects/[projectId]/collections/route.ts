@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
+
 // UUID validation function - more permissive to accept any valid UUID format
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -63,8 +68,8 @@ export async function GET(
     }
 
     const collections = await response.json();
-    // Return collections wrapped in data property to match test expectations
-    return NextResponse.json({ data: collections.data });
+    // Return collections array directly from the backend response
+    return NextResponse.json({ data: collections.collections });
   } catch (error) {
     console.error("Error fetching collections:", error);
     return NextResponse.json(
@@ -136,8 +141,16 @@ export async function POST(
     }
 
     const collection = await response.json();
-    // Extract the data from the backend response and return it directly
-    return NextResponse.json(collection.data, { status: 201 });
+    console.log("🔍 [FRONTEND COLLECTIONS] Backend response:", collection);
+    console.log(
+      "🔍 [FRONTEND COLLECTIONS] Returning collection:",
+      collection.collection
+    );
+    // Return the collection data wrapped in success/data structure
+    return NextResponse.json(
+      { success: true, data: collection.collection },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error creating collection:", error);
     return NextResponse.json(

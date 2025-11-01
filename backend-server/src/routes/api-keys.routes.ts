@@ -5,12 +5,11 @@
  * All routes are prefixed with /projects/:projectId/api-keys
  */
 
-import { ApiKeyScope } from "@krapi/sdk";
+import { BackendSDK } from "@krapi/sdk";
 import { Router, Request, Response } from "express";
 
 import { authenticateProject } from "@/middleware/auth.middleware";
 import { validateProjectAccess } from "@/middleware/validation.middleware";
-import { DatabaseService } from "@/services/database.service";
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -21,6 +20,14 @@ interface AuthenticatedRequest extends Request {
 }
 
 const router: Router = Router();
+
+// BackendSDK instance - will be initialized from main router
+let backendSDK: BackendSDK;
+
+// Initialize SDK function - called from main router
+export const initializeApiKeysSDK = (sdk: BackendSDK) => {
+  backendSDK = sdk;
+};
 
 // Apply authentication middleware to all API key routes
 router.use(authenticateProject);
@@ -33,9 +40,16 @@ router.use(validateProjectAccess);
 router.get("/", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { projectId } = req.params as { projectId: string };
-    const db = DatabaseService.getInstance();
 
-    const apiKeys = await db.getProjectApiKeys(projectId);
+    if (!backendSDK) {
+      return res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      });
+    }
+
+    // Use SDK for API key management
+    const apiKeys = await backendSDK.apiKeys.getAll(projectId);
 
     res.json({
       success: true,
@@ -56,19 +70,36 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
 router.post("/", async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { projectId } = req.params as { projectId: string };
-    const { name, scopes } = req.body;
-    const db = DatabaseService.getInstance();
+    const { name, description, permissions, expires_at } = req.body;
 
-    const apiKey = await db.createProjectApiKey({
-      project_id: projectId,
-      name,
-      scopes: scopes as ApiKeyScope[],
-      user_id: req.user?.id || "system",
+    if (!backendSDK) {
+      return res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      });
+    }
+
+    // Use SDK for API key creation
+    const apiKey = await backendSDK.apiKeys.create(projectId, {
+      name: name || "Project API Key",
+      description: description || "API key for project access",
+      scopes: permissions || ["projects:read", "collections:read"],
+      expires_at:
+        expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     });
 
+    // Transform response to match expected test format
     res.json({
       success: true,
-      data: apiKey,
+      data: {
+        key_id: apiKey.id,
+        key: apiKey.key,
+        name: apiKey.name,
+        scopes: apiKey.scopes,
+        expires_at: apiKey.expires_at,
+        created_at: apiKey.created_at,
+        is_active: apiKey.is_active,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -89,9 +120,7 @@ router.get("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
       projectId: string;
       keyId: string;
     };
-    const db = DatabaseService.getInstance();
-
-    const apiKey = await db.getProjectApiKey(projectId, keyId);
+    const apiKey = await backendSDK.apiKeys.get(projectId, keyId);
 
     if (!apiKey) {
       return res.status(404).json({
@@ -100,9 +129,18 @@ router.get("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    // Transform response to match expected test format
     res.json({
       success: true,
-      data: apiKey,
+      data: {
+        key_id: apiKey.id,
+        key: apiKey.key,
+        name: apiKey.name,
+        scopes: apiKey.scopes,
+        expires_at: apiKey.expires_at,
+        created_at: apiKey.created_at,
+        is_active: apiKey.is_active,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -123,9 +161,7 @@ router.put("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
       keyId: string;
     };
     const updates = req.body;
-    const db = DatabaseService.getInstance();
-
-    const apiKey = await db.updateProjectApiKey(projectId, keyId, updates);
+    const apiKey = await backendSDK.apiKeys.update(projectId, keyId, updates);
 
     if (!apiKey) {
       return res.status(404).json({
@@ -153,10 +189,11 @@ router.put("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
  */
 router.delete("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { keyId } = req.params as { projectId: string; keyId: string };
-    const db = DatabaseService.getInstance();
-
-    const result = await db.deleteProjectApiKey(keyId);
+    const { projectId, keyId } = req.params as {
+      projectId: string;
+      keyId: string;
+    };
+    const result = await backendSDK.apiKeys.delete(projectId, keyId);
 
     if (!result) {
       return res.status(404).json({
@@ -190,9 +227,7 @@ router.post(
         projectId: string;
         keyId: string;
       };
-      const db = DatabaseService.getInstance();
-
-      const apiKey = await db.regenerateApiKey(projectId, keyId);
+      const apiKey = await backendSDK.apiKeys.regenerate(projectId, keyId);
 
       if (!apiKey) {
         return res.status(404).json({

@@ -60,9 +60,11 @@ async function proxyRequest(
   try {
     // Build the backend URL
     const pathSegments = params.krapi || [];
-    // Remove 'krapi' from the beginning if it exists to avoid duplication
+    // Remove 'krapi' and 'k1' from the beginning if they exist to avoid duplication
     const cleanSegments =
-      pathSegments[0] === "krapi" ? pathSegments.slice(1) : pathSegments;
+      pathSegments[0] === "krapi" && pathSegments[1] === "k1"
+        ? pathSegments.slice(2)
+        : pathSegments;
     const backendPath = `/krapi/k1/${cleanSegments.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
 

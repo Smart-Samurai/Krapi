@@ -1,0 +1,438 @@
+import { Logger } from "./core";
+
+export interface ActivityLog {
+  id: string;
+  user_id?: string;
+  project_id?: string;
+  action: string;
+  resource_type: string;
+  resource_id?: string;
+  details: Record<string, unknown>;
+  ip_address?: string;
+  user_agent?: string;
+  timestamp: Date;
+  severity: "info" | "warning" | "error" | "critical";
+  metadata?: Record<string, unknown>;
+}
+
+export interface ActivityQuery {
+  user_id?: string;
+  project_id?: string;
+  action?: string;
+  resource_type?: string;
+  resource_id?: string;
+  severity?: string;
+  start_date?: Date;
+  end_date?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export class ActivityLogger {
+  private initialized = false;
+
+  constructor(
+    private dbConnection: {
+      query: (sql: string, params?: unknown[]) => Promise<{ rows?: unknown[] }>;
+    },
+    private logger: Logger = console
+  ) {
+    // Don't initialize in constructor - use lazy initialization
+  }
+
+  /**
+   * Initialize the activity_logs table
+   */
+  private async initializeActivityTable(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    try {
+      // Wait for essential tables to exist first
+      let attempts = 0;
+      const maxAttempts = 30;
+
+      while (attempts < maxAttempts) {
+        try {
+          // Check if admin_users and projects tables exist
+          const tablesCheck = await this.dbConnection.query(`
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_name IN ('admin_users', 'projects') AND table_schema = 'public'
+          `);
+
+          if (tablesCheck.rows && tablesCheck.rows.length >= 2) {
+            break; // Both tables exist, proceed
+          }
+
+          // Wait a bit and try again
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          attempts++;
+        } catch {
+          // Table check failed, wait and try again
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          attempts++;
+        }
+      }
+
+      if (attempts >= maxAttempts) {
+        this.logger.warn(
+          "Essential tables not found after waiting, skipping activity table creation"
+        );
+        return;
+      }
+
+      // First check if uuid-ossp extension exists
+      const extensionCheck = await this.dbConnection.query(`
+        SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp'
+      `);
+
+      const hasUuidExtension =
+        extensionCheck.rows && extensionCheck.rows.length > 0;
+      const idDefault = hasUuidExtension
+        ? "DEFAULT uuid_generate_v4()"
+        : "DEFAULT gen_random_uuid()";
+
+      await this.dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS activity_logs (
+          id UUID PRIMARY KEY ${idDefault},
+          user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+          project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+          action VARCHAR(255) NOT NULL,
+          resource_type VARCHAR(100) NOT NULL,
+          resource_id VARCHAR(255),
+          details JSONB NOT NULL DEFAULT '{}',
+          ip_address INET,
+          user_agent TEXT,
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          severity VARCHAR(20) NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'error', 'critical')),
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `);
+
+      // Create indexes for performance
+      await this.dbConnection.query(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)
+      `);
+      await this.dbConnection.query(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_project_id ON activity_logs(project_id)
+      `);
+      await this.dbConnection.query(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action)
+      `);
+      await this.dbConnection.query(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp ON activity_logs(timestamp)
+      `);
+      await this.dbConnection.query(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_severity ON activity_logs(severity)
+      `);
+
+      this.initialized = true;
+      this.logger.info("Activity logging table initialized");
+    } catch (error) {
+      this.logger.error("Failed to initialize activity logging table:", error);
+      // Don't throw error, just log it - this service is not critical for basic functionality
+    }
+  }
+
+  /**
+   * Ensure table is initialized before any operation
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initializeActivityTable();
+    }
+  }
+
+  /**
+   * Log an activity
+   */
+  async log(
+    activity: Omit<ActivityLog, "id" | "timestamp" | "created_at">
+  ): Promise<ActivityLog> {
+    await this.ensureInitialized();
+
+    try {
+      // Handle string user IDs by making them optional for test activities
+      const userId =
+        activity.user_id &&
+        typeof activity.user_id === "string" &&
+        activity.user_id.includes("-")
+          ? activity.user_id
+          : null;
+
+      const result = await this.dbConnection.query(
+        `
+        INSERT INTO activity_logs (
+          user_id, project_id, action, resource_type, resource_id, 
+          details, ip_address, user_agent, severity, metadata
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
+      `,
+        [
+          userId,
+          activity.project_id,
+          activity.action,
+          activity.resource_type,
+          activity.resource_id,
+          JSON.stringify(activity.details),
+          activity.ip_address,
+          activity.user_agent,
+          activity.severity,
+          JSON.stringify(activity.metadata || {}),
+        ]
+      );
+
+      const loggedActivity = result.rows?.[0] as ActivityLog;
+      this.logger.info(
+        `Activity logged: ${activity.action} on ${activity.resource_type}`
+      );
+
+      return loggedActivity;
+    } catch (error) {
+      this.logger.error("Failed to log activity:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Query activity logs
+   */
+  async query(
+    query: ActivityQuery
+  ): Promise<{ logs: ActivityLog[]; total: number }> {
+    await this.ensureInitialized();
+
+    try {
+      let whereClause = "WHERE 1=1";
+      const params: unknown[] = [];
+      let paramIndex = 1;
+
+      if (query.user_id) {
+        whereClause += ` AND user_id = $${paramIndex++}`;
+        params.push(query.user_id);
+      }
+
+      if (query.project_id) {
+        whereClause += ` AND project_id = $${paramIndex++}`;
+        params.push(query.project_id);
+      }
+
+      if (query.action) {
+        whereClause += ` AND action = $${paramIndex++}`;
+        params.push(query.action);
+      }
+
+      if (query.resource_type) {
+        whereClause += ` AND resource_type = $${paramIndex++}`;
+        params.push(query.resource_type);
+      }
+
+      if (query.resource_id) {
+        whereClause += ` AND resource_id = $${paramIndex++}`;
+        params.push(query.resource_id);
+      }
+
+      if (query.severity) {
+        whereClause += ` AND severity = $${paramIndex++}`;
+        params.push(query.severity);
+      }
+
+      if (query.start_date) {
+        whereClause += ` AND timestamp >= $${paramIndex++}`;
+        params.push(query.start_date);
+      }
+
+      if (query.end_date) {
+        whereClause += ` AND timestamp <= $${paramIndex++}`;
+        params.push(query.end_date);
+      }
+
+      // Get total count
+      const countResult = await this.dbConnection.query(
+        `
+        SELECT COUNT(*) FROM activity_logs ${whereClause}
+      `,
+        params
+      );
+      const total = parseInt(
+        (countResult.rows?.[0] as { count: string }).count || "0"
+      );
+
+      // Get logs with pagination
+      const limit = query.limit || 100;
+      const offset = query.offset || 0;
+
+      const logsResult = await this.dbConnection.query(
+        `
+        SELECT * FROM activity_logs ${whereClause}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `,
+        [...params, limit, offset]
+      );
+
+      const logs = (logsResult.rows || []).map(
+        (row: Record<string, unknown>) => ({
+          ...row,
+          timestamp: new Date(row.timestamp as string),
+          details:
+            typeof row.details === "string"
+              ? JSON.parse(row.details)
+              : row.details,
+          metadata:
+            typeof row.metadata === "string"
+              ? JSON.parse(row.metadata)
+              : row.metadata,
+        })
+      ) as ActivityLog[];
+
+      return { logs, total };
+    } catch (error) {
+      this.logger.error("Failed to query activity logs:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get recent activity for a user or project
+   */
+  async getRecentActivity(
+    userId?: string,
+    projectId?: string,
+    limit = 50
+  ): Promise<ActivityLog[]> {
+    await this.ensureInitialized();
+
+    const query: ActivityQuery = { limit };
+    if (userId) query.user_id = userId;
+    if (projectId) query.project_id = projectId;
+
+    const result = await this.query(query);
+    return result.logs;
+  }
+
+  /**
+   * Get activity statistics
+   */
+  async getActivityStats(
+    projectId?: string,
+    days = 30
+  ): Promise<{
+    total_actions: number;
+    actions_by_type: Record<string, number>;
+    actions_by_severity: Record<string, number>;
+    actions_by_user: Record<string, number>;
+  }> {
+    await this.ensureInitialized();
+
+    try {
+      let whereClause = "WHERE timestamp >= NOW() - INTERVAL '1 day' * $1";
+      const params: unknown[] = [days];
+
+      if (projectId) {
+        whereClause += " AND project_id = $2";
+        params.push(projectId);
+      }
+
+      // Total actions
+      const totalResult = await this.dbConnection.query(
+        `
+        SELECT COUNT(*) FROM activity_logs ${whereClause}
+      `,
+        params
+      );
+      const total_actions = parseInt(
+        (totalResult.rows?.[0] as { count: string }).count || "0"
+      );
+
+      // Actions by type
+      const typeResult = await this.dbConnection.query(
+        `
+        SELECT action, COUNT(*) as count 
+        FROM activity_logs ${whereClause}
+        GROUP BY action
+        ORDER BY count DESC
+      `,
+        params
+      );
+      const actions_by_type: Record<string, number> = {};
+      (typeResult.rows || []).forEach((row: Record<string, unknown>) => {
+        actions_by_type[row.action as string] = parseInt(
+          (row.count as string) || "0"
+        );
+      });
+
+      // Actions by severity
+      const severityResult = await this.dbConnection.query(
+        `
+        SELECT severity, COUNT(*) as count 
+        FROM activity_logs ${whereClause}
+        GROUP BY severity
+        ORDER BY count DESC
+      `,
+        params
+      );
+      const actions_by_severity: Record<string, number> = {};
+      (severityResult.rows || []).forEach((row: Record<string, unknown>) => {
+        actions_by_severity[row.severity as string] = parseInt(
+          (row.count as string) || "0"
+        );
+      });
+
+      // Actions by user
+      const userResult = await this.dbConnection.query(
+        `
+        SELECT user_id, COUNT(*) as count 
+        FROM activity_logs ${whereClause} AND user_id IS NOT NULL
+        GROUP BY user_id
+        ORDER BY count DESC
+        LIMIT 10
+      `,
+        params
+      );
+      const actions_by_user: Record<string, number> = {};
+      (userResult.rows || []).forEach((row: Record<string, unknown>) => {
+        actions_by_user[row.user_id as string] = parseInt(
+          (row.count as string) || "0"
+        );
+      });
+
+      return {
+        total_actions,
+        actions_by_type,
+        actions_by_severity,
+        actions_by_user,
+      };
+    } catch (error) {
+      this.logger.error("Failed to get activity statistics:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clean old activity logs
+   */
+  async cleanOldLogs(daysToKeep = 90): Promise<number> {
+    await this.ensureInitialized();
+
+    try {
+      const result = await this.dbConnection.query(
+        `
+        DELETE FROM activity_logs 
+        WHERE timestamp < NOW() - INTERVAL '1 day' * $1
+      `,
+        [daysToKeep]
+      );
+
+      const deletedCount = (result as { rowCount?: number }).rowCount || 0;
+      this.logger.info(`Cleaned ${deletedCount} old activity logs`);
+
+      return deletedCount;
+    } catch (error) {
+      this.logger.error("Failed to clean old activity logs:", error);
+      throw error;
+    }
+  }
+}

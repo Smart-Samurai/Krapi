@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { krapi } from "@krapi/sdk";
 
 /**
  * Frontend Health Check
  * GET /api/health
- * 
+ *
  * This route checks the health of the frontend and its connection to the backend
  */
-export async function GET(request: NextRequest): Promise<Response> {
+export async function GET(_request: NextRequest): Promise<Response> {
   try {
     // Check if we can connect to the backend via direct HTTP call
     let backendHealth = null;
     let backendConnected = false;
-    
+
     try {
       // Try to get a simple response from backend directly
       const response = await fetch("http://localhost:3470/health");
@@ -53,4 +52,3 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 }
-

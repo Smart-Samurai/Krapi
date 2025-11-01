@@ -65,6 +65,10 @@ import { useKrapi } from "@/lib/hooks/useKrapi";
 import { ProjectScope, type ApiKey } from "@/lib/krapi";
 
 const scopeLabels: Record<ProjectScope, string> = {
+  [ProjectScope.READ]: "Read Projects",
+  [ProjectScope.WRITE]: "Write Projects",
+  [ProjectScope.DELETE]: "Delete Projects",
+  [ProjectScope.ADMIN]: "Admin Projects",
   [ProjectScope.USERS_READ]: "Read Users",
   [ProjectScope.USERS_WRITE]: "Write Users",
   [ProjectScope.USERS_DELETE]: "Delete Users",
