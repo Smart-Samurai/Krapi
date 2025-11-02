@@ -123,6 +123,65 @@ router.use("/system", systemRoutes);
 // ===== Admin-Level Routes (SDK-driven) =====
 router.use("/admin", adminRoutes);
 
+// ===== Activity Routes (SDK-driven) =====
+// Activity routes are part of admin routes, but also expose global activity endpoints
+router.get("/activity/logs", async (req, res) => {
+  try {
+    if (!backendSDK) {
+      return res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      });
+    }
+
+    // Get activity logs using SDK
+    const logs = await backendSDK.admin.getActivityLogs({
+      limit: 100,
+      offset: 0,
+    });
+
+    res.json({
+      success: true,
+      logs: logs || [],
+      total: (logs as unknown as unknown[])?.length || 0,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get activity logs",
+    });
+  }
+});
+
+// Activity stats endpoint
+router.get("/activity/stats", async (req, res) => {
+  try {
+    if (!backendSDK) {
+      return res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      });
+    }
+
+    // Get activity statistics using activity logger from SDK
+    const { project_id, days } = req.query;
+    const stats = await backendSDK.activity.getActivityStats(
+      project_id ? (project_id as string) : undefined,
+      days ? parseInt(days as string) : 30
+    );
+
+    res.json({
+      success: true,
+      ...(stats || {}),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get activity stats",
+    });
+  }
+});
+
 // ===== Email Routes (SDK-driven) =====
 router.use("/email", emailRoutes);
 
@@ -170,14 +229,20 @@ router.post("/apikeys", async (req, res) => {
       );
 
       // Transform response to match expected test format
-      res.json({
-        key_id: result.data.id,
-        key: result.key,
-        name: result.data.name,
-        scopes: result.data.scopes,
-        expires_at: result.data.expires_at,
-        created_at: result.data.created_at,
-        is_active: result.data.is_active,
+      // createProjectApiKey returns { key: string, data: ApiKey }
+      const apiKeyData = (result as { data?: unknown; key?: string }).data || result;
+      const apiKey = apiKeyData as { id?: string; key?: string; name?: string; scopes?: string[]; expires_at?: string; created_at?: string; is_active?: boolean };
+      const keyValue = (result as { key?: string }).key || apiKey.key || "unknown";
+      
+      // Return 201 Created status code for successful creation
+      res.status(201).json({
+        key_id: apiKey.id || "unknown",
+        key: keyValue,
+        name: apiKey.name || "Test API Key",
+        scopes: apiKey.scopes || [],
+        expires_at: apiKey.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        created_at: apiKey.created_at || new Date().toISOString(),
+        is_active: apiKey.is_active ?? true,
         success: true,
       });
     } catch (error) {

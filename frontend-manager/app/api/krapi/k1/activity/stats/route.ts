@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const backendUrl =
       process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const statsUrl = `${backendUrl}/krapi/k1/admin/activity/stats?${queryParams.toString()}`;
+    const statsUrl = `${backendUrl}/krapi/k1/activity/stats?${queryParams.toString()}`;
 
     const response = await fetch(statsUrl, {
       method: "GET",

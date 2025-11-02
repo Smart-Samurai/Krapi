@@ -391,16 +391,53 @@ export class AdminService {
   // Project-specific API Key Management
   async getProjectApiKeys(projectId: string): Promise<ApiKey[]> {
     try {
+      // For SQLite, use JSON functions instead of PostgreSQL array operators
+      // Check if project_id exists in the project_ids JSON array
       const result = await this.db.query(
         `SELECT * FROM api_keys 
-         WHERE project_ids @> $1::uuid[] AND is_active = true
+         WHERE (
+           project_ids LIKE $1 
+           OR project_ids LIKE $2
+           OR project_ids LIKE $3
+           OR JSON_EXTRACT(project_ids, '$') IS NOT NULL 
+             AND EXISTS (
+               SELECT 1 FROM json_each(project_ids) 
+               WHERE json_each.value = $4
+             )
+         ) AND is_active = true
          ORDER BY created_at DESC`,
-        [[projectId]]
+        [
+          `%"${projectId}"%`,
+          `%"${projectId}",%`,
+          `%,"${projectId}"%`,
+          projectId
+        ]
       );
+      // Fallback: If JSON functions don't work, try simpler approach
+      if (result.rows.length === 0) {
+        const fallbackResult = await this.db.query(
+          `SELECT * FROM api_keys 
+           WHERE project_ids LIKE $1 AND is_active = true
+           ORDER BY created_at DESC`,
+          [`%${projectId}%`]
+        );
+        return fallbackResult.rows as ApiKey[];
+      }
       return result.rows as ApiKey[];
     } catch (error) {
-      this.logger.error("Failed to get project API keys:", error);
-      throw new Error("Failed to get project API keys");
+      // Fallback to simple LIKE query if JSON functions fail
+      try {
+        const fallbackResult = await this.db.query(
+          `SELECT * FROM api_keys 
+           WHERE project_ids LIKE $1 AND is_active = true
+           ORDER BY created_at DESC`,
+          [`%${projectId}%`]
+        );
+        return fallbackResult.rows as ApiKey[];
+      } catch (fallbackError) {
+        this.logger.error("Failed to get project API keys:", error);
+        throw new Error("Failed to get project API keys");
+      }
     }
   }
 

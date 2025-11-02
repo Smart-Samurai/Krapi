@@ -328,8 +328,11 @@ export class ActivityLogger {
     await this.ensureInitialized();
 
     try {
-      let whereClause = "WHERE timestamp >= NOW() - INTERVAL '1 day' * $1";
-      const params: unknown[] = [days];
+      // For SQLite, calculate the date in JavaScript and pass as parameter
+      // datetime('now', '-' || $1 || ' days') doesn't work with parameter binding
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      let whereClause = "WHERE timestamp >= $1";
+      const params: unknown[] = [cutoffDate];
 
       if (projectId) {
         whereClause += " AND project_id = $2";
