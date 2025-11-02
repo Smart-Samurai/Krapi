@@ -1164,9 +1164,10 @@ export class CollectionsService {
         );
       }
 
+      // Include project_id in query for proper database routing
       const result = await this.db.query(
-        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       if (result.rows.length === 0) {
@@ -1217,21 +1218,24 @@ export class CollectionsService {
         : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
       // SQLite-compatible INSERT (no RETURNING *)
+      // Include project_id in INSERT for proper database routing
       await this.db.query(
-        `INSERT INTO documents (id, collection_id, data, created_by)
-         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO documents (id, collection_id, project_id, data, created_by)
+         VALUES ($1, $2, $3, $4, $5)`,
         [
           documentId,
           collection.id,
+          projectId,
           JSON.stringify(actualDocumentData),
           documentData.created_by || documentData.data?.created_by || "system",
         ]
       );
 
       // Query back the inserted row (SQLite doesn't support RETURNING *)
+      // Use collection_id and project_id for proper database routing
       const result = await this.db.query(
-        `SELECT * FROM documents WHERE id = $1`,
-        [documentId]
+        `SELECT * FROM documents WHERE id = $1 AND collection_id = $2 AND project_id = $3`,
+        [documentId, collection.id, projectId]
       );
 
       this.logger.info(`Created document in collection "${collectionName}"`);
@@ -1294,16 +1298,24 @@ export class CollectionsService {
       await this.validateDocumentData(collection, mergedData);
 
       // Update the document (SQLite doesn't support RETURNING *)
+      // Include project_id in UPDATE for proper database routing
       await this.db.query(
-        `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP
-         WHERE collection_id = $2 AND id = $3`,
-        [JSON.stringify(mergedData), collection.id, documentId]
+        `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+         WHERE collection_id = $3 AND id = $4 AND project_id = $5`,
+        [
+          JSON.stringify(mergedData),
+          updateData.updated_by || "system",
+          collection.id,
+          documentId,
+          projectId,
+        ]
       );
 
       // Query back the updated document
+      // Include project_id in query for proper database routing
       const result = await this.db.query(
-        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       if (!result.rows || result.rows.length === 0) {
@@ -1362,8 +1374,8 @@ export class CollectionsService {
 
       // Note: Implementing as hard delete since soft delete columns don't exist in database schema
       const result = await this.db.query(
-        `DELETE FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `DELETE FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       this.logger.info(
@@ -1396,8 +1408,8 @@ export class CollectionsService {
       }
 
       const result = await this.db.query(
-        `DELETE FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `DELETE FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       this.logger.info(
@@ -1460,9 +1472,10 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT COUNT(*) as count FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let query = `SELECT COUNT(*) as count FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       if (filter) {
         // Note: Soft delete not implemented in current database schema
@@ -1634,9 +1647,10 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT * FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let query = `SELECT * FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       if (searchQuery) {
         // Search all fields (SQLite uses LIKE with lower() for case-insensitive search)
@@ -1701,16 +1715,18 @@ export class CollectionsService {
           : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
         // SQLite-compatible INSERT (no RETURNING *)
+        // Include project_id in INSERT for proper database routing
         await this.db.query(
-          `INSERT INTO documents (id, collection_id, data, created_by)
-           VALUES ($1, $2, $3, $4)`,
-          [documentId, collection.id, JSON.stringify(doc.data), doc.created_by || "system"]
+          `INSERT INTO documents (id, collection_id, project_id, data, created_by)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [documentId, collection.id, projectId, JSON.stringify(doc.data), doc.created_by || "system"]
         );
 
         // Query back the inserted row (SQLite doesn't support RETURNING *)
+        // Use collection_id and project_id for proper database routing
         const result = await this.db.query(
-          `SELECT * FROM documents WHERE id = $1`,
-          [documentId]
+          `SELECT * FROM documents WHERE id = $1 AND collection_id = $2 AND project_id = $3`,
+          [documentId, collection.id, projectId]
         );
 
         results.push(this.mapDocument(result.rows[0]));
@@ -1782,15 +1798,18 @@ export class CollectionsService {
         await this.validateDocumentData(collection, mergedData);
 
         // Update the document (SQLite doesn't support RETURNING * or NOW())
+        // Include project_id in UPDATE for proper database routing
         await this.db.query(
-          `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          [JSON.stringify(mergedData), update.id]
+          `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $2 AND collection_id = $3 AND project_id = $4`,
+          [JSON.stringify(mergedData), update.id, collection.id, projectId]
         );
         
         // Query back the updated document
+        // Include project_id in query for proper database routing
         const result = await this.db.query(
-          `SELECT * FROM documents WHERE id = $1`,
-          [update.id]
+          `SELECT * FROM documents WHERE id = $1 AND collection_id = $2 AND project_id = $3`,
+          [update.id, collection.id, projectId]
         );
         
         if (!result.rows || result.rows.length === 0) {
@@ -1898,9 +1917,10 @@ export class CollectionsService {
 
       // For now, implement basic aggregation operations
       // This is a simplified implementation - in a real system, you'd want more sophisticated aggregation
-      let sqlQuery = `SELECT * FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let sqlQuery = `SELECT * FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       // Process pipeline stages
       for (const stage of pipeline) {

@@ -81,8 +81,7 @@ export class ProjectAwareDbAdapter {
     if (params && params.length > 0) {
       const sqlLower = sql.toLowerCase();
       
-      // Common patterns: WHERE project_id = $1, WHERE id = $1 AND project_id = $2
-      // Find all occurrences of project_id = $X
+      // Pattern 1: WHERE project_id = $X (SELECT, UPDATE, DELETE)
       const projectIdMatches = sqlLower.matchAll(/project_id\s*=\s*\$(\d+)/gi);
       
       for (const match of projectIdMatches) {
@@ -106,21 +105,46 @@ export class ProjectAwareDbAdapter {
         }
       }
 
-      // If SQL has project_id but we didn't find it in parameters,
-      // check if first param looks like a project ID (common pattern)
-      if (
-        sqlLower.includes("project_id") &&
-        params[0] &&
-        typeof params[0] === "string"
-      ) {
-        const firstParam = params[0] as string;
-        if (
-          firstParam.length > 10 ||
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            firstParam
-          )
-        ) {
-          return firstParam;
+      // Pattern 2: INSERT INTO table (..., project_id, ...) VALUES (..., $X, ...)
+      // Find the position of project_id in the column list
+      if (sqlLower.includes("insert into") && sqlLower.includes("project_id")) {
+        // Extract column list: INSERT INTO table (col1, col2, project_id, col3)
+        const columnListMatch = sqlLower.match(/insert\s+into\s+\w+\s*\(([^)]+)\)/i);
+        if (columnListMatch) {
+          const columns = columnListMatch[1].split(",").map(c => c.trim());
+          const projectIdIndex = columns.findIndex(col => col === "project_id");
+          
+          if (projectIdIndex >= 0 && projectIdIndex < params.length) {
+            const projectId = params[projectIdIndex];
+            if (
+              projectId &&
+              typeof projectId === "string" &&
+              (projectId.length > 10 ||
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                  projectId
+                ))
+            ) {
+              return projectId;
+            }
+          }
+        }
+      }
+
+      // Pattern 3: If SQL has project_id in column list but we couldn't extract it,
+      // check if any param looks like a project ID (fallback)
+      if (sqlLower.includes("project_id")) {
+        for (let i = 0; i < params.length; i++) {
+          const param = params[i];
+          if (
+            param &&
+            typeof param === "string" &&
+            (param.length > 10 ||
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                param
+              ))
+          ) {
+            return param;
+          }
         }
       }
     }
