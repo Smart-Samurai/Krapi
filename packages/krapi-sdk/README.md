@@ -532,20 +532,62 @@ krapi.setSessionToken('session-token');
 krapi.setProjectId('project-id');
 ```
 
-## Publishing the Package
+## Publishing the Package to NPM
 
-For KRAPI maintainers - to publish this package for external developers:
+For KRAPI maintainers - to publish this package to npm for external developers:
+
+### Prerequisites
+
+1. **npm account**: Create an account at https://www.npmjs.com/signup
+2. **npm organization** (for `@krapi/sdk` scoped package):
+   - Create at https://www.npmjs.com/org/create
+   - Name it `krapi`
+   - OR use unscoped name `krapi-sdk` (change in package.json)
+3. **Login**: Run `npm login` in terminal
+
+### Publishing Steps
+
+1. **Build the package**:
+   ```bash
+   cd packages/krapi-sdk
+   npm run build
+   ```
+
+2. **Verify contents**:
+   ```bash
+   npm pack --dry-run
+   ```
+
+3. **Publish**:
+   ```bash
+   npm publish
+   ```
+
+4. **Verify on npm**:
+   - Visit https://www.npmjs.com/package/@krapi/sdk
+   - Package is now available for installation!
+
+### Updating the Package
 
 ```bash
-cd packages/krapi-sdk
-npm run build
+# Update version (patch/minor/major)
+npm version patch
 npm publish
 ```
 
-The package will be published to npm as `@krapi/sdk` and can be installed by external developers using:
+### Important Notes
 
+- The package name is `@krapi/sdk` (scoped) - requires npm organization
+- Alternative: Change to `krapi-sdk` (unscoped) in package.json
+- See `NPM_PUBLISHING.md` for detailed publishing guide
+
+### After Publishing
+
+External developers can install:
 ```bash
 npm install @krapi/sdk
+# or if unscoped
+npm install krapi-sdk
 ```
 
 ## More Examples

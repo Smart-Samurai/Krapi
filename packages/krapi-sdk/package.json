@@ -10,6 +10,11 @@
   },
   "homepage": "https://github.com/your-org/krapi#readme",
   "license": "MIT",
+  "author": "KRAPI Team",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -26,7 +31,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts src/client.ts --format cjs,esm --dts",
