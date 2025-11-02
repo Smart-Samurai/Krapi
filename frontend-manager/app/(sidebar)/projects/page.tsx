@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
+import { EmptyState, PageHeader, FormDialog } from "@/components/common";
 import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,14 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -216,57 +209,59 @@ export default function ProjectsPage() {
 
   return (
     <div className={`p-6 space-y-6 ${isBusy ? "cursor-progress" : ""}`}>
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-base font-bold">Projects</h1>
-          <p className="text-muted-foreground">Manage your KRAPI projects</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <ScopeIndicator
-            scopes={[Scope.PROJECTS_READ, Scope.PROJECTS_WRITE]}
-          />
-          <ScopeGuard
-            scopes={Scope.PROJECTS_WRITE}
-            fallback={
-              <Button disabled>
+      <PageHeader
+        title="Projects"
+        description="Manage your KRAPI projects"
+        action={
+          <>
+            <ScopeIndicator
+              scopes={[Scope.PROJECTS_READ, Scope.PROJECTS_WRITE]}
+            />
+            <ScopeGuard
+              scopes={Scope.PROJECTS_WRITE}
+              fallback={
+                <Button disabled>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Project
+                </Button>
+              }
+            >
+              <Button
+                className="btn-add"
+                onClick={() => setIsCreateDialogOpen(true)}
+                disabled={isBusy}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Create Project
               </Button>
-            }
-          >
-            <Button
-              className="btn-add"
-              onClick={() => setIsCreateDialogOpen(true)}
-              disabled={isBusy}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Project
-            </Button>
-          </ScopeGuard>
-        </div>
-      </div>
+            </ScopeGuard>
+          </>
+        }
+      />
 
       <ScopeGuard scopes={Scope.PROJECTS_READ}>
         {projects.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-base font-semibold mb-2">No projects yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first project to get started
-              </p>
-              <ScopeGuard scopes={Scope.PROJECTS_WRITE}>
-                <Button
-                  className="btn-add"
-                  onClick={() => setIsCreateDialogOpen(true)}
-                  disabled={isBusy}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create First Project
-                </Button>
-              </ScopeGuard>
-            </CardContent>
-          </Card>
+          <ScopeGuard
+            scopes={Scope.PROJECTS_WRITE}
+            fallback={
+              <EmptyState
+                icon={Settings}
+                title="No projects yet"
+                description="Create your first project to get started"
+              />
+            }
+          >
+            <EmptyState
+              icon={Settings}
+              title="No projects yet"
+              description="Create your first project to get started"
+              action={{
+                label: "Create First Project",
+                onClick: () => setIsCreateDialogOpen(true),
+                icon: Plus,
+              }}
+            />
+          </ScopeGuard>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
@@ -310,127 +305,97 @@ export default function ProjectsPage() {
       </ScopeGuard>
 
       {/* Create Project Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
-            <DialogDescription>
-              Create a new KRAPI project to start building your API
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...createForm}>
-            <form
-              onSubmit={createForm.handleSubmit(handleCreateProject)}
-              className="space-y-4"
-            >
-              <FormField
-                control={createForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="My Awesome Project" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Choose a unique name for your project
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="A brief description of your project..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                  disabled={isCreating}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="btn-add" disabled={isCreating}>
-                  {isCreating ? "Creating..." : "Create Project"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <FormDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        title="Create New Project"
+        description="Create a new KRAPI project to start building your API"
+        submitLabel="Create Project"
+        onSubmit={createForm.handleSubmit(handleCreateProject)}
+        isSubmitting={isCreating}
+        disabled={isCreating}
+      >
+        <Form {...createForm}>
+          <FormField
+            control={createForm.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Project Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="My Awesome Project" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Choose a unique name for your project
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={createForm.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description (Optional)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="A brief description of your project..."
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </Form>
+      </FormDialog>
 
       {/* Edit Project Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>Update project details</DialogDescription>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form
-              onSubmit={editForm.handleSubmit(handleUpdateProject)}
-              className="space-y-4"
-            >
-              <FormField
-                control={editForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditDialogOpen(false);
-                    setSelectedProject(null);
-                  }}
-                  disabled={isUpdating}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="btn-edit" disabled={isUpdating}>
-                  {isUpdating ? "Updating..." : "Update Project"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <FormDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        title="Edit Project"
+        description="Update project details"
+        submitLabel="Update Project"
+        onSubmit={editForm.handleSubmit(handleUpdateProject)}
+        onCancel={() => {
+          setIsEditDialogOpen(false);
+          setSelectedProject(null);
+        }}
+        isSubmitting={isUpdating}
+        submitClassName="btn-edit"
+        disabled={isUpdating}
+      >
+        <Form {...editForm}>
+          <FormField
+            control={editForm.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Project Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={editForm.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </Form>
+      </FormDialog>
     </div>
   );
 }
