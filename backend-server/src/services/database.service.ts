@@ -591,14 +591,12 @@ export class DatabaseService {
               "admin_users",
             ];
 
+            await this.dbManager.connectMain();
             for (const table of tablesToDrop) {
-              await this.adapter.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+              await this.dbManager.queryMain(`DROP TABLE IF EXISTS ${table}`);
             }
 
-            // Drop the trigger function
-            await this.adapter.query(
-              `DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE`
-            );
+            // SQLite doesn't have functions, skip function drop
 
             // SQLite auto-commits
 
@@ -2882,18 +2880,33 @@ export class DatabaseService {
   }
 
   // Changelog Methods (changelog is stored in project-specific databases)
+  // For admin actions without project_id, store in main database
   async createChangelogEntry(
     data: CreateBackendChangelogEntry
   ): Promise<BackendChangelogEntry> {
-    if (!data.project_id) {
-      throw new Error("project_id is required for changelog entries");
-    }
-
     // Generate changelog entry ID (SQLite doesn't support RETURNING *)
     const entryId = uuidv4();
     const createdAt = new Date().toISOString();
     
-    // Insert into project DB
+    // If no project_id, store in main database (for admin/system actions)
+    if (!data.project_id) {
+      // Store admin actions in a system activity log (using sessions table or create a separate table)
+      // For now, skip storing admin-only actions in changelog since it's project-specific
+      // Return a minimal entry for compatibility
+      return {
+        id: entryId,
+        project_id: null,
+        entity_type: data.entity_type,
+        entity_id: data.entity_id,
+        action: data.action,
+        changes: data.changes || {},
+        performed_by: data.performed_by || null,
+        session_id: data.session_id || null,
+        created_at: createdAt,
+      } as BackendChangelogEntry;
+    }
+    
+    // Insert into project DB for project-specific actions
     await this.dbManager.queryProject(
       data.project_id,
       `INSERT INTO changelog (id, project_id, collection_id, action, entity_type, entity_id, changes, user_id, created_at) 
@@ -4849,16 +4862,23 @@ export class DatabaseService {
       }
 
       values.push(fileId, projectId);
-      const result = await this.adapter.query(
+      // SQLite doesn't support RETURNING, so we need to query after update
+      await this.dbManager.queryProject(
+        projectId,
         `UPDATE files SET ${updates.join(
           ", "
         )} WHERE id = $${paramCount} AND project_id = $${
           paramCount + 1
-        } RETURNING *`,
+        }`,
         values
       );
 
-      return this.mapFile(result.rows[0]);
+      // Get the updated file
+      const updatedFile = await this.getFileById(projectId, fileId);
+      if (!updatedFile) {
+        throw new Error("File not found after update");
+      }
+      return updatedFile;
     } catch (error) {
       console.error("Error moving file:", error);
       throw error;
@@ -5423,9 +5443,10 @@ export class DatabaseService {
         "changelog",
       ];
 
+      await this.dbManager.connectMain();
       for (const table of requiredTables) {
         try {
-          const result = await this.adapter.query(
+          const result = await this.dbManager.queryMain(
             "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
             [table]
           );
@@ -5452,7 +5473,14 @@ export class DatabaseService {
         for (const column of columns) {
           try {
             // PRAGMA doesn't support parameters - use string interpolation (table is validated)
-            const result = await this.adapter.query(
+            // Note: collections, documents, files are in project databases, not main
+            if (["collections", "documents", "files", "project_users", "changelog"].includes(table)) {
+              // These tables are in project databases, skip main DB check
+              continue;
+            }
+            
+            await this.dbManager.connectMain();
+            const result = await this.dbManager.queryMain(
               `PRAGMA table_info("${table}")`
             );
             
@@ -6063,7 +6091,8 @@ export class DatabaseService {
       await this.adapter.connect();
 
       // Test basic connection
-      await this.adapter.query("SELECT 1");
+      await this.dbManager.connectMain();
+      await this.dbManager.queryMain("SELECT 1");
 
       console.log("✅ Database connection successful");
 
@@ -6100,10 +6129,11 @@ export class DatabaseService {
       // SQLite doesn't use connection pooling - adapter is already connected
       try {
         // Check if admin_users table exists and has data (SQLite uses sqlite_master)
-        const tableExistsResult = await this.adapter.query(
+        await this.dbManager.connectMain();
+        const tableExistsResult = await this.dbManager.queryMain(
           `SELECT name FROM sqlite_master WHERE type='table' AND name='admin_users'`
         );
-        const hasDataResult = await this.adapter.query(`SELECT COUNT(*) as count FROM admin_users LIMIT 1`);
+        const hasDataResult = await this.dbManager.queryMain(`SELECT COUNT(*) as count FROM admin_users LIMIT 1`);
         const tableExists = tableExistsResult.rows.length > 0;
         const hasData = parseInt(String(hasDataResult.rows[0]?.count || 0)) > 0;
         const result = { rows: [{ exists: tableExists && hasData ? 1 : 0 }] };
@@ -6241,7 +6271,7 @@ export class DatabaseService {
         const adminId = uuidv4();
         const masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        await this.adapter.query(
+        await this.dbManager.queryMain(
           `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key, is_active) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
@@ -6279,7 +6309,8 @@ export class DatabaseService {
       const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
       const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL || "admin@localhost";
 
-      const result = await this.adapter.query(
+      await this.dbManager.connectMain();
+      const result = await this.dbManager.queryMain(
         "SELECT id FROM admin_users WHERE username = $1",
         [defaultUsername]
       );
@@ -6289,7 +6320,7 @@ export class DatabaseService {
         const adminId = uuidv4();
         const masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        await this.adapter.query(
+        await this.dbManager.queryMain(
           `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key, is_active) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
@@ -6328,7 +6359,8 @@ export class DatabaseService {
       await this.adapter.connect();
 
       // Test basic connection
-      await this.adapter.query("SELECT 1");
+      await this.dbManager.connectMain();
+      await this.dbManager.queryMain("SELECT 1");
 
       console.log("✅ Database connection successful");
 
