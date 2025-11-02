@@ -720,7 +720,7 @@ export class AdminService {
       try {
         const result = await this.db.query(query, values);
         // Map changelog records to ActivityLog format
-        const logs: ActivityLog[] = (result.rows || []).map((row: any): ActivityLog => {
+        const logs: ActivityLog[] = (result.rows || []).map((row: Record<string, unknown>): ActivityLog => {
           let details: Record<string, unknown> = {};
           try {
             if (row.changes) {
@@ -736,24 +736,25 @@ export class AdminService {
           }
           
           return {
-            id: row.id || '',
-            user_id: row.user_id || undefined,
-            project_id: row.project_id || undefined,
-            action: row.action || '',
-            resource_type: row.entity_type || '',
-            resource_id: row.entity_id || undefined,
+            id: (row.id as string) || '',
+            user_id: (row.user_id as string | undefined) || undefined,
+            project_id: (row.project_id as string | undefined) || undefined,
+            action: (row.action as string) || '',
+            resource_type: (row.entity_type as string) || '',
+            resource_id: (row.entity_id as string | undefined) || undefined,
             details,
-            timestamp: row.created_at ? new Date(row.created_at) : new Date(),
+            timestamp: row.created_at ? new Date(row.created_at as string) : new Date(),
             severity: 'info' as const,
             metadata: {},
           };
         });
         return logs;
-      } catch (queryError: any) {
+      } catch (queryError: unknown) {
         // If table doesn't exist or query fails, return empty array
         // This is expected for new projects or when changelog hasn't been initialized
-        if (queryError?.message?.includes('no such table') || 
-            queryError?.message?.includes('does not exist')) {
+        const errorMessage = queryError instanceof Error ? queryError.message : String(queryError);
+        if (errorMessage.includes('no such table') || 
+            errorMessage.includes('does not exist')) {
           this.logger.info('Changelog table not found, returning empty activity logs');
           return [];
         }

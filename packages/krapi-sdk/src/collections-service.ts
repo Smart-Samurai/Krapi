@@ -114,7 +114,7 @@ export class CollectionsService {
   /**
    * Map database row to Document interface
    */
-  private mapDocument(row: any): Document {
+  private mapDocument(row: Record<string, unknown>): Document {
     // Parse data from JSON string (SQLite stores JSON as TEXT)
     let parsedData: Record<string, unknown> = {};
     if (typeof row.data === "string") {
@@ -125,22 +125,22 @@ export class CollectionsService {
         parsedData = {};
       }
     } else if (typeof row.data === "object" && row.data !== null) {
-      parsedData = row.data;
+      parsedData = row.data as Record<string, unknown>;
     }
 
     return {
-      id: row.id,
-      collection_id: row.collection_id,
-      project_id: row.project_id,
+      id: row.id as string,
+      collection_id: row.collection_id as string,
+      project_id: row.project_id as string | undefined,
       data: parsedData,
-      version: row.version || 1,
-      is_deleted: row.is_deleted || false,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      created_by: row.created_by || "system",
-      updated_by: row.updated_by || row.created_by || "system",
-      deleted_at: row.deleted_at,
-      deleted_by: row.deleted_by,
+      version: (row.version as number | undefined) || 1,
+      is_deleted: (row.is_deleted as boolean | undefined) || false,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string | undefined,
+      created_by: (row.created_by as string | undefined) || "system",
+      updated_by: (row.updated_by as string | undefined) || (row.created_by as string | undefined) || "system",
+      deleted_at: row.deleted_at as string | undefined,
+      deleted_by: row.deleted_by as string | undefined,
     };
   }
 
@@ -1199,7 +1199,7 @@ export class CollectionsService {
       }
 
       // Use mapDocument to parse JSON data and ensure proper formatting
-      const document = this.mapDocument(result.rows[0]);
+      const document = this.mapDocument(result.rows[0] as Record<string, unknown>);
       // Ensure project_id is set from collection
       document.project_id = collection.project_id || projectId;
       
@@ -1265,7 +1265,7 @@ export class CollectionsService {
       );
 
       this.logger.info(`Created document in collection "${collectionName}"`);
-      return this.mapDocument(result.rows[0]);
+      return this.mapDocument(result.rows[0] as Record<string, unknown>);
     } catch (error) {
       this.logger.error("Failed to create document:", error);
 
@@ -1352,7 +1352,7 @@ export class CollectionsService {
         `Updated document ${documentId} in collection "${collectionName}"`
       );
       
-      const updatedDocument = this.mapDocument(result.rows[0]);
+      const updatedDocument = this.mapDocument(result.rows[0] as Record<string, unknown>);
       // Ensure project_id is set from collection
       updatedDocument.project_id = collection.project_id || projectId;
       
@@ -1756,7 +1756,7 @@ export class CollectionsService {
           [documentId, collection.id, projectId]
         );
 
-        results.push(this.mapDocument(result.rows[0]));
+        results.push(this.mapDocument(result.rows[0] as Record<string, unknown>));
       }
 
       this.logger.info(
@@ -1843,7 +1843,7 @@ export class CollectionsService {
           throw new Error(`Document ${update.id} not found after update`);
         }
         
-        const updatedDocument = this.mapDocument(result.rows[0]);
+        const updatedDocument = this.mapDocument(result.rows[0] as Record<string, unknown>);
         // Ensure project_id is set from collection
         updatedDocument.project_id = collection.project_id || projectId;
         results.push(updatedDocument);
@@ -1952,11 +1952,10 @@ export class CollectionsService {
 
       // Process pipeline stages
       for (const stage of pipeline) {
-        if (stage.$match) {
+        if (stage.$match && typeof stage.$match === 'object' && stage.$match !== null) {
           const matchConditions = [];
-          for (const [field, value] of Object.entries(
-            stage.$match as Record<string, unknown>
-          )) {
+          const matchObj = stage.$match as Record<string, unknown>;
+          for (const [field, value] of Object.entries(matchObj)) {
             paramCount++;
             matchConditions.push(`data->>'${field}' = $${paramCount}`);
             params.push(value);
@@ -1989,7 +1988,10 @@ export class CollectionsService {
       }
 
       const result = await this.db.query(sqlQuery, params);
-      return result.rows.map((row: any) => row.data);
+      return result.rows.map((row: Record<string, unknown>) => {
+        const data = row.data as Record<string, unknown>;
+        return data as Record<string, unknown>;
+      });
     } catch (error) {
       this.logger.error(`Error aggregating documents: ${error}`);
       throw error;

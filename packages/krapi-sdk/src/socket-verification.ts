@@ -11,6 +11,8 @@
  * 4. Work seamlessly regardless of connection mode
  */
 
+import { Logger } from "./core";
+
 // Socket verification utilities
 
 /**
@@ -34,6 +36,11 @@ export interface SocketVerificationResult {
  */
 export class SocketVerification {
   private results: SocketVerificationResult[] = [];
+  private logger?: Logger;
+
+  constructor(logger?: Logger) {
+    this.logger = logger;
+  }
 
   /**
    * Run complete verification of plug and socket fit
@@ -50,9 +57,11 @@ export class SocketVerification {
     details: SocketVerificationResult[];
     recommendations: string[];
   }> {
-    console.log(
-      "🔌⚡ Starting Socket Verification: Plug + Socket Perfect Fit Check"
-    );
+    if (this.logger) {
+      this.logger.info(
+        "🔌⚡ Starting Socket Verification: Plug + Socket Perfect Fit Check"
+      );
+    }
 
     // Verify each category
     this.verifyAuthMethods();
@@ -727,18 +736,25 @@ The goal is to achieve 100% method parity where:
 /**
  * Run socket verification and generate report
  */
-export async function runSocketVerification(): Promise<void> {
-  const verification = new SocketVerification();
+export async function runSocketVerification(logger?: Logger): Promise<void> {
+  const verification = new SocketVerification(logger);
   const results = await verification.runCompleteVerification();
 
-  console.log(`\n${  verification.generateReport()}`);
+  const report = verification.generateReport();
+  if (logger) {
+    logger.info(`\n${report}`);
+  }
 
   if (results.summary.overall_score < 100) {
-    console.log("⚠️  Socket verification found issues. See report above.");
-    console.log("\nRecommendations:");
-    results.recommendations.forEach((rec) => console.log(`  • ${rec}`));
+    if (logger) {
+      logger.warn("⚠️  Socket verification found issues. See report above.");
+      logger.info("\nRecommendations:");
+      results.recommendations.forEach((rec) => logger?.info(`  • ${rec}`));
+    }
   } else {
-    console.log("🎉 Perfect plug and socket fit achieved!");
+    if (logger) {
+      logger.info("🎉 Perfect plug and socket fit achieved!");
+    }
   }
 }
 

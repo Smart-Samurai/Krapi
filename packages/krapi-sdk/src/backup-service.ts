@@ -416,14 +416,14 @@ export class BackupService {
 
       const result = await this.dbConnection.query(query, params);
 
-      return (result.rows || []).map((row: any) => ({
-        id: row.id,
-        project_id: row.project_id || undefined,
+      return (result.rows || []).map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        project_id: (row.project_id as string) || undefined,
         type: row.type as "project" | "system",
-        created_at: row.created_at,
+        created_at: row.created_at as string,
         size: row.size as number,
         encrypted: row.encrypted as boolean,
-        version: row.version || "2.0.0",
+        version: (row.version as string) || "2.0.0",
         description: row.description || undefined,
       })) as BackupMetadata[];
     } catch (error) {
@@ -519,7 +519,7 @@ export class BackupService {
         "SELECT id FROM projects WHERE is_active = 1"
       );
 
-      systemData.projects = projectsResult.rows.map((row: any) => row.id);
+      systemData.projects = projectsResult.rows.map((row: Record<string, unknown>) => row.id as string);
 
       // Serialize system data
       const jsonData = JSON.stringify(systemData);

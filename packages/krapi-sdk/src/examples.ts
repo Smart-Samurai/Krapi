@@ -5,7 +5,7 @@
  * in both frontend and backend environments.
  */
 
-import { DatabaseConnection } from "./core";
+import { DatabaseConnection, Logger } from "./core";
 import { krapi, KrapiWrapper } from "./krapi";
 
 /**
@@ -16,7 +16,7 @@ import { krapi, KrapiWrapper } from "./krapi";
  */
 
 // Example 1: Basic frontend setup and authentication
-export async function frontendExample1() {
+export async function frontendExample1(logger?: Logger) {
   // Connect to KRAPI for frontend use
   await krapi.connect({
     endpoint: "https://api.myapp.com/krapi/k1",
@@ -25,7 +25,9 @@ export async function frontendExample1() {
   try {
     // Authenticate with API key and get session
     const session = await krapi.auth.createSession("your-api-key");
-    console.log("Authenticated! Session expires at:", session.expires_at);
+    if (logger) {
+      logger.info(`Authenticated! Session expires at: ${session.expires_at}`);
+    }
 
     // Session token is automatically set for subsequent requests
 
@@ -38,17 +40,21 @@ export async function frontendExample1() {
         theme: "light",
       },
     });
-    console.log("Project created:", project);
+    if (logger) {
+      logger.info(`Project created: ${JSON.stringify(project)}`);
+    }
 
     return project.id;
   } catch (error) {
-    console.error("Frontend example 1 failed:", error);
+    if (logger) {
+      logger.error("Frontend example 1 failed:", error);
+    }
     throw error;
   }
 }
 
 // Example 2: Creating collections and managing documents
-export async function frontendExample2(projectId: string) {
+export async function frontendExample2(projectId: string, logger?: Logger) {
   // Connect to KRAPI for frontend use with API key
   await krapi.connect({
     endpoint: "https://api.myapp.com/krapi/k1",
@@ -76,7 +82,9 @@ export async function frontendExample2(projectId: string) {
         { name: "due_date_index", fields: ["due_date"] },
       ],
     });
-    console.log("Tasks collection created:", tasksCollection);
+    if (logger) {
+      logger.info(`Tasks collection created: ${JSON.stringify(tasksCollection)}`);
+    }
 
     // Create some tasks
     const task1 = await krapi.documents.create(projectId, "tasks", {
@@ -104,11 +112,15 @@ export async function frontendExample2(projectId: string) {
       created_by: "user-123",
     });
 
-    console.log("Tasks created:", [task1, task2]);
+    if (logger) {
+      logger.info(`Tasks created: ${JSON.stringify([task1, task2])}`);
+    }
 
     // Get all tasks
     const allTasks = await krapi.documents.getAll(projectId, "tasks");
-    console.log("All tasks:", allTasks);
+    if (logger) {
+      logger.info(`All tasks: ${JSON.stringify(allTasks)}`);
+    }
 
     // Update a task
     const updatedTask = await krapi.documents.update(
@@ -123,23 +135,29 @@ export async function frontendExample2(projectId: string) {
         updated_by: "user-123",
       }
     );
-    console.log("Updated task:", updatedTask);
+    if (logger) {
+      logger.info(`Updated task: ${JSON.stringify(updatedTask)}`);
+    }
 
     // Search tasks by status
     const inProgressTasks = await krapi.documents.getAll(projectId, "tasks", {
       filter: { status: "in_progress" },
     });
-    console.log("In progress tasks:", inProgressTasks);
+    if (logger) {
+      logger.info(`In progress tasks: ${JSON.stringify(inProgressTasks)}`);
+    }
 
     return { tasksCollection, tasks: [task1, task2] };
   } catch (error) {
-    console.error("Frontend example 2 failed:", error);
+    if (logger) {
+      logger.error("Frontend example 2 failed:", error);
+    }
     throw error;
   }
 }
 
 // Example 3: Advanced frontend operations
-export async function frontendExample3(projectId: string) {
+export async function frontendExample3(projectId: string, logger?: Logger) {
   // Connect to KRAPI for frontend use
   await krapi.connect({
     endpoint: "https://api.myapp.com/krapi/k1",
@@ -151,7 +169,9 @@ export async function frontendExample3(projectId: string) {
   try {
     // Get project statistics
     const stats = await krapi.projects.getStatistics(projectId);
-    console.log("Project statistics:", stats);
+    if (logger) {
+      logger.info(`Project statistics: ${JSON.stringify(stats)}`);
+    }
 
     // Create a users collection for team management
     const usersCollection = await krapi.collections.create(projectId, {
@@ -200,15 +220,21 @@ export async function frontendExample3(projectId: string) {
       }),
     ]);
 
-    console.log("Team members added:", members);
+    if (logger) {
+      logger.info(`Team members added: ${JSON.stringify(members)}`);
+    }
 
     // Get all collections in the project
     const allCollections = await krapi.collections.getAll(projectId);
-    console.log("All collections:", allCollections);
+    if (logger) {
+      logger.info(`All collections: ${JSON.stringify(allCollections)}`);
+    }
 
     return { usersCollection, members };
   } catch (error) {
-    console.error("Frontend example 3 failed:", error);
+    if (logger) {
+      logger.error("Frontend example 3 failed:", error);
+    }
     throw error;
   }
 }
@@ -221,25 +247,31 @@ export async function frontendExample3(projectId: string) {
  */
 
 // Example 4: Backend setup with database connection
-export async function backendExample1(databaseConnection: DatabaseConnection) {
+export async function backendExample1(databaseConnection: DatabaseConnection, logger?: Logger) {
   // Connect to KRAPI for backend use with database
   await krapi.connect({
     database: databaseConnection,
-    logger: console,
+    logger: logger || undefined,
   });
 
   try {
     // Perform database health check
     const health = await krapi.database.healthCheck();
-    console.log("Database health:", health);
+    if (logger) {
+      logger.info(`Database health: ${JSON.stringify(health)}`);
+    }
 
     // Auto-fix any database issues
     const autoFixResults = await krapi.database.autoFix();
-    console.log("Auto-fix results:", autoFixResults);
+    if (logger) {
+      logger.info(`Auto-fix results: ${JSON.stringify(autoFixResults)}`);
+    }
 
     // Validate schema
     const schemaValidation = await krapi.database.validateSchema();
-    console.log("Schema validation:", schemaValidation);
+    if (logger) {
+      logger.info(`Schema validation: ${JSON.stringify(schemaValidation)}`);
+    }
 
     // Create a project directly in database
     const project = await krapi.projects.create({
@@ -251,10 +283,14 @@ export async function backendExample1(databaseConnection: DatabaseConnection) {
       },
     });
 
-    console.log("Project created via database:", project);
+    if (logger) {
+      logger.info(`Project created via database: ${JSON.stringify(project)}`);
+    }
     return project.id;
   } catch (error) {
-    console.error("Backend example 1 failed:", error);
+    if (logger) {
+      logger.error("Backend example 1 failed:", error);
+    }
     throw error;
   }
 }
@@ -262,12 +298,13 @@ export async function backendExample1(databaseConnection: DatabaseConnection) {
 // Example 5: Complex backend operations
 export async function backendExample2(
   databaseConnection: DatabaseConnection,
-  projectId: string
+  projectId: string,
+  logger?: Logger
 ) {
   // Connect to KRAPI for backend use with database
   await krapi.connect({
     database: databaseConnection,
-    logger: console,
+    logger: logger || undefined,
   });
 
   try {
@@ -318,10 +355,12 @@ export async function backendExample2(
       ],
     });
 
-    console.log("Blog collections created:", {
-      blogsCollection,
-      commentsCollection,
-    });
+    if (logger) {
+      logger.info(`Blog collections created: ${JSON.stringify({
+        blogsCollection,
+        commentsCollection,
+      })}`);
+    }
 
     // Create sample blog posts
     const blogPosts = await Promise.all([
@@ -383,14 +422,18 @@ export async function backendExample2(
       "blog_posts"
     );
 
-    console.log("Blog system created:", {
-      posts: postsWithComments,
-      comments,
-    });
+    if (logger) {
+      logger.info(`Blog system created: ${JSON.stringify({
+        posts: postsWithComments,
+        comments,
+      })}`);
+    }
 
     return { blogPosts, comments };
   } catch (error) {
-    console.error("Backend example 2 failed:", error);
+    if (logger) {
+      logger.error("Backend example 2 failed:", error);
+    }
     throw error;
   }
 }
@@ -480,7 +523,7 @@ export class TaskManager {
 }
 
 // Example usage of TaskManager in frontend
-export async function useTaskManagerInFrontend() {
+export async function useTaskManagerInFrontend(logger?: Logger) {
   // Connect to KRAPI for frontend use
   await krapi.connect({
     endpoint: "https://api.myapp.com/krapi/k1",
@@ -504,18 +547,21 @@ export async function useTaskManagerInFrontend() {
     },
   ]);
 
-  console.log("Task list created via HTTP:", result);
+  if (logger) {
+    logger.info(`Task list created via HTTP: ${JSON.stringify(result)}`);
+  }
   return result;
 }
 
 // Example usage of TaskManager in backend
 export async function useTaskManagerInBackend(
-  databaseConnection: DatabaseConnection
+  databaseConnection: DatabaseConnection,
+  logger?: Logger
 ) {
   // Connect to KRAPI for backend use with database
   await krapi.connect({
     database: databaseConnection,
-    logger: console,
+    logger: logger || undefined,
   });
 
   const taskManager = new TaskManager(krapi);
@@ -539,6 +585,8 @@ export async function useTaskManagerInBackend(
     ]
   );
 
-  console.log("Task list created via database:", result);
+  if (logger) {
+    logger.info(`Task list created via database: ${JSON.stringify(result)}`);
+  }
   return result;
 }

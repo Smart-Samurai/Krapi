@@ -40,6 +40,7 @@
 import {
   ActivityLogger,
   ActivityLog as ActivityLoggerType,
+  ActivityQuery,
 } from "./activity-logger";
 import { AdminService } from "./admin-service";
 import { AuthService } from "./auth-service";
@@ -4908,16 +4909,18 @@ class KrapiWrapper implements KrapiSocketInterface {
           throw new Error("Activity logger not initialized");
         }
         // Convert string dates to Date objects for the activity logger
-        const queryWithDates = { ...options };
-        if (queryWithDates.start_date) {
-          (queryWithDates as any).start_date = new Date(
-            queryWithDates.start_date
-          );
-        }
-        if (queryWithDates.end_date) {
-          (queryWithDates as any).end_date = new Date(queryWithDates.end_date);
-        }
-        return await this.activityLogger.query(queryWithDates as any);
+        const queryWithDates: ActivityQuery = {
+          user_id: options.user_id,
+          project_id: options.project_id,
+          action: options.action,
+          resource_type: options.resource_type,
+          severity: options.severity,
+          limit: options.limit,
+          offset: options.offset,
+          start_date: options.start_date ? new Date(options.start_date) : undefined,
+          end_date: options.end_date ? new Date(options.end_date) : undefined,
+        };
+        return await this.activityLogger.query(queryWithDates);
       }
     },
     getStatistics: async (projectId?: string): Promise<unknown> => {
