@@ -423,8 +423,8 @@ export default function UsersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        </>
-      )}
+      }
+      />
 
       {error && (
         <Alert variant="destructive">

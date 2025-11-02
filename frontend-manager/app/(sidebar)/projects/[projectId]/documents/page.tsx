@@ -573,7 +573,8 @@ search_results = response.json()`}
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      }
+      />
 
       {/* Filters and Search */}
       <Card>

@@ -633,7 +633,8 @@ headers_with_key = {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      }
+      />
 
       {/* Filters and Search */}
       <Card>
@@ -943,9 +944,6 @@ headers_with_key = {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-        </div>
-        </>
-      )}
     </PageLayout>
   );
 }
