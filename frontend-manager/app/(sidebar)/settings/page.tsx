@@ -16,6 +16,11 @@ import { Form, FormField } from "@/components/forms";
 import { InfoBlock } from "@/components/styled/InfoBlock";
 import { Button } from "@/components/ui/button";
 import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+} from "@/components/common";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -279,16 +284,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-base font-bold text-text">System Settings</h1>
-          <p className="text-text/60 mt-1">
-            Manage your KRAPI instance configuration
-          </p>
-        </div>
-      </div>
+    <PageLayout className="max-w-6xl mx-auto">
+      <PageHeader
+        title="System Settings"
+        description="Manage your KRAPI instance configuration"
+      />
 
       {/* Tabs */}
       <div className="border-b border-border">
@@ -383,10 +383,14 @@ export default function SettingsPage() {
                 />
 
                 <div className="flex justify-end">
-                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
-                    <Save className="h-4 w-4 mr-2" />
+                  <ActionButton
+                    variant="default"
+                    icon={Save}
+                    type="submit"
+                    disabled={isSaving}
+                  >
                     {isSaving ? "Saving..." : "Save Changes"}
-                  </Button>
+                  </ActionButton>
                 </div>
               </div>
             </Form>
@@ -467,10 +471,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
-                    <Save className="h-4 w-4 mr-2" />
+                  <ActionButton
+                    variant="default"
+                    icon={Save}
+                    type="submit"
+                    disabled={isSaving}
+                  >
                     {isSaving ? "Saving..." : "Save Changes"}
-                  </Button>
+                  </ActionButton>
                 </div>
               </div>
             </Form>
@@ -637,10 +645,14 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
-                    <Save className="h-4 w-4 mr-2" />
+                  <ActionButton
+                    variant="default"
+                    icon={Save}
+                    type="submit"
+                    disabled={isSaving}
+                  >
                     {isSaving ? "Saving..." : "Save Changes"}
-                  </Button>
+                  </ActionButton>
                 </div>
               </div>
             </Form>
@@ -691,6 +703,6 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

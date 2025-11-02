@@ -54,6 +54,12 @@ import {
   updateUser,
   deleteUser,
 } from "@/store/usersSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.READ]: "Read Projects",
@@ -244,42 +250,32 @@ export default function UsersPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map(() => {
-            const skeletonId = `users-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Skeleton
-              key={skeletonId}
-              className="h-32 w-full"
-            />
-          );
-        })}
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={`users-skeleton-${i}`} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Users</h1>
-          <p className="text-muted-foreground">
-            Manage project users and their access permissions
-          </p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create User
-            </Button>
-          </DialogTrigger>
+    <PageLayout>
+      <PageHeader
+        title="Users"
+        description="Manage project users and their access permissions"
+        action={
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <ActionButton variant="add" icon={Plus}>
+                Create User
+              </ActionButton>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
@@ -409,25 +405,26 @@ export default function UsersPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button
+              <ActionButton
                 variant="outline"
                 onClick={() => setIsCreateDialogOpen(false)}
               >
                 Cancel
-              </Button>
-              <Button
-                className="btn-add"
+              </ActionButton>
+              <ActionButton
+                variant="add"
                 onClick={handleCreateUser}
                 disabled={
                   !formData.username || !formData.email || !formData.password
                 }
               >
                 Create User
-              </Button>
+              </ActionButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+        </>
+      )}
 
       {error && (
         <Alert variant="destructive">
@@ -436,19 +433,16 @@ export default function UsersPage() {
       )}
 
       {users.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-2">No Users Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first user to start managing project access
-            </p>
-            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create User
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="No Users Yet"
+          description="Create your first user to start managing project access"
+          action={{
+            label: "Create User",
+            onClick: () => setIsCreateDialogOpen(true),
+            icon: Plus,
+          }}
+        />
       ) : (
         <Card>
           <CardHeader>
@@ -700,22 +694,22 @@ export default function UsersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button
+            <ActionButton
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
             >
               Cancel
-            </Button>
-            <Button
-              className="btn-edit"
+            </ActionButton>
+            <ActionButton
+              variant="edit"
               onClick={handleUpdateUser}
               disabled={!formData.username || !formData.email}
             >
               Update User
-            </Button>
+            </ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

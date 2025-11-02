@@ -8,7 +8,13 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
-import { EmptyState, PageHeader, FormDialog } from "@/components/common";
+import {
+  EmptyState,
+  PageHeader,
+  FormDialog,
+  PageLayout,
+  ActionButton,
+} from "@/components/common";
 import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -183,13 +189,11 @@ export default function ProjectsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6 cursor-progress" aria-busy>
+      <PageLayout>
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map(() => {
-            const skeletonId = `projects-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Card key={skeletonId}>
+          {[...Array(3)].map((_, i) => (
+            <Card key={`projects-skeleton-${i}`}>
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />
@@ -198,17 +202,16 @@ export default function ProjectsPage() {
                 <Skeleton className="h-20" />
               </CardContent>
             </Card>
-          );
-        })}
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   const isBusy = globalBusy > 0;
 
   return (
-    <div className={`p-6 space-y-6 ${isBusy ? "cursor-progress" : ""}`}>
+    <PageLayout className={isBusy ? "cursor-progress" : ""}>
       <PageHeader
         title="Projects"
         description="Manage your KRAPI projects"
@@ -220,20 +223,19 @@ export default function ProjectsPage() {
             <ScopeGuard
               scopes={Scope.PROJECTS_WRITE}
               fallback={
-                <Button disabled>
-                  <Plus className="mr-2 h-4 w-4" />
+                <ActionButton variant="add" icon={Plus} disabled>
                   Create Project
-                </Button>
+                </ActionButton>
               }
             >
-              <Button
-                className="btn-add"
+              <ActionButton
+                variant="add"
+                icon={Plus}
                 onClick={() => setIsCreateDialogOpen(true)}
                 disabled={isBusy}
               >
-                <Plus className="mr-2 h-4 w-4" />
                 Create Project
-              </Button>
+              </ActionButton>
             </ScopeGuard>
           </>
         }
@@ -267,14 +269,16 @@ export default function ProjectsPage() {
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="hover:shadow-lg transition-shadow cursor-pointer"
+                className="krapi-card-hover"
                 onClick={() => router.push(`/projects/${project.id}`)}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div>
-                      <CardTitle>{project.name}</CardTitle>
-                      <CardDescription>
+                      <CardTitle className="text-base font-semibold">
+                        {project.name}
+                      </CardTitle>
+                      <CardDescription className="text-base">
                         {project.description || "No description"}
                       </CardDescription>
                     </div>
@@ -286,17 +290,17 @@ export default function ProjectsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button
+                  <ActionButton
                     variant="outline"
+                    icon={ArrowRight}
                     className="w-full"
                     onClick={(e) => {
                       e.stopPropagation();
                       router.push(`/projects/${project.id}`);
                     }}
                   >
-                    <ArrowRight className="mr-2 h-4 w-4" />
                     Enter Project
-                  </Button>
+                  </ActionButton>
                 </CardContent>
               </Card>
             ))}
@@ -396,6 +400,6 @@ export default function ProjectsPage() {
           />
         </Form>
       </FormDialog>
-    </div>
+    </PageLayout>
   );
 }

@@ -28,6 +28,11 @@ import { IconButton } from "@/components/styled/IconButton";
 import { InfoBlock } from "@/components/styled/InfoBlock";
 import { Button } from "@/components/ui/button";
 import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+} from "@/components/common";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -336,31 +341,26 @@ export default function ServerAdministrationPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-base font-bold text-text">
-            Server Administration
-          </h1>
-          <p className="text-text/60 mt-1">
-            Manage administrative users and their access rights
-          </p>
-        </div>
-        <Button
-          className="btn-add"
-          onClick={() => setIsCreateDialogOpen(true)}
-          disabled={!hasScope(Scope.ADMIN_WRITE)}
-          title={
-            !hasScope(Scope.ADMIN_WRITE)
-              ? "You don't have permission to create admin users"
-              : undefined
-          }
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Admin User
-        </Button>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title="Server Administration"
+        description="Manage administrative users and their access rights"
+        action={
+          <ActionButton
+            variant="add"
+            icon={Plus}
+            onClick={() => setIsCreateDialogOpen(true)}
+            disabled={!hasScope(Scope.ADMIN_WRITE)}
+            title={
+              !hasScope(Scope.ADMIN_WRITE)
+                ? "You don't have permission to create admin users"
+                : undefined
+            }
+          >
+            Add Admin User
+          </ActionButton>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -803,19 +803,18 @@ export default function ServerAdministrationPage() {
               </div>
 
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
+                <ActionButton
+                  variant="outline"
                   onClick={() => {
                     setIsEditDialogOpen(false);
                     setSelectedUser(null);
                   }}
                 >
                   Cancel
-                </Button>
-                <Button type="submit" className="btn-edit">
+                </ActionButton>
+                <ActionButton variant="edit" type="submit">
                   Update Admin User
-                </Button>
+                </ActionButton>
               </DialogFooter>
             </Form>
           )}
@@ -896,6 +895,6 @@ export default function ServerAdministrationPage() {
           toast.success("Admin user updated successfully");
         }}
       />
-    </div>
+    </PageLayout>
   );
 }

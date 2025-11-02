@@ -13,9 +13,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,6 +27,11 @@ import type { Project } from "@/lib/krapi";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+} from "@/components/common";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -73,7 +76,7 @@ export default function ProjectDetailPage() {
 
   if (isLoading && !project) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <div className="space-y-2">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-96" />
@@ -82,33 +85,33 @@ export default function ProjectDetailPage() {
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (!project) {
     return (
-      <Alert>
-        <AlertDescription>Project not found</AlertDescription>
-      </Alert>
+      <PageLayout>
+        <Alert>
+          <AlertDescription>Project not found</AlertDescription>
+        </Alert>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">{project.name}</h1>
-          <p className="text-muted-foreground">
-            Project overview and quick actions
-          </p>
-        </div>
-        <Button asChild>
-          <Link href={`/projects/${projectId}/settings`}>
-            <Edit className="mr-2 h-4 w-4" /> Edit Settings
-          </Link>
-        </Button>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title={project.name}
+        description="Project overview and quick actions"
+        action={
+          <ActionButton variant="edit" icon={Edit} asChild>
+            <Link href={`/projects/${projectId}/settings`}>
+              Edit Settings
+            </Link>
+          </ActionButton>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -121,55 +124,50 @@ export default function ProjectDetailPage() {
             <p className="text-base text-muted-foreground">Total collections</p>
           </CardContent>
         </Card>
-        {/* Other stat cards unchanged or can be wired similarly when backend supports */}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Quick Links</CardTitle>
-            <CardDescription>Manage project resources</CardDescription>
+            <CardTitle className="text-base font-semibold">Quick Links</CardTitle>
+            <CardDescription className="text-base">
+              Manage project resources
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <Button variant="outline" asChild>
+            <ActionButton variant="outline" icon={Database} asChild>
               <Link href={`/projects/${projectId}/collections`}>
-                <Database className="mr-2 h-4 w-4" /> Collections{" "}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Collections <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
-            <Button variant="outline" asChild>
+            </ActionButton>
+            <ActionButton variant="outline" icon={FileText} asChild>
               <Link href={`/projects/${projectId}/documents`}>
-                <FileText className="mr-2 h-4 w-4" /> Documents{" "}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Documents <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
-            <Button variant="outline" asChild>
+            </ActionButton>
+            <ActionButton variant="outline" icon={Users} asChild>
               <Link href={`/projects/${projectId}/users`}>
-                <Users className="mr-2 h-4 w-4" /> Users{" "}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Users <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
-            <Button variant="outline" asChild>
+            </ActionButton>
+            <ActionButton variant="outline" icon={FileText} asChild>
               <Link href={`/projects/${projectId}/files`}>
-                <FileText className="mr-2 h-4 w-4" /> Files{" "}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Files <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
-            <Button variant="outline" asChild>
+            </ActionButton>
+            <ActionButton variant="outline" icon={Mail} asChild>
               <Link href={`/projects/${projectId}/email`}>
-                <Mail className="mr-2 h-4 w-4" /> Email{" "}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Email <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
-            <Button variant="outline" asChild>
+            </ActionButton>
+            <ActionButton variant="outline" icon={Activity} asChild>
               <Link href={`/projects/${projectId}/mcp`}>
-                <Activity className="mr-2 h-4 w-4" /> MCP{" "}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                MCP <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-            </Button>
+            </ActionButton>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }

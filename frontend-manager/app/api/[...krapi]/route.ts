@@ -137,8 +137,7 @@ async function proxyRequest(
         "Content-Type": "application/json",
       },
     });
-  } catch {
-    // 
+  } catch (error: unknown) {
 
     return NextResponse.json(
       {

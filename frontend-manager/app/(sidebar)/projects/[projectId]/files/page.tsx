@@ -15,13 +15,18 @@ import {
   HardDrive,
   MoreHorizontal,
   Eye,
+  Edit,
   Link,
   Copy,
   Code2,
   BookOpen,
+  Folder,
+  FolderPlus,
+  FolderOpen,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -70,9 +75,16 @@ import {
   fetchFiles,
   fetchStorageStats,
   uploadFile,
+  updateFile,
   deleteFile,
 } from "@/store/storageSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;
@@ -137,8 +149,24 @@ export default function FilesPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    original_name: "",
+    metadata: {} as Record<string, unknown>,
+  });
+  const [folders, setFolders] = useState<
+    Array<{ id: string; name: string; path: string; parent_id?: string }>
+  >([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [folderFormData, setFolderFormData] = useState({
+    name: "",
+    parent_id: "",
+    description: "",
+  });
 
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,10 +182,23 @@ export default function FilesPage() {
     dispatch(fetchStorageStats({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
+  const loadFolders = useCallback(async () => {
+    if (!krapi?.storage) return;
+    try {
+      const result = await krapi.storage.getAllFolders(projectId);
+      if (result.success && result.data) {
+        setFolders(result.data as Array<{ id: string; name: string; path: string; parent_id?: string }>);
+      }
+    } catch {
+      // Error logged for debugging
+    }
+  }, [krapi, projectId]);
+
   useEffect(() => {
     loadFilesCb();
     loadStorageStatsCb();
-  }, [loadFilesCb, loadStorageStatsCb]);
+    loadFolders();
+  }, [loadFilesCb, loadStorageStatsCb, loadFolders]);
 
   const handleUpload = async (file: File) => {
     try {
@@ -247,14 +288,106 @@ export default function FilesPage() {
     setIsDetailsDialogOpen(true);
   };
 
+  const openEditFile = (file: FileInfo) => {
+    setEditingFile(file);
+    setSelectedFolderId(file.folder_id || null);
+    setEditFormData({
+      original_name: file.original_name,
+      metadata: (file.metadata as Record<string, unknown>) || {},
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateFile = async () => {
+    if (!editingFile) return;
+
+    try {
+      dispatch(beginBusy());
+      const action = await dispatch(
+        updateFile({
+          projectId,
+          fileId: editingFile.id,
+          updates: {
+            original_name: editFormData.original_name,
+            metadata: editFormData.metadata,
+            folder_id: selectedFolderId || undefined,
+          },
+          krapi,
+        })
+      );
+      if (updateFile.fulfilled.match(action)) {
+        setIsEditDialogOpen(false);
+        setEditingFile(null);
+        loadFilesCb();
+        toast.success("File updated successfully");
+      } else {
+        const msg =
+          (action as { payload?: string }).payload || "Failed to update file";
+        setError(String(msg));
+      }
+    } catch {
+      setError("An error occurred while updating file");
+    } finally {
+      dispatch(endBusy());
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!folderFormData.name || !krapi?.storage) return;
+
+    try {
+      dispatch(beginBusy());
+      const result = await krapi.storage.createFolder(projectId, {
+        name: folderFormData.name,
+        parent_id: folderFormData.parent_id || undefined,
+        description: folderFormData.description || undefined,
+      });
+      if (result.success) {
+        setIsFolderDialogOpen(false);
+        setFolderFormData({ name: "", parent_id: "", description: "" });
+        loadFolders();
+        toast.success("Folder created successfully");
+      } else {
+        setError(result.error || "Failed to create folder");
+      }
+    } catch {
+      setError("An error occurred while creating folder");
+    } finally {
+      dispatch(endBusy());
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!krapi?.storage) return;
+    if (!confirm("Are you sure you want to delete this folder? Files in this folder will not be deleted.")) {
+      return;
+    }
+
+    try {
+      dispatch(beginBusy());
+      const result = await krapi.storage.deleteFolder(projectId, folderId);
+      if (result.success) {
+        loadFolders();
+        toast.success("Folder deleted successfully");
+      } else {
+        setError(result.error || "Failed to delete folder");
+      }
+    } catch {
+      setError("An error occurred while deleting folder");
+    } finally {
+      dispatch(endBusy());
+    }
+  };
+
   const filteredFiles = files.filter((file) => {
     const matchesSearch =
       file.original_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       file.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFolder = !selectedFolderId || file.folder_id === selectedFolderId;
     const matchesType =
       fileTypeFilter === "all" ||
       getFileTypeCategory(file.mime_type) === fileTypeFilter;
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && matchesFolder;
   });
 
   const sortedFiles = [...filteredFiles].sort((a, b) => {
@@ -295,65 +428,141 @@ export default function FilesPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map(() => {
-            const skeletonId = `files-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Skeleton
-              key={skeletonId}
-              className="h-32 w-full"
-            />
-          );
-        })}
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={`files-skeleton-${i}`} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Files</h1>
-          <p className="text-muted-foreground">
-            Manage your project&apos;s file storage
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={(e) => {
-              const files = e.target.files;
-              if (files && files.length > 0) {
-                for (let i = 0; i < files.length; i++) {
-                  handleUpload(files[i]);
+    <PageLayout>
+      <PageHeader
+        title="Files"
+        description="Manage your project's file storage"
+        action={
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files;
+                if (files && files.length > 0) {
+                  for (let i = 0; i < files.length; i++) {
+                    handleUpload(files[i]);
+                  }
                 }
-              }
-            }}
-            className="hidden"
-            accept="*/*"
-          />
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {isUploading ? "Uploading..." : "Upload Files"}
-          </Button>
-          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
-                API Docs
-              </Button>
-            </DialogTrigger>
+              }}
+              className="hidden"
+              accept="*/*"
+            />
+            <ActionButton
+              variant="add"
+              icon={Upload}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? "Uploading..." : "Upload Files"}
+            </ActionButton>
+            <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="outline" icon={FolderPlus}>
+                  New Folder
+                </ActionButton>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Folder</DialogTitle>
+                  <DialogDescription>
+                    Organize your files into folders
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="folder-name">Folder Name *</Label>
+                    <Input
+                      id="folder-name"
+                      value={folderFormData.name}
+                      onChange={(e) =>
+                        setFolderFormData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter folder name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="folder-parent">Parent Folder (Optional)</Label>
+                    <Select
+                      value={folderFormData.parent_id}
+                      onValueChange={(value) =>
+                        setFolderFormData((prev) => ({
+                          ...prev,
+                          parent_id: value,
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select parent folder" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None (Root)</SelectItem>
+                        {folders.map((folder) => (
+                          <SelectItem key={folder.id} value={folder.id}>
+                            {folder.path}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="folder-description">Description (Optional)</Label>
+                    <Textarea
+                      id="folder-description"
+                      value={folderFormData.description}
+                      onChange={(e) =>
+                        setFolderFormData((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Folder description"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <ActionButton
+                    variant="outline"
+                    onClick={() => setIsFolderDialogOpen(false)}
+                  >
+                    Cancel
+                  </ActionButton>
+                  <ActionButton
+                    variant="add"
+                    onClick={handleCreateFolder}
+                    disabled={!folderFormData.name}
+                  >
+                    Create Folder
+                  </ActionButton>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="outline" icon={BookOpen}>
+                  API Docs
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -508,7 +717,8 @@ stats = response.json()`}
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+        </>
+      )}
 
       {/* Storage Stats */}
       {storageStats && (
@@ -566,7 +776,7 @@ stats = response.json()`}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="search">Search Files</Label>
               <div className="relative">
@@ -594,6 +804,30 @@ stats = response.json()`}
                   <SelectItem value="Documents">Documents</SelectItem>
                   <SelectItem value="Archives">Archives</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="folder">Folder</Label>
+              <Select
+                value={selectedFolderId || "all"}
+                onValueChange={(value) =>
+                  setSelectedFolderId(value === "all" ? null : value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Folders</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      <div className="flex items-center gap-2">
+                        <Folder className="h-4 w-4" />
+                        {folder.path}
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -633,19 +867,16 @@ stats = response.json()`}
       )}
 
       {sortedFiles.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-2">No Files Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Upload your first file to get started
-            </p>
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Files
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="No Files Yet"
+          description="Upload your first file to get started"
+          action={{
+            label: "Upload Files",
+            onClick: () => fileInputRef.current?.click(),
+            icon: Upload,
+          }}
+        />
       ) : (
         <Card>
           <CardHeader>
@@ -715,6 +946,12 @@ stats = response.json()`}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openEditFile(file)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Metadata
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDownload(file)}
@@ -853,6 +1090,140 @@ stats = response.json()`}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Edit File Metadata Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit File Metadata</DialogTitle>
+            <DialogDescription>
+              Update file name and custom metadata
+            </DialogDescription>
+          </DialogHeader>
+          {editingFile && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-original-name">File Name</Label>
+                <Input
+                  id="edit-original-name"
+                  value={editFormData.original_name}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      original_name: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter file name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-folder">Folder</Label>
+                <Select
+                  value={selectedFolderId || ""}
+                  onValueChange={(value) =>
+                    setSelectedFolderId(value || null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select folder" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None (Root)</SelectItem>
+                    {folders.map((folder) => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        {folder.path}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Metadata (JSON)</Label>
+                <Textarea
+                  value={JSON.stringify(editFormData.metadata, null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      setEditFormData((prev) => ({
+                        ...prev,
+                        metadata: parsed,
+                      }));
+                    } catch {
+                      // Invalid JSON - ignore
+                    }
+                  }}
+                  placeholder='{"key": "value"}'
+                  className="font-mono text-base"
+                  rows={6}
+                />
+                <p className="text-base text-muted-foreground mt-1">
+                  Enter metadata as JSON object
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <ActionButton
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingFile(null);
+              }}
+            >
+              Cancel
+            </ActionButton>
+            <ActionButton
+              variant="edit"
+              onClick={handleUpdateFile}
+              disabled={!editFormData.original_name}
+            >
+              Update File
+            </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder Management Section */}
+      {folders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              Folders ({folders.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {folders.map((folder) => (
+                <div
+                  key={folder.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Folder className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{folder.name}</p>
+                      <p className="text-base text-muted-foreground text-sm">
+                        {folder.path}
+                      </p>
+                    </div>
+                  </div>
+                  <ActionButton
+                    variant="delete"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => handleDeleteFolder(folder.id)}
+                  >
+                    Delete
+                  </ActionButton>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </PageLayout>
   );
 }

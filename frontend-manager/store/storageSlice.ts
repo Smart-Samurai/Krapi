@@ -118,6 +118,44 @@ export const uploadFile = createAsyncThunk(
   }
 );
 
+export const updateFile = createAsyncThunk(
+  "storage/updateFile",
+  async (
+    {
+      projectId,
+      fileId,
+      updates,
+      krapi,
+    }: {
+      projectId: string;
+      fileId: string;
+      updates: {
+        original_name?: string;
+        metadata?: Record<string, unknown>;
+        folder_id?: string | null;
+      };
+      krapi: any;
+    },
+    {
+      getState,
+      rejectWithValue,
+    }: { getState: unknown; rejectWithValue: (value: string) => unknown }
+  ) => {
+    try {
+      const response = await krapi.storage.updateFile(projectId, fileId, updates);
+      if (response.success && response.data) {
+        return { projectId, file: response.data };
+      } else {
+        return rejectWithValue(response.error || "Failed to update file");
+      }
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update file"
+      );
+    }
+  }
+);
+
 export const deleteFile = createAsyncThunk(
   "storage/deleteFile",
   async (
@@ -181,6 +219,15 @@ const storageSlice = createSlice({
       .addCase(uploadFile.fulfilled, (state: StorageState, action: any) => {
         const { projectId, file } = action.payload;
         state.filesByProjectId[projectId]?.items.unshift(file);
+      })
+      .addCase(updateFile.fulfilled, (state: StorageState, action: any) => {
+        const { projectId, file } = action.payload;
+        const bucket = state.filesByProjectId[projectId];
+        if (!bucket) return;
+        const index = bucket.items.findIndex((f) => f.id === file.id);
+        if (index >= 0) {
+          bucket.items[index] = file;
+        }
       })
       .addCase(deleteFile.fulfilled, (state: StorageState, action: any) => {
         const { projectId, fileId } = action.payload;

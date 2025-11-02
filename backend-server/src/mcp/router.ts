@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 
-import { LlmService, LlmConfig, ChatMessage, LlmProvider } from './llm.service';
+import { LlmService, LlmConfig, ChatMessage } from './llm.service';
 import { McpToolsService, ToolContext } from './tools.service';
 
 import { authenticate, requireScopes } from '@/middleware/auth.middleware';
@@ -28,7 +28,7 @@ function getLlmConfig(req: Request): LlmConfig {
     throw new Error('provider, endpoint and model are required');
   }
   return { 
-    provider: provider as LlmProvider, 
+    provider: provider as 'openai' | 'lmstudio' | 'ollama', 
     endpoint, 
     apiKey, 
     model 

@@ -60,12 +60,18 @@ router.get("/health", async (req, res) => {
 
     const health = await backendSDK.performHealthCheck();
 
+    // Get database queue metrics
+    const { DatabaseService } = await import("../services/database.service");
+    const dbService = DatabaseService.getInstance();
+    const queueMetrics = dbService.getQueueMetrics();
+
     res.json({
       success: true,
       message: "KRAPI Backend is running",
       version: "2.0.0",
       timestamp: new Date().toISOString(),
       database: health,
+      queue: queueMetrics,
     });
   } catch (error) {
     res.status(503).json({
@@ -270,6 +276,11 @@ router.get("/performance/metrics", async (req, res) => {
       });
     }
 
+    // Get database queue metrics
+    const { DatabaseService } = await import("../services/database.service");
+    const dbService = DatabaseService.getInstance();
+    const queueMetrics = dbService.getQueueMetrics();
+
     // Get performance metrics
     res.json({
       success: true,
@@ -279,6 +290,7 @@ router.get("/performance/metrics", async (req, res) => {
         total_requests: 0,
         uptime: process.uptime(),
       },
+      queue: queueMetrics,
     });
   } catch (error) {
     res.status(500).json({
@@ -298,17 +310,46 @@ router.get("/sdk/status", async (req, res) => {
       });
     }
 
+    // Get database queue metrics
+    const { DatabaseService } = await import("../services/database.service");
+    const dbService = DatabaseService.getInstance();
+    const queueMetrics = dbService.getQueueMetrics();
+
     // Get SDK status
     res.json({
       success: true,
       status: "connected",
       mode: "server",
       version: "2.0.0",
+      queue: queueMetrics,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get SDK status",
+    });
+  }
+});
+
+/**
+ * Database queue metrics endpoint
+ * GET /krapi/k1/queue/metrics
+ */
+router.get("/queue/metrics", async (req, res) => {
+  try {
+    const { DatabaseService } = await import("../services/database.service");
+    const dbService = DatabaseService.getInstance();
+    const queueMetrics = dbService.getQueueMetrics();
+
+    res.json({
+      success: true,
+      metrics: queueMetrics,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get queue metrics",
     });
   }
 });

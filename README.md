@@ -2,7 +2,7 @@
 
 **KRAPI** is a comprehensive, self-hosted backend solution that provides database, file storage, user management, and API capabilities for your applications. Perfect for developers who want to focus on their frontend and app logic while using KRAPI as their backend infrastructure.
 
-## 📦 Client SDK
+## ?? Client SDK
 
 KRAPI provides an easy-to-import client SDK, similar to Appwrite:
 
@@ -22,7 +22,7 @@ const documents = await krapi.collections.documents.list('project-id', 'collecti
 
 See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complete SDK documentation.
 
-## 🚀 Features
+## ?? Features
 
 - **Multi-Database Architecture**: One main controller database plus separate SQLite database files for each project
 - **Encrypted Backups**: Built-in AES-256-GCM encrypted backup and restore functionality per project
@@ -36,7 +36,7 @@ See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complet
 - **Web UI**: Beautiful Next.js-based management interface
 - **Type-Safe SDK**: TypeScript SDK for seamless integration
 
-## 📋 Prerequisites
+## ?? Prerequisites
 
 Before installing KRAPI, ensure you have the following installed on your system:
 
@@ -55,7 +55,7 @@ Before installing KRAPI, ensure you have the following installed on your system:
 - **Linux/macOS**: Bash shell (comes pre-installed)
 - **Windows**: PowerShell 5.1+ or Windows Terminal
 
-## 🔧 Installation
+## ?? Installation
 
 ### Quick Start (Linux/macOS)
 
@@ -134,7 +134,7 @@ npm run init-env
    npm run start:all
    ```
 
-## 🏗️ Architecture
+## ??? Architecture
 
 ### Multi-Database Architecture
 
@@ -161,18 +161,18 @@ KRAPI uses a revolutionary multi-database architecture:
 
 ### Benefits
 
-✅ **Independent Backups**: Each project can be backed up and restored independently  
-✅ **Version Control**: Project database files can be versioned separately  
-✅ **Isolation**: Project data is completely isolated  
-✅ **Scalability**: Each project database can be moved to separate servers if needed  
-✅ **Security**: Data breaches affect only individual projects, not the entire system
+? **Independent Backups**: Each project can be backed up and restored independently  
+? **Version Control**: Project database files can be versioned separately  
+? **Isolation**: Project data is completely isolated  
+? **Scalability**: Each project database can be moved to separate servers if needed  
+? **Security**: Data breaches affect only individual projects, not the entire system
 
 ### Plug and Socket Design
 
 KRAPI implements a "plug and socket" architecture where:
 
-- **Frontend (Plug) 🔌**: Uses the KRAPI SDK to connect to the backend
-- **Backend (Socket) ⚡**: Receives requests and routes them through the SDK
+- **Frontend (Plug) ??**: Uses the KRAPI SDK to connect to the backend
+- **Backend (Socket) ?**: Receives requests and routes them through the SDK
 - **SDK (Interface)**: Provides identical methods for both client and server environments
 
 All SDK methods work identically whether called from:
@@ -180,7 +180,7 @@ All SDK methods work identically whether called from:
 - Backend (via direct database connection)
 - External applications (via API)
 
-## 📖 Usage
+## ?? Usage
 
 ### Starting the Application
 
@@ -227,9 +227,9 @@ On first run, a default admin account is created:
 - **Password**: `admin` (change immediately!)
 - **Email**: `admin@yourdomain.com`
 
-**⚠️ IMPORTANT**: Change the default admin password immediately after first login!
+**?? IMPORTANT**: Change the default admin password immediately after first login!
 
-## 🔐 Security
+## ?? Security
 
 ### Authentication
 
@@ -251,42 +251,42 @@ On first run, a default admin account is created:
 4. **Regular Backups**: Use built-in encrypted backup system
 5. **API Key Rotation**: Regularly rotate API keys
 
-## 📁 Project Structure
+## ?? Project Structure
 
 ```
 krapi/
-├── backend-server/          # Backend Express.js server
-│   ├── src/
-│   │   ├── routes/          # API route handlers
-│   │   ├── controllers/     # Request controllers
-│   │   ├── services/        # Business logic services
-│   │   ├── middleware/      # Express middleware
-│   │   └── types/           # TypeScript type definitions
-│   └── data/                # Database files (SQLite)
-├── frontend-manager/        # Next.js frontend UI
-│   ├── app/                 # Next.js app router pages
-│   ├── components/          # React components
-│   └── lib/                 # Frontend utilities
-├── packages/
-│   └── krapi-sdk/           # Core SDK (shared by frontend/backend)
-│       ├── src/
-│       │   ├── services/    # SDK services
-│       │   └── types/       # Shared types
-│       └── dist/            # Compiled SDK
-├── scripts/                 # Utility scripts
-│   └── init-env.js          # Environment initialization
-├── data/                    # Application data directory
-│   ├── krapi_main.db        # Main database
-│   ├── projects/            # Project databases
-│   ├── uploads/             # File uploads
-│   └── backups/             # Encrypted backups
-├── krapi-manager.sh         # Linux/macOS management script
-├── krapi-manager.ps1        # Windows management script
-├── env.example              # Environment configuration template
-└── README.md                # This file
+??? backend-server/          # Backend Express.js server
+?   ??? src/
+?   ?   ??? routes/          # API route handlers
+?   ?   ??? controllers/     # Request controllers
+?   ?   ??? services/        # Business logic services
+?   ?   ??? middleware/      # Express middleware
+?   ?   ??? types/           # TypeScript type definitions
+?   ??? data/                # Database files (SQLite)
+??? frontend-manager/        # Next.js frontend UI
+?   ??? app/                 # Next.js app router pages
+?   ??? components/          # React components
+?   ??? lib/                 # Frontend utilities
+??? packages/
+?   ??? krapi-sdk/           # Core SDK (shared by frontend/backend)
+?       ??? src/
+?       ?   ??? services/    # SDK services
+?       ?   ??? types/       # Shared types
+?       ??? dist/            # Compiled SDK
+??? scripts/                 # Utility scripts
+?   ??? init-env.js          # Environment initialization
+??? data/                    # Application data directory
+?   ??? krapi_main.db        # Main database
+?   ??? projects/            # Project databases
+?   ??? uploads/             # File uploads
+?   ??? backups/             # Encrypted backups
+??? krapi-manager.sh         # Linux/macOS management script
+??? krapi-manager.ps1        # Windows management script
+??? env.example              # Environment configuration template
+??? README.md                # This file
 ```
 
-## 🛠️ Development
+## ??? Development
 
 ### Building
 
@@ -327,7 +327,7 @@ npm run type-check:all
 npm run health
 ```
 
-## 🔄 Backups
+## ?? Backups
 
 ### Creating Backups
 
@@ -372,11 +372,11 @@ POST /krapi/k1/projects/{projectId}/restore
 - **Versioning**: Automatic version tracking
 - **Metadata**: Backup descriptions and timestamps
 
-## 📚 API Documentation
+## ?? API Documentation
 
 For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
-## 🤝 Contributing
+## ?? Contributing
 
 Contributions are welcome! Please follow these guidelines:
 
@@ -386,11 +386,11 @@ Contributions are welcome! Please follow these guidelines:
 4. Run tests and linting
 5. Submit a pull request
 
-## 📝 License
+## ?? License
 
 [Add your license here]
 
-## 🆘 Support
+## ?? Support
 
 For issues, questions, or feature requests:
 
@@ -398,7 +398,7 @@ For issues, questions, or feature requests:
 - Check existing documentation
 - Review API documentation
 
-## 🎯 Roadmap
+## ?? Roadmap
 
 - [ ] GraphQL API support
 - [ ] WebSocket real-time updates
@@ -409,4 +409,4 @@ For issues, questions, or feature requests:
 
 ---
 
-**Built with ❤️ for developers who want control over their backend infrastructure.**
+**Built with ?? for developers who want control over their backend infrastructure.**

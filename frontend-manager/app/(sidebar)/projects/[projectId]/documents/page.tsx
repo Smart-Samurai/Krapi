@@ -72,6 +72,12 @@ import {
 } from "@/store/documentsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 export default function DocumentsPage() {
   const params = useParams();
@@ -280,45 +286,42 @@ export default function DocumentsPage() {
 
   if (isLoading && collections.length === 0) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map(() => {
-            const skeletonId = `documents-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Skeleton key={skeletonId} className="h-32 w-full" />
-          );
-        })}
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={`documents-skeleton-${i}`} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   const currentCollection = getCurrentCollection();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Documents</h1>
-          <p className="text-muted-foreground">
-            Manage documents in your collections
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button disabled={!selectedCollection}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Document
-              </Button>
-            </DialogTrigger>
+    <PageLayout>
+      <PageHeader
+        title="Documents"
+        description="Manage documents in your collections"
+        action={
+          <div className="flex items-center gap-2">
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <ActionButton
+                  variant="add"
+                  icon={Plus}
+                  disabled={!selectedCollection}
+                >
+                  Create Document
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Document</DialogTitle>
@@ -354,23 +357,27 @@ export default function DocumentsPage() {
                 ))}
               </div>
               <DialogFooter>
-                <Button
+                <ActionButton
                   variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
                 >
                   Cancel
-                </Button>
-                <Button className="btn-add" onClick={handleCreateDocument}>Create Document</Button>
+                </ActionButton>
+                <ActionButton
+                  variant="add"
+                  onClick={handleCreateDocument}
+                >
+                  Create Document
+                </ActionButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
-                API Docs
-              </Button>
-            </DialogTrigger>
+            <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="outline" icon={BookOpen}>
+                  API Docs
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -808,16 +815,21 @@ search_results = response.json()`}
             ))}
           </div>
           <DialogFooter>
-            <Button
+            <ActionButton
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
             >
               Cancel
-            </Button>
-            <Button className="btn-edit" onClick={handleUpdateDocument}>Update Document</Button>
+            </ActionButton>
+            <ActionButton
+              variant="edit"
+              onClick={handleUpdateDocument}
+            >
+              Update Document
+            </ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }
