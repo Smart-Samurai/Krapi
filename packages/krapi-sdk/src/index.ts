@@ -114,13 +114,12 @@ export type {
   AdminUser,
   ApiKey,
   SystemStats,
-  ActivityLog,
   DatabaseHealth,
   DiagnosticResult,
 } from "./admin-service";
 
 export type {
-  ActivityLog as ActivityLogType,
+  ActivityLog,
   ActivityQuery,
 } from "./activity-logger";
 

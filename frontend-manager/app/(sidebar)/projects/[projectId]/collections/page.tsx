@@ -133,6 +133,9 @@ const fieldTypeLabels: Record<FieldType, string> = {
 
 export default function CollectionsPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const router = useRouter();
   const projectId = params.projectId as string;
   const krapi = useKrapi();
@@ -664,21 +667,21 @@ response = requests.delete(
                     <div>
                       <h4 className="font-medium mb-2">Basic Types:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• string - Text data</li>
-                        <li>• text - Long text data</li>
-                        <li>• number - Numeric values</li>
-                        <li>• boolean - True/false values</li>
-                        <li>• date - Date and time</li>
+                        <li>? string - Text data</li>
+                        <li>? text - Long text data</li>
+                        <li>? number - Numeric values</li>
+                        <li>? boolean - True/false values</li>
+                        <li>? date - Date and time</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Advanced Types:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• array - Array of values</li>
-                        <li>• object - JSON objects</li>
-                        <li>• uniqueID - Unique identifiers</li>
-                        <li>• relation - References to other collections</li>
-                        <li>• json - Flexible JSON data</li>
+                        <li>? array - Array of values</li>
+                        <li>? object - JSON objects</li>
+                        <li>? uniqueID - Unique identifiers</li>
+                        <li>? relation - References to other collections</li>
+                        <li>? json - Flexible JSON data</li>
                       </ul>
                     </div>
                   </div>

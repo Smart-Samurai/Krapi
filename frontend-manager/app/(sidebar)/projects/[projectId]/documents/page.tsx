@@ -75,6 +75,9 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 
 export default function DocumentsPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
@@ -528,30 +531,30 @@ search_results = response.json()`}
                     <div>
                       <h4 className="font-medium mb-2">Pagination:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• page - Page number (default: 1)</li>
-                        <li>• limit - Items per page (default: 50)</li>
+                        <li>? page - Page number (default: 1)</li>
+                        <li>? limit - Items per page (default: 50)</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Sorting:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• orderBy - Field to sort by</li>
-                        <li>• order - &apos;asc&apos; or &apos;desc&apos;</li>
+                        <li>? orderBy - Field to sort by</li>
+                        <li>? order - &apos;asc&apos; or &apos;desc&apos;</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Filtering:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• field - Field name</li>
-                        <li>• operator - eq, ne, gt, lt, etc.</li>
-                        <li>• value - Filter value</li>
+                        <li>? field - Field name</li>
+                        <li>? operator - eq, ne, gt, lt, etc.</li>
+                        <li>? value - Filter value</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Search:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• search - Text search term</li>
-                        <li>• fields - Specific fields to search</li>
+                        <li>? search - Text search term</li>
+                        <li>? fields - Specific fields to search</li>
                       </ul>
                     </div>
                   </div>

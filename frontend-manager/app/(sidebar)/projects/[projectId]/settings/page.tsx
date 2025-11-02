@@ -46,6 +46,9 @@ type ProjectSettingsFormData = z.infer<typeof projectSettingsSchema>;
 
 export default function ProjectSettingsPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const dispatch = useAppDispatch();

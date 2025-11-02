@@ -32,7 +32,9 @@ import { fetchProjectById } from "@/store/projectsSlice";
 
 export default function ProjectDetailPage() {
   const params = useParams();
-
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const dispatch = useAppDispatch();

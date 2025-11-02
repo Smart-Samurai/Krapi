@@ -32,7 +32,7 @@ export function AppSidebar() {
   const { logout } = useReduxAuth();
 
   // Check if we're in a project context
-  const isProjectContext = pathname.startsWith("/projects/");
+  const isProjectContext = pathname?.startsWith("/projects/") ?? false;
 
   // If we're in a project context, show project-specific navigation
   if (isProjectContext) {
@@ -131,7 +131,7 @@ function ProjectSidebar() {
   const { logout } = useReduxAuth();
 
   // Extract project ID from pathname
-  const projectId = pathname.split("/")[2]; // /projects/[projectId]/...
+  const projectId = pathname?.split("/")[2] || ""; // /projects/[projectId]/...
 
   const projectNavItems = [
     {

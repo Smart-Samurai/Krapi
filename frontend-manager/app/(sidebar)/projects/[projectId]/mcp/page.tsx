@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 
 export default function ProjectMcpPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const [provider, setProvider] = useState("openai");
   const [endpoint, setEndpoint] = useState("");

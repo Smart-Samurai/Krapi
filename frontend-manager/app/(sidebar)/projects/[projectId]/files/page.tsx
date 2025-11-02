@@ -114,6 +114,9 @@ const getFileTypeCategory = (mimeType: string) => {
 
 export default function FilesPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const fileInputRef = useRef<HTMLInputElement>(null);

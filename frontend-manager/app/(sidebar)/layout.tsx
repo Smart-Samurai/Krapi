@@ -34,7 +34,7 @@ export default function SidebarGroupLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const pageTitle = getPageTitle(pathname);
+  const pageTitle = getPageTitle(pathname || "");
 
   return (
     <SidebarProvider>
