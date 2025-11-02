@@ -73,9 +73,26 @@ function Test-Prerequisites {
     Write-Success "Prerequisites check completed"
 }
 
+# Function to initialize environment
+function Initialize-Environment {
+    Write-Status "Initializing environment configuration..."
+    
+    # Create .env from env.example if it doesn't exist
+    node scripts/init-env.js
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to initialize environment"
+        exit 1
+    }
+    
+    Write-Success "Environment configuration initialized"
+}
+
 # Function to install dependencies
 function Install-Dependencies {
     Write-Status "Installing dependencies for all packages..."
+    
+    # Initialize environment first
+    Initialize-Environment
     
     # Use the unified install script from root package.json
     pnpm run install:all

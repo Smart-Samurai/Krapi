@@ -55,9 +55,22 @@ check_prerequisites() {
     print_success "Prerequisites check completed"
 }
 
+# Function to initialize environment
+init_environment() {
+    print_status "Initializing environment configuration..."
+    
+    # Create .env from env.example if it doesn't exist
+    node scripts/init-env.js
+    
+    print_success "Environment configuration initialized"
+}
+
 # Function to install dependencies
 install_dependencies() {
     print_status "Installing dependencies for all packages..."
+    
+    # Initialize environment first
+    init_environment
     
     # Use the unified install script from root package.json
     pnpm run install:all

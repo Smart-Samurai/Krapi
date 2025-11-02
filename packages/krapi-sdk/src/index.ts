@@ -84,6 +84,7 @@ export { ProjectsService } from "./projects-service";
 export { StorageService } from "./storage-service";
 export { SystemService } from "./system-service";
 export { ActivityLogger } from "./activity-logger";
+export { BackupService } from "./backup-service";
 export { MetadataManager } from "./metadata-manager";
 export { PerformanceMonitor } from "./performance-monitor";
 
@@ -128,6 +129,12 @@ export type {
   CollectionMetadata,
   MetadataQuery,
 } from "./metadata-manager";
+
+export type {
+  BackupMetadata,
+  BackupOptions,
+  RestoreOptions,
+} from "./backup-service";
 
 export type {
   PerformanceMetric,

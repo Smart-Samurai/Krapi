@@ -551,6 +551,26 @@ export class DatabaseService {
         )
       `);
 
+      // Backups table (main DB - tracks backup metadata)
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS backups (
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('project', 'system')),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          size INTEGER NOT NULL,
+          encrypted INTEGER DEFAULT 0,
+          version TEXT DEFAULT '2.0.0',
+          description TEXT,
+          file_path TEXT NOT NULL
+        )
+      `);
+
+      // Create index for backups
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_backups_project ON backups(project_id)
+      `);
+
       // SQLite auto-commits, no need for explicit COMMIT
 
       // Repair database structure if needed

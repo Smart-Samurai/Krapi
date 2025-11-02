@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
+    "init-env": "node scripts/init-env.js",
     "dev": "npm run dev:with-db",
     "dev:with-db": "node start-dev-with-db.js",
     "dev:all": "npm run build:packages && concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",

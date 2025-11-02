@@ -8,6 +8,7 @@
 import { DatabaseConnection, Logger } from "./core";
 import { CountRow } from "./database-types";
 import { ActivityLog } from "./activity-logger";
+import { BackupService } from "./backup-service";
 
 export interface AdminUser {
   id: string;
@@ -78,10 +79,16 @@ export interface DiagnosticResult {
 export class AdminService {
   private db: DatabaseConnection;
   private logger: Logger;
+  private backupService?: BackupService;
 
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
+  }
+
+  // Set backup service (called from BackendSDK constructor)
+  setBackupService(backupService: BackupService): void {
+    this.backupService = backupService;
   }
 
   // Admin User Management

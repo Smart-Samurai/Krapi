@@ -23,6 +23,7 @@ import collectionsRoutes, {
 import emailRoutes, { initializeEmailSDK } from "./email.routes";
 import projectRoutes, { initializeProjectSDK } from "./project.routes";
 import storageRoutes from "./storage.routes";
+import backupRoutes, { initializeBackupSDK } from "./backup.routes";
 import systemRoutes from "./system.routes";
 import testingRoutes from "./testing.routes";
 import usersRoutes from "./users.routes";
@@ -42,6 +43,7 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
   initializeCollectionsSDK(sdk);
   initializeEmailSDK(sdk);
   initializeProjectSDK(sdk);
+  initializeBackupSDK(sdk);
 };
 
 // ===== System Routes (SDK-driven) =====
@@ -548,6 +550,10 @@ router.use("/projects", enforceProjectOrigin, projectRoutes);
 // ===== Project-Specific Storage Routes (SDK-driven) =====
 // These routes support project-specific storage operations
 router.use("/projects/:projectId/storage", enforceProjectOrigin, storageRoutes);
+
+// ===== Backup Routes (SDK-driven) =====
+router.use("/projects/:projectId", enforceProjectOrigin, backupRoutes);
+router.use("/", backupRoutes); // Global backup routes (system backups, list all backups, delete)
 
 // ===== Testing Routes (SDK-driven) =====
 router.use("/testing", testingRoutes);
