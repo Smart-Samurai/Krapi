@@ -28,7 +28,7 @@ export const initializeBackupSDK = (sdk: BackendSDK) => {
  */
 router.post(
   "/:projectId/backup",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP], projectSpecific: true }),
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
       const { projectId } = req.params;
@@ -50,7 +50,7 @@ router.post(
       res.json({
         success: true,
         backup_id: backup.id,
-        password: (backup as { password: string }).password,
+        password: password || "",
         created_at: backup.created_at,
         size: backup.size,
         description: backup.description,
@@ -75,7 +75,7 @@ router.post(
  */
 router.post(
   "/:projectId/restore",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP], projectSpecific: true }),
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
       const { projectId } = req.params;
@@ -174,7 +174,7 @@ router.get(
  */
 router.delete(
   "/backups/:backupId",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP] }),
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE] }),
   async (req: Request, res: Response) => {
     try {
       const { backupId } = req.params;
@@ -212,7 +212,7 @@ router.delete(
  */
 router.post(
   "/backup/system",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP] }),
+  requireScopes({ scopes: [Scope.ADMIN_WRITE] }),
   async (req: Request, res: Response) => {
     try {
       const { description, password } = req.body;
@@ -232,7 +232,7 @@ router.post(
       res.json({
         success: true,
         backup_id: backup.id,
-        password: (backup as { password: string }).password,
+        password: password || "",
         created_at: backup.created_at,
         size: backup.size,
         description: backup.description,

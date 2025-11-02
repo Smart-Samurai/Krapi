@@ -9,6 +9,7 @@ import { BackendSDK } from "@krapi/sdk";
 import { Router } from "express";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
+import { DatabaseService } from "@/services/database.service";
 import { Scope } from "@/types";
 
 const router: Router = Router();
