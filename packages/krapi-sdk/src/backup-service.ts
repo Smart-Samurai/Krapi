@@ -251,7 +251,7 @@ export class BackupService {
           "project",
           timestamp,
           encrypted.length,
-          true,
+          1, // SQLite stores booleans as integers (1 = true, 0 = false)
           "2.0.0",
           options.description || null,
           backupFilePath,
@@ -571,7 +571,7 @@ export class BackupService {
             "system",
             timestamp,
             encrypted.length,
-            true,
+            1, // SQLite stores booleans as integers (1 = true, 0 = false)
             "2.0.0",
             options.description || null,
             backupFilePath,

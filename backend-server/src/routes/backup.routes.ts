@@ -9,10 +9,13 @@ import { BackendSDK } from "@krapi/sdk";
 import { Request, Response, Router } from "express";
 
 
-import { requireScopes } from "../middleware/auth.middleware";
+import { authenticate, requireScopes } from "../middleware/auth.middleware";
 import { Scope } from "../types";
 
 const router = Router({ mergeParams: true });
+
+// Apply authentication middleware to all backup routes
+router.use(authenticate);
 
 // Initialize SDK function - called from app.ts
 let backendSDK: BackendSDK;

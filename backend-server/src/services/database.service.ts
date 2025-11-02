@@ -516,142 +516,6 @@ export class DatabaseService {
     }
   }
 
-  private async createEssentialTables() {
-    // In development mode, create essential tables quickly
-    // This is a faster version that creates only critical tables
-    try {
-      // Admin Users Table (main DB)
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS admin_users (
-          id TEXT PRIMARY KEY,
-          username TEXT UNIQUE NOT NULL,
-          email TEXT UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
-          role TEXT NOT NULL CHECK (role IN ('master_admin', 'admin', 'developer')),
-          access_level TEXT NOT NULL CHECK (access_level IN ('full', 'read_write', 'read_only')),
-          permissions TEXT DEFAULT '[]',
-          scopes TEXT DEFAULT '[]',
-          is_active INTEGER DEFAULT 1,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_login TEXT,
-          login_count INTEGER DEFAULT 0,
-          api_key TEXT UNIQUE
-        )
-      `);
-
-      // Projects Table (main DB)
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS projects (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          description TEXT,
-          active INTEGER DEFAULT 1,
-          created_by TEXT REFERENCES admin_users(id),
-          owner_id TEXT REFERENCES admin_users(id),
-          settings TEXT DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          storage_used INTEGER DEFAULT 0,
-          api_calls_count INTEGER DEFAULT 0,
-          last_api_call TEXT,
-          project_url TEXT,
-          allowed_origins TEXT DEFAULT '[]',
-          total_api_calls INTEGER DEFAULT 0
-        )
-      `);
-
-      // API Keys Table (main DB)
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS api_keys (
-          id TEXT PRIMARY KEY,
-          key TEXT UNIQUE NOT NULL,
-          name TEXT,
-          type TEXT DEFAULT 'admin',
-          owner_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
-          user_id TEXT NOT NULL,
-          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
-          scopes TEXT DEFAULT '[]',
-          expires_at TEXT,
-          rate_limit INTEGER DEFAULT 1000,
-          metadata TEXT DEFAULT '{}',
-          is_active INTEGER DEFAULT 1,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_used_at TEXT,
-          usage_count INTEGER DEFAULT 0,
-          status TEXT DEFAULT 'active'
-        )
-      `);
-
-      // Sessions Table (main DB)
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS sessions (
-          id TEXT PRIMARY KEY,
-          token TEXT UNIQUE NOT NULL,
-          type TEXT NOT NULL CHECK (type IN ('admin', 'project')),
-          user_id TEXT,
-          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
-          scopes TEXT DEFAULT '[]',
-          metadata TEXT DEFAULT '{}',
-          expires_at TEXT NOT NULL,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_used_at TEXT,
-          ip_address TEXT,
-          user_agent TEXT,
-          is_active INTEGER DEFAULT 1,
-          consumed INTEGER DEFAULT 0,
-          consumed_at TEXT
-        )
-      `);
-
-      // Backups Table (main DB) - CRITICAL for backup functionality
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS backups (
-          id TEXT PRIMARY KEY,
-          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
-          type TEXT NOT NULL CHECK (type IN ('project', 'system')),
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          size INTEGER NOT NULL,
-          encrypted INTEGER DEFAULT 0,
-          version TEXT DEFAULT '2.0.0',
-          description TEXT,
-          file_path TEXT NOT NULL
-        )
-      `);
-
-      // Create index for backups
-      await this.dbManager.queryMain(`
-        CREATE INDEX IF NOT EXISTS idx_backups_project ON backups(project_id)
-      `);
-
-      // Migrations Table (main DB)
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS migrations (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          applied_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          rollback_sql TEXT
-        )
-      `);
-
-      // System Checks Table (main DB)
-      await this.dbManager.queryMain(`
-        CREATE TABLE IF NOT EXISTS system_checks (
-          id TEXT PRIMARY KEY,
-          check_type TEXT NOT NULL,
-          status TEXT NOT NULL,
-          details TEXT DEFAULT '{}',
-          last_checked TEXT DEFAULT CURRENT_TIMESTAMP,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      console.log("Essential tables created successfully");
-    } catch (error) {
-      console.error("Error creating essential tables:", error);
-      throw error;
-    }
-  }
 
   private async initializeTables() {
     try {
@@ -6522,6 +6386,26 @@ export class DatabaseService {
 
       // Note: files, changelog are now created in project databases via initializeProjectDatabase()
       // They should NOT be in the main database
+
+      // Backups table (main DB) - CRITICAL for backup functionality
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS backups (
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('project', 'system')),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          size INTEGER NOT NULL,
+          encrypted INTEGER DEFAULT 0,
+          version TEXT DEFAULT '2.0.0',
+          description TEXT,
+          file_path TEXT NOT NULL
+        )
+      `);
+
+      // Create index for backups
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_backups_project ON backups(project_id)
+      `);
 
       await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS migrations (
