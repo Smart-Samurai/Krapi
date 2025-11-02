@@ -98,7 +98,7 @@ export default function ProjectDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{project.name}</h1>
+          <h1 className="text-base font-bold">{project.name}</h1>
           <p className="text-muted-foreground">
             Project overview and quick actions
           </p>
@@ -113,12 +113,12 @@ export default function ProjectDetailPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Collections</CardTitle>
+            <CardTitle className="text-base font-medium">Collections</CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.collections}</div>
-            <p className="text-xs text-muted-foreground">Total collections</p>
+            <div className="text-base font-bold">{stats.collections}</div>
+            <p className="text-base text-muted-foreground">Total collections</p>
           </CardContent>
         </Card>
         {/* Other stat cards unchanged or can be wired similarly when backend supports */}

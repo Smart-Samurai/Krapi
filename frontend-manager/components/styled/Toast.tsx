@@ -61,7 +61,7 @@ const ToastAction = React.forwardRef<
   <ToastPrimitives.Action
     ref={ref}
     className={cn(
-      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 ring-offset-white transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:ring-offset-gray-800 dark:hover:bg-gray-700 dark:focus:ring-gray-400 group-[.destructive]:border-red-500 group-[.destructive]:hover:border-red-500 group-[.destructive]:hover:bg-red-500 group-[.destructive]:hover:text-white group-[.destructive]:focus:ring-red-500",
+      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white px-3 text-base font-medium text-gray-700 ring-offset-white transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:ring-offset-gray-800 dark:hover:bg-gray-700 dark:focus:ring-gray-400 group-[.destructive]:border-red-500 group-[.destructive]:hover:border-red-500 group-[.destructive]:hover:bg-red-500 group-[.destructive]:hover:text-white group-[.destructive]:focus:ring-red-500",
       className
     )}
     {...props}
@@ -94,7 +94,7 @@ const ToastTitle = React.forwardRef<
   <ToastPrimitives.Title
     ref={ref}
     className={cn(
-      "text-sm font-bold text-gray-900 dark:text-gray-100 truncate",
+      "text-base font-bold text-gray-900 dark:text-gray-100 truncate",
       className
     )}
     {...props}
@@ -109,7 +109,7 @@ const ToastDescription = React.forwardRef<
   <ToastPrimitives.Description
     ref={ref}
     className={cn(
-      "text-sm opacity-90 text-gray-700 dark:text-gray-300",
+      "text-base opacity-90 text-gray-700 dark:text-gray-300",
       className
     )}
     {...props}

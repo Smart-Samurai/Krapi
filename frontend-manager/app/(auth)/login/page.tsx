@@ -73,7 +73,7 @@ export default function LoginPage() {
           <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold">Welcome back</h1>
+          <h1 className="text-base font-bold">Welcome back</h1>
           <p className="text-muted-foreground mt-2">Sign in to your account</p>
         </div>
 
@@ -200,7 +200,7 @@ export default function LoginPage() {
             </Form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Don&apos;t have an account?{" "}
                 <Button
                   variant="link"

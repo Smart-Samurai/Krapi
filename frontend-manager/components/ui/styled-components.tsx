@@ -34,8 +34,8 @@ export const StyledButton = React.forwardRef<
     };
 
     const sizeClasses = {
-      sm: "h-8 px-3 py-1.5 text-sm",
-      md: "h-10 px-4 py-2 text-sm",
+      sm: "h-8 px-3 py-1.5 text-base",
+      md: "h-10 px-4 py-2 text-base",
       lg: "h-12 px-6 py-3 text-base",
     };
 
@@ -68,21 +68,21 @@ export const StyledInput = React.forwardRef<HTMLInputElement, StyledInputProps>(
     return (
       <div className="space-y-2">
         {label && (
-          <label className="block text-sm font-medium text-foreground">
+          <label className="block text-base font-medium text-foreground">
             {label}
           </label>
         )}
         <input
           ref={ref}
           className={cn(
-            "flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 shadow-sm",
+            "flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 shadow-sm",
             error &&
               "border-destructive focus:ring-destructive focus:border-destructive",
             className
           )}
           {...props}
         />
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-base text-destructive">{error}</p>}
       </div>
     );
   }
@@ -183,7 +183,7 @@ export const StyledBadge = React.forwardRef<HTMLSpanElement, StyledBadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-base font-medium",
           variantClasses[variant],
           className
         )}
@@ -210,7 +210,7 @@ export const StyledMenuItem = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-200 cursor-pointer",
+        "flex items-center gap-2 rounded-md px-3 py-2 text-base transition-colors duration-200 cursor-pointer",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-background text-foreground hover:bg-muted",
@@ -240,10 +240,10 @@ export const StyledSection = React.forwardRef<
       {(title || description) && (
         <div className="space-y-2">
           {title && (
-            <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+            <h3 className="text-base font-semibold text-foreground">{title}</h3>
           )}
           {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-base text-muted-foreground">{description}</p>
           )}
         </div>
       )}

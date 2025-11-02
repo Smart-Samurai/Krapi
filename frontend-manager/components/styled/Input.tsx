@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 // Base Input Component
 const inputVariants = cva(
-  "flex w-full rounded-md border border-primary bg-background px-3 py-2 text-sm text-text ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-text/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+  "flex w-full rounded-md border border-primary bg-background px-3 py-2 text-base text-text ring-offset-background file:border-0 file:bg-transparent file:text-base file:font-medium placeholder:text-text/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {
@@ -14,8 +14,8 @@ const inputVariants = cva(
         success: "border-green-500 focus-visible:ring-green-500",
       },
       inputSize: {
-        sm: "h-8 px-2 text-xs",
-        md: "h-10 px-3 text-sm",
+        sm: "h-8 px-2 text-base",
+        md: "h-10 px-3 text-base",
         lg: "h-12 px-4 text-base",
       },
     },
@@ -151,7 +151,7 @@ const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
           ref={ref}
           {...props}
         />
-        <span className="text-sm text-text">{label}</span>
+        <span className="text-base text-text">{label}</span>
       </label>
     );
   }
@@ -179,7 +179,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           ref={ref}
           {...props}
         />
-        <span className="text-sm text-text">{label}</span>
+        <span className="text-base text-text">{label}</span>
       </label>
     );
   }
@@ -197,7 +197,7 @@ const Label = React.forwardRef<HTMLLabelElement, LabelProps>(
     return (
       <label
         className={cn(
-          "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-text",
+          "text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-text",
           className
         )}
         ref={ref}

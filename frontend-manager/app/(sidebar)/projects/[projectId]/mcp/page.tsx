@@ -54,7 +54,7 @@ export default function ProjectMcpPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Project MCP</h1>
+        <h1 className="text-base font-bold">Project MCP</h1>
         <p className="text-muted-foreground">
           Chat with project-scoped tools to inspect and modify your database.
         </p>

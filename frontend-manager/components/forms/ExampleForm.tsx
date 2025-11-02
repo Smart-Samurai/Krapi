@@ -188,7 +188,7 @@ export const ExampleForm: React.FC<ExampleFormProps> = ({
 
   return (
     <div className="border border-secondary rounded-lg p-6 bg-background/50">
-      <h3 className="text-lg font-semibold mb-4 capitalize text-primary">
+      <h3 className="text-base font-semibold mb-4 capitalize text-primary">
         {type} Form Example
       </h3>
       {renderForm()}

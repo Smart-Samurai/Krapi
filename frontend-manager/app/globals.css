@@ -86,10 +86,21 @@
   * {
     @apply border-border;
   }
+  html {
+    @apply dark;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+  }
+  * {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4, h5, h6, p, span, div, button, input, textarea, select, label {
+    @apply text-base;
   }
 }
 
@@ -136,14 +147,54 @@
     border-radius: 0;
   }
 
-  /* Clean typography */
+  /* Clean typography - single font size */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  div,
+  button,
+  input,
+  textarea,
+  select,
+  label,
+  td,
+  th {
+    @apply text-base font-normal;
+  }
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply font-semibold tracking-tight;
+    @apply font-semibold;
+  }
+  
+  /* Consistent button styles */
+  .btn-add,
+  .btn-edit,
+  .btn-confirm,
+  .btn-delete {
+    @apply px-4 py-2 border-0 shadow-sm transition-all;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .btn-add {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+  .btn-edit {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+  .btn-confirm {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+  .btn-delete {
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
   }
 
   /* Minimalistic spacing */

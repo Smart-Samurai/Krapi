@@ -283,7 +283,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-text">System Settings</h1>
+          <h1 className="text-base font-bold text-text">System Settings</h1>
           <p className="text-text/60 mt-1">
             Manage your KRAPI instance configuration
           </p>
@@ -431,7 +431,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="text-base font-semibold mb-4">
                     Password Requirements
                   </h3>
 
@@ -530,7 +530,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="text-base font-semibold mb-4">
                     Sender Information
                   </h3>
 
@@ -609,7 +609,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="text-base font-semibold mb-4">
                     Backup Settings
                   </h3>
 
@@ -661,7 +661,7 @@ export default function SettingsPage() {
 
           <div className="space-y-4 py-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-base font-medium mb-2">
                 Recipient Email
               </label>
               <input

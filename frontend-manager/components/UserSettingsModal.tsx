@@ -122,16 +122,16 @@ export default function UserSettingsModal({
           <TabsContent value="profile" className="space-y-6">
             <div className="flex items-center space-x-4">
               <Avatar className="h-20 w-20">
-                <AvatarFallback className="text-lg">
+                <AvatarFallback className="text-base">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-base font-semibold">
                   {user?.username || user?.email}
                 </h3>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">{user?.email}</p>
+                <p className="text-base text-muted-foreground">
                   Role:{" "}
                   {user?.role === "master_admin" ? "Master Admin" : "Admin"}
                 </p>
@@ -141,7 +141,7 @@ export default function UserSettingsModal({
             <Separator />
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium">Account Information</h4>
+              <h4 className="text-base font-medium">Account Information</h4>
               <div className="grid gap-4">
                 <div>
                   <Label>Email</Label>
@@ -180,7 +180,7 @@ export default function UserSettingsModal({
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Lock className="h-5 w-5" />
-                <h4 className="text-sm font-medium">Change Password</h4>
+                <h4 className="text-base font-medium">Change Password</h4>
               </div>
 
               <div className="grid gap-4">
@@ -254,7 +254,7 @@ export default function UserSettingsModal({
                       )}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-base text-muted-foreground mt-1">
                     Must be at least 8 characters long
                   </p>
                 </div>

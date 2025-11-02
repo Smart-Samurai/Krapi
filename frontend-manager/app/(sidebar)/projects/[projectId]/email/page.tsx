@@ -383,7 +383,7 @@ export default function EmailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Email Configuration</h1>
+          <h1 className="text-base font-bold">Email Configuration</h1>
           <p className="text-muted-foreground">
             Configure SMTP settings and manage email templates
           </p>
@@ -408,10 +408,10 @@ export default function EmailPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">
+                  <h3 className="text-base font-semibold mb-2">
                     Available Endpoints
                   </h3>
-                  <div className="text-sm space-y-2">
+                  <div className="text-base space-y-2">
                     <p>
                       <strong>GET /email/config</strong> - Get email
                       configuration
@@ -622,7 +622,7 @@ export default function EmailPage() {
         <TabsContent value="templates" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Email Templates</h2>
+              <h2 className="text-base font-bold">Email Templates</h2>
               <p className="text-muted-foreground">
                 Create and manage email templates for your project
               </p>
@@ -798,7 +798,7 @@ export default function EmailPage() {
             <Card>
               <CardContent className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-base font-semibold mb-2">
                   No Email Templates Yet
                 </h3>
                 <p className="text-muted-foreground mb-4">
@@ -847,7 +847,7 @@ export default function EmailPage() {
                                 <Badge
                                   key={`email-template-variable-${variable}`}
                                   variant="outline"
-                                  className="text-xs"
+                                  className="text-base"
                                 >
                                   {variable}
                                 </Badge>
@@ -855,7 +855,7 @@ export default function EmailPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-base text-muted-foreground">
                               {new Date(
                                 template.created_at
                               ).toLocaleDateString()}

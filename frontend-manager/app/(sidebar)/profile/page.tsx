@@ -222,7 +222,7 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text">My Profile</h1>
+          <h1 className="text-base font-bold text-text">My Profile</h1>
           <p className="text-text/60 mt-2">
             Manage your account settings and preferences
           </p>
@@ -233,12 +233,12 @@ export default function ProfilePage() {
           <CardContent className="pt-6">
             <div className="flex items-start gap-6">
               <Avatar className="h-24 w-24">
-                <AvatarFallback className="text-2xl">
+                <AvatarFallback className="text-base">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h2 className="text-2xl font-semibold">
+                <h2 className="text-base font-semibold">
                   {user?.username || "User"}
                 </h2>
                 <p className="text-text/60">{user?.email}</p>
@@ -299,7 +299,7 @@ export default function ProfilePage() {
                     <Input
                       value={user?.id || ""}
                       disabled
-                      className="font-mono text-sm"
+                      className="font-mono text-base"
                     />
                   </div>
                   <div>
@@ -404,7 +404,7 @@ export default function ProfilePage() {
                       )}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-base text-muted-foreground mt-1">
                     Must be at least 8 characters long
                   </p>
                 </div>
@@ -470,7 +470,7 @@ export default function ProfilePage() {
                 {scopes.includes(Scope.MASTER) ? (
                   <div className="p-4 bg-primary/10 rounded-lg">
                     <p className="font-medium">Master Administrator</p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-base text-muted-foreground mt-1">
                       You have full access to all features and resources in
                       Krapi
                     </p>
@@ -487,7 +487,7 @@ export default function ProfilePage() {
                             </Badge>
                           ))
                         ) : (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-base text-muted-foreground">
                             No specific scopes assigned
                           </p>
                         )}
@@ -498,7 +498,7 @@ export default function ProfilePage() {
                       extendedUser.project_ids.length > 0 && (
                         <div>
                           <h4 className="font-medium mb-2">Project Access</h4>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-base text-muted-foreground">
                             You have access to {extendedUser.project_ids.length}{" "}
                             project(s)
                           </p>
@@ -537,7 +537,7 @@ export default function ProfilePage() {
                                 )}`
                           }
                           readOnly
-                          className="font-mono text-sm"
+                          className="font-mono text-base"
                         />
                         <Button
                           variant="outline"
@@ -551,7 +551,7 @@ export default function ProfilePage() {
                           )}
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-base text-muted-foreground mt-1">
                         Use this key to authenticate API requests
                       </p>
                     </div>
@@ -560,7 +560,7 @@ export default function ProfilePage() {
 
                     <div>
                       <h4 className="font-medium mb-2">Regenerate API Key</h4>
-                      <p className="text-sm text-muted-foreground mb-3">
+                      <p className="text-base text-muted-foreground mb-3">
                         Generate a new API key. The current key will stop
                         working immediately.
                       </p>
@@ -581,7 +581,7 @@ export default function ProfilePage() {
                       <h4 className="font-medium mb-2">
                         Create Master API Key
                       </h4>
-                      <p className="text-sm text-muted-foreground mb-3">
+                      <p className="text-base text-muted-foreground mb-3">
                         Create a new API key with master access. This is for
                         debugging and development purposes.
                       </p>
@@ -597,7 +597,7 @@ export default function ProfilePage() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     No API key available for your account
                   </p>
                 )}

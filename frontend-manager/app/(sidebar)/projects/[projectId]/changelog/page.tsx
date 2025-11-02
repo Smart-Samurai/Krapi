@@ -162,7 +162,7 @@ export default function ProjectChangelogPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Changelog</h1>
+          <h1 className="text-base font-bold">Changelog</h1>
           <p className="text-muted-foreground">
             View activity and changes for this project
           </p>
@@ -259,7 +259,7 @@ export default function ProjectChangelogPage() {
                       </TableCell>
                       <TableCell>
                         {entry.document_id && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-base text-muted-foreground">
                             Doc: {entry.document_id.substring(0, 8)}...
                           </span>
                         )}
@@ -269,7 +269,7 @@ export default function ProjectChangelogPage() {
                 </TableBody>
               </Table>
               <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
+                <div className="text-base text-muted-foreground">
                   Showing {pagination.offset + 1}-
                   {pagination.offset + entries.length} of {pagination.total}
                 </div>

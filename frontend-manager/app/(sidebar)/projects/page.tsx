@@ -218,7 +218,7 @@ export default function ProjectsPage() {
     <div className={`p-6 space-y-6 ${isBusy ? "cursor-progress" : ""}`}>
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Projects</h1>
+          <h1 className="text-base font-bold">Projects</h1>
           <p className="text-muted-foreground">Manage your KRAPI projects</p>
         </div>
         <div className="flex items-center gap-4">
@@ -250,7 +250,7 @@ export default function ProjectsPage() {
           <Card>
             <CardContent className="text-center py-12">
               <Settings className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+              <h3 className="text-base font-semibold mb-2">No projects yet</h3>
               <p className="text-muted-foreground mb-4">
                 Create your first project to get started
               </p>

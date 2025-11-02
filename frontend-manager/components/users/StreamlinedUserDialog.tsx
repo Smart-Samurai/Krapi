@@ -315,7 +315,7 @@ export function StreamlinedUserDialog({
         <div className="space-y-6 py-4">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Basic Information</h3>
+            <h3 className="text-base font-medium">Basic Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="username">Username</Label>
@@ -364,7 +364,7 @@ export function StreamlinedUserDialog({
 
           {/* Account Type */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Account Type</h3>
+            <h3 className="text-base font-medium">Account Type</h3>
             <Select
               value={accountType}
               onValueChange={(value) => setAccountType(value as AccountType)}
@@ -377,7 +377,7 @@ export function StreamlinedUserDialog({
                   <SelectItem key={key} value={key}>
                     <div>
                       <p className="font-medium">{info.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {info.description}
                       </p>
                     </div>
@@ -390,7 +390,7 @@ export function StreamlinedUserDialog({
           {/* Project Selection (for project admins) */}
           {accountType === "project_admin" && (
             <div className="space-y-4">
-              <h3 className="text-sm font-medium">Project Access</h3>
+              <h3 className="text-base font-medium">Project Access</h3>
               <Alert>
                 <FiInfo className="h-4 w-4" />
                 <AlertDescription>
@@ -398,7 +398,7 @@ export function StreamlinedUserDialog({
                 </AlertDescription>
               </Alert>
               {loadingProjects ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   Loading projects...
                 </p>
               ) : (
@@ -430,7 +430,7 @@ export function StreamlinedUserDialog({
                       >
                         {project.name}
                         {project.description && (
-                          <span className="text-xs text-muted-foreground ml-2">
+                          <span className="text-base text-muted-foreground ml-2">
                             {project.description}
                           </span>
                         )}
@@ -445,7 +445,7 @@ export function StreamlinedUserDialog({
           {/* Custom Permissions (for limited admins) */}
           {accountType === "limited_admin" && (
             <div className="space-y-4">
-              <h3 className="text-sm font-medium">Custom Permissions</h3>
+              <h3 className="text-base font-medium">Custom Permissions</h3>
               <Alert>
                 <FiInfo className="h-4 w-4" />
                 <AlertDescription>
@@ -455,7 +455,7 @@ export function StreamlinedUserDialog({
               <div className="space-y-4">
                 {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => (
                   <div key={groupKey} className="space-y-2">
-                    <h4 className="text-sm font-medium text-muted-foreground">
+                    <h4 className="text-base font-medium text-muted-foreground">
                       {group.label}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
@@ -473,7 +473,7 @@ export function StreamlinedUserDialog({
                           />
                           <Label
                             htmlFor={perm.scope}
-                            className="text-sm cursor-pointer"
+                            className="text-base cursor-pointer"
                           >
                             {perm.label}
                           </Label>

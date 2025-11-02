@@ -22,9 +22,9 @@ const buttonVariants = cva(
         cancel: "bg-gray-500 text-white hover:bg-gray-600",
       },
       size: {
-        sm: "h-8 px-3 text-sm",
+        sm: "h-8 px-3 text-base",
         md: "h-10 px-4 text-base",
-        lg: "h-12 px-6 text-lg",
+        lg: "h-12 px-6 text-base",
       },
     },
     defaultVariants: {

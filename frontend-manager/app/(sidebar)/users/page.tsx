@@ -340,7 +340,7 @@ export default function ServerAdministrationPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text">
+          <h1 className="text-base font-bold text-text">
             Server Administration
           </h1>
           <p className="text-text/60 mt-1">
@@ -368,8 +368,8 @@ export default function ServerAdministrationPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Total Admins</p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-medium text-text/60">Total Admins</p>
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading ? "..." : adminUsers.length}
               </p>
             </div>
@@ -381,8 +381,8 @@ export default function ServerAdministrationPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Active Admins</p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-medium text-text/60">Active Admins</p>
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading
                   ? "..."
                   : adminUsers.filter((u) => u.status === "active").length}
@@ -396,8 +396,8 @@ export default function ServerAdministrationPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Master Admins</p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-medium text-text/60">Master Admins</p>
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading
                   ? "..."
                   : adminUsers.filter((u) => u.role === "master_admin").length}
@@ -411,10 +411,10 @@ export default function ServerAdministrationPage() {
         <div className="bg-background border border-secondary rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">
+              <p className="text-base font-medium text-text/60">
                 Inactive/Suspended
               </p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading
                   ? "..."
                   : adminUsers.filter((u) => u.status !== "active").length}
@@ -444,7 +444,7 @@ export default function ServerAdministrationPage() {
       {/* Admin Users List */}
       <div className="bg-background border border-secondary rounded-lg">
         <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">
+          <h2 className="text-base font-semibold text-text">
             Administrative Users
           </h2>
         </div>
@@ -457,13 +457,13 @@ export default function ServerAdministrationPage() {
           ) : filteredUsers.length === 0 ? (
             <div className="p-12 text-center">
               <Shield className="h-12 w-12 text-text/20 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-text mb-2">
+              <h3 className="text-base font-medium text-text mb-2">
                 No Admin Users Found
               </h3>
               <p className="text-text/60 mb-4">
                 No admin users were found in the database.
               </p>
-              <p className="text-sm text-text/40">
+              <p className="text-base text-text/40">
                 Default login: admin@krapi.local / admin
               </p>
             </div>
@@ -484,22 +484,22 @@ export default function ServerAdministrationPage() {
                           {user.firstName} {user.lastName}
                         </h3>
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(
+                          className={`px-2 py-1 text-base font-medium rounded-full ${getRoleColor(
                             user.role
                           )}`}
                         >
                           {user.role.replace("_", " ")}
                         </span>
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          className={`px-2 py-1 text-base font-medium rounded-full ${getStatusColor(
                             user.status
                           )}`}
                         >
                           {user.status}
                         </span>
                       </div>
-                      <p className="text-sm text-text/60 mt-1">{user.email}</p>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
+                      <p className="text-base text-text/60 mt-1">{user.email}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-base text-text/60">
                         <span>
                           Last active:{" "}
                           {new Date(user.lastActive).toLocaleDateString()}
@@ -521,7 +521,7 @@ export default function ServerAdministrationPage() {
                           .map(([key, _value]) => (
                             <div
                               key={key}
-                              className="flex items-center space-x-1 text-xs text-text/60"
+                              className="flex items-center space-x-1 text-base text-text/60"
                             >
                               {getPermissionIcon(key as keyof AdminPermissions)}
                               <span>
@@ -533,7 +533,7 @@ export default function ServerAdministrationPage() {
                           ))}
                         {Object.values(user.permissions).filter(Boolean)
                           .length > 6 && (
-                          <span className="text-xs text-text/40">
+                          <span className="text-base text-text/40">
                             +
                             {Object.values(user.permissions).filter(Boolean)
                               .length - 6}{" "}
@@ -698,7 +698,7 @@ export default function ServerAdministrationPage() {
 
               {/* Permissions Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Permissions</h3>
+                <h3 className="text-base font-semibold">Permissions</h3>
 
                 {/* System Permissions */}
                 <div className="space-y-3">
@@ -829,7 +829,7 @@ export default function ServerAdministrationPage() {
         variant="info"
         className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
       >
-        <div className="text-sm space-y-2">
+        <div className="text-base space-y-2">
           <p>
             Server Administration allows you to manage administrative users with
             granular permissions.

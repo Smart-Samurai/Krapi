@@ -216,7 +216,7 @@ export default function ProjectBackupPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Backups</h1>
+          <h1 className="text-base font-bold">Backups</h1>
           <p className="text-muted-foreground">
             Manage encrypted backups for this project
           </p>
@@ -267,7 +267,7 @@ export default function ProjectBackupPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleCreateBackup} disabled={creating}>
+              <Button className="btn-add" onClick={handleCreateBackup} disabled={creating}>
                 {creating ? (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -356,8 +356,7 @@ export default function ProjectBackupPage() {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <Button
-                          variant="outline"
-                          size="sm"
+                          className="btn-confirm"
                           onClick={() => {
                             setSelectedBackup(backup);
                             setRestoreDialogOpen(true);
@@ -368,8 +367,7 @@ export default function ProjectBackupPage() {
                           Restore
                         </Button>
                         <Button
-                          variant="destructive"
-                          size="sm"
+                          className="btn-delete"
                           onClick={() => handleDeleteBackup(backup.id)}
                           disabled={deleting === backup.id}
                         >
@@ -450,9 +448,9 @@ export default function ProjectBackupPage() {
               Cancel
             </Button>
             <Button
+              className="btn-confirm"
               onClick={handleRestoreBackup}
               disabled={restoring !== null || !restoreForm.password}
-              variant="destructive"
             >
               {restoring ? (
                 <>

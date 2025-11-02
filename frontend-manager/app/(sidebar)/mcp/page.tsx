@@ -48,7 +48,7 @@ export default function AdminMcpPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Admin MCP</h1>
+        <h1 className="text-base font-bold">Admin MCP</h1>
         <p className="text-muted-foreground">
           Create/edit projects and query global statistics via tools.
         </p>

@@ -85,8 +85,8 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col gap-1">
-            <span className="text-lg font-semibold">KRAPI Admin</span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-base font-semibold">KRAPI Admin</span>
+            <span className="text-base text-muted-foreground">
               Admin Dashboard
             </span>
           </div>
@@ -117,7 +117,7 @@ export function AppSidebar() {
           <ThemeToggle />
           <button
             onClick={logout}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Logout
           </button>
@@ -198,8 +198,8 @@ function ProjectSidebar() {
       <SidebarHeader>
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col gap-1">
-            <span className="text-lg font-semibold">KRAPI Project</span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-base font-semibold">KRAPI Project</span>
+            <span className="text-base text-muted-foreground">
               Project Management
             </span>
           </div>
@@ -246,7 +246,7 @@ function ProjectSidebar() {
           <ThemeToggle />
           <button
             onClick={logout}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Logout
           </button>
