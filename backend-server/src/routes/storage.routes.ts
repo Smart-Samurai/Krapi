@@ -198,7 +198,7 @@ router.get(
           total_files: stats.totalFiles || 0,
           total_size: stats.totalSize || 0,
           storage_used_percentage: quota > 0 ? (storageUsed / quota) * 100 : 0,
-          quota: quota,
+          quota,
         },
       });
     } catch (error) {

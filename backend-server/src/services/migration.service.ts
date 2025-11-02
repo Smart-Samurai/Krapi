@@ -295,7 +295,7 @@ export class MigrationService {
         },
       ];
 
-      for (const { name, table, definition } of indexes) {
+      for (const { name, table: _table, definition } of indexes) {
         try {
           // SQLite uses sqlite_master to check indexes
           const result = await this.adapter.query(

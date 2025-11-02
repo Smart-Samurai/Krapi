@@ -156,7 +156,7 @@ export async function POST(
     // Wrap response to match test expectations: { success: true, collection: ... }
     const collection = backendResponse.data || backendResponse.collection;
     return NextResponse.json(
-      { success: true, collection: collection },
+      { success: true, collection },
       { status: 201 }
     );
   } catch (error) {

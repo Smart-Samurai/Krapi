@@ -225,7 +225,7 @@ export class ProjectAwareDbAdapter {
         );
         try {
           return await this.dbService.queryMain(sql, params);
-        } catch (error) {
+        } catch {
           // If main database query fails, it's likely because the table doesn't exist there
           throw new Error(
             `Could not determine project ID for project-specific query and main database query failed. ` +

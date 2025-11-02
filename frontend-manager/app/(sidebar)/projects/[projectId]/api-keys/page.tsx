@@ -1,5 +1,6 @@
 "use client";
 
+import { type ApiKey } from "@krapi/sdk";
 import {
   Plus,
   Edit,
@@ -63,7 +64,6 @@ import {
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { ProjectScope } from "@/lib/krapi";
-import { type ApiKey } from "@krapi/sdk";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.READ]: "Read Projects",

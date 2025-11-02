@@ -1,17 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   CheckCircle,
@@ -28,6 +16,19 @@ import {
   Laptop,
   Globe,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface UITest {
   id: string;
@@ -290,7 +291,7 @@ export default function UITestComponent() {
     setCurrentTest(`${suiteId}-${testId}`);
 
     try {
-      let result: any = { status: "passed" };
+      const result: any = { status: "passed" };
 
       // Simulate different types of UI tests
       switch (testId) {

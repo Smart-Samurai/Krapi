@@ -1,5 +1,6 @@
 "use client";
 
+import { type Project } from "@krapi/sdk";
 import {
   TestTube2,
   Activity,
@@ -41,7 +42,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Scope } from "@/lib/krapi";
-import { type Project } from "@krapi/sdk";
 
 interface TestResult {
   name: string;

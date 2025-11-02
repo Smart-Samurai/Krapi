@@ -1,5 +1,6 @@
 "use client";
 
+import { type Project } from "@krapi/sdk";
 import React, { useState, useEffect, useCallback } from "react";
 import { FiInfo } from "react-icons/fi";
 
@@ -25,7 +26,6 @@ import {
 } from "@/components/ui/select";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
-import { type Project } from "@krapi/sdk";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 interface StreamlinedUserDialogProps {

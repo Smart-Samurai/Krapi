@@ -137,7 +137,7 @@ export async function PUT(
     // Wrap response to match test expectations: { success: true, project: ... }
     return NextResponse.json({
       success: true,
-      project: project,
+      project,
     });
   } catch (error) {
     return NextResponse.json(

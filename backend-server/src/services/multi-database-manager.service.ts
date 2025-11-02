@@ -11,10 +11,12 @@
  * - Isolated project data
  */
 
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
+
 import Database from "better-sqlite3";
-import { SQLiteAdapter } from "./sqlite-adapter.service";
+
+// SQLiteAdapter imported but not used directly - accessed via adapter property
 
 export interface QueryResult {
   rows: Record<string, unknown>[];
@@ -392,7 +394,7 @@ export class MultiDatabaseManager {
     if (db) {
       try {
         db.close();
-      } catch (error) {
+      } catch {
         // Ignore errors during close
       }
       this.projectDbs.delete(projectId);
@@ -406,7 +408,7 @@ export class MultiDatabaseManager {
     if (this.mainDb) {
       try {
         this.mainDb.close();
-      } catch (error) {
+      } catch {
         // Ignore errors during close
       }
       this.mainDb = null;
@@ -419,10 +421,10 @@ export class MultiDatabaseManager {
    */
   async closeAll(): Promise<void> {
     // Close all project databases
-    for (const [projectId, db] of this.projectDbs.entries()) {
+    for (const [_projectId, db] of this.projectDbs.entries()) {
       try {
         db.close();
-      } catch (error) {
+      } catch {
         // Ignore errors
       }
     }

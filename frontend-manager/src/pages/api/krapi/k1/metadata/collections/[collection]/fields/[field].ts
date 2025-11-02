@@ -1,5 +1,5 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { krapi } from "@krapi/sdk";
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
