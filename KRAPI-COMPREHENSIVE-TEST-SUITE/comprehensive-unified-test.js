@@ -110,6 +110,8 @@ class ComprehensiveTestSuite {
     } finally {
       await this.cleanup();
       this.printResults();
+      // Return true if all tests passed, false otherwise
+      return this.testResults.failed === 0;
     }
   }
 
@@ -1075,11 +1077,14 @@ class ComprehensiveTestSuite {
     console.log("-".repeat(30));
 
     await this.test("Full CMS workflow", async () => {
-      // Create a new project
+      // Create a new project with unique name to avoid conflicts
+      const uniqueId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+      const projectName = `CMS Test Project ${uniqueId}`;
+      
       const projectResponse = await axios.post(
         `${CONFIG.FRONTEND_URL}/api/projects`,
         {
-          name: "CMS Test Project",
+          name: projectName,
           description: "Project for CMS integration testing",
         },
         {
