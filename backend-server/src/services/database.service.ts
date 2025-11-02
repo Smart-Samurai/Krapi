@@ -6131,9 +6131,12 @@ export class DatabaseService {
 
     DatabaseService.isCreatingTables = true;
     try {
+      // Ensure main database is connected
+      await this.dbManager.connectMain();
+
       // SQLite doesn't have PostgreSQL extensions - UUIDs are generated in application code
       // Only create the most essential tables with SQLite-compatible syntax
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS admin_users (
           id TEXT PRIMARY KEY,
           username TEXT UNIQUE NOT NULL,
@@ -6152,7 +6155,7 @@ export class DatabaseService {
         )
       `);
 
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS projects (
           id TEXT PRIMARY KEY,
           name TEXT UNIQUE NOT NULL,
@@ -6172,68 +6175,12 @@ export class DatabaseService {
         )
       `);
 
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS collections (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          name TEXT NOT NULL,
-          description TEXT,
-          fields TEXT NOT NULL DEFAULT '[]',
-          indexes TEXT NOT NULL DEFAULT '[]',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          created_by TEXT NOT NULL REFERENCES admin_users(id),
-          UNIQUE(project_id, name)
-        )
-      `);
+      // Note: collections, documents, project_users, files, changelog are now created 
+      // in project databases via initializeProjectDatabase() in MultiDatabaseManager
+      // They should NOT be in the main database
 
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS documents (
-          id TEXT PRIMARY KEY,
-          collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-          data TEXT NOT NULL DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          created_by TEXT NOT NULL REFERENCES admin_users(id)
-        )
-      `);
-
-      // Project Users Table (for project-specific user accounts)
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS project_users (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          username TEXT NOT NULL,
-          email TEXT NOT NULL,
-          password_hash TEXT NOT NULL,
-          phone TEXT,
-          is_verified INTEGER DEFAULT 0,
-          is_active INTEGER DEFAULT 1,
-          scopes TEXT NOT NULL DEFAULT '[]',
-          metadata TEXT DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_login TEXT,
-          email_verified_at TEXT,
-          phone_verified_at TEXT,
-          UNIQUE(project_id, username),
-          UNIQUE(project_id, email)
-        )
-      `);
-
-      // Create indexes for project users
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id)
-      `);
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email)
-      `);
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username)
-      `);
-
-      // Add missing essential tables for auth system
-      await this.adapter.query(`
+      // Add missing essential tables for auth system (main database)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
@@ -6251,7 +6198,7 @@ export class DatabaseService {
         )
       `);
 
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS api_keys (
           id TEXT PRIMARY KEY,
           key TEXT UNIQUE NOT NULL,
@@ -6270,37 +6217,10 @@ export class DatabaseService {
         )
       `);
 
-      // Add files table for project statistics
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS files (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          filename TEXT NOT NULL,
-          original_name TEXT NOT NULL,
-          mime_type TEXT NOT NULL,
-          size INTEGER NOT NULL,
-          path TEXT NOT NULL,
-          metadata TEXT DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          uploaded_by TEXT REFERENCES admin_users(id)
-        )
-      `);
+      // Note: files, changelog are now created in project databases via initializeProjectDatabase()
+      // They should NOT be in the main database
 
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS changelog (
-          id TEXT PRIMARY KEY,
-          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
-          entity_type TEXT NOT NULL,
-          entity_id TEXT NOT NULL,
-          action TEXT NOT NULL,
-          changes TEXT DEFAULT '{}',
-          performed_by TEXT REFERENCES admin_users(id),
-          session_id TEXT,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS migrations (
           version INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
@@ -6309,7 +6229,7 @@ export class DatabaseService {
       `);
 
       // Create default admin user if it doesn't exist
-      const adminCount = await this.adapter.query("SELECT COUNT(*) as count FROM admin_users");
+      const adminCount = await this.dbManager.queryMain("SELECT COUNT(*) as count FROM admin_users");
       if (parseInt(String(adminCount.rows[0]?.["count"] || 0)) === 0) {
         const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
         const defaultPassword =
