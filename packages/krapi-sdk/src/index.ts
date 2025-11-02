@@ -90,6 +90,10 @@ export { PerformanceMonitor } from "./performance-monitor";
 
 export { UsersService } from "./users-service";
 
+// Export unified client SDK (like Appwrite - easy to import!)
+export { KrapiClient, type KrapiClientConfig, type ApiResponse as ClientApiResponse } from "./client";
+export { default as Client } from "./client";
+
 // Export HTTP clients for granular frontend control
 export { AuthHttpClient } from "./http-clients/auth-http-client";
 export { ProjectsHttpClient } from "./http-clients/projects-http-client";

@@ -98,6 +98,9 @@ class ComprehensiveTestSuite {
       // SDK Functionality Tests
       await this.runSDKTests();
 
+      // Backup Tests
+      await this.runBackupTests();
+
       // Complete CMS Integration Tests
       await this.runCMSIntegrationTests();
     } catch (error) {
@@ -1064,6 +1067,105 @@ class ComprehensiveTestSuite {
           method: "getProjects",
           params: {},
         },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+    });
+  }
+
+  async runBackupTests() {
+    console.log("\n💾 Backup Tests");
+    console.log("-".repeat(30));
+
+    let backupId = null;
+    let backupPassword = null;
+
+    await this.test("Create project backup", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for backup test");
+      }
+
+      const response = await axios.post(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}/backup`,
+        {
+          description: "Test backup",
+          password: "test-backup-password-123",
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.backup_id, "Should return backup ID");
+      this.assert(response.data.password, "Should return backup password");
+
+      backupId = response.data.backup_id;
+      backupPassword = response.data.password || "test-backup-password-123";
+    });
+
+    await this.test("List project backups", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for backup test");
+      }
+
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}/backups`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        Array.isArray(response.data.backups),
+        "Should return backups array"
+      );
+    });
+
+    await this.test("List all backups", async () => {
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backups`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        Array.isArray(response.data.backups),
+        "Should return backups array"
+      );
+    });
+
+    await this.test("Create system backup", async () => {
+      const response = await axios.post(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backup/system`,
+        {
+          description: "Test system backup",
+          password: "test-system-backup-password-123",
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.backup_id, "Should return backup ID");
+      this.assert(response.data.password, "Should return backup password");
+    });
+
+    await this.test("Delete backup", async () => {
+      if (!backupId) {
+        console.log("   Skipping - no backup ID available");
+        return;
+      }
+
+      const response = await axios.delete(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backups/${backupId}`,
         {
           headers: { Authorization: `Bearer ${this.sessionToken}` },
         }
