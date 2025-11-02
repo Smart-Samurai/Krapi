@@ -66,6 +66,12 @@ import {
 } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 // FieldType is now imported from the SDK
 
@@ -309,46 +315,36 @@ export default function CollectionsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map(() => {
-            const skeletonId = `collections-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Skeleton
-              key={skeletonId}
-              className="h-32 w-full"
-            />
-          );
-        })}
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={`collections-skeleton-${i}`} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Collections</h1>
-          <p className="text-muted-foreground">
-            Manage your project&apos;s data collections and their fields
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button className="btn-add">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Collection
-              </Button>
-            </DialogTrigger>
+    <PageLayout>
+      <PageHeader
+        title="Collections"
+        description="Manage your project's data collections and their fields"
+        action={
+          <div className="flex items-center gap-2">
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <ActionButton variant="add" icon={Plus}>
+                  Create Collection
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Collection</DialogTitle>
@@ -503,28 +499,27 @@ export default function CollectionsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button
+                <ActionButton
                   variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
                 >
                   Cancel
-                </Button>
-                <Button
-                  className="btn-add"
+                </ActionButton>
+                <ActionButton
+                  variant="add"
                   onClick={handleCreateCollection}
                   disabled={!formData.name}
                 >
                   Create Collection
-                </Button>
+                </ActionButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
           <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
+              <ActionButton variant="outline" icon={BookOpen}>
                 API Docs
-              </Button>
+              </ActionButton>
             </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
@@ -701,19 +696,16 @@ response = requests.delete(
       )}
 
       {collections.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-2">No Collections Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first collection to start storing data
-            </p>
-            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Collection
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Database}
+          title="No Collections Yet"
+          description="Create your first collection to start storing data"
+          action={{
+            label: "Create Collection",
+            onClick: () => setIsCreateDialogOpen(true),
+            icon: Plus,
+          }}
+        />
       ) : (
         <div className="grid gap-4">
           {collections.map((collection) => (
@@ -735,34 +727,32 @@ response = requests.delete(
                     <Badge variant="outline">
                       {collection.fields?.length || 0} fields
                     </Badge>
-                    <Button
+                    <ActionButton
                       variant="outline"
                       size="sm"
+                      icon={Edit}
                       onClick={() => openEditDialog(collection)}
                     >
-                      <Edit className="h-4 w-4 mr-2" />
                       Edit
-                    </Button>
-                    <Button
+                    </ActionButton>
+                    <ActionButton
                       variant="outline"
                       size="sm"
+                      icon={FileText}
                       onClick={() =>
                         router.push(
                           `/projects/${projectId}/collections/${collection.name}/documents`
                         )
                       }
                     >
-                      <FileText className="h-4 w-4 mr-2" />
                       Documents
-                    </Button>
-                    <Button
-                      variant="outline"
+                    </ActionButton>
+                    <ActionButton
+                      variant="delete"
                       size="sm"
-                      className="btn-delete"
+                      icon={Trash2}
                       onClick={() => handleDeleteCollection(collection.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    />
                   </div>
                 </div>
               </CardHeader>
@@ -972,18 +962,22 @@ response = requests.delete(
             </div>
           </div>
           <DialogFooter>
-            <Button
+            <ActionButton
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
             >
               Cancel
-            </Button>
-            <Button className="btn-edit" onClick={handleUpdateCollection} disabled={!formData.name}>
+            </ActionButton>
+            <ActionButton
+              variant="edit"
+              onClick={handleUpdateCollection}
+              disabled={!formData.name}
+            >
               Update Collection
-            </Button>
+            </ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageLayout>
   );
 }

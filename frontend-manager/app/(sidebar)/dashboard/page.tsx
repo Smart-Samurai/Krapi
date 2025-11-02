@@ -15,7 +15,6 @@ import { useState, useEffect, useCallback } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,6 +28,7 @@ import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
+import { PageLayout, PageHeader, ActionButton } from "@/components/common";
 
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope } = useReduxAuth();
@@ -65,68 +65,48 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map(() => {
-            const skeletonId = `dashboard-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Card key={skeletonId}>
+          {[...Array(4)].map((_, i) => (
+            <Card key={`dashboard-skeleton-${i}`}>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-8 w-16" />
               </CardHeader>
             </Card>
-          );
-        })}
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1>Dashboard</h1>
-        <p className="text-muted-foreground">Welcome to KRAPI Admin.</p>
-      </div>
-      <div className="border p-4">
-        <p className="mb-2">Try the new Model Context Protocol (MCP) tools:</p>
-        <a href="/mcp" className="text-primary underline">
-          Go to Admin MCP
-        </a>
-      </div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1>
-            Welcome back, {user?.username}!
-          </h1>
-          <p className="text-muted-foreground">
-            Admin dashboard for managing your KRAPI instance
-          </p>
-        </div>
-        {hasScope(Scope.PROJECTS_WRITE) && (
-          <Button className="btn-add" asChild>
-            <Link href="/projects">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Project
-            </Link>
-          </Button>
-        )}
-      </div>
+    <PageLayout>
+      <PageHeader
+        title={`Welcome back, ${user?.username || "User"}!`}
+        description="Admin dashboard for managing your KRAPI instance"
+        action={
+          hasScope(Scope.PROJECTS_WRITE) ? (
+            <ActionButton variant="add" icon={Plus} asChild>
+              <Link href="/projects">Create Project</Link>
+            </ActionButton>
+          ) : null
+        }
+      />
 
       {/* System Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="font-medium">
+            <CardTitle className="text-base font-medium">
               Total Projects
             </CardTitle>
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold">{stats.totalProjects}</div>
-            <p className="text-muted-foreground">
+            <div className="text-base font-bold">{stats.totalProjects}</div>
+            <p className="text-base text-muted-foreground">
               All projects in the system
             </p>
           </CardContent>
@@ -134,20 +114,20 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="font-medium">
+            <CardTitle className="text-base font-medium">
               Active Projects
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold">
+            <div className="text-base font-bold">
               {isLoadingProjects ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 stats.activeProjects
               )}
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {stats.totalProjects > 0
                 ? Math.round((stats.activeProjects / stats.totalProjects) * 100)
                 : 0}
@@ -158,39 +138,39 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="font-medium">
+            <CardTitle className="text-base font-medium">
               Total Collections
             </CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold">
+            <div className="text-base font-bold">
               {isLoadingProjects ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 stats.totalCollections
               )}
             </div>
-            <p className="text-muted-foreground">Across all projects</p>
+            <p className="text-base text-muted-foreground">Across all projects</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="font-medium">
+            <CardTitle className="text-base font-medium">
               Total Documents
             </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold">
+            <div className="text-base font-bold">
               {isLoadingProjects ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 stats.totalDocuments
               )}
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               Across all collections
             </p>
           </CardContent>
@@ -254,108 +234,108 @@ export default function DashboardPage() {
       </Card>
 
       {/* Projects List */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {isLoadingProjects
-          ? [...Array(6)].map(() => {
-              const skeletonId = `dashboard-project-skeleton-${Math.random()}-${Date.now()}`;
-              return (
-              <Card key={skeletonId}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-40" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4 mt-2" />
-                </CardContent>
-              </Card>
-              );
-            })
-          : projects.map((project) => (
-              <Card key={project.id}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    {project.name}
-                  </CardTitle>
-                  <CardDescription>{project.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <Badge
-                      variant={project.is_active ? "default" : "secondary"}
-                    >
-                      {project.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/projects/${project.id}`}>Manage</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-      </div>
+      {projects.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {isLoadingProjects
+            ? [...Array(6)].map((_, i) => (
+                <Card key={`dashboard-project-skeleton-${i}`}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-40" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4 mt-2" />
+                  </CardContent>
+                </Card>
+              ))
+            : projects.slice(0, 6).map((project) => (
+                <Card
+                  key={project.id}
+                  className="krapi-card-hover"
+                >
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold">
+                      {project.name}
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      {project.description || "No description"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant={project.is_active ? "default" : "secondary"}
+                      >
+                        {project.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                      <ActionButton variant="outline" size="sm" asChild>
+                        <Link href={`/projects/${project.id}`}>Manage</Link>
+                      </ActionButton>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common administrative tasks</CardDescription>
+          <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
+          <CardDescription className="text-base">
+            Common administrative tasks
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {hasScope(Scope.PROJECTS_WRITE) && (
-              <Button
+              <ActionButton
                 variant="outline"
-                className="h-auto p-4 flex flex-col items-start gap-2"
+                icon={Plus}
+                className="h-auto p-4 flex-col items-start gap-2"
                 asChild
               >
-                <Link href="/projects">
-                  <Plus className="h-5 w-5" />
-                  <div>
-                    <p className="font-medium">Create Project</p>
-                    <p className="text-base text-muted-foreground">
-                      Start a new project
-                    </p>
-                  </div>
+                <Link href="/projects" className="flex flex-col items-start gap-2">
+                  <div className="font-medium">Create Project</div>
+                  <p className="text-base text-muted-foreground">
+                    Start a new project
+                  </p>
                 </Link>
-              </Button>
+              </ActionButton>
             )}
 
             {hasScope(Scope.USERS_READ) && (
-              <Button
+              <ActionButton
                 variant="outline"
-                className="h-auto p-4 flex flex-col items-start gap-2"
+                icon={Users}
+                className="h-auto p-4 flex-col items-start gap-2"
                 asChild
               >
-                <Link href="/users">
-                  <Users className="h-5 w-5" />
-                  <div>
-                    <p className="font-medium">Manage Users</p>
-                    <p className="text-base text-muted-foreground">
-                      Admin user management
-                    </p>
-                  </div>
+                <Link href="/users" className="flex flex-col items-start gap-2">
+                  <div className="font-medium">Manage Users</div>
+                  <p className="text-base text-muted-foreground">
+                    Admin user management
+                  </p>
                 </Link>
-              </Button>
+              </ActionButton>
             )}
 
-            <Button
+            <ActionButton
               variant="outline"
-              className="h-auto p-4 flex flex-col items-start gap-2"
+              icon={TrendingUp}
+              className="h-auto p-4 flex-col items-start gap-2"
               asChild
             >
-              <Link href="/test-access">
-                <TrendingUp className="h-5 w-5" />
-                <div>
-                  <p className="font-medium">Test Access</p>
-                  <p className="text-base text-muted-foreground">
-                    Test API endpoints
-                  </p>
-                </div>
+              <Link href="/test-access" className="flex flex-col items-start gap-2">
+                <div className="font-medium">Test Access</div>
+                <p className="text-base text-muted-foreground">
+                  Test API endpoints
+                </p>
               </Link>
-            </Button>
+            </ActionButton>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageLayout>
   );
 }

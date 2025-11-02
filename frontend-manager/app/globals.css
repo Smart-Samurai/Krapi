@@ -180,21 +180,27 @@
   .btn-edit,
   .btn-confirm,
   .btn-delete {
-    @apply px-4 py-2 border-0 shadow-sm transition-all;
+    @apply px-4 py-2 border-0 shadow-sm transition-all duration-200;
     font-size: 14px;
     line-height: 1.5;
+    border-radius: 0;
   }
   .btn-add {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md;
   }
   .btn-edit {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-md;
   }
   .btn-confirm {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md;
   }
   .btn-delete {
-    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md;
+  }
+
+  /* Consistent page spacing */
+  .page-container {
+    @apply space-y-6;
   }
 
   /* Minimalistic spacing */
@@ -212,6 +218,11 @@
   }
 
   .krapi-shadow-hover:hover {
-    @apply shadow-md;
+    @apply shadow-md transition-shadow duration-200;
+  }
+
+  /* Card hover effects */
+  .krapi-card-hover {
+    @apply transition-shadow duration-200 hover:shadow-md cursor-pointer;
   }
 }
