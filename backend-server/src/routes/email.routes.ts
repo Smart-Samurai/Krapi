@@ -13,7 +13,8 @@ import { Router } from "express";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
 import { Scope } from "@/types";
 
-const router: Router = Router();
+// Use mergeParams: true to merge params from parent route when mounted as /projects/:projectId/email
+const router: Router = Router({ mergeParams: true });
 
 // Initialize the BackendSDK - will be set from app.ts
 let backendSDK: BackendSDK;
@@ -24,6 +25,72 @@ export const initializeEmailSDK = (sdk: BackendSDK) => {
 
 // Apply authentication middleware to all email routes
 router.use(authenticate);
+
+// GET /email/config - Global email configuration (no project context)
+router.get(
+  "/config",
+  requireScopes({
+    scopes: [Scope.PROJECTS_READ],
+    projectSpecific: false,
+  }),
+  async (req, res) => {
+    try {
+      if (!backendSDK) {
+        return res
+          .status(500)
+          .json({ success: false, error: "BackendSDK not initialized" });
+      }
+
+      // Get system-wide email configuration from settings
+      const settings = await backendSDK.system.getSettings();
+      const config = (settings as { email?: unknown })?.email || {};
+
+      res.json({
+        success: true,
+        data: config,
+      });
+    } catch (error) {
+      console.error("Error getting email config:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get email configuration",
+      });
+    }
+  }
+);
+
+// POST /email/test - Test email connection globally
+router.post(
+  "/test",
+  requireScopes({
+    scopes: [Scope.PROJECTS_WRITE],
+    projectSpecific: false,
+  }),
+  async (req, res) => {
+    try {
+      if (!backendSDK) {
+        return res
+          .status(500)
+          .json({ success: false, error: "BackendSDK not initialized" });
+      }
+
+      // Test email configuration using system service
+      const emailConfig = req.body;
+      const result = await backendSDK.system.testEmailConfig(emailConfig);
+
+      res.json({
+        success: result.success,
+        data: result.data,
+      });
+    } catch (error) {
+      console.error("Error testing email config:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to test email configuration",
+      });
+    }
+  }
+);
 
 // GET /projects/:projectId/email/config
 // Get email configuration for a project

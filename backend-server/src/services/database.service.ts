@@ -4005,13 +4005,14 @@ export class DatabaseService {
 
       // Get project storage info
       const projectResult = await this.adapter.query(
-        "SELECT storage_used, storage_limit FROM projects WHERE id = $1",
+        "SELECT storage_used FROM projects WHERE id = $1",
         [projectId]
       );
 
-      const project = projectResult.rows[0] as { storage_used?: number; storage_limit?: number } | undefined;
+      const project = projectResult.rows[0] as { storage_used?: number } | undefined;
       const storageUsed = project?.storage_used || 0;
-      const storageLimit = project?.storage_limit || 1073741824; // 1GB default
+      // storage_limit doesn't exist in projects table - use default from settings
+      const storageLimit = 1073741824; // 1GB default
 
       return {
         totalFiles,

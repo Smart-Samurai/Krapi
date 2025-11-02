@@ -4,7 +4,9 @@ import multer from "multer";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
 import { Scope } from "@/types";
 
-const router = Router();
+// Use mergeParams: true to merge params from parent route
+// This allows accessing :projectId from parent route /projects/:projectId/storage
+const router = Router({ mergeParams: true });
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -144,16 +146,19 @@ router.get(
   async (req, res) => {
     try {
       // projectId comes from parent route /projects/:projectId/storage
-      // Express should merge params from parent route, but we also check req.params directly
-      const projectId = (req.params as Record<string, string>).projectId || 
-                       (req as { params?: Record<string, string> }).params?.projectId ||
-                       (req as { project?: { id?: string } }).project?.id;
-
-      console.log(`🔍 [STORAGE DEBUG] projectId from params:`, (req.params as Record<string, string>).projectId);
-      console.log(`🔍 [STORAGE DEBUG] all params:`, req.params);
+      // When route is mounted as /projects/:projectId/storage, Express merges params
+      // Check merged params first, then fallback to other sources
+      const params = req.params as Record<string, string>;
+      // Express merges params from parent route, so projectId should be in req.params
+      const projectId = params.projectId;
 
       if (!projectId) {
         console.error(`❌ [STORAGE DEBUG] Project ID not found in request`);
+        console.error(`   Params:`, JSON.stringify(params));
+        console.error(`   All params keys:`, Object.keys(params));
+        console.error(`   URL:`, req.url);
+        console.error(`   Path:`, req.path);
+        console.error(`   Base URL:`, req.baseUrl);
         return res.status(400).json({
           success: false,
           error: "Project ID is required",
@@ -181,9 +186,10 @@ router.get(
       // Get storage statistics
       const stats = await db.getStorageStatistics(projectId);
       
-      // Get project info for quota
+      // Get project info for quota - storage_limit is in settings, not in project table
       const project = await db.getProjectById(projectId);
-      const quota = (project?.settings as { storage_limit?: number } | undefined)?.storage_limit || 1073741824; // 1GB default
+      const settings = (project?.settings as { storage_limit?: number } | undefined) || {};
+      const quota = settings.storage_limit || 1073741824; // 1GB default
       const storageUsed = stats.storageUsed || 0;
       
       res.status(200).json({
@@ -209,9 +215,9 @@ router.get(
   }
 );
 
-// List files in project endpoint
+// Get storage stats endpoint (must come before /project/:projectId to avoid route conflicts)
 router.get(
-  "/project/:projectId",
+  "/stats",
   authenticate,
   requireScopes({
     scopes: [Scope.STORAGE_READ],
@@ -219,7 +225,77 @@ router.get(
   }),
   async (req, res) => {
     try {
-      const { projectId } = req.params;
+      // projectId comes from parent route /projects/:projectId/storage
+      const params = req.params as Record<string, string>;
+      const projectId = params.projectId;
+
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
+
+      // Use BackendSDK if available, otherwise use StorageService
+      const backendSDK = (req as { app?: { locals?: { backendSDK?: unknown } } }).app?.locals?.backendSDK;
+      
+      if (backendSDK && typeof backendSDK === "object" && "storage" in backendSDK) {
+        const storageService = (backendSDK as { storage?: { getStorageStats?: (projectId: string) => Promise<unknown> } }).storage;
+        if (storageService?.getStorageStats) {
+          const stats = await storageService.getStorageStats(projectId);
+          return res.status(200).json({
+            success: true,
+            data: stats,
+          });
+        }
+      }
+
+      // Fallback: use DatabaseService
+      const { DatabaseService } = await import("@/services/database.service");
+      const db = DatabaseService.getInstance();
+      
+      // Get storage statistics
+      const stats = await db.getStorageStatistics(projectId);
+      
+      res.status(200).json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      console.error("Get storage stats error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get storage stats",
+        details:
+          process.env.NODE_ENV === "development"
+            ? (error instanceof Error ? error.message : "Unknown error")
+            : undefined,
+      });
+    }
+  }
+);
+
+// List files in project endpoint
+// Route is mounted at /projects/:projectId/storage, so /files becomes /projects/:projectId/storage/files
+router.get(
+  "/files",
+  authenticate,
+  requireScopes({
+    scopes: [Scope.STORAGE_READ],
+    projectSpecific: true,
+  }),
+  async (req, res) => {
+    try {
+      // projectId comes from parent route /projects/:projectId/storage
+      const params = req.params as Record<string, string>;
+      const projectId = params.projectId;
+
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
 
       // For now, return mock file list
       // In a real implementation, this would retrieve actual files for the project
