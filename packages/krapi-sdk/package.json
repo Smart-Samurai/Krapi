@@ -40,13 +40,14 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "prepublishOnly": "npm run build",
+    "security-check": "npm audit --audit-level=moderate && npm outdated",
+    "prepublishOnly": "npm run security-check && npm run build && npm run type-check",
     "prepack": "npm run build"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "axios": "^1.10.0",
-    "nodemailer": "^7.0.4"
+    "axios": "^1.13.1",
+    "nodemailer": "^7.0.10"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

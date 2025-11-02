@@ -12,27 +12,60 @@ This guide explains how to publish the KRAPI SDK to npm so external developers c
 
 ## Before Publishing
 
-1. **Update package.json**:
-   - Update the `repository.url` with your actual GitHub repository URL
-   - Update the `homepage` URL
-   - Update the `author` field if needed
-   - Ensure the `version` is correct (following semantic versioning)
+### Step 1: Update package.json
 
-2. **Build the package**:
-   ```bash
-   cd packages/krapi-sdk
-   npm run build
-   ```
+Update `packages/krapi-sdk/package.json` with real information:
 
-3. **Verify the package contents**:
-   ```bash
-   npm pack --dry-run
-   ```
-   This will show what files will be included in the published package. Should include:
-   - `dist/` folder (all built files)
-   - `README.md`
-   - `package.json`
-   - Type definitions (`.d.ts` files)
+- Update the `repository.url` with your actual GitHub repository URL
+- Update the `homepage` URL
+- Update the `author` field with your name and email
+- Ensure the `version` is correct (following semantic versioning)
+
+### Step 2: Security Check
+
+**?? IMPORTANT**: Always check for security vulnerabilities before publishing!
+
+```bash
+cd packages/krapi-sdk
+npm run security-check
+```
+
+This will:
+- Run `npm audit` to check for vulnerabilities (must show 0)
+- Check for outdated dependencies
+
+**If vulnerabilities found**:
+```bash
+npm audit fix
+npm install
+npm run security-check  # Verify fixed
+```
+
+### Step 3: Build the Package
+
+```bash
+npm run build
+```
+
+This will:
+- Compile TypeScript to JavaScript
+- Generate type definitions
+- Create ESM and CJS builds
+
+### Step 4: Verify the Package Contents
+
+```bash
+npm pack --dry-run
+```
+
+This will show what files will be included in the published package. Should include:
+- ? `dist/` folder (all built files)
+- ? `README.md`
+- ? `package.json`
+- ? Type definitions (`.d.ts` files)
+- ? `src/` (should NOT be included)
+- ? `node_modules/` (should NOT be included)
+- ? Development files (should NOT be included)
 
 ## Publishing to NPM
 
@@ -47,16 +80,33 @@ This guide explains how to publish the KRAPI SDK to npm so external developers c
    ```bash
    npm login
    ```
+   
+   Enter:
+   - Username: Your npm username
+   - Password: Your npm password (hidden)
+   - Email: Your verified email
 
-3. **Publish the package**:
+3. **Final Security Check**:
    ```bash
-   cd packages/krapi-sdk
+   npm run security-check
+   ```
+   
+   **Must show**: `found 0 vulnerabilities` ?
+
+4. **Publish the package**:
+   ```bash
    npm publish
    ```
    
+   Or for scoped packages (to ensure public access):
+   ```bash
+   npm publish --access public
+   ```
+   
    This will:
-   - Run `prepublishOnly` script (builds the package)
-   - Publish to npm registry
+   - Run `prepublishOnly` script (security check + build + type check)
+   - Create tarball (.tgz file)
+   - Upload to npm registry
    - Package will be available at https://www.npmjs.com/package/@krapi/sdk
 
 ### Publishing Updates
@@ -146,6 +196,13 @@ The published package includes:
 - Make sure all dependencies are installed: `npm install`
 - Check that TypeScript compiles: `npm run type-check`
 - Verify build works: `npm run build`
+- Check for security vulnerabilities: `npm run security-check`
+
+### Security vulnerabilities found
+- Run: `npm audit fix`
+- Install: `npm install`
+- Verify: `npm run security-check`
+- Update dependencies manually if needed
 
 ## CI/CD Publishing
 

@@ -534,61 +534,69 @@ krapi.setProjectId('project-id');
 
 ## Publishing the Package to NPM
 
-For KRAPI maintainers - to publish this package to npm for external developers:
+For KRAPI maintainers - to publish this package to npm for external developers.
 
-### Prerequisites
+### ?? Important: Security Checklist
 
-1. **npm account**: Create an account at https://www.npmjs.com/signup
-2. **npm organization** (for `@krapi/sdk` scoped package):
-   - Create at https://www.npmjs.com/org/create
-   - Name it `krapi`
-   - OR use unscoped name `krapi-sdk` (change in package.json)
-3. **Login**: Run `npm login` in terminal
+**Before publishing, always**:
+1. Run security check: `npm run security-check` (must show 0 vulnerabilities)
+2. Update `package.json` with real repository URL and author info
+3. Verify package contents: `npm pack --dry-run`
+4. Test installation in a new project after publishing
 
-### Publishing Steps
+### Quick Start Publishing
 
-1. **Build the package**:
+1. **Prerequisites**:
+   - npm account (create at https://www.npmjs.com/signup)
+   - npm organization `@krapi` (create at https://www.npmjs.com/org/create)
+   - Login: `npm login`
+
+2. **Security Check**:
    ```bash
    cd packages/krapi-sdk
-   npm run build
-   ```
-
-2. **Verify contents**:
-   ```bash
-   npm pack --dry-run
+   npm run security-check  # Must show 0 vulnerabilities!
    ```
 
 3. **Publish**:
    ```bash
-   npm publish
+   npm publish --access public
    ```
 
-4. **Verify on npm**:
+4. **Verify**:
    - Visit https://www.npmjs.com/package/@krapi/sdk
-   - Package is now available for installation!
+   - Test installation: `npm install @krapi/sdk`
+
+### Detailed Guides
+
+- **Step-by-step instructions**: See `NPM_PUBLISH_STEPS.md` for beginner-friendly guide
+- **Complete publishing guide**: See `NPM_PUBLISHING.md` for detailed documentation
+- **Security guide**: See `SECURITY.md` for security best practices
 
 ### Updating the Package
 
 ```bash
 # Update version (patch/minor/major)
 npm version patch
-npm publish
+npm run security-check  # Always check security before publishing
+npm publish --access public
 ```
 
 ### Important Notes
 
-- The package name is `@krapi/sdk` (scoped) - requires npm organization
-- Alternative: Change to `krapi-sdk` (unscoped) in package.json
-- See `NPM_PUBLISHING.md` for detailed publishing guide
+- ? **Security**: Always run `npm run security-check` before publishing
+- ? **Build**: Package auto-builds before publish (via `prepublishOnly` script)
+- ? **Types**: Package includes TypeScript definitions
+- ? **Scoped Package**: `@krapi/sdk` requires npm organization `@krapi`
+- ? **Alternative**: Use `krapi-sdk` (unscoped) if you don't want an organization
 
 ### After Publishing
 
 External developers can install:
 ```bash
 npm install @krapi/sdk
-# or if unscoped
-npm install krapi-sdk
 ```
+
+See [Installation](#installation) section above for usage instructions.
 
 ## More Examples
 
