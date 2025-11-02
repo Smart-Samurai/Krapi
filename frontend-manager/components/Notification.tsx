@@ -20,12 +20,12 @@ export default function Notification({
 
   return (
     <div
-      className={`${bgColor} ${borderColor} border rounded-lg p-4 mb-4 relative`}
+      className={`${bgColor} ${borderColor} border  p-4 mb-4 relative`}
     >
       <div className="flex items-start">
         <Icon className={`${iconColor} h-5 w-5 mt-0.5 mr-3 flex-shrink-0`} />
         <div className="flex-1">
-          <p className={`${textColor} text-sm font-medium`}>{message}</p>
+          <p className={`${textColor} text-base font-medium`}>{message}</p>
         </div>
         <button
           onClick={onClose}

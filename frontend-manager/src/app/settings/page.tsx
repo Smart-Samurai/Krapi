@@ -1,27 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Settings,
   Database,
@@ -29,15 +7,32 @@ import {
   Shield,
   Monitor,
   Server,
-  Key,
-  User,
-  Bell,
-  Globe,
   Save,
   RefreshCw,
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AppSettings {
   app: {
@@ -153,7 +148,7 @@ export default function SettingsPage() {
   const updateSetting = (
     section: keyof AppSettings,
     field: string,
-    value: any
+    value: unknown
   ) => {
     if (!settings) return;
 
@@ -173,7 +168,6 @@ export default function SettingsPage() {
   ) => {
     if (!settings) return;
 
-    const array = (settings[section] as any)[field] || [];
     const newArray = value
       .split(",")
       .map((item) => item.trim())
@@ -201,7 +195,7 @@ export default function SettingsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
           <p>Loading settings...</p>
         </div>
       </div>

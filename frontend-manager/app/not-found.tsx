@@ -15,12 +15,12 @@ export default function NotFound() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <span className="text-3xl font-bold text-muted-foreground">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center  bg-muted">
+            <span className="text-base font-bold text-muted-foreground">
               404
             </span>
           </div>
-          <CardTitle className="text-2xl">Page Not Found</CardTitle>
+          <CardTitle className="text-base">Page Not Found</CardTitle>
           <CardDescription>
             We couldn&apos;t find the page you&apos;re looking for.
           </CardDescription>

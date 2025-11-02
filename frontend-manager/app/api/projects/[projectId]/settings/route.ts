@@ -65,8 +65,8 @@ export async function GET(
     const settings = await response.json();
     // Extract the data from the backend response and return it directly
     return NextResponse.json(settings.data);
-  } catch (error) {
-    console.error("Error fetching project settings:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -138,8 +138,8 @@ export async function PUT(
     const settings = await response.json();
     // Extract the data from the backend response and return it directly
     return NextResponse.json(settings.data);
-  } catch (error) {
-    console.error("Error updating project settings:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

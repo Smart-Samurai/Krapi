@@ -15,9 +15,9 @@ interface TextButtonProps {
 }
 
 const sizeClasses = {
-  sm: "px-3 py-1.5 text-sm",
+  sm: "px-3 py-1.5 text-base",
   md: "px-4 py-2 text-base",
-  lg: "px-6 py-3 text-lg",
+  lg: "px-6 py-3 text-base",
 };
 
 const variantClasses = {

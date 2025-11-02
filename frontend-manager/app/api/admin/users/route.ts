@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
     return NextResponse.json(result);
-  } catch (error) {
+  } catch {
     // Error logged for debugging
     return NextResponse.json(
       {
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json(result, { status: 400 });
     }
-  } catch (error) {
+  } catch {
     // Error logged for debugging
     return NextResponse.json(
       {

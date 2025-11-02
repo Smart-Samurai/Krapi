@@ -75,14 +75,7 @@ async function proxyRequest(
       ? `${backendUrl}?${searchParams}`
       : backendUrl;
 
-    // Debug logging
-    console.log("[KRAPI Proxy]", {
-      method,
-      pathSegments,
-      backendPath,
-      fullBackendUrl,
-      backend: BACKEND_URL,
-    });
+    // Debug logging removed for production
 
     // Prepare headers (exclude host and other problematic headers)
     const headers = new Headers();
@@ -110,8 +103,8 @@ async function proxyRequest(
     if (method !== "GET" && method !== "DELETE") {
       try {
         body = await request.text();
-      } catch (error) {
-        console.error("Error reading request body:", error);
+      } catch {
+        
       }
     }
 
@@ -144,8 +137,8 @@ async function proxyRequest(
         "Content-Type": "application/json",
       },
     });
-  } catch (error) {
-    // console.error("Proxy error:", error);
+  } catch {
+    // 
 
     return NextResponse.json(
       {

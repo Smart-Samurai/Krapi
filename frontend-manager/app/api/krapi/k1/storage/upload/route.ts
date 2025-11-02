@@ -47,8 +47,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const uploadData = await response.json();
     return NextResponse.json({ success: true, data: uploadData });
-  } catch (error) {
-    console.error("Error uploading file:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

@@ -42,7 +42,7 @@ export default function SidebarGroupLayout({
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
-          <h1 className="text-lg font-semibold">{pageTitle}</h1>
+          <h1 className="text-base font-semibold">{pageTitle}</h1>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">
           {children}

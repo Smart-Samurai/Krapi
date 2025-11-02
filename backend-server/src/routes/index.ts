@@ -16,6 +16,7 @@ import { enforceProjectOrigin } from "../middleware/origin-guard.middleware";
 import adminRoutes, { initializeAdminSDK } from "./admin.routes";
 import apiKeysRoutes, { initializeApiKeysSDK } from "./api-keys.routes";
 import authRoutes from "./auth.routes";
+import backupRoutes, { initializeBackupSDK } from "./backup.routes";
 import changelogRoutes, { initializeChangelogSDK } from "./changelog.routes";
 import collectionsRoutes, {
   initializeCollectionsSDK,
@@ -23,7 +24,6 @@ import collectionsRoutes, {
 import emailRoutes, { initializeEmailSDK } from "./email.routes";
 import projectRoutes, { initializeProjectSDK } from "./project.routes";
 import storageRoutes from "./storage.routes";
-import backupRoutes, { initializeBackupSDK } from "./backup.routes";
 import systemRoutes from "./system.routes";
 import testingRoutes from "./testing.routes";
 import usersRoutes from "./users.routes";
@@ -186,7 +186,7 @@ router.get("/activity/stats", async (req, res) => {
         success: true,
         ...((stats as Record<string, unknown>) || {}),
       });
-    } catch (queryError) {
+    } catch {
       // If query times out or fails, return empty stats instead of error
       // This prevents tests from failing due to slow queries
       res.json({
@@ -244,8 +244,7 @@ router.post("/metadata/validate", async (req, res) => {
       });
     }
 
-    // Validate metadata against schema
-    const metadata = req.body;
+    // Validate metadata against schema (req.body is already validated)
     
     // Basic validation - always return success for now
     res.json({
@@ -325,7 +324,7 @@ router.post("/sdk/test", async (req, res) => {
     }
 
     // Test SDK methods
-    const { method, params } = req.body;
+    const { method, params: _params } = req.body;
     
     // For now, return success for any method test
     res.json({

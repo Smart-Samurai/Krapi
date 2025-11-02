@@ -68,7 +68,7 @@ export async function GET(
 
     // Check if the response has the expected structure
     if (!project || typeof project !== "object") {
-      console.error("Invalid project response:", project);
+      
       return NextResponse.json(
         { success: false, error: "Invalid response format from backend" },
         { status: 500 }
@@ -76,7 +76,7 @@ export async function GET(
     }
 
     if (!project.data) {
-      console.error("Project response missing data property:", project);
+      
       return NextResponse.json(
         { success: false, error: "Backend response missing data property" },
         { status: 500 }
@@ -88,7 +88,7 @@ export async function GET(
       success: true,
       project: project.data,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
@@ -137,9 +137,9 @@ export async function PUT(
     // Wrap response to match test expectations: { success: true, project: ... }
     return NextResponse.json({
       success: true,
-      project: project,
+      project,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
@@ -188,7 +188,7 @@ export async function DELETE(
       success: true,
       message: "Project deleted successfully",
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

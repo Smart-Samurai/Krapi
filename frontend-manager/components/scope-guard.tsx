@@ -46,12 +46,12 @@ export function ScopeGuard({
       <AlertDescription className="space-y-2">
         <p>You don&apos;t have permission to access this feature.</p>
         <div>
-          <p className="text-sm font-medium mb-1">
+          <p className="text-base font-medium mb-1">
             Required {requireAll ? "all" : "any"} of these scopes:
           </p>
           <div className="flex flex-wrap gap-2">
             {requiredScopes.map((scope) => (
-              <Badge key={scope} variant="outline" className="text-xs">
+              <Badge key={scope} variant="outline" className="text-base">
                 {scope}
               </Badge>
             ))}

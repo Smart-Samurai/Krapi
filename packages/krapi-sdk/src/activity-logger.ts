@@ -358,7 +358,7 @@ export class ActivityLogger {
             actions_by_user: {},
           };
         }
-      } catch (checkError) {
+      } catch {
         // Table doesn't exist, return empty stats
         return {
           total_actions: 0,

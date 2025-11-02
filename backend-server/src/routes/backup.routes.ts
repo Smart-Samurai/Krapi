@@ -5,9 +5,9 @@
  * All routes require authentication and appropriate scopes.
  */
 
+import { BackendSDK } from "@krapi/sdk";
 import { Request, Response, Router } from "express";
 
-import { BackendSDK } from "@krapi/sdk";
 
 import { requireScopes } from "../middleware/auth.middleware";
 import { Scope } from "../types";

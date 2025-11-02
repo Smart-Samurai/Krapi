@@ -1,5 +1,5 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { krapi } from "@krapi/sdk";
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
@@ -30,7 +30,6 @@ export default async function handler(
 
     res.status(200).json(validationResult);
   } catch (error) {
-    console.error("Document validation error:", error);
     res.status(500).json({
       error: "Failed to validate document",
       details: error instanceof Error ? error.message : "Unknown error",

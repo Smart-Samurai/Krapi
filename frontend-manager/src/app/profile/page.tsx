@@ -1,33 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   User,
-  Mail,
   Shield,
-  Key,
-  Bell,
-  Globe,
   Save,
   RefreshCw,
   CheckCircle,
@@ -36,7 +11,32 @@ import {
   EyeOff,
   Lock,
   Unlock,
+  Bell,
+  Key,
+  Globe,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface UserProfile {
   id: string;
@@ -164,7 +164,7 @@ export default function ProfilePage() {
   const updatePreference = (
     section: keyof UserProfile["preferences"],
     field: string,
-    value: any
+    value: unknown
   ) => {
     if (!profile) return;
 
@@ -173,7 +173,7 @@ export default function ProfilePage() {
       preferences: {
         ...profile.preferences,
         [section]: {
-          ...profile.preferences[section],
+          ...(profile.preferences[section] as Record<string, unknown>),
           [field]: value,
         },
       },
@@ -210,7 +210,7 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
           <p>Loading profile...</p>
         </div>
       </div>
@@ -711,8 +711,8 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {profile.security.login_history.map((login, index) => (
-                  <div key={index} className="p-4 border rounded-md">
+                {profile.security.login_history.map((login) => (
+                  <div key={`login-${login.timestamp}-${login.ip_address}`} className="p-4 border rounded-md">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         {login.success ? (

@@ -1,5 +1,5 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { krapi } from "@krapi/sdk";
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
@@ -20,7 +20,6 @@ export default async function handler(
       message: "Performance monitoring started",
     });
   } catch (error) {
-    console.error("Performance monitoring start error:", error);
     res.status(500).json({
       error: "Failed to start performance monitoring",
       details: error instanceof Error ? error.message : "Unknown error",

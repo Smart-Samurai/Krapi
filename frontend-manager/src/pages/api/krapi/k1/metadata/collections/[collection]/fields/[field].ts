@@ -1,5 +1,5 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { krapi } from "@krapi/sdk";
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
@@ -42,7 +42,6 @@ export default async function handler(
         res.status(405).json({ error: "Method not allowed" });
     }
   } catch (error) {
-    console.error("Custom field management error:", error);
     res.status(500).json({
       error: "Failed to manage custom field",
       details: error instanceof Error ? error.message : "Unknown error",

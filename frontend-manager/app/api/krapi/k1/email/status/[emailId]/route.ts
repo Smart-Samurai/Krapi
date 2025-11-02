@@ -38,8 +38,8 @@ export async function GET(
 
     const statusData = await response.json();
     return NextResponse.json(statusData);
-  } catch (error) {
-    console.error("Email status error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to get email status" },
       { status: 500 }

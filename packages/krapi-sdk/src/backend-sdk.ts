@@ -8,8 +8,8 @@
 
 import { ActivityLogger } from "./activity-logger";
 import { AdminService } from "./admin-service";
-import { BackupService } from "./backup-service";
 import { AuthService } from "./auth-service";
+import { BackupService } from "./backup-service";
 import { ChangelogService } from "./changelog-service";
 import { CollectionsSchemaManager } from "./collections-schema-manager";
 import {
@@ -26,10 +26,9 @@ import { HealthService } from "./health-service";
 import { MetadataManager } from "./metadata-manager";
 import { PerformanceMonitor } from "./performance-monitor";
 import { PostgreSQLAutoFixer } from "./postgresql-auto-fixer";
-import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
-import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import { ProjectsService } from "./projects-service";
 import { SchemaGenerator } from "./schema-generator";
+import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import { StorageService } from "./storage-service";
 import { SystemService } from "./system-service";
 import { TestingService } from "./testing-service";

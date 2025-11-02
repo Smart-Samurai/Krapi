@@ -283,7 +283,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-text">System Settings</h1>
+          <h1 className="text-base font-bold text-text">System Settings</h1>
           <p className="text-text/60 mt-1">
             Manage your KRAPI instance configuration
           </p>
@@ -383,7 +383,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -431,7 +431,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="text-base font-semibold mb-4">
                     Password Requirements
                   </h3>
 
@@ -467,7 +467,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -530,7 +530,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="text-base font-semibold mb-4">
                     Sender Information
                   </h3>
 
@@ -561,7 +561,7 @@ export default function SettingsPage() {
                     Send Test Email
                   </Button>
 
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -609,7 +609,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="border-t border-border pt-6">
-                  <h3 className="text-lg font-semibold mb-4">
+                  <h3 className="text-base font-semibold mb-4">
                     Backup Settings
                   </h3>
 
@@ -637,7 +637,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -661,7 +661,7 @@ export default function SettingsPage() {
 
           <div className="space-y-4 py-4">
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="block text-base font-medium mb-2">
                 Recipient Email
               </label>
               <input
@@ -669,7 +669,7 @@ export default function SettingsPage() {
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
                 placeholder="test@example.com"
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-border  focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>

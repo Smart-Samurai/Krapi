@@ -315,12 +315,15 @@ export default function CollectionsPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `collections-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`collections-skeleton-item-${i}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -330,7 +333,7 @@ export default function CollectionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Collections</h1>
+          <h1 className="text-base font-bold">Collections</h1>
           <p className="text-muted-foreground">
             Manage your project&apos;s data collections and their fields
           </p>
@@ -341,7 +344,7 @@ export default function CollectionsPage() {
             onOpenChange={setIsCreateDialogOpen}
           >
             <DialogTrigger asChild>
-              <Button>
+              <Button className="btn-add">
                 <Plus className="mr-2 h-4 w-4" />
                 Create Collection
               </Button>
@@ -393,14 +396,12 @@ export default function CollectionsPage() {
                     </Button>
                   </div>
                   <div className="space-y-3">
-                    {formData.fields.map((field, _index) => {
+                    {formData.fields.map((field) => {
                       const _Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <div
-                          key={`collections-field-${_index}-${
-                            field.name || "unnamed"
-                          }`}
-                          className="flex items-center gap-2 p-3 border rounded-lg"
+                          key={`collections-field-${field.name || "unnamed"}-${field.type}`}
+                          className="flex items-center gap-2 p-3 border "
                         >
                           <div className="flex-1 grid grid-cols-2 gap-2">
                             <Input
@@ -509,6 +510,7 @@ export default function CollectionsPage() {
                   Cancel
                 </Button>
                 <Button
+                  className="btn-add"
                   onClick={handleCreateCollection}
                   disabled={!formData.name}
                 >
@@ -536,14 +538,14 @@ export default function CollectionsPage() {
               </DialogHeader>
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
-                      {`// Initialize KRAPI client
-import { KrapiSDK } from '@krapi/sdk';
+                  <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
+                      {`// Initialize KRAPI client (like Appwrite!)
+import { KrapiClient } from '@krapi/sdk/client';
 
-const krapi = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-api-key'
 });
 
@@ -587,11 +589,11 @@ await krapi.collections.delete(projectId, collectionId);`}
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
 
@@ -660,10 +662,10 @@ response = requests.delete(
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     Available Field Types
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-base">
                     <div>
                       <h4 className="font-medium mb-2">Basic Types:</h4>
                       <ul className="space-y-1 text-muted-foreground">
@@ -702,11 +704,11 @@ response = requests.delete(
         <Card>
           <CardContent className="text-center py-12">
             <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Collections Yet</h3>
+            <h3 className="text-base font-semibold mb-2">No Collections Yet</h3>
             <p className="text-muted-foreground mb-4">
               Create your first collection to start storing data
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Collection
             </Button>
@@ -756,6 +758,7 @@ response = requests.delete(
                     <Button
                       variant="outline"
                       size="sm"
+                      className="btn-delete"
                       onClick={() => handleDeleteCollection(collection.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -870,7 +873,7 @@ response = requests.delete(
                       key={`collections-edit-field-${
                         field.name || "unnamed"
                       }-${Date.now()}`}
-                      className="flex items-center gap-2 p-3 border rounded-lg"
+                      className="flex items-center gap-2 p-3 border "
                     >
                       <div className="flex-1 grid grid-cols-2 gap-2">
                         <Input
@@ -975,7 +978,7 @@ response = requests.delete(
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateCollection} disabled={!formData.name}>
+            <Button className="btn-edit" onClick={handleUpdateCollection} disabled={!formData.name}>
               Update Collection
             </Button>
           </DialogFooter>

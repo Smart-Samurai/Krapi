@@ -1,5 +1,6 @@
 "use client";
 
+import { type ApiKey } from "@krapi/sdk";
 import {
   Plus,
   Edit,
@@ -63,7 +64,6 @@ import {
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { ProjectScope } from "@/lib/krapi";
-import { type ApiKey } from "@krapi/sdk";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.READ]: "Read Projects",
@@ -349,12 +349,15 @@ export default function ApiKeysPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `api-keys-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`api-keys-skeleton-item-${i}-${Date.now()}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -364,7 +367,7 @@ export default function ApiKeysPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">API Keys</h1>
+          <h1 className="text-base font-bold">API Keys</h1>
           <p className="text-muted-foreground">
             Manage API keys for programmatic access to your project
           </p>
@@ -423,7 +426,7 @@ export default function ApiKeysPage() {
                           checked={formData.scopes.includes(scope)}
                           onCheckedChange={() => toggleScope(scope)}
                         />
-                        <Label htmlFor={scope} className="text-sm font-normal">
+                        <Label htmlFor={scope} className="text-base font-normal">
                           {label}
                         </Label>
                       </div>
@@ -438,7 +441,7 @@ export default function ApiKeysPage() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleCreateApiKey} disabled={!formData.name}>
+                <Button className="btn-add" onClick={handleCreateApiKey} disabled={!formData.name}>
                   Create API Key
                 </Button>
               </DialogFooter>
@@ -463,14 +466,14 @@ export default function ApiKeysPage() {
               </DialogHeader>
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
-                      {`// Initialize KRAPI client
-import { KrapiSDK } from '@krapi/sdk';
+                  <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
+                      {`// Initialize KRAPI client (like Appwrite!)
+import { KrapiClient } from '@krapi/sdk/client';
 
-const krapi = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-api-key'
 });
 
@@ -505,8 +508,8 @@ const regenerated = await krapi.apiKeys.regenerate(projectId, keyId);
 await krapi.apiKeys.delete(projectId, keyId);
 
 // Using an API key for authentication
-const clientWithKey = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const clientWithKey = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-generated-api-key'
 });`}
                     </pre>
@@ -514,11 +517,11 @@ const clientWithKey = new KrapiSDK({
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
 from datetime import datetime, timedelta
@@ -601,10 +604,10 @@ headers_with_key = {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     Available Scopes
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-base">
                     <div>
                       <h4 className="font-medium mb-2">Data Scopes:</h4>
                       <ul className="space-y-1 text-muted-foreground">
@@ -697,11 +700,11 @@ headers_with_key = {
         <Card>
           <CardContent className="text-center py-12">
             <KeyRound className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No API Keys Yet</h3>
+            <h3 className="text-base font-semibold mb-2">No API Keys Yet</h3>
             <p className="text-muted-foreground mb-4">
               Create your first API key to enable programmatic access
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create API Key
             </Button>
@@ -735,14 +738,14 @@ headers_with_key = {
                       <TableCell>
                         <div>
                           <div className="font-medium">{apiKey.name}</div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-base text-muted-foreground">
                             Created by system
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code className="text-sm bg-muted px-2 py-1 rounded">
+                          <code className="text-base bg-muted px-2 py-1 rounded">
                             {showApiKey === apiKey.id
                               ? apiKey.key
                               : `${apiKey.key.substring(
@@ -806,27 +809,27 @@ headers_with_key = {
                             <Badge
                               key={scope}
                               variant="outline"
-                              className="text-xs"
+                              className="text-base"
                             >
                               {scopeLabels[scope as ProjectScope] || scope}
                             </Badge>
                           ))}
                           {apiKey.scopes.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-base">
                               +{apiKey.scopes.length - 3} more
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-base text-muted-foreground">
                           {apiKey.expires_at
                             ? new Date(apiKey.expires_at).toLocaleDateString()
                             : "Never"}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-base text-muted-foreground">
                           {new Date(apiKey.created_at).toLocaleDateString()}
                         </div>
                       </TableCell>
@@ -918,7 +921,7 @@ headers_with_key = {
                     />
                     <Label
                       htmlFor={`edit-${scope}`}
-                      className="text-sm font-normal"
+                      className="text-base font-normal"
                     >
                       {label}
                     </Label>
@@ -934,7 +937,7 @@ headers_with_key = {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateApiKey} disabled={!formData.name}>
+            <Button className="btn-edit" onClick={handleUpdateApiKey} disabled={!formData.name}>
               Update API Key
             </Button>
           </DialogFooter>

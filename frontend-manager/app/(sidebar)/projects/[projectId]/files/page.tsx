@@ -301,12 +301,15 @@ export default function FilesPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `files-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`files-skeleton-${i}-${Date.now()}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -316,7 +319,7 @@ export default function FilesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Files</h1>
+          <h1 className="text-base font-bold">Files</h1>
           <p className="text-muted-foreground">
             Manage your project&apos;s file storage
           </p>
@@ -363,14 +366,14 @@ export default function FilesPage() {
               </DialogHeader>
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
-                      {`// Initialize KRAPI client
-import { KrapiSDK } from '@krapi/sdk';
+                  <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
+                      {`// Initialize KRAPI client (like Appwrite!)
+import { KrapiClient } from '@krapi/sdk/client';
 
-const krapi = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-api-key'
 });
 
@@ -406,11 +409,11 @@ const fileUrl = krapi.storage.getFileUrl(projectId, fileId);`}
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
 
@@ -473,10 +476,10 @@ stats = response.json()`}
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     File Operations
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-base">
                     <div>
                       <h4 className="font-medium mb-2">
                         Supported Operations:
@@ -519,8 +522,8 @@ stats = response.json()`}
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Used Space</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-base font-medium">Used Space</span>
+                <span className="text-base text-muted-foreground">
                   {formatFileSize(storageStats.total_size)} /{" "}
                   {formatFileSize(0)}
                 </span>
@@ -531,22 +534,22 @@ stats = response.json()`}
               />
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold">
+                  <div className="text-base font-bold">
                     {storageStats.total_files || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground">Files</div>
+                  <div className="text-base text-muted-foreground">Files</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">
+                  <div className="text-base font-bold">
                     {formatFileSize(storageStats.total_size)}
                   </div>
-                  <div className="text-sm text-muted-foreground">Used</div>
+                  <div className="text-base text-muted-foreground">Used</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">
+                  <div className="text-base font-bold">
                     {Math.round(storageStats.storage_used_percentage || 0)}%
                   </div>
-                  <div className="text-sm text-muted-foreground">Usage</div>
+                  <div className="text-base text-muted-foreground">Usage</div>
                 </div>
               </div>
             </div>
@@ -633,7 +636,7 @@ stats = response.json()`}
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Files Yet</h3>
+            <h3 className="text-base font-semibold mb-2">No Files Yet</h3>
             <p className="text-muted-foreground mb-4">
               Upload your first file to get started
             </p>
@@ -674,10 +677,10 @@ stats = response.json()`}
                               <FileIcon className="h-8 w-8 text-muted-foreground" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium truncate">
+                              <p className="text-base font-medium truncate">
                                 {file.original_name}
                               </p>
-                              <p className="text-xs text-muted-foreground truncate">
+                              <p className="text-base text-muted-foreground truncate">
                                 {file.filename}
                               </p>
                             </div>
@@ -689,12 +692,12 @@ stats = response.json()`}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">
+                          <span className="text-base">
                             {formatFileSize(file.size)}
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-base text-muted-foreground">
                             {new Date(file.created_at).toLocaleDateString()}
                           </div>
                         </TableCell>
@@ -768,7 +771,7 @@ stats = response.json()`}
                   <h3 className="font-semibold">
                     {selectedFile.original_name}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {selectedFile.filename}
                   </p>
                 </div>
@@ -777,21 +780,21 @@ stats = response.json()`}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>File Type</Label>
-                  <p className="text-sm">{selectedFile.mime_type}</p>
+                  <p className="text-base">{selectedFile.mime_type}</p>
                 </div>
                 <div>
                   <Label>File Size</Label>
-                  <p className="text-sm">{formatFileSize(selectedFile.size)}</p>
+                  <p className="text-base">{formatFileSize(selectedFile.size)}</p>
                 </div>
                 <div>
                   <Label>Upload Date</Label>
-                  <p className="text-sm">
+                  <p className="text-base">
                     {new Date(selectedFile.created_at).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <Label>Last Modified</Label>
-                  <p className="text-sm">
+                  <p className="text-base">
                     {new Date(selectedFile.updated_at).toLocaleString()}
                   </p>
                 </div>
@@ -820,7 +823,7 @@ stats = response.json()`}
                         key={`files-relation-${relation.type}-${
                           relation.target_id
                         }-${Date.now()}`}
-                        className="flex items-center gap-2 text-sm"
+                        className="flex items-center gap-2 text-base"
                       >
                         <Link className="h-4 w-4" />
                         <span>

@@ -62,8 +62,8 @@ export async function POST(
 
     const user = await response.json();
     return NextResponse.json({ success: true, data: user }, { status: 201 });
-  } catch (error) {
-    console.error("Error creating project user:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -128,8 +128,8 @@ export async function GET(
 
     const users = await response.json();
     return NextResponse.json(users);
-  } catch (error) {
-    console.error("Error fetching project users:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

@@ -73,8 +73,8 @@ export async function GET(
     
     // Backend returns { success: true, data: {...} }, pass it through
     return NextResponse.json(backendResponse);
-  } catch (error) {
-    console.error("Error fetching collection statistics:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

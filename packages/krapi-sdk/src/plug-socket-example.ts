@@ -5,7 +5,7 @@
  * The EXACT same methods work in both environments with identical interfaces.
  */
 
-import { DatabaseConnection } from "./core";
+import { DatabaseConnection, Logger } from "./core";
 import { krapi } from "./krapi";
 
 /**
@@ -22,33 +22,35 @@ export class TaskManager {
   }
 
   /**
-   * Setup the task management system
+   * Setup task collection if it doesn't exist
    */
   async setup() {
-    // Create the tasks collection - works identically in client and server
-    const collection = await krapi.collections.create(this.projectId, {
-      name: "tasks",
-      description: "Task management collection",
-      fields: [
-        { name: "title", type: "string", required: true },
-        { name: "description", type: "text" },
-        { name: "status", type: "string", default: "pending" },
-        { name: "priority", type: "string", default: "medium" },
-        { name: "assignee_id", type: "uuid" },
-        { name: "due_date", type: "date" },
-        { name: "created_at", type: "timestamp", default: "now()" },
-        { name: "completed_at", type: "timestamp" },
-        { name: "tags", type: "json", default: [] },
-      ],
-      indexes: [
-        { name: "status_idx", fields: ["status"] },
-        { name: "assignee_idx", fields: ["assignee_id"] },
-        { name: "due_date_idx", fields: ["due_date"] },
-      ],
-    });
-
-    console.log("Task collection created:", collection.name);
-    return collection;
+    try {
+      // Check if collection exists
+      await krapi.collections.get(this.projectId, "tasks");
+    } catch {
+      // Collection doesn't exist, create it
+      await krapi.collections.create(this.projectId, {
+        name: "tasks",
+        description: "Task management collection",
+        fields: [
+          { name: "title", type: "string", required: true },
+          { name: "description", type: "text" },
+          { name: "status", type: "string", default: "pending" },
+          { name: "priority", type: "string", default: "medium" },
+          { name: "assignee_id", type: "uuid" },
+          { name: "due_date", type: "date" },
+          { name: "created_at", type: "timestamp", default: "now()" },
+          { name: "completed_at", type: "timestamp" },
+          { name: "tags", type: "json", default: [] },
+        ],
+        indexes: [
+          { name: "status_idx", fields: ["status"] },
+          { name: "assignee_idx", fields: ["assignee_id"] },
+          { name: "due_date_idx", fields: ["due_date"] },
+        ],
+      });
+    }
   }
 
   /**
@@ -83,9 +85,7 @@ export class TaskManager {
   }) {
     // Same method call works in both environments
     return krapi.documents.getAll(this.projectId, "tasks", {
-      ...(filter && { filter }),
-      orderBy: "created_at",
-      order: "desc",
+      filter: filter || {},
     });
   }
 
@@ -93,13 +93,10 @@ export class TaskManager {
    * Update task status
    */
   async updateTaskStatus(taskId: string, status: string) {
-    // Same method call works in both environments
     return krapi.documents.update(this.projectId, "tasks", taskId, {
       data: {
         status,
-        ...(status === "completed" && {
-          completed_at: new Date().toISOString(),
-        }),
+        ...(status === "completed" ? { completed_at: new Date().toISOString() } : {}),
       },
     });
   }
@@ -108,22 +105,24 @@ export class TaskManager {
    * Get task statistics
    */
   async getStatistics() {
-    const allTasks = await krapi.documents.getAll(this.projectId, "tasks");
+    const allTasks = await this.getTasks();
+    const total = allTasks.length;
+    const byStatus: Record<string, number> = {};
+    const byPriority: Record<string, number> = {};
 
-    const stats = {
-      total: allTasks.length,
-      pending: allTasks.filter((t) => t.data.status === "pending").length,
-      in_progress: allTasks.filter((t) => t.data.status === "in_progress")
-        .length,
-      completed: allTasks.filter((t) => t.data.status === "completed").length,
-      by_priority: {
-        high: allTasks.filter((t) => t.data.priority === "high").length,
-        medium: allTasks.filter((t) => t.data.priority === "medium").length,
-        low: allTasks.filter((t) => t.data.priority === "low").length,
-      },
+    for (const task of allTasks) {
+      const status = (task.data as Record<string, unknown>).status as string;
+      const priority = (task.data as Record<string, unknown>).priority as string;
+
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      byPriority[priority] = (byPriority[priority] || 0) + 1;
+    }
+
+    return {
+      total,
+      by_status: byStatus,
+      by_priority: byPriority,
     };
-
-    return stats;
   }
 }
 
@@ -132,8 +131,10 @@ export class TaskManager {
  *
  * This shows how to use the TaskManager in a client application
  */
-export async function clientExample() {
-  console.log("=== CLIENT EXAMPLE (The Plug) ===");
+export async function clientExample(logger?: Logger) {
+  if (logger) {
+    logger.info("=== CLIENT EXAMPLE (The Plug) ===");
+  }
 
   // Connect to KRAPI backend via HTTP
   await krapi.connect({
@@ -141,7 +142,9 @@ export async function clientExample() {
     apiKey: "your-client-api-key",
   });
 
-  console.log("Connected in", krapi.getMode(), "mode");
+  if (logger) {
+    logger.info(`Connected in ${krapi.getMode()} mode`);
+  }
 
   // Create a project
   const project = await krapi.projects.create({
@@ -170,19 +173,27 @@ export async function clientExample() {
     tags: ["design", "ui"],
   });
 
-  console.log("Tasks created via HTTP:", [task1.id, task2.id]);
+  if (logger) {
+    logger.info(`Tasks created via HTTP: [${task1.id}, ${task2.id}]`);
+  }
 
   // Get all tasks
   const allTasks = await taskManager.getTasks();
-  console.log("All tasks via HTTP:", allTasks.length);
+  if (logger) {
+    logger.info(`All tasks via HTTP: ${allTasks.length}`);
+  }
 
   // Update task status
   await taskManager.updateTaskStatus(task1.id, "in_progress");
-  console.log("Task status updated via HTTP");
+  if (logger) {
+    logger.info("Task status updated via HTTP");
+  }
 
   // Get statistics
   const stats = await taskManager.getStatistics();
-  console.log("Task statistics via HTTP:", stats);
+  if (logger) {
+    logger.info(`Task statistics via HTTP: ${JSON.stringify(stats)}`);
+  }
 
   return { project, tasks: [task1, task2], stats };
 }
@@ -192,16 +203,20 @@ export async function clientExample() {
  *
  * This shows how to use the EXACT SAME TaskManager in a server application
  */
-export async function serverExample(databaseConnection: DatabaseConnection) {
-  console.log("=== SERVER EXAMPLE (The Socket) ===");
+export async function serverExample(databaseConnection: DatabaseConnection, logger?: Logger) {
+  if (logger) {
+    logger.info("=== SERVER EXAMPLE (The Socket) ===");
+  }
 
   // Connect to database directly
   await krapi.connect({
     database: databaseConnection,
-    logger: console,
+    logger: logger || undefined,
   });
 
-  console.log("Connected in", krapi.getMode(), "mode");
+  if (logger) {
+    logger.info(`Connected in ${krapi.getMode()} mode`);
+  }
 
   // Create a project - SAME METHOD as client
   const project = await krapi.projects.create({
@@ -230,19 +245,27 @@ export async function serverExample(databaseConnection: DatabaseConnection) {
     tags: ["performance", "caching"],
   });
 
-  console.log("Tasks created via database:", [task1.id, task2.id]);
+  if (logger) {
+    logger.info(`Tasks created via database: [${task1.id}, ${task2.id}]`);
+  }
 
   // Get all tasks - SAME METHOD as client
   const allTasks = await taskManager.getTasks();
-  console.log("All tasks via database:", allTasks.length);
+  if (logger) {
+    logger.info(`All tasks via database: ${allTasks.length}`);
+  }
 
   // Update task status - IDENTICAL to client
   await taskManager.updateTaskStatus(task1.id, "completed");
-  console.log("Task status updated via database");
+  if (logger) {
+    logger.info("Task status updated via database");
+  }
 
   // Get statistics - SAME CODE as client
   const stats = await taskManager.getStatistics();
-  console.log("Task statistics via database:", stats);
+  if (logger) {
+    logger.info(`Task statistics via database: ${JSON.stringify(stats)}`);
+  }
 
   return { project, tasks: [task1, task2], stats };
 }
@@ -252,9 +275,11 @@ export async function serverExample(databaseConnection: DatabaseConnection) {
  *
  * This function works with either client or server setup
  */
-export async function sharedBusinessLogic(projectId: string) {
-  console.log("=== SHARED BUSINESS LOGIC ===");
-  console.log("Running in", krapi.getMode(), "mode");
+export async function sharedBusinessLogic(projectId: string, logger?: Logger) {
+  if (logger) {
+    logger.info("=== SHARED BUSINESS LOGIC ===");
+    logger.info(`Running in ${krapi.getMode()} mode`);
+  }
 
   const taskManager = new TaskManager(projectId);
 
@@ -264,12 +289,16 @@ export async function sharedBusinessLogic(projectId: string) {
     status: "pending",
   });
 
-  console.log(`Found ${urgentTasks.length} urgent tasks`);
+  if (logger) {
+    logger.info(`Found ${urgentTasks.length} urgent tasks`);
+  }
 
   // Process urgent tasks
   for (const task of urgentTasks) {
     await taskManager.updateTaskStatus(task.id, "in_progress");
-    console.log(`Started work on: ${task.data.title}`);
+    if (logger) {
+      logger.info(`Started work on: ${task.data.title}`);
+    }
   }
 
   return urgentTasks;
@@ -280,8 +309,10 @@ export async function sharedBusinessLogic(projectId: string) {
  *
  * This shows how the same interface works seamlessly
  */
-export async function demonstratePerfectFit() {
-  console.log("=== PERFECT PLUG AND SOCKET DEMONSTRATION ===\n");
+export async function demonstratePerfectFit(logger?: Logger) {
+  if (logger) {
+    logger.info("=== PERFECT PLUG AND SOCKET DEMONSTRATION ===\n");
+  }
 
   // The interface is IDENTICAL regardless of environment
   const methods = [
@@ -295,17 +326,19 @@ export async function demonstratePerfectFit() {
     "krapi.close()",
   ];
 
-  console.log("Methods that work IDENTICALLY in both client and server:");
-  methods.forEach((method, index) => {
-    console.log(`${index + 1}. ${method}`);
-  });
+  if (logger) {
+    logger.info("Methods that work IDENTICALLY in both client and server:");
+    methods.forEach((method, index) => {
+      logger?.info(`${index + 1}. ${method}`);
+    });
 
-  console.log(
-    "\n✅ PERFECT FIT: Every client method has an exact server counterpart"
-  );
-  console.log("✅ SAME INTERFACE: No code changes needed between environments");
-  console.log("✅ TYPE SAFETY: Full TypeScript support in both modes");
-  console.log("✅ BUSINESS LOGIC: Share code between frontend and backend");
+    logger.info(
+      "\n? PERFECT FIT: Every client method has an exact server counterpart"
+    );
+    logger.info("? SAME INTERFACE: No code changes needed between environments");
+    logger.info("? TYPE SAFETY: Full TypeScript support in both modes");
+    logger.info("? BUSINESS LOGIC: Share code between frontend and backend");
+  }
 
   return {
     message: "Client (plug) and Server (socket) fit together perfectly!",

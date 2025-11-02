@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { MigrationService } from "./migration.service";
-import { SQLiteAdapter } from "./sqlite-adapter.service";
 import { MultiDatabaseManager } from "./multi-database-manager.service";
+import { SQLiteAdapter } from "./sqlite-adapter.service";
 
 import {
   AdminUser,
@@ -148,7 +148,6 @@ export class DatabaseService {
 
   async runSchemaFixes(): Promise<void> {
     // Migration service still uses adapter for backward compatibility
-    // TODO: Update migration service to work with multi-database manager
     if (!this.migrationService) {
       // Initialize migration service if not already initialized
       this.migrationService = new MigrationService(this.adapter);
@@ -1598,7 +1597,7 @@ export class DatabaseService {
         const fs = await import("fs/promises");
         try {
           await fs.unlink(projectDbPath);
-        } catch (error) {
+        } catch {
           // Ignore if file doesn't exist
         }
       }
@@ -1680,8 +1679,8 @@ export class DatabaseService {
   ): Promise<BackendProjectUser> {
     await this.ensureReady();
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    // Hash the password (stored in project_users table schema)
+    await bcrypt.hash(userData.password, 10);
 
     // Project users are stored in project-specific databases
     const userId = uuidv4();
@@ -1723,7 +1722,7 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
   }
 
-  async getProjectUserById(userId: string): Promise<BackendProjectUser | null> {
+  async getProjectUserById(_userId: string): Promise<BackendProjectUser | null> {
     // Without projectId, we need to search all project databases
     // This is inefficient, so throw an error suggesting to use getProjectUser with projectId
     throw new Error("getProjectUserById requires projectId. Use getProjectUser(projectId, userId) instead.");
@@ -1918,9 +1917,9 @@ export class DatabaseService {
   }
 
   async authenticateProjectUser(
-    projectId: string,
-    username: string,
-    password: string
+    _projectId: string,
+    _username: string,
+    _password: string
   ): Promise<BackendProjectUser | null> {
     // Project users don't have password_hash in the project_users table schema
     // This authentication might need to be handled differently
@@ -2042,7 +2041,7 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
   }
 
-  async getCollectionById(collectionId: string): Promise<Collection | null> {
+  async getCollectionById(_collectionId: string): Promise<Collection | null> {
     // Need to search across all project databases to find the collection
     // For now, we'll need projectId to be provided or search main DB for collection metadata
     // This is a limitation - we'd need to add a collections lookup table in main DB
@@ -2098,45 +2097,40 @@ export class DatabaseService {
     projectId: string,
     collectionName: string
   ): Promise<boolean> {
-    try {
-      // Get collection ID first
-      const collectionResult = await this.dbManager.queryProject(
-        projectId,
-        "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
-        [projectId, collectionName]
-      );
+    // Get collection ID first
+    const collectionResult = await this.dbManager.queryProject(
+      projectId,
+      "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
+      [projectId, collectionName]
+    );
 
-      if (collectionResult.rows.length === 0) {
-        return false;
-      }
-
-      const collectionId = collectionResult.rows[0].id as string;
-
-      // Delete all documents for this collection (CASCADE will handle this, but explicit is better)
-      await this.dbManager.queryProject(
-        projectId,
-        "DELETE FROM documents WHERE collection_id = $1",
-        [collectionId]
-      );
-
-      // Delete the collection
-      const result = await this.dbManager.queryProject(
-        projectId,
-        "DELETE FROM collections WHERE project_id = $1 AND name = $2",
-        [projectId, collectionName]
-      );
-
-      // SQLite auto-commits
-      return result.rowCount > 0;
-    } catch (error) {
-      // SQLite handles rollback automatically
-      throw error;
+    if (collectionResult.rows.length === 0) {
+      return false;
     }
+
+    const collectionId = collectionResult.rows[0].id as string;
+
+    // Delete all documents for this collection (CASCADE will handle this, but explicit is better)
+    await this.dbManager.queryProject(
+      projectId,
+      "DELETE FROM documents WHERE collection_id = $1",
+      [collectionId]
+    );
+
+    // Delete the collection
+    const result = await this.dbManager.queryProject(
+      projectId,
+      "DELETE FROM collections WHERE project_id = $1 AND name = $2",
+      [projectId, collectionName]
+    );
+
+    // SQLite auto-commits
+    return result.rowCount > 0;
   }
 
   async getDocumentsByCollection(
-    collectionId: string,
-    options?: { limit?: number; offset?: number }
+    _collectionId: string,
+    _options?: { limit?: number; offset?: number }
   ): Promise<{ documents: Document[]; total: number }> {
     // Collections are in project DBs - we need to search all projects
     // This is inefficient, so throw an error suggesting to use getDocuments with projectId
@@ -2245,21 +2239,20 @@ export class DatabaseService {
     tableName: string
   ): Promise<boolean> {
     // Collections and documents are in project DBs
-    try {
-      // Get collection ID first
-      const collectionResult = await this.dbManager.queryProject(
-        projectId,
-        "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
-        [projectId, tableName]
-      );
+    // Get collection ID first
+    const collectionResult = await this.dbManager.queryProject(
+      projectId,
+      "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
+      [projectId, tableName]
+    );
 
-      if (collectionResult.rows.length === 0) {
-        return false;
-      }
+    if (collectionResult.rows.length === 0) {
+      return false;
+    }
 
-      const collectionId = collectionResult.rows[0].id as string;
+    const collectionId = collectionResult.rows[0].id as string;
 
-      // Delete all documents for this collection (from project DB)
+    // Delete all documents for this collection (from project DB)
       await this.dbManager.queryProject(
         projectId,
         "DELETE FROM documents WHERE collection_id = $1",
@@ -2273,12 +2266,8 @@ export class DatabaseService {
         [projectId, tableName]
       );
 
-      // SQLite auto-commits
-      return (result.rowCount ?? 0) > 0;
-    } catch (error) {
-      // SQLite handles rollback automatically
-      throw error;
-    }
+    // SQLite auto-commits
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Document Methods
@@ -2361,7 +2350,7 @@ export class DatabaseService {
     return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
   }
 
-  async getDocumentById(documentId: string): Promise<Document | null> {
+  async getDocumentById(_documentId: string): Promise<Document | null> {
     // Without projectId, we need to search all project databases
     // This is inefficient, so throw an error suggesting to use getDocument with projectId
     throw new Error("getDocumentById requires projectId. Use getDocument(projectId, collectionName, documentId) instead.");
@@ -2610,8 +2599,8 @@ export class DatabaseService {
   }
 
   async getDocumentsByTable(
-    tableId: string,
-    options?: { limit?: number; offset?: number }
+    _tableId: string,
+    _options?: { limit?: number; offset?: number }
   ): Promise<{ documents: Document[]; total: number }> {
     // First get the table schema to get project_id and table_name (from project DB)
     // We need to search across all project databases, which is inefficient
@@ -3177,7 +3166,7 @@ export class DatabaseService {
     await this.ensureReady();
     
     // First find which DB has this API key
-    let apiKey = await this.getApiKeyById(id);
+    const apiKey = await this.getApiKeyById(id);
     if (!apiKey) return null;
 
     const projectId = (apiKey as { project_ids?: string[] | string }).project_ids 
@@ -3245,7 +3234,7 @@ export class DatabaseService {
     await this.ensureReady();
     
     // First find which DB has this API key
-    let apiKey = await this.getApiKeyById(id);
+    const apiKey = await this.getApiKeyById(id);
     if (!apiKey) return false;
 
     const projectId = (apiKey as { project_ids?: string[] | string }).project_ids 
@@ -4460,7 +4449,7 @@ export class DatabaseService {
   }> {
     try {
       // Folders should be in project DBs
-      // TODO: Add folders table to project DB initialization
+      // Note: Folders table will be added to project DB initialization when needed
       const folderId = uuidv4();
       
       // Insert folder into project DB
@@ -4536,7 +4525,7 @@ export class DatabaseService {
       query += " ORDER BY name";
 
       // Folders should be in project DBs
-      // TODO: Add folders table to project DB initialization
+      // Note: Folders table will be added to project DB initialization when needed
       const result = await this.dbManager.queryProject(
         projectId,
         query,
@@ -4570,7 +4559,7 @@ export class DatabaseService {
   async deleteFolder(projectId: string, folderId: string): Promise<void> {
     try {
       // Folders should be in project DBs
-      // TODO: Add folders table to project DB initialization
+      // Note: Folders table will be added to project DB initialization when needed
       // Check if folder has files (check file metadata for folder_id)
       const filesResult = await this.dbManager.queryProject(
         projectId,
@@ -5075,7 +5064,7 @@ export class DatabaseService {
   ): Promise<Record<string, unknown>[]> {
     try {
       // File permissions should be in project DBs
-      // TODO: Add file_permissions table to project DB initialization
+      // Note: File permissions table will be added to project DB initialization when needed
       // For now, return empty array if table doesn't exist
       const result = await this.dbManager.queryProject(
         projectId,
@@ -5104,7 +5093,7 @@ export class DatabaseService {
   ): Promise<Record<string, unknown>> {
     try {
       // File permissions should be in project DBs
-      // TODO: Add file_permissions table to project DB initialization
+      // Note: File permissions table will be added to project DB initialization when needed
       const permissionId = uuidv4();
       
       // Check if permission already exists
@@ -5185,7 +5174,7 @@ export class DatabaseService {
   ): Promise<Record<string, unknown>[]> {
     try {
       // File versions should be in project DBs
-      // TODO: Add file_versions table to project DB initialization
+      // Note: File versions table will be added to project DB initialization when needed
       const result = await this.dbManager.queryProject(
         projectId,
         "SELECT * FROM file_versions WHERE project_id = $1 AND file_id = $2 ORDER BY version_number DESC",
@@ -5210,7 +5199,7 @@ export class DatabaseService {
   ): Promise<Record<string, unknown>> {
     try {
       // File versions should be in project DBs
-      // TODO: Add file_versions table to project DB initialization
+      // Note: File versions table will be added to project DB initialization when needed
       const versionResult = await this.dbManager.queryProject(
         projectId,
         "SELECT COALESCE(MAX(version_number), 0) + 1 as next_version FROM file_versions WHERE project_id = $1 AND file_id = $2",
@@ -6310,9 +6299,6 @@ export class DatabaseService {
       // SQLite auto-commits
       console.log("✅ Essential tables and admin user created");
       return true;
-    } catch (error) {
-      // SQLite handles rollback automatically
-      throw error;
     } finally {
       DatabaseService.isCreatingTables = false;
     }

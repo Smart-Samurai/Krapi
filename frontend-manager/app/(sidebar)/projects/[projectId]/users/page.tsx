@@ -250,12 +250,15 @@ export default function UsersPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `users-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`users-skeleton-item-${i}-${Date.now()}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -265,7 +268,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Users</h1>
+          <h1 className="text-base font-bold">Users</h1>
           <p className="text-muted-foreground">
             Manage project users and their access permissions
           </p>
@@ -397,7 +400,7 @@ export default function UsersPage() {
                         checked={formData.access_scopes.includes(scope)}
                         onCheckedChange={() => toggleScope(scope)}
                       />
-                      <Label htmlFor={scope} className="text-sm font-normal">
+                      <Label htmlFor={scope} className="text-base font-normal">
                         {label}
                       </Label>
                     </div>
@@ -413,6 +416,7 @@ export default function UsersPage() {
                 Cancel
               </Button>
               <Button
+                className="btn-add"
                 onClick={handleCreateUser}
                 disabled={
                   !formData.username || !formData.email || !formData.password
@@ -435,11 +439,11 @@ export default function UsersPage() {
         <Card>
           <CardContent className="text-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Users Yet</h3>
+            <h3 className="text-base font-semibold mb-2">No Users Yet</h3>
             <p className="text-muted-foreground mb-4">
               Create your first user to start managing project access
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create User
             </Button>
@@ -475,19 +479,19 @@ export default function UsersPage() {
                             ? `${user.first_name} ${user.last_name}`
                             : user.username}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-base text-muted-foreground">
                           @{user.username}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-sm">
+                        <div className="flex items-center gap-1 text-base">
                           <Mail className="h-3 w-3" />
                           {user.email}
                         </div>
                         {(user.metadata?.phone as string) && (
-                          <div className="flex items-center gap-1 text-sm">
+                          <div className="flex items-center gap-1 text-base">
                             <Phone className="h-3 w-3" />
                             {user.metadata?.phone as string}
                           </div>
@@ -520,20 +524,20 @@ export default function UsersPage() {
                           <Badge
                             key={scope}
                             variant="outline"
-                            className="text-xs"
+                            className="text-base"
                           >
                             {scopeLabels[scope as ProjectScope] || scope}
                           </Badge>
                         ))}
                         {user.permissions.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-base">
                             +{user.permissions.length - 3} more
                           </Badge>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-base text-muted-foreground">
                         {new Date(user.created_at).toLocaleDateString()}
                       </div>
                     </TableCell>
@@ -547,7 +551,7 @@ export default function UsersPage() {
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
+                          className="btn-delete"
                           size="sm"
                           onClick={() => handleDeleteUser(user.id)}
                         >
@@ -686,7 +690,7 @@ export default function UsersPage() {
                     />
                     <Label
                       htmlFor={`edit-${scope}`}
-                      className="text-sm font-normal"
+                      className="text-base font-normal"
                     >
                       {label}
                     </Label>
@@ -703,6 +707,7 @@ export default function UsersPage() {
               Cancel
             </Button>
             <Button
+              className="btn-edit"
               onClick={handleUpdateUser}
               disabled={!formData.username || !formData.email}
             >

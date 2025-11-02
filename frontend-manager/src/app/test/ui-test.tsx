@@ -1,17 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   CheckCircle,
@@ -24,10 +12,21 @@ import {
   MousePointer,
   Keyboard,
   Smartphone,
-  Tablet,
-  Laptop,
   Globe,
 } from "lucide-react";
+import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface UITest {
   id: string;
@@ -43,7 +42,7 @@ interface UITest {
   status: "pending" | "running" | "passed" | "failed" | "skipped";
   duration?: number;
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 interface TestSuite {
@@ -278,7 +277,7 @@ export default function UITestComponent() {
   const [testSuites, setTestSuites] = useState<TestSuite[]>(UI_TEST_SUITES);
   const [isRunning, setIsRunning] = useState(false);
   const [currentTest, setCurrentTest] = useState<string | null>(null);
-  const [results, setResults] = useState<{ [key: string]: any }>({});
+  const [_results, setResults] = useState<{ [key: string]: Record<string, unknown> }>({});
 
   const runTest = async (suiteId: string, testId: string): Promise<UITest> => {
     const test = testSuites
@@ -290,7 +289,7 @@ export default function UITestComponent() {
     setCurrentTest(`${suiteId}-${testId}`);
 
     try {
-      let result: any = { status: "passed" };
+      const result: { status: string; details?: Record<string, unknown> } = { status: "passed" };
 
       // Simulate different types of UI tests
       switch (testId) {

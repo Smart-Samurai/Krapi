@@ -35,7 +35,7 @@ router.get(
   }),
   async (req, res) => {
     try {
-      const { projectId } = req.params;
+      const { projectId: _projectId } = req.params;
       const { limit = 50, offset = 0, action_type, user_id, start_date, end_date, collection_name, document_id } = req.query;
 
       if (!backendSDK) {
@@ -96,7 +96,7 @@ router.get(
   }),
   async (req, res) => {
     try {
-      const { projectId, collectionName } = req.params;
+      const { projectId: _projectId, collectionName } = req.params;
       const { limit = 50, offset = 0, action_type, user_id, start_date, end_date, document_id } = req.query;
 
       if (!backendSDK) {
@@ -157,7 +157,7 @@ router.get(
   }),
   async (req, res) => {
     try {
-      const { projectId, collectionName, documentId } = req.params;
+      const { projectId: _projectId, collectionName, documentId } = req.params;
       const { limit = 50, offset = 0, action_type, user_id, start_date, end_date } = req.query;
 
       if (!backendSDK) {
@@ -218,7 +218,7 @@ router.get(
   }),
   async (req, res) => {
     try {
-      const { projectId, userId } = req.params;
+      const { projectId: _projectId, userId } = req.params;
       const { limit = 50, offset = 0, action_type, start_date, end_date, entity_type } = req.query;
 
       if (!backendSDK) {
