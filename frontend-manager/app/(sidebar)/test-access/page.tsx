@@ -511,7 +511,7 @@ export default function TestAccessPage() {
             <CardContent className="space-y-4">
               {diagnosticResults ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                  <div className="grid grid-cols-3 gap-4 p-4 bg-muted ">
                     <div className="text-center">
                       <div className="text-base font-bold text-primary">
                         {diagnosticResults.summary.passed}

@@ -38,7 +38,7 @@ export const InfoBlock: React.FC<InfoBlockProps> = ({
   return (
     <div
       className={cn(
-        "rounded-lg p-4 shadow-sm",
+        " p-4 shadow-sm",
         variantClasses[variant],
         className
       )}

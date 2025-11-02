@@ -468,7 +468,7 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 {scopes.includes(Scope.MASTER) ? (
-                  <div className="p-4 bg-primary/10 rounded-lg">
+                  <div className="p-4 bg-primary/10 ">
                     <p className="font-medium">Master Administrator</p>
                     <p className="text-base text-muted-foreground mt-1">
                       You have full access to all features and resources in

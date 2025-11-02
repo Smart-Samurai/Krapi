@@ -185,7 +185,7 @@ export default function ProjectSettingsPage() {
                 control={form.control}
                 name="is_active"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <FormItem className="flex items-center justify-between  border p-3 shadow-sm">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Active</FormLabel>
                       <FormDescription>
@@ -209,7 +209,7 @@ export default function ProjectSettingsPage() {
               )}
 
               <div className="flex justify-end">
-                <Button type="submit">
+                <Button type="submit" className="btn-confirm">
                   <Save className="mr-2 h-4 w-4" /> Save Changes
                 </Button>
               </div>

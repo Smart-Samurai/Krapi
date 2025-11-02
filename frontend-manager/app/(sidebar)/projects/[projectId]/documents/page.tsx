@@ -360,7 +360,7 @@ export default function DocumentsPage() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleCreateDocument}>Create Document</Button>
+                <Button className="btn-add" onClick={handleCreateDocument}>Create Document</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -384,7 +384,7 @@ export default function DocumentsPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`// Initialize KRAPI client (like Appwrite!)
 import { KrapiClient } from '@krapi/sdk/client';
@@ -440,7 +440,7 @@ const searchResults = await krapi.documents.search(collectionId, {
                   <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
@@ -673,7 +673,7 @@ search_results = response.json()`}
               Create your first document in the {currentCollection?.name}{" "}
               collection
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Document
             </Button>
@@ -814,7 +814,7 @@ search_results = response.json()`}
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateDocument}>Update Document</Button>
+            <Button className="btn-edit" onClick={handleUpdateDocument}>Update Document</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

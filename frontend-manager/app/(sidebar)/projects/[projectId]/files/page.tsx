@@ -367,7 +367,7 @@ export default function FilesPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`// Initialize KRAPI client (like Appwrite!)
 import { KrapiClient } from '@krapi/sdk/client';
@@ -412,7 +412,7 @@ const fileUrl = krapi.storage.getFileUrl(projectId, fileId);`}
                   <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`import requests
 import json

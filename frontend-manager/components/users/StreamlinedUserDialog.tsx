@@ -402,7 +402,7 @@ export function StreamlinedUserDialog({
                   Loading projects...
                 </p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                <div className="space-y-2 max-h-48 overflow-y-auto border  p-3">
                   {projects.map((project) => (
                     <div
                       key={project.id}

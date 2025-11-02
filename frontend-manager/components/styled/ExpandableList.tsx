@@ -25,7 +25,7 @@ export const ExpandableList: React.FC<ExpandableListProps> = ({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   return (
-    <div className={cn("border border-primary rounded-lg", className)}>
+    <div className={cn("border border-primary ", className)}>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(

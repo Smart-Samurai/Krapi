@@ -579,7 +579,7 @@ export default function EmailPage() {
                 <Label htmlFor="smtp_secure">Use SSL/TLS</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Button onClick={handleSaveConfig} disabled={isSaving}>
+                <Button className="btn-confirm" onClick={handleSaveConfig} disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Saving..." : "Save Configuration"}
                 </Button>
@@ -609,6 +609,7 @@ export default function EmailPage() {
                 />
               </div>
               <Button
+                className="btn-confirm"
                 onClick={handleTestConfig}
                 disabled={isTesting || !testEmail}
               >
@@ -632,7 +633,7 @@ export default function EmailPage() {
               onOpenChange={setIsCreateTemplateDialogOpen}
             >
               <DialogTrigger asChild>
-                <Button>
+                <Button className="btn-add">
                   <Plus className="mr-2 h-4 w-4" />
                   Create Template
                 </Button>
@@ -735,6 +736,7 @@ export default function EmailPage() {
                     Cancel
                   </Button>
                   <Button
+                    className="btn-add"
                     onClick={handleCreateTemplate}
                     disabled={
                       !templateForm.name ||
@@ -804,7 +806,7 @@ export default function EmailPage() {
                 <p className="text-muted-foreground mb-4">
                   Create your first email template to get started
                 </p>
-                <Button onClick={() => setIsCreateTemplateDialogOpen(true)}>
+                <Button className="btn-add" onClick={() => setIsCreateTemplateDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Template
                 </Button>
@@ -1007,6 +1009,7 @@ export default function EmailPage() {
                   Cancel
                 </Button>
                 <Button
+                  className="btn-edit"
                   onClick={handleUpdateTemplate}
                   disabled={
                     !templateForm.name ||

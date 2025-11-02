@@ -19,7 +19,7 @@ export const StyledButton = React.forwardRef<
     ref
   ) => {
     const baseClasses =
-      "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm";
+      "inline-flex items-center justify-center gap-2  font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm";
 
     const variantClasses = {
       primary:
@@ -75,7 +75,7 @@ export const StyledInput = React.forwardRef<HTMLInputElement, StyledInputProps>(
         <input
           ref={ref}
           className={cn(
-            "flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 shadow-sm",
+            "flex h-10 w-full  border border-border bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 shadow-sm",
             error &&
               "border-destructive focus:ring-destructive focus:border-destructive",
             className
@@ -142,7 +142,7 @@ export const StyledListItem = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg border border-border transition-colors duration-200",
+        "flex items-center justify-between p-3  border border-border transition-colors duration-200",
         active
           ? "bg-primary text-primary-foreground shadow-sm"
           : "bg-background text-foreground hover:bg-muted hover:border-border",
@@ -183,7 +183,7 @@ export const StyledBadge = React.forwardRef<HTMLSpanElement, StyledBadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-md border px-2 py-0.5 text-base font-medium",
+          "inline-flex items-center  border px-2 py-0.5 text-base font-medium",
           variantClasses[variant],
           className
         )}
@@ -210,7 +210,7 @@ export const StyledMenuItem = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        "flex items-center gap-2 rounded-md px-3 py-2 text-base transition-colors duration-200 cursor-pointer",
+        "flex items-center gap-2  px-3 py-2 text-base transition-colors duration-200 cursor-pointer",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-background text-foreground hover:bg-muted",

@@ -122,7 +122,7 @@ export default function ProjectMcpPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask to list collections, create documents, etc."
             />
-            <Button onClick={send} disabled={loading || !endpoint || !model}>
+            <Button className="btn-confirm" onClick={send} disabled={loading || !endpoint || !model}>
               {loading ? "Sending..." : "Send"}
             </Button>
           </div>

@@ -383,7 +383,7 @@ export default function SettingsPage() {
                 />
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -467,7 +467,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -561,7 +561,7 @@ export default function SettingsPage() {
                     Send Test Email
                   </Button>
 
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -637,7 +637,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSaving}>
+                  <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -669,7 +669,7 @@ export default function SettingsPage() {
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
                 placeholder="test@example.com"
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-border  focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>

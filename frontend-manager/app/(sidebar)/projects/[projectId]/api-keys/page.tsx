@@ -441,7 +441,7 @@ export default function ApiKeysPage() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleCreateApiKey} disabled={!formData.name}>
+                <Button className="btn-add" onClick={handleCreateApiKey} disabled={!formData.name}>
                   Create API Key
                 </Button>
               </DialogFooter>
@@ -467,7 +467,7 @@ export default function ApiKeysPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`// Initialize KRAPI client (like Appwrite!)
 import { KrapiClient } from '@krapi/sdk/client';
@@ -520,7 +520,7 @@ const clientWithKey = new KrapiClient({
                   <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
@@ -704,7 +704,7 @@ headers_with_key = {
             <p className="text-muted-foreground mb-4">
               Create your first API key to enable programmatic access
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create API Key
             </Button>
@@ -937,7 +937,7 @@ headers_with_key = {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateApiKey} disabled={!formData.name}>
+            <Button className="btn-edit" onClick={handleUpdateApiKey} disabled={!formData.name}>
               Update API Key
             </Button>
           </DialogFooter>

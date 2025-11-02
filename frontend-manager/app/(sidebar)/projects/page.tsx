@@ -235,6 +235,7 @@ export default function ProjectsPage() {
             }
           >
             <Button
+              className="btn-add"
               onClick={() => setIsCreateDialogOpen(true)}
               disabled={isBusy}
             >
@@ -256,6 +257,7 @@ export default function ProjectsPage() {
               </p>
               <ScopeGuard scopes={Scope.PROJECTS_WRITE}>
                 <Button
+                  className="btn-add"
                   onClick={() => setIsCreateDialogOpen(true)}
                   disabled={isBusy}
                 >
@@ -362,7 +364,7 @@ export default function ProjectsPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isCreating}>
+                <Button type="submit" className="btn-add" disabled={isCreating}>
                   {isCreating ? "Creating..." : "Create Project"}
                 </Button>
               </DialogFooter>
@@ -421,7 +423,7 @@ export default function ProjectsPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isUpdating}>
+                <Button type="submit" className="btn-edit" disabled={isUpdating}>
                   {isUpdating ? "Updating..." : "Update Project"}
                 </Button>
               </DialogFooter>

@@ -416,6 +416,7 @@ export default function UsersPage() {
                 Cancel
               </Button>
               <Button
+                className="btn-add"
                 onClick={handleCreateUser}
                 disabled={
                   !formData.username || !formData.email || !formData.password
@@ -442,7 +443,7 @@ export default function UsersPage() {
             <p className="text-muted-foreground mb-4">
               Create your first user to start managing project access
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create User
             </Button>
@@ -550,7 +551,7 @@ export default function UsersPage() {
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="outline"
+                          className="btn-delete"
                           size="sm"
                           onClick={() => handleDeleteUser(user.id)}
                         >
@@ -706,6 +707,7 @@ export default function UsersPage() {
               Cancel
             </Button>
             <Button
+              className="btn-edit"
               onClick={handleUpdateUser}
               disabled={!formData.username || !formData.email}
             >

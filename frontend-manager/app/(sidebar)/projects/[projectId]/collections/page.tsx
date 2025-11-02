@@ -344,7 +344,7 @@ export default function CollectionsPage() {
             onOpenChange={setIsCreateDialogOpen}
           >
             <DialogTrigger asChild>
-              <Button>
+              <Button className="btn-add">
                 <Plus className="mr-2 h-4 w-4" />
                 Create Collection
               </Button>
@@ -401,7 +401,7 @@ export default function CollectionsPage() {
                       return (
                         <div
                           key={`collections-field-${field.name || "unnamed"}-${field.type}`}
-                          className="flex items-center gap-2 p-3 border rounded-lg"
+                          className="flex items-center gap-2 p-3 border "
                         >
                           <div className="flex-1 grid grid-cols-2 gap-2">
                             <Input
@@ -510,6 +510,7 @@ export default function CollectionsPage() {
                   Cancel
                 </Button>
                 <Button
+                  className="btn-add"
                   onClick={handleCreateCollection}
                   disabled={!formData.name}
                 >
@@ -538,7 +539,7 @@ export default function CollectionsPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`// Initialize KRAPI client (like Appwrite!)
 import { KrapiClient } from '@krapi/sdk/client';
@@ -591,7 +592,7 @@ await krapi.collections.delete(projectId, collectionId);`}
                   <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
@@ -707,7 +708,7 @@ response = requests.delete(
             <p className="text-muted-foreground mb-4">
               Create your first collection to start storing data
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Collection
             </Button>
@@ -757,6 +758,7 @@ response = requests.delete(
                     <Button
                       variant="outline"
                       size="sm"
+                      className="btn-delete"
                       onClick={() => handleDeleteCollection(collection.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -871,7 +873,7 @@ response = requests.delete(
                       key={`collections-edit-field-${
                         field.name || "unnamed"
                       }-${Date.now()}`}
-                      className="flex items-center gap-2 p-3 border rounded-lg"
+                      className="flex items-center gap-2 p-3 border "
                     >
                       <div className="flex-1 grid grid-cols-2 gap-2">
                         <Input
@@ -976,7 +978,7 @@ response = requests.delete(
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateCollection} disabled={!formData.name}>
+            <Button className="btn-edit" onClick={handleUpdateCollection} disabled={!formData.name}>
               Update Collection
             </Button>
           </DialogFooter>

@@ -173,7 +173,7 @@ export default function ServerAdministrationPage() {
         <div className="text-center">
           <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
           <p className="text-destructive">{error}</p>
-          <Button onClick={loadUsers} className="mt-4">
+          <Button className="btn-confirm mt-4" onClick={loadUsers}>
             Retry
           </Button>
         </div>
@@ -348,8 +348,7 @@ export default function ServerAdministrationPage() {
           </p>
         </div>
         <Button
-          variant="default"
-          size="lg"
+          className="btn-add"
           onClick={() => setIsCreateDialogOpen(true)}
           disabled={!hasScope(Scope.ADMIN_WRITE)}
           title={
@@ -365,7 +364,7 @@ export default function ServerAdministrationPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-medium text-text/60">Total Admins</p>
@@ -373,12 +372,12 @@ export default function ServerAdministrationPage() {
                 {isLoading ? "..." : adminUsers.length}
               </p>
             </div>
-            <div className="p-3 bg-primary/10 rounded-lg">
+            <div className="p-3 bg-primary/10 ">
               <Shield className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-medium text-text/60">Active Admins</p>
@@ -388,12 +387,12 @@ export default function ServerAdministrationPage() {
                   : adminUsers.filter((u) => u.status === "active").length}
               </p>
             </div>
-            <div className="p-3 bg-primary/10 dark:bg-primary/20 rounded-lg">
+            <div className="p-3 bg-primary/10 dark:bg-primary/20 ">
               <UserCheck className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-medium text-text/60">Master Admins</p>
@@ -403,12 +402,12 @@ export default function ServerAdministrationPage() {
                   : adminUsers.filter((u) => u.role === "master_admin").length}
               </p>
             </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
+            <div className="p-3 bg-red-100 dark:bg-red-900/20 ">
               <Shield className="h-6 w-6 text-red-600" />
             </div>
           </div>
         </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-medium text-text/60">
@@ -420,7 +419,7 @@ export default function ServerAdministrationPage() {
                   : adminUsers.filter((u) => u.status !== "active").length}
               </p>
             </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 ">
               <UserX className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
@@ -436,13 +435,13 @@ export default function ServerAdministrationPage() {
             placeholder="Search admin users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-secondary rounded-lg bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-10 pr-4 py-2 border border-secondary  bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
 
       {/* Admin Users List */}
-      <div className="bg-background border border-secondary rounded-lg">
+      <div className="bg-background border border-secondary ">
         <div className="p-6 border-b border-secondary">
           <h2 className="text-base font-semibold text-text">
             Administrative Users
@@ -451,7 +450,7 @@ export default function ServerAdministrationPage() {
         <div className="divide-y divide-secondary/50">
           {isLoading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+              <div className="animate-spin  h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
               <p className="text-text/60">Loading admin users...</p>
             </div>
           ) : filteredUsers.length === 0 ? (
@@ -475,7 +474,7 @@ export default function ServerAdministrationPage() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-primary/10  flex items-center justify-center">
                       <Shield className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
@@ -484,14 +483,14 @@ export default function ServerAdministrationPage() {
                           {user.firstName} {user.lastName}
                         </h3>
                         <span
-                          className={`px-2 py-1 text-base font-medium rounded-full ${getRoleColor(
+                          className={`px-2 py-1 text-base font-medium  ${getRoleColor(
                             user.role
                           )}`}
                         >
                           {user.role.replace("_", " ")}
                         </span>
                         <span
-                          className={`px-2 py-1 text-base font-medium rounded-full ${getStatusColor(
+                          className={`px-2 py-1 text-base font-medium  ${getStatusColor(
                             user.status
                           )}`}
                         >
@@ -814,7 +813,7 @@ export default function ServerAdministrationPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="default">
+                <Button type="submit" className="btn-edit">
                   Update Admin User
                 </Button>
               </DialogFooter>
