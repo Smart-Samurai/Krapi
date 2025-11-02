@@ -44,6 +44,8 @@ export class DatabaseService {
   private readyReject!: (error: Error) => void;
   private lastHealthCheck: Date | null = null;
   private healthCheckInterval = 300000; // 5 minutes - reduce frequency to avoid conflicts
+  private queue: DatabaseQueue;
+  private queueInitialized = false;
 
   private constructor() {
     // Create the ready promise
@@ -51,6 +53,9 @@ export class DatabaseService {
       this.readyResolve = resolve;
       this.readyReject = reject;
     });
+
+    // Initialize database queue
+    this.queue = DatabaseQueue.getInstance();
 
     // Initialize multi-database manager
     const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
@@ -107,24 +112,134 @@ export class DatabaseService {
     return this.adapter;
   }
 
+  /**
+   * Initialize database queue when database is ready
+   */
+  private async initializeQueue(): Promise<void> {
+    if (this.queueInitialized) {
+      return;
+    }
+
+    // Create a queue-compatible database connection interface
+    const queueDbConnection = {
+      query: async (
+        sql: string,
+        params?: unknown[]
+      ): Promise<{ rows: unknown[]; rowCount: number }> => {
+        // Route based on SQL content
+        const dbType = this.determineQueryType(sql);
+        if (dbType === "project") {
+          const projectId = this.extractProjectId(sql, params);
+          if (projectId) {
+            return await this.dbManager.queryProject(projectId, sql, params);
+          }
+        }
+        return await this.dbManager.queryMain(sql, params);
+      },
+    };
+
+    await this.queue.initialize(queueDbConnection);
+    this.queueInitialized = true;
+  }
+
+  /**
+   * Determine if query is for main or project database
+   */
+  private determineQueryType(sql: string): "main" | "project" {
+    const sqlLower = sql.toLowerCase();
+    const projectTables = [
+      "collections",
+      "documents",
+      "files",
+      "project_users",
+      "changelog",
+      "folders",
+      "file_permissions",
+      "file_versions",
+    ];
+
+    for (const table of projectTables) {
+      if (
+        sqlLower.includes(`from ${table}`) ||
+        sqlLower.includes(`into ${table}`) ||
+        sqlLower.includes(`update ${table}`) ||
+        sqlLower.includes(`delete from ${table}`)
+      ) {
+        return "project";
+      }
+    }
+
+    return "main";
+  }
+
+  /**
+   * Extract project ID from SQL or params
+   */
+  private extractProjectId(sql: string, params?: unknown[]): string | null {
+    if (!params || params.length === 0) {
+      return null;
+    }
+
+    const sqlLower = sql.toLowerCase();
+    const projectIdMatches = sqlLower.matchAll(/project_id\s*=\s*\$\d+/gi);
+
+    for (const match of projectIdMatches) {
+      const paramIndexStr = match[0].match(/\$(\d+)/)?.[1];
+      if (paramIndexStr) {
+        const paramIndex = parseInt(paramIndexStr, 10) - 1;
+        if (paramIndex >= 0 && paramIndex < params.length) {
+          const projectId = params[paramIndex];
+          if (typeof projectId === "string" && projectId.length > 10) {
+            return projectId;
+          }
+        }
+      }
+    }
+
+    // Fallback: check if any param looks like a UUID
+    for (const param of params) {
+      if (
+        typeof param === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param)
+      ) {
+        return param;
+      }
+    }
+
+    return null;
+  }
+
   // Public method to execute queries (defaults to main database for backward compatibility)
+  // Now goes through queue for rate limiting and ordering
   async query(
     sql: string,
     params?: unknown[]
   ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
-    // For backward compatibility, route to main database
-    return await this.dbManager.queryMain(sql, params);
+    await this.initializeQueue();
+
+    // Enqueue the operation with normal priority
+    return await this.queue.enqueue(async () => {
+      // For backward compatibility, route to main database
+      return await this.dbManager.queryMain(sql, params);
+    }, 0);
   }
 
   // Query main database (admin/app data)
+  // Now goes through queue for rate limiting and ordering
   async queryMain(
     sql: string,
     params?: unknown[]
   ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
-    return await this.dbManager.queryMain(sql, params);
+    await this.initializeQueue();
+
+    // Enqueue the operation with normal priority
+    return await this.queue.enqueue(async () => {
+      return await this.dbManager.queryMain(sql, params);
+    }, 0);
   }
 
   // Query project-specific database
+  // Now goes through queue for rate limiting and ordering
   async queryProject(
     projectId: string,
     sql: string,
@@ -133,7 +248,20 @@ export class DatabaseService {
     if (!projectId) {
       throw new Error("Project ID is required for project database queries");
     }
-    return await this.dbManager.queryProject(projectId, sql, params);
+
+    await this.initializeQueue();
+
+    // Enqueue the operation with normal priority
+    return await this.queue.enqueue(async () => {
+      return await this.dbManager.queryProject(projectId, sql, params);
+    }, 0);
+  }
+
+  /**
+   * Get queue metrics for monitoring
+   */
+  getQueueMetrics() {
+    return this.queue.getMetrics();
   }
 
   // Method to implement DatabaseConnection interface
