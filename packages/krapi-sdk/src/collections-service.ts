@@ -1,5 +1,4 @@
 import { CollectionsSchemaManager } from "./collections-schema-manager";
-import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
 import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import {
   Collection,
@@ -712,11 +711,11 @@ export class CollectionsService {
         name: dbCollection.name as string,
         description: dbCollection.description as string,
         project_id: dbCollection.project_id as string,
-        fields: fields,
-        indexes: indexes,
+        fields,
+        indexes,
         schema: {
-          fields: fields,
-          indexes: indexes,
+          fields,
+          indexes,
         },
         settings: (dbCollection.settings as unknown as CollectionSettings) || {
           read_permissions: [],

@@ -19,18 +19,15 @@
  * ```
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, { AxiosInstance } from "axios";
 
-import { AuthHttpClient } from "./http-clients/auth-http-client";
-import { ProjectsHttpClient } from "./http-clients/projects-http-client";
-import { CollectionsHttpClient } from "./http-clients/collections-http-client";
-import { StorageHttpClient } from "./http-clients/storage-http-client";
 import { AdminHttpClient } from "./http-clients/admin-http-client";
+import { AuthHttpClient } from "./http-clients/auth-http-client";
+import { CollectionsHttpClient } from "./http-clients/collections-http-client";
 import { EmailHttpClient } from "./http-clients/email-http-client";
 import { HealthHttpClient } from "./http-clients/health-http-client";
-import { BaseHttpClient } from "./http-clients/base-http-client";
-import { BackupService } from "./backup-service";
-import { DatabaseConnection } from "./core";
+import { ProjectsHttpClient } from "./http-clients/projects-http-client";
+import { StorageHttpClient } from "./http-clients/storage-http-client";
 
 export interface KrapiClientConfig {
   endpoint: string;

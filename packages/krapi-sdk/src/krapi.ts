@@ -37,6 +37,10 @@
  * ```
  */
 
+import {
+  ActivityLogger,
+  ActivityLog as ActivityLoggerType,
+} from "./activity-logger";
 import { AdminService } from "./admin-service";
 import { AuthService } from "./auth-service";
 import { CollectionsSchemaManager } from "./collections-schema-manager";
@@ -75,10 +79,6 @@ import {
   ApiKey,
 } from "./types";
 import { UsersService } from "./users-service";
-import {
-  ActivityLogger,
-  ActivityLog as ActivityLoggerType,
-} from "./activity-logger";
 
 export interface KrapiConfig {
   // Client configuration

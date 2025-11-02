@@ -237,7 +237,7 @@ export class SQLiteSchemaInspector {
       const issues: string[] = [];
       let hasNullViolations = false;
       let hasUniqueViolations = false;
-      let hasForeignKeyViolations = false;
+      const hasForeignKeyViolations = false;
 
       // Check if table exists
       const exists = await this.tableExists(tableName);
@@ -289,7 +289,7 @@ export class SQLiteSchemaInspector {
 
       // Check for foreign key violations
       const fkConstraints = schema.constraints.filter((c) => c.type === "FOREIGN KEY");
-      for (const constraint of fkConstraints) {
+      for (const _constraint of fkConstraints) {
         // SQLite foreign key checking is handled by PRAGMA foreign_key_check
         // For now, we'll skip detailed checking
         // SQLite will enforce foreign keys if they're enabled

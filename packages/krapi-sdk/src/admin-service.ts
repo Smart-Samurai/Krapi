@@ -5,10 +5,10 @@
  * activity logs, and database health management functionality.
  */
 
-import { DatabaseConnection, Logger } from "./core";
-import { CountRow } from "./database-types";
 import { ActivityLog } from "./activity-logger";
 import { BackupService } from "./backup-service";
+import { DatabaseConnection, Logger } from "./core";
+import { CountRow } from "./database-types";
 
 export interface AdminUser {
   id: string;
@@ -422,7 +422,7 @@ export class AdminService {
         return fallbackResult.rows as ApiKey[];
       }
       return result.rows as ApiKey[];
-    } catch (error) {
+    } catch {
       // Fallback to simple LIKE query if JSON functions fail
       try {
         const fallbackResult = await this.db.query(
@@ -433,7 +433,7 @@ export class AdminService {
         );
         return fallbackResult.rows as ApiKey[];
       } catch (fallbackError) {
-        this.logger.error("Failed to get project API keys:", error);
+        this.logger.error("Failed to get project API keys:", fallbackError);
         throw new Error("Failed to get project API keys");
       }
     }
@@ -742,7 +742,7 @@ export class AdminService {
             action: row.action || '',
             resource_type: row.entity_type || '',
             resource_id: row.entity_id || undefined,
-            details: details,
+            details,
             timestamp: row.created_at ? new Date(row.created_at) : new Date(),
             severity: 'info' as const,
             metadata: {},

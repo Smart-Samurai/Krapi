@@ -12,8 +12,8 @@
 import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import * as path from "path";
-import * as zlib from "zlib";
 import { promisify } from "util";
+import * as zlib from "zlib";
 
 import { DatabaseConnection, Logger } from "./core";
 
@@ -262,7 +262,7 @@ export class BackupService {
 
       return {
         ...backupMetadata,
-        password: password,
+        password,
       } as BackupMetadata & { password: string };
     } catch (error) {
       this.logger.error("Failed to create project backup:", error);
@@ -586,7 +586,7 @@ export class BackupService {
 
       return {
         ...backupMetadata,
-        password: password,
+        password,
       } as BackupMetadata & { password: string };
     } catch (error) {
       this.logger.error("Failed to create system backup:", error);
