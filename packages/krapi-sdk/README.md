@@ -1,6 +1,8 @@
 # KRAPI SDK
 
-TypeScript SDK for interacting with KRAPI backend. Works seamlessly in both client and server environments.
+**Easy-to-use TypeScript SDK for connecting to self-hosted KRAPI servers - just like Appwrite!**
+
+Connect your React, Vue, Angular, or any frontend/backend app to your self-hosted KRAPI instance with just a few lines of code.
 
 ## Installation
 
@@ -14,29 +16,41 @@ yarn add @krapi/sdk
 
 ## Quick Start
 
-### Client-Side Usage (React, Vue, etc.)
+### Connect to Your Self-Hosted KRAPI Server
 
 ```typescript
 // Easy import - just like Appwrite!
+// Option 1: Import from client subpath (recommended)
 import { KrapiClient } from '@krapi/sdk/client';
+// Option 2: Import from main package (also works)
+// import { KrapiClient } from '@krapi/sdk';
 
-// Initialize client
+// Initialize client with your self-hosted KRAPI server
 const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
-  apiKey: 'your-api-key',
-  projectId: 'your-project-id' // Optional, can set later
+  endpoint: 'https://your-krapi-server.com/krapi/k1', // Your self-hosted KRAPI endpoint
+  apiKey: 'your-api-key', // Optional: API key for authentication
+  projectId: 'your-project-id' // Optional: Default project ID
 });
 
-// Authenticate
+// Authenticate (if needed)
 const loginResponse = await krapi.auth.adminLogin({
   username: 'admin',
   password: 'password'
 });
 
-// Use services!
+// Start using your KRAPI server!
 const projects = await krapi.projects.list();
 const documents = await krapi.collections.documents.list('project-id', 'collection-name');
 ```
+
+### Self-Hosted Setup
+
+1. **Deploy KRAPI Server**: Deploy KRAPI to your server (Docker, VPS, etc.)
+2. **Install SDK**: Install this package in your client project
+3. **Connect**: Point the SDK to your KRAPI server endpoint
+4. **Use**: Access all your data and collections from your app!
+
+**It's that simple!** ??
 
 ### Server-Side Usage (Node.js)
 
@@ -361,11 +375,12 @@ console.log(health.status); // 'healthy' | 'unhealthy'
 
 ```tsx
 import { useEffect, useState } from 'react';
-import { KrapiClient } from '@krapi/sdk';
+import { KrapiClient } from '@krapi/sdk/client';
 
 function App() {
+  // Initialize once - connect to your self-hosted KRAPI server
   const [krapi] = useState(() => new KrapiClient({
-    endpoint: 'http://localhost:3470',
+    endpoint: process.env.REACT_APP_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
     apiKey: process.env.REACT_APP_KRAPI_API_KEY
   }));
 
@@ -381,7 +396,7 @@ function App() {
 
   return (
     <div>
-      <h1>Projects</h1>
+      <h1>My Projects</h1>
       {projects.map(project => (
         <div key={project.id}>{project.name}</div>
       ))}
@@ -396,12 +411,13 @@ function App() {
 // app/page.tsx
 'use client';
 
-import { KrapiClient } from '@krapi/sdk';
+import { KrapiClient } from '@krapi/sdk/client';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
+  // Connect to your self-hosted KRAPI server
   const [krapi] = useState(() => new KrapiClient({
-    endpoint: process.env.NEXT_PUBLIC_KRAPI_ENDPOINT || 'http://localhost:3470',
+    endpoint: process.env.NEXT_PUBLIC_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
     apiKey: process.env.NEXT_PUBLIC_KRAPI_API_KEY
   }));
 
@@ -432,10 +448,11 @@ export default function Home() {
 ```vue
 <script setup>
 import { ref, onMounted } from 'vue';
-import { KrapiClient } from '@krapi/sdk';
+import { KrapiClient } from '@krapi/sdk/client';
 
+// Connect to your self-hosted KRAPI server
 const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
+  endpoint: import.meta.env.VITE_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
   apiKey: import.meta.env.VITE_KRAPI_API_KEY
 });
 
@@ -490,8 +507,15 @@ try {
 
 ```bash
 # .env
-KRAPI_ENDPOINT=http://localhost:3470
+# Your self-hosted KRAPI server endpoint
+KRAPI_ENDPOINT=http://localhost:3470/krapi/k1
+# Or for production:
+# KRAPI_ENDPOINT=https://your-krapi-server.com/krapi/k1
+
+# Your API key (optional, can use session auth instead)
 KRAPI_API_KEY=your-api-key
+
+# Default project ID (optional)
 KRAPI_PROJECT_ID=your-project-id
 ```
 
@@ -508,10 +532,26 @@ krapi.setSessionToken('session-token');
 krapi.setProjectId('project-id');
 ```
 
+## Publishing the Package
+
+For KRAPI maintainers - to publish this package for external developers:
+
+```bash
+cd packages/krapi-sdk
+npm run build
+npm publish
+```
+
+The package will be published to npm as `@krapi/sdk` and can be installed by external developers using:
+
+```bash
+npm install @krapi/sdk
+```
+
 ## More Examples
 
 See `/examples` directory for more examples.
 
 ## License
 
-[Your License]
+MIT

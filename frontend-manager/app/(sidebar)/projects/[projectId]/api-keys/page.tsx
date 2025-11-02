@@ -466,11 +466,11 @@ export default function ApiKeysPage() {
                   <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
                   <div className="bg-muted p-4 rounded-lg">
                     <pre className="text-sm overflow-x-auto">
-                      {`// Initialize KRAPI client
-import { KrapiSDK } from '@krapi/sdk';
+                      {`// Initialize KRAPI client (like Appwrite!)
+import { KrapiClient } from '@krapi/sdk/client';
 
-const krapi = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-api-key'
 });
 
@@ -505,8 +505,8 @@ const regenerated = await krapi.apiKeys.regenerate(projectId, keyId);
 await krapi.apiKeys.delete(projectId, keyId);
 
 // Using an API key for authentication
-const clientWithKey = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const clientWithKey = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-generated-api-key'
 });`}
                     </pre>

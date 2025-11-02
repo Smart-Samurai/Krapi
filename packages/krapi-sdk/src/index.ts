@@ -92,8 +92,10 @@ export { UsersService } from "./users-service";
 
 // Export unified client SDK (like Appwrite - easy to import!)
 // Import with: import { KrapiClient } from '@krapi/sdk/client'
+// Or for convenience: import { KrapiClient } from '@krapi/sdk'
 export { KrapiClient, type KrapiClientConfig, type ApiResponse as ClientApiResponse } from "./client";
 export { default as Client } from "./client";
+// Also export from main entry point for convenience (can use '@krapi/sdk' instead of '@krapi/sdk/client')
 
 // Export HTTP clients for granular frontend control
 export { AuthHttpClient } from "./http-clients/auth-http-client";
