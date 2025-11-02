@@ -3,15 +3,10 @@
 import {
   Plus,
   Search,
-  Edit,
   Trash2,
-  Eye,
   User,
   Users,
   Shield,
-  Mail,
-  Calendar,
-  Key,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
@@ -26,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -375,10 +369,10 @@ export default function UsersPage() {
                     <div>
                       <h4 className="font-medium">{user.username}</h4>
                       <p className="text-sm text-gray-600">
-                        {user.email && `${user.email} • `}
+                        {user.email && `${user.email} ? `}
                         Created: {formatDate(user.created_at)}
                         {user.last_login &&
-                          ` • Last login: ${formatDate(user.last_login)}`}
+                          ` ? Last login: ${formatDate(user.last_login)}`}
                       </p>
                     </div>
                   </div>
@@ -436,13 +430,13 @@ export default function UsersPage() {
                     <div>
                       <h4 className="font-medium">{user.username}</h4>
                       <p className="text-sm text-gray-600">
-                        {user.email && `${user.email} • `}
+                        {user.email && `${user.email} ? `}
                         Project:{" "}
                         {projects.find((p) => p.id === user.project_id)?.name ||
                           user.project_id}
-                        {` • Created: ${formatDate(user.created_at)}`}
+                        {` ? Created: ${formatDate(user.created_at)}`}
                         {user.last_login &&
-                          ` • Last login: ${formatDate(user.last_login)}`}
+                          ` ? Last login: ${formatDate(user.last_login)}`}
                       </p>
                     </div>
                   </div>
@@ -528,7 +522,7 @@ export default function UsersPage() {
               <Label htmlFor="admin-role">Role</Label>
               <Select
                 value={newAdminUser.role}
-                onValueChange={(value: any) =>
+                onValueChange={(value: string) =>
                   setNewAdminUser({ ...newAdminUser, role: value })
                 }
               >
@@ -640,7 +634,7 @@ export default function UsersPage() {
               <Label htmlFor="project-role">Role</Label>
               <Select
                 value={newProjectUser.role}
-                onValueChange={(value: any) =>
+                onValueChange={(value: string) =>
                   setNewProjectUser({ ...newProjectUser, role: value })
                 }
               >

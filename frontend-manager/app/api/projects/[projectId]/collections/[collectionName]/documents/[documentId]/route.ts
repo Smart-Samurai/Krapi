@@ -92,8 +92,8 @@ export async function GET(
     
     // Test expects response.data.id, so return document directly (not wrapped)
     return NextResponse.json(document);
-  } catch (error) {
-    console.error("Error fetching document:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -195,8 +195,8 @@ export async function PUT(
     // Test expects response.data.data.title, so we need to return the document at the top level
     // with a 'data' field containing the document's data field
     return NextResponse.json({ success: true, ...backendResponse });
-  } catch (error) {
-    console.error("Error updating document:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -287,8 +287,8 @@ export async function DELETE(
       success: true,
       message: "Document deleted successfully",
     });
-  } catch (error) {
-    console.error("Error deleting document:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

@@ -32,7 +32,6 @@ export default async function handler(
 
     res.status(200).json(metric);
   } catch (error) {
-    console.error("Performance measurement error:", error);
     res.status(500).json({
       error: "Failed to measure operation performance",
       details: error instanceof Error ? error.message : "Unknown error",

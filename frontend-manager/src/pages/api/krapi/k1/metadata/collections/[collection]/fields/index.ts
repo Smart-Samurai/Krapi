@@ -34,7 +34,6 @@ export default async function handler(
         res.status(405).json({ error: "Method not allowed" });
     }
   } catch (error) {
-    console.error("Custom fields error:", error);
     res.status(500).json({
       error: "Failed to manage custom fields",
       details: error instanceof Error ? error.message : "Unknown error",

@@ -76,7 +76,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
       throw fetchError; // Re-throw to be caught by outer catch
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

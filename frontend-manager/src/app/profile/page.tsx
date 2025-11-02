@@ -165,7 +165,7 @@ export default function ProfilePage() {
   const updatePreference = (
     section: keyof UserProfile["preferences"],
     field: string,
-    value: any
+    value: unknown
   ) => {
     if (!profile) return;
 

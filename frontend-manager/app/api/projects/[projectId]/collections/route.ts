@@ -77,8 +77,8 @@ export async function GET(
       success: true,
       collections: collectionsArray,
     });
-  } catch (error) {
-    console.error("Error fetching collections:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -148,19 +148,14 @@ export async function POST(
     }
 
     const backendResponse = await response.json();
-    console.log("🔍 [FRONTEND COLLECTIONS] Backend response:", backendResponse);
-    console.log(
-      "🔍 [FRONTEND COLLECTIONS] Returning collection:",
-      backendResponse.data || backendResponse.collection
-    );
     // Wrap response to match test expectations: { success: true, collection: ... }
     const collection = backendResponse.data || backendResponse.collection;
     return NextResponse.json(
       { success: true, collection },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Error creating collection:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

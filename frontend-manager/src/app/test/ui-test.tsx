@@ -12,11 +12,9 @@ import {
   MousePointer,
   Keyboard,
   Smartphone,
-  Tablet,
-  Laptop,
   Globe,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,7 +42,7 @@ interface UITest {
   status: "pending" | "running" | "passed" | "failed" | "skipped";
   duration?: number;
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 interface TestSuite {
@@ -279,7 +277,7 @@ export default function UITestComponent() {
   const [testSuites, setTestSuites] = useState<TestSuite[]>(UI_TEST_SUITES);
   const [isRunning, setIsRunning] = useState(false);
   const [currentTest, setCurrentTest] = useState<string | null>(null);
-  const [results, setResults] = useState<{ [key: string]: any }>({});
+  const [_results, setResults] = useState<{ [key: string]: Record<string, unknown> }>({});
 
   const runTest = async (suiteId: string, testId: string): Promise<UITest> => {
     const test = testSuites
@@ -291,7 +289,7 @@ export default function UITestComponent() {
     setCurrentTest(`${suiteId}-${testId}`);
 
     try {
-      const result: any = { status: "passed" };
+      const result: { status: string; details?: Record<string, unknown> } = { status: "passed" };
 
       // Simulate different types of UI tests
       switch (testId) {

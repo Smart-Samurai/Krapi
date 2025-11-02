@@ -9,12 +9,6 @@ import {
   Trash2,
   Key,
   Shield,
-  Clock,
-  User,
-  Database,
-  Mail,
-  FileText,
-  Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -27,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 interface ApiKey {
   id: string;
@@ -421,7 +413,7 @@ export default function ApiKeysPage() {
                     <CardDescription>
                       Created: {formatDate(key.created_at)}
                       {key.last_used &&
-                        ` • Last used: ${formatDate(key.last_used)}`}
+                        ` ? Last used: ${formatDate(key.last_used)}`}
                     </CardDescription>
                   </div>
                 </div>
@@ -447,7 +439,7 @@ export default function ApiKeysPage() {
                   <div className="flex items-center space-x-2 mt-1">
                     <Input
                       value={
-                        visibleKeys.has(key.id) ? key.key : "••••••••••••••••"
+                        visibleKeys.has(key.id) ? key.key : "????????????????"
                       }
                       readOnly
                       className="font-mono"

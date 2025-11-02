@@ -78,8 +78,8 @@ export async function GET(
       success: true,
       collection,
     });
-  } catch (error) {
-    console.error("Error fetching collection:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -162,8 +162,8 @@ export async function PUT(
       success: true,
       collection,
     });
-  } catch (error) {
-    console.error("Error updating collection:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -241,8 +241,8 @@ export async function DELETE(
       success: true,
       message: "Collection deleted successfully",
     });
-  } catch (error) {
-    console.error("Error deleting collection:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

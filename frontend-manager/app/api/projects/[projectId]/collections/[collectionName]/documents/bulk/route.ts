@@ -84,8 +84,8 @@ export async function POST(
     // Test expects response.data.created to be an array
     // Return the backend response directly, not wrapped in data
     return NextResponse.json(backendResponse, { status: 201 });
-  } catch (error) {
-    console.error("Error creating documents:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -169,8 +169,8 @@ export async function PUT(
 
     const result = await response.json();
     return NextResponse.json({ success: true, data: result });
-  } catch (error) {
-    console.error("Error updating documents:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

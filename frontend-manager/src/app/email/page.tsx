@@ -6,13 +6,8 @@ import {
   Send,
   Mail,
   FileText,
-  Settings,
-  BarChart3,
   Eye,
-  Edit,
   Trash2,
-  Users,
-  Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -199,7 +194,7 @@ export default function EmailPage() {
     }
   };
 
-  const useTemplate = (template: EmailTemplate) => {
+  const applyTemplate = (template: EmailTemplate) => {
     setEmailToSend({
       to: "",
       subject: template.subject,
@@ -351,8 +346,8 @@ export default function EmailPage() {
                         </CardTitle>
                         <CardDescription>
                           Subject: {template.subject}
-                          {` • Created: ${formatDate(template.created_at)}`}
-                          {` • Used ${template.usage_count} times`}
+                          {` ? Created: ${formatDate(template.created_at)}`}
+                          {` ? Used ${template.usage_count} times`}
                         </CardDescription>
                       </div>
                     </div>
@@ -363,7 +358,7 @@ export default function EmailPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => useTemplate(template)}
+                        onClick={() => applyTemplate(template)}
                       >
                         <Send className="h-4 w-4 mr-2" />
                         Use
@@ -425,9 +420,9 @@ export default function EmailPage() {
                         </CardTitle>
                         <CardDescription>
                           To: {email.to}
-                          {` • Sent: ${formatDate(email.sent_at)}`}
+                          {` ? Sent: ${formatDate(email.sent_at)}`}
                           {email.delivered_at &&
-                            ` • Delivered: ${formatDate(email.delivered_at)}`}
+                            ` ? Delivered: ${formatDate(email.delivered_at)}`}
                         </CardDescription>
                       </div>
                     </div>

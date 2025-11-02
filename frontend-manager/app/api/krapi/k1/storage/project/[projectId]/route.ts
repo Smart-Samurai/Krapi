@@ -38,8 +38,8 @@ export async function GET(
 
     const filesData = await response.json();
     return NextResponse.json(filesData);
-  } catch (error) {
-    console.error("List files error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to list files" },
       { status: 500 }

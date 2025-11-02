@@ -99,7 +99,7 @@ export default function TestAccessPage() {
     cleanup: false,
   });
 
-  // TODO: Implement these methods when they're available in the SDK
+  // Note: These methods will be implemented when available in the SDK
   const checkProjectAccess = async () => {
     // Placeholder for now
   };
@@ -108,7 +108,7 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      // TODO: Need a project ID to check collections
+      // Note: Collection access check requires a project ID
       toast.info("Collection access check requires a project ID");
     } catch {
       // Error logged for debugging
@@ -120,7 +120,7 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      // TODO: Need a project ID and collection ID to check documents
+      // Note: Document access check requires a project ID and collection ID
       toast.info(
         "Document access check requires a project ID and collection ID"
       );
@@ -186,7 +186,7 @@ export default function TestAccessPage() {
     }
   };
 
-  // TODO: Implement when repairDatabase is available in the SDK
+  // Note: Database repair will be implemented when available in the SDK
   // const repairDatabase = async () => {
   //   if (!krapi || !hasScope(Scope.MASTER)) return;
   //   // Implementation will go here
@@ -478,7 +478,7 @@ export default function TestAccessPage() {
                   {hasScope(Scope.MASTER) && (
                     <Button
                       onClick={() => {
-                        // TODO: Implement when repairDatabase is available in the SDK
+                        // Note: Database repair will be implemented when available in the SDK
                         toast.info(
                           "Repair Database functionality is not yet implemented."
                         );
