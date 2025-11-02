@@ -16,10 +16,13 @@ This guide explains how to publish the KRAPI SDK to npm so external developers c
 
 Update `packages/krapi-sdk/package.json` with real information:
 
-- Update the `repository.url` with your actual GitHub repository URL
+- Update the `repository.url` with your actual GitHub repository URL (the main KRAPI repo)
+- Keep the `directory` field as `"packages/krapi-sdk"` (this tells npm it's in a monorepo subdirectory)
 - Update the `homepage` URL
 - Update the `author` field with your name and email
 - Ensure the `version` is correct (following semantic versioning)
+
+**Important**: The SDK can stay in your main KRAPI GitHub repo! The `directory` field in `package.json` tells npm where it is within the monorepo. You don't need a separate repository.
 
 ### Step 2: Security Check
 

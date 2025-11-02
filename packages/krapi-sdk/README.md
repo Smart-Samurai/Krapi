@@ -540,9 +540,11 @@ For KRAPI maintainers - to publish this package to npm for external developers.
 
 **Before publishing, always**:
 1. Run security check: `npm run security-check` (must show 0 vulnerabilities)
-2. Update `package.json` with real repository URL and author info
+2. Update `package.json` with real repository URL (your main KRAPI GitHub repo) and author info
 3. Verify package contents: `npm pack --dry-run`
 4. Test installation in a new project after publishing
+
+**Note**: The SDK stays in your main KRAPI monorepo! The `directory` field in `package.json` tells npm where it is. No separate repo needed. See `MONOREPO.md` for details.
 
 ### Quick Start Publishing
 
