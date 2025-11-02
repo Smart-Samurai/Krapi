@@ -27,7 +27,7 @@ export const initializeBackupSDK = (sdk: BackendSDK) => {
  * Returns: { backup_id, password, created_at }
  */
 router.post(
-  "/:projectId/backup",
+  "/backup",
   requireScopes({ scopes: [Scope.PROJECTS_WRITE], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
@@ -74,7 +74,7 @@ router.post(
  * Returns: { success: true }
  */
 router.post(
-  "/:projectId/restore",
+  "/restore",
   requireScopes({ scopes: [Scope.PROJECTS_WRITE], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
@@ -123,7 +123,7 @@ router.post(
  * Returns: { backups: BackupMetadata[] }
  */
 router.get(
-  "/:projectId/backups",
+  "/backups",
   requireScopes({ scopes: [Scope.PROJECTS_READ], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {

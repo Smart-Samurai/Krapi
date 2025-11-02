@@ -593,8 +593,11 @@ router.use("/projects", enforceProjectOrigin, projectRoutes);
 router.use("/projects/:projectId/storage", enforceProjectOrigin, storageRoutes);
 
 // ===== Backup Routes (SDK-driven) =====
+// Global backup routes (system backups, list all backups, delete backups)
+// Mount before project routes to avoid conflicts
+router.use("/", backupRoutes);
+// Project-specific backup routes (must be after global routes)
 router.use("/projects/:projectId", enforceProjectOrigin, backupRoutes);
-router.use("/", backupRoutes); // Global backup routes (system backups, list all backups, delete)
 
 // ===== Testing Routes (SDK-driven) =====
 router.use("/testing", testingRoutes);
