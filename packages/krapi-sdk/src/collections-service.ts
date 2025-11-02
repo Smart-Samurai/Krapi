@@ -682,17 +682,41 @@ export class CollectionsService {
       const dbCollection = result.rows[0] as Record<string, unknown>;
       this.logger.info(`Found collection:`, dbCollection);
 
+      // Parse JSON fields and indexes from database
+      let fields: FieldDefinition[] = [];
+      let indexes: IndexDefinition[] = [];
+      
+      try {
+        if (typeof dbCollection.fields === 'string') {
+          fields = JSON.parse(dbCollection.fields as string) as FieldDefinition[];
+        } else if (Array.isArray(dbCollection.fields)) {
+          fields = dbCollection.fields as FieldDefinition[];
+        }
+      } catch (error) {
+        this.logger.warn('Failed to parse fields:', error);
+      }
+      
+      try {
+        if (typeof dbCollection.indexes === 'string') {
+          indexes = JSON.parse(dbCollection.indexes as string) as IndexDefinition[];
+        } else if (Array.isArray(dbCollection.indexes)) {
+          indexes = dbCollection.indexes as IndexDefinition[];
+        }
+      } catch (error) {
+        this.logger.warn('Failed to parse indexes:', error);
+      }
+
       // Convert database collection to Collection interface
       return {
         id: dbCollection.id as string,
         name: dbCollection.name as string,
         description: dbCollection.description as string,
         project_id: dbCollection.project_id as string,
-        fields: (dbCollection.fields as unknown as FieldDefinition[]) || [],
-        indexes: (dbCollection.indexes as unknown as IndexDefinition[]) || [],
+        fields: fields,
+        indexes: indexes,
         schema: {
-          fields: (dbCollection.fields as unknown as FieldDefinition[]) || [],
-          indexes: (dbCollection.indexes as unknown as IndexDefinition[]) || [],
+          fields: fields,
+          indexes: indexes,
         },
         settings: (dbCollection.settings as unknown as CollectionSettings) || {
           read_permissions: [],
@@ -1029,9 +1053,10 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT * FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let query = `SELECT * FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       // Apply filters
       if (filter) {
@@ -1218,16 +1243,18 @@ export class CollectionsService {
         : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
       // SQLite-compatible INSERT (no RETURNING *)
-      // Include project_id in INSERT for proper database routing
+      // Include project_id and updated_by in INSERT for proper database routing
+      const createdBy = documentData.created_by || documentData.data?.created_by || "system";
       await this.db.query(
-        `INSERT INTO documents (id, collection_id, project_id, data, created_by)
-         VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO documents (id, collection_id, project_id, data, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           documentId,
           collection.id,
           projectId,
           JSON.stringify(actualDocumentData),
-          documentData.created_by || documentData.data?.created_by || "system",
+          createdBy,
+          createdBy, // updated_by defaults to created_by for new documents
         ]
       );
 
@@ -1715,11 +1742,12 @@ export class CollectionsService {
           : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
         // SQLite-compatible INSERT (no RETURNING *)
-        // Include project_id in INSERT for proper database routing
+        // Include project_id and updated_by in INSERT for proper database routing
+        const createdBy = doc.created_by || "system";
         await this.db.query(
-          `INSERT INTO documents (id, collection_id, project_id, data, created_by)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [documentId, collection.id, projectId, JSON.stringify(doc.data), doc.created_by || "system"]
+          `INSERT INTO documents (id, collection_id, project_id, data, created_by, updated_by)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [documentId, collection.id, projectId, JSON.stringify(doc.data), createdBy, createdBy]
         );
 
         // Query back the inserted row (SQLite doesn't support RETURNING *)
@@ -1872,13 +1900,14 @@ export class CollectionsService {
         return [];
       }
       // Create placeholders for the IN clause
+      // Include project_id in DELETE for proper database routing
       const placeholders = documentIds
         .map((_, index) => `$${index + 1}`)
         .join(",");
       const query = `DELETE FROM documents WHERE collection_id = $${
         documentIds.length + 1
-      } AND id IN (${placeholders})`;
-      const params = [...documentIds, collection.id];
+      } AND project_id = ${documentIds.length + 2} AND id IN (${placeholders})`;
+      const params = [...documentIds, collection.id, projectId];
 
       const result = await this.db.query(query, params);
 

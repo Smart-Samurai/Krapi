@@ -42,7 +42,8 @@ class ComprehensiveTestSuite {
         duration: duration,
         error: error.message,
       });
-      throw error;
+      // Don't throw - continue running all tests
+      // throw error;
     }
   }
 
@@ -1231,14 +1232,14 @@ class ComprehensiveTestSuite {
   }
 
   printResults() {
+    const totalTests = this.testResults.passed + this.testResults.failed;
+    
     console.log("\n" + "=".repeat(60));
     console.log("📊 COMPREHENSIVE TEST RESULTS");
     console.log("=".repeat(60));
     console.log(`✅ Passed: ${this.testResults.passed}`);
     console.log(`❌ Failed: ${this.testResults.failed}`);
-    console.log(
-      `📊 Total: ${this.testResults.passed + this.testResults.failed}`
-    );
+    console.log(`📊 Total: ${totalTests}`);
 
     if (this.testResults.errors.length > 0) {
       console.log("\n❌ Failed Tests:");
@@ -1247,18 +1248,18 @@ class ComprehensiveTestSuite {
       });
     }
 
-    const successRate = (
-      (this.testResults.passed /
-        (this.testResults.passed + this.testResults.failed)) *
-      100
-    ).toFixed(1);
-    console.log(`\n🎯 Success Rate: ${successRate}%`);
+    const successRate = totalTests > 0
+      ? ((this.testResults.passed / totalTests) * 100).toFixed(1)
+      : "0.0";
+    console.log(`\n🎯 Success Rate: ${successRate}% (${this.testResults.passed}/${totalTests})`);
 
-    if (this.testResults.failed === 0) {
+    if (this.testResults.failed === 0 && totalTests > 0) {
       console.log("\n🎉 ALL TESTS PASSED! KRAPI is production ready! 🎉");
+    } else if (totalTests === 0) {
+      console.log("\n⚠️  No tests were executed. Please check test suite configuration.");
     } else {
       console.log(
-        `\n⚠️  ${this.testResults.failed} test(s) failed. Please review and fix.`
+        `\n⚠️  ${this.testResults.failed} of ${totalTests} test(s) failed. Please review and fix.`
       );
     }
 
