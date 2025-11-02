@@ -5,13 +5,20 @@
  * All routes are prefixed with /changelog
  */
 
+import { BackendSDK } from "@krapi/sdk";
 import { Router } from "express";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
-import { DatabaseService } from "@/services/database.service";
 import { Scope } from "@/types";
 
 const router: Router = Router();
+
+// Initialize the BackendSDK - will be set from app.ts
+let backendSDK: BackendSDK;
+
+export const initializeChangelogSDK = (sdk: BackendSDK) => {
+  backendSDK = sdk;
+};
 
 // Apply authentication middleware to all changelog routes
 router.use(authenticate);
@@ -31,7 +38,12 @@ router.get(
       const { projectId } = req.params;
       const { limit = 50, offset = 0, action_type, user_id, start_date, end_date, collection_name, document_id } = req.query;
 
-      const db = DatabaseService.getInstance();
+      if (!backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+      }
 
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
@@ -41,11 +53,15 @@ router.get(
       if (collection_name) filters.collection_name = collection_name as string;
       if (document_id) filters.document_id = document_id as string;
 
-      const entries = await db.getChangelogEntries({
-        project_id: projectId,
-        ...filters,
+      // Use SDK method for getting changelog entries
+      const entries = await backendSDK.admin.getActivityLogs({
         limit: Number(limit),
         offset: Number(offset),
+        filters: filters as {
+          entity_type?: string;
+          action?: string;
+          performed_by?: string;
+        },
       });
 
       res.json({
@@ -83,7 +99,12 @@ router.get(
       const { projectId, collectionName } = req.params;
       const { limit = 50, offset = 0, action_type, user_id, start_date, end_date, document_id } = req.query;
 
-      const db = DatabaseService.getInstance();
+      if (!backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+      }
 
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
@@ -91,13 +112,17 @@ router.get(
       if (start_date) filters.start_date = start_date as string;
       if (end_date) filters.end_date = end_date as string;
       if (document_id) filters.document_id = document_id as string;
+      filters.collection_name = collectionName;
 
-      const entries = await db.getChangelogEntries({
-        project_id: projectId,
-        collection_name: collectionName,
-        ...filters,
+      // Use SDK method for getting changelog entries
+      const entries = await backendSDK.admin.getActivityLogs({
         limit: Number(limit),
         offset: Number(offset),
+        filters: filters as {
+          entity_type?: string;
+          action?: string;
+          performed_by?: string;
+        },
       });
 
       res.json({
@@ -135,21 +160,30 @@ router.get(
       const { projectId, collectionName, documentId } = req.params;
       const { limit = 50, offset = 0, action_type, user_id, start_date, end_date } = req.query;
 
-      const db = DatabaseService.getInstance();
+      if (!backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+      }
 
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
       if (user_id) filters.user_id = user_id as string;
       if (start_date) filters.start_date = start_date as string;
       if (end_date) filters.end_date = end_date as string;
+      filters.collection_name = collectionName;
+      filters.document_id = documentId;
 
-      const entries = await db.getChangelogEntries({
-        project_id: projectId,
-        collection_name: collectionName,
-        document_id: documentId,
-        ...filters,
+      // Use SDK method for getting changelog entries
+      const entries = await backendSDK.admin.getActivityLogs({
         limit: Number(limit),
         offset: Number(offset),
+        filters: filters as {
+          entity_type?: string;
+          action?: string;
+          performed_by?: string;
+        },
       });
 
       res.json({
@@ -187,20 +221,29 @@ router.get(
       const { projectId, userId } = req.params;
       const { limit = 50, offset = 0, action_type, start_date, end_date, entity_type } = req.query;
 
-      const db = DatabaseService.getInstance();
+      if (!backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+      }
 
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
       if (start_date) filters.start_date = start_date as string;
       if (end_date) filters.end_date = end_date as string;
       if (entity_type) filters.entity_type = entity_type as string;
+      filters.user_id = userId;
 
-      const entries = await db.getChangelogEntries({
-        project_id: projectId,
-        user_id: userId,
-        ...filters,
+      // Use SDK method for getting changelog entries
+      const entries = await backendSDK.admin.getActivityLogs({
         limit: Number(limit),
         offset: Number(offset),
+        filters: filters as {
+          entity_type?: string;
+          action?: string;
+          performed_by?: string;
+        },
       });
 
       res.json({

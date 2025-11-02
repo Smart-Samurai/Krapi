@@ -16,7 +16,7 @@ import { enforceProjectOrigin } from "../middleware/origin-guard.middleware";
 import adminRoutes, { initializeAdminSDK } from "./admin.routes";
 import apiKeysRoutes, { initializeApiKeysSDK } from "./api-keys.routes";
 import authRoutes from "./auth.routes";
-import changelogRoutes from "./changelog.routes";
+import changelogRoutes, { initializeChangelogSDK } from "./changelog.routes";
 import collectionsRoutes, {
   initializeCollectionsSDK,
 } from "./collections.routes";
@@ -44,6 +44,7 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
   initializeEmailSDK(sdk);
   initializeProjectSDK(sdk);
   initializeBackupSDK(sdk);
+  initializeChangelogSDK(sdk);
 };
 
 // ===== System Routes (SDK-driven) =====

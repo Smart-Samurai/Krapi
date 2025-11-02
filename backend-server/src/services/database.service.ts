@@ -2131,8 +2131,6 @@ export class DatabaseService {
     } catch (error) {
       // SQLite handles rollback automatically
       throw error;
-    } finally {
-      // SQLite doesn't need connection release
     }
   }
 
@@ -6316,7 +6314,6 @@ export class DatabaseService {
       // SQLite handles rollback automatically
       throw error;
     } finally {
-      // SQLite doesn't need connection release
       DatabaseService.isCreatingTables = false;
     }
   }

@@ -2,6 +2,26 @@
 
 **KRAPI** is a comprehensive, self-hosted backend solution that provides database, file storage, user management, and API capabilities for your applications. Perfect for developers who want to focus on their frontend and app logic while using KRAPI as their backend infrastructure.
 
+## 📦 Client SDK
+
+KRAPI provides an easy-to-import client SDK, similar to Appwrite:
+
+```typescript
+// In your React, Vue, or any frontend app
+import { KrapiClient } from '@krapi/sdk/client';
+
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
+  apiKey: 'your-api-key'
+});
+
+// Use it - no custom API calls needed!
+const projects = await krapi.projects.list();
+const documents = await krapi.collections.documents.list('project-id', 'collection-name');
+```
+
+See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complete SDK documentation.
+
 ## 🚀 Features
 
 - **Multi-Database Architecture**: One main controller database plus separate SQLite database files for each project

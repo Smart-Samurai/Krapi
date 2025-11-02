@@ -91,6 +91,7 @@ export { PerformanceMonitor } from "./performance-monitor";
 export { UsersService } from "./users-service";
 
 // Export unified client SDK (like Appwrite - easy to import!)
+// Import with: import { KrapiClient } from '@krapi/sdk/client'
 export { KrapiClient, type KrapiClientConfig, type ApiResponse as ClientApiResponse } from "./client";
 export { default as Client } from "./client";
 

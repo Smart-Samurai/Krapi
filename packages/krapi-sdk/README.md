@@ -17,7 +17,8 @@ yarn add @krapi/sdk
 ### Client-Side Usage (React, Vue, etc.)
 
 ```typescript
-import { KrapiClient } from '@krapi/sdk';
+// Easy import - just like Appwrite!
+import { KrapiClient } from '@krapi/sdk/client';
 
 // Initialize client
 const krapi = new KrapiClient({
