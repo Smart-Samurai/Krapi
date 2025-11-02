@@ -68,14 +68,17 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={`dashboard-skeleton-${i}-${Date.now()}`}>
+          {[...Array(4)].map(() => {
+            const skeletonId = `dashboard-skeleton-${Math.random()}-${Date.now()}`;
+            return (
+            <Card key={skeletonId}>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-8 w-16" />
               </CardHeader>
             </Card>
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -253,8 +256,10 @@ export default function DashboardPage() {
       {/* Projects List */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoadingProjects
-          ? [...Array(6)].map((_, i) => (
-              <Card key={`dashboard-project-skeleton-card-${i}`}>
+          ? [...Array(6)].map(() => {
+              const skeletonId = `dashboard-project-skeleton-${Math.random()}-${Date.now()}`;
+              return (
+              <Card key={skeletonId}>
                 <CardHeader>
                   <Skeleton className="h-6 w-40" />
                 </CardHeader>
@@ -263,7 +268,8 @@ export default function DashboardPage() {
                   <Skeleton className="h-4 w-3/4 mt-2" />
                 </CardContent>
               </Card>
-            ))
+              );
+            })
           : projects.map((project) => (
               <Card key={project.id}>
                 <CardHeader>

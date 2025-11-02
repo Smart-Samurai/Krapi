@@ -193,8 +193,10 @@ export default function ProjectsPage() {
       <div className="p-6 space-y-6 cursor-progress" aria-busy>
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Card key={`projects-skeleton-card-${i}-${Date.now()}`}>
+          {[...Array(3)].map(() => {
+            const skeletonId = `projects-skeleton-${Math.random()}-${Date.now()}`;
+            return (
+            <Card key={skeletonId}>
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />
@@ -203,7 +205,8 @@ export default function ProjectsPage() {
                 <Skeleton className="h-20" />
               </CardContent>
             </Card>
-          ))}
+          );
+        })}
         </div>
       </div>
     );

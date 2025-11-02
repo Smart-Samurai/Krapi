@@ -711,8 +711,8 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {profile.security.login_history.map((login, index) => (
-                  <div key={index} className="p-4 border rounded-md">
+                {profile.security.login_history.map((login) => (
+                  <div key={`login-${login.timestamp}-${login.ip_address}`} className="p-4 border rounded-md">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         {login.success ? (

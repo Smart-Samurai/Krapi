@@ -301,12 +301,15 @@ export default function FilesPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `files-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`files-skeleton-${i}-${Date.now()}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );

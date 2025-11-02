@@ -286,9 +286,12 @@ export default function DocumentsPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={`documents-skeleton-${i}`} className="h-32 w-full" />
-          ))}
+          {[...Array(3)].map(() => {
+            const skeletonId = `documents-skeleton-${Math.random()}-${Date.now()}`;
+            return (
+            <Skeleton key={skeletonId} className="h-32 w-full" />
+          );
+        })}
         </div>
       </div>
     );

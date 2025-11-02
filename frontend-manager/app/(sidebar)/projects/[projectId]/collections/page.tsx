@@ -315,12 +315,15 @@ export default function CollectionsPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `collections-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`collections-skeleton-item-${i}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -393,13 +396,11 @@ export default function CollectionsPage() {
                     </Button>
                   </div>
                   <div className="space-y-3">
-                    {formData.fields.map((field, _index) => {
+                    {formData.fields.map((field) => {
                       const _Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <div
-                          key={`collections-field-${_index}-${
-                            field.name || "unnamed"
-                          }`}
+                          key={`collections-field-${field.name || "unnamed"}-${field.type}`}
                           className="flex items-center gap-2 p-3 border rounded-lg"
                         >
                           <div className="flex-1 grid grid-cols-2 gap-2">

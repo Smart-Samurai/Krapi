@@ -11,6 +11,8 @@ import {
   FileText,
   KeyRound,
   HardDrive,
+  Download,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -163,6 +165,16 @@ function ProjectSidebar() {
       title: "Storage",
       icon: HardDrive,
       href: `/projects/${projectId}/storage` as const,
+    },
+    {
+      title: "Backup",
+      icon: Download,
+      href: `/projects/${projectId}/backup` as const,
+    },
+    {
+      title: "Changelog",
+      icon: Activity,
+      href: `/projects/${projectId}/changelog` as const,
     },
     {
       title: "API Keys",

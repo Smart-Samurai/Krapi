@@ -459,9 +459,9 @@ export function StreamlinedUserDialog({
                       {group.label}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {group.permissions.map((perm, id) => (
+                      {group.permissions.map((perm) => (
                         <div
-                          key={`streamlined-user-perm-${perm.scope}-${perm.label}-${id}`}
+                          key={`streamlined-user-perm-${perm.scope}-${perm.label}`}
                           className="flex items-center space-x-2"
                         >
                           <Checkbox

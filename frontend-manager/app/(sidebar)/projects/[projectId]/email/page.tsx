@@ -365,12 +365,15 @@ export default function EmailPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `email-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`email-skeleton-item-${i}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -699,9 +702,9 @@ export default function EmailPage() {
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {templateForm.variables.map((variable, index) => (
+                      {templateForm.variables.map((variable) => (
                         <div
-                          key={`email-variable-${variable}-${index}`}
+                          key={`email-variable-${variable}`}
                           className="flex items-center gap-2"
                         >
                           <Input
@@ -840,9 +843,9 @@ export default function EmailPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {template.variables.map((variable, index) => (
+                              {template.variables.map((variable) => (
                                 <Badge
-                                  key={`email-template-variable-${variable}-${index}`}
+                                  key={`email-template-variable-${variable}`}
                                   variant="outline"
                                   className="text-xs"
                                 >
@@ -971,9 +974,9 @@ export default function EmailPage() {
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {templateForm.variables.map((variable, index) => (
+                    {templateForm.variables.map((variable) => (
                       <div
-                        key={`email-edit-variable-${variable}-${index}`}
+                        key={`email-edit-variable-${variable}`}
                         className="flex items-center gap-2"
                       >
                         <Input

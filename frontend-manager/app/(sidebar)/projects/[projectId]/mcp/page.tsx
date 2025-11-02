@@ -107,8 +107,8 @@ export default function ProjectMcpPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="border rounded p-3 h-80 overflow-auto bg-background">
-            {messages.map((m, i) => (
-              <div key={`project-mcp-message-${m.role}-${i}`} className="mb-2">
+            {messages.map((m) => (
+              <div key={`project-mcp-message-${m.role}-${m.content?.substring(0, 30) || Date.now()}-${Math.random()}`} className="mb-2">
                 <span className="font-semibold mr-2">{m.role}:</span>
                 <span className="whitespace-pre-wrap break-words">
                   {m.content}

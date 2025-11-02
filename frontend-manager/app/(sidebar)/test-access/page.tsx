@@ -555,9 +555,9 @@ export default function TestAccessPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {diagnosticResults.tests.map((test, index) => (
+                      {diagnosticResults.tests.map((test) => (
                         <TableRow
-                          key={`test-access-diagnostic-${test.name}-${index}`}
+                          key={`test-access-diagnostic-${test.name}`}
                         >
                           <TableCell className="font-medium">
                             {test.name}
@@ -633,9 +633,9 @@ export default function TestAccessPage() {
             <CardContent className="space-y-4">
               {testResults.length > 0 ? (
                 <div className="space-y-6">
-                  {testResults.map((suite, suiteIndex) => (
+                  {testResults.map((suite) => (
                     <div
-                      key={`test-access-suite-${suite.suite}-${suiteIndex}`}
+                      key={`test-access-suite-${suite.suite}`}
                       className="space-y-3"
                     >
                       <h4 className="font-semibold text-lg">{suite.suite}</h4>
@@ -650,9 +650,9 @@ export default function TestAccessPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {suite.tests.map((test, testIndex) => (
+                          {suite.tests.map((test) => (
                             <TableRow
-                              key={`test-access-test-${suite.suite}-${test.name}-${testIndex}`}
+                              key={`test-access-test-${suite.suite}-${test.name}`}
                             >
                               <TableCell className="font-medium">
                                 {test.name}
