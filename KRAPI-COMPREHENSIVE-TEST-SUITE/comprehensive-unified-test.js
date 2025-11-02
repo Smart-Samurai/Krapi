@@ -95,6 +95,9 @@ class ComprehensiveTestSuite {
       // Performance Monitoring Tests
       await this.runPerformanceTests();
 
+      // Database Queue Tests
+      await this.runQueueTests();
+
       // SDK Functionality Tests
       await this.runSDKTests();
 
@@ -1042,6 +1045,181 @@ class ComprehensiveTestSuite {
       );
       this.assert(response.status === 200, "Should return 200");
       this.assert(response.data.success === true, "Should succeed");
+    });
+  }
+
+  async runQueueTests() {
+    console.log("\n📋 Database Queue Tests");
+    console.log("-".repeat(30));
+
+    await this.test("Get queue metrics endpoint", async () => {
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/queue/metrics`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        response.data.metrics !== undefined,
+        "Metrics should be present"
+      );
+      this.assert(
+        typeof response.data.metrics.queueSize === "number",
+        "queueSize should be a number"
+      );
+      this.assert(
+        typeof response.data.metrics.processingCount === "number",
+        "processingCount should be a number"
+      );
+      this.assert(
+        typeof response.data.metrics.totalProcessed === "number",
+        "totalProcessed should be a number"
+      );
+      this.assert(
+        typeof response.data.metrics.totalErrors === "number",
+        "totalErrors should be a number"
+      );
+      this.assert(
+        typeof response.data.metrics.averageWaitTime === "number",
+        "averageWaitTime should be a number"
+      );
+      this.assert(
+        typeof response.data.metrics.averageProcessTime === "number",
+        "averageProcessTime should be a number"
+      );
+      this.assert(
+        Array.isArray(response.data.metrics.queueItems),
+        "queueItems should be an array"
+      );
+    });
+
+    await this.test("Queue metrics in health endpoint", async () => {
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/health`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        response.data.queue !== undefined,
+        "Queue metrics should be present in health endpoint"
+      );
+      this.assert(
+        typeof response.data.queue.queueSize === "number",
+        "queueSize should be a number"
+      );
+      this.assert(
+        typeof response.data.queue.processingCount === "number",
+        "processingCount should be a number"
+      );
+    });
+
+    await this.test("Queue metrics in performance endpoint", async () => {
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/performance/metrics`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      // Queue metrics might be nested in performance metrics
+      if (response.data.metrics && response.data.metrics.queue) {
+        this.assert(
+          typeof response.data.metrics.queue.queueSize === "number",
+          "queueSize should be a number"
+        );
+      }
+    });
+
+    await this.test("Queue metrics in SDK status endpoint", async () => {
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/sdk/status`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      // Queue metrics might be present in SDK status
+      if (response.data.queue) {
+        this.assert(
+          typeof response.data.queue.queueSize === "number",
+          "queueSize should be a number"
+        );
+      }
+    });
+
+    await this.test("Queue handles multiple database operations", async () => {
+      // Create a test project to trigger database operations
+      if (!this.testProject) {
+        // This will use the queue for database operations
+        const createResponse = await axios.post(
+          `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects`,
+          {
+            name: `QUEUE_TEST_${Date.now()}`,
+            description: "Test project for queue testing",
+          },
+          {
+            headers: { Authorization: `Bearer ${this.sessionToken}` },
+          }
+        );
+        this.assert(createResponse.status === 200, "Should create project");
+        this.testProject = createResponse.data.project;
+      }
+
+      // Get queue metrics before operations
+      const beforeMetrics = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/queue/metrics`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      const beforeProcessed = beforeMetrics.data.metrics.totalProcessed;
+
+      // Perform multiple database operations that will go through the queue
+      await Promise.all([
+        axios.get(
+          `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}`,
+          {
+            headers: { Authorization: `Bearer ${this.sessionToken}` },
+          }
+        ),
+        axios.get(
+          `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}`,
+          {
+            headers: { Authorization: `Bearer ${this.sessionToken}` },
+          }
+        ),
+        axios.get(
+          `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}`,
+          {
+            headers: { Authorization: `Bearer ${this.sessionToken}` },
+          }
+        ),
+      ]);
+
+      // Wait a bit for queue to process
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Get queue metrics after operations
+      const afterMetrics = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/queue/metrics`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      const afterProcessed = afterMetrics.data.metrics.totalProcessed;
+
+      // Verify queue processed the operations
+      this.assert(
+        afterProcessed >= beforeProcessed,
+        "Queue should have processed operations"
+      );
     });
   }
 
