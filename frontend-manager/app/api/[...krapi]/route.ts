@@ -79,7 +79,7 @@ async function proxyRequest(
 
     // Prepare headers (exclude host and other problematic headers)
     const headers = new Headers();
-    request.headers.forEach((_value, key) => {
+    request.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
       if (
         !lowerKey.startsWith("host") &&

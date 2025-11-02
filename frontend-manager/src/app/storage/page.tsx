@@ -5,22 +5,19 @@ import {
   Download,
   Search,
   File,
-  Folder,
   Trash2,
   Eye,
   Copy,
-  HardDrive,
   FileText,
   Image,
   Video,
   Music,
   Archive,
   FileCode,
-  Calendar,
-  User,
   Database,
+  HardDrive,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,7 +59,7 @@ interface FileItem {
   uploaded_at: string;
   last_accessed?: string;
   download_count: number;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface Project {
@@ -71,7 +68,7 @@ interface Project {
   description: string;
 }
 
-const FILE_TYPE_ICONS: { [key: string]: any } = {
+const FILE_TYPE_ICONS: { [key: string]: React.ComponentType<{ className?: string }> } = {
   "image/": Image,
   "video/": Video,
   "audio/": Music,
@@ -99,7 +96,7 @@ export default function StoragePage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       const url = selectedProject
         ? `/api/krapi/k1/storage/project/${selectedProject}`
@@ -111,9 +108,9 @@ export default function StoragePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
-  };
+  }, [selectedProject]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const response = await fetch("/api/krapi/k1/projects");
       if (!response.ok) throw new Error("Failed to fetch projects");
@@ -122,7 +119,7 @@ export default function StoragePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
-  };
+  }, []);
 
   const uploadFile = async (file: File, projectId?: string) => {
     setUploading(true);
@@ -208,8 +205,8 @@ export default function StoragePage() {
     try {
       await navigator.clipboard.writeText(url);
       // You could add a toast notification here
-    } catch (err) {
-      console.error("Failed to copy URL:", err);
+    } catch {
+      // Error copying to clipboard - user can manually copy
     }
   };
 
@@ -251,7 +248,7 @@ export default function StoragePage() {
       setLoading(false);
     };
     loadData();
-  }, [selectedProject]);
+  }, [fetchFiles, fetchProjects]);
 
   const filteredFiles = files.filter(
     (file) =>
@@ -346,10 +343,10 @@ export default function StoragePage() {
                           </CardTitle>
                           <CardDescription>
                             {formatFileSize(file.size)}
-                            {` • ${file.mime_type}`}
-                            {` • Uploaded: ${formatDate(file.uploaded_at)}`}
+                            {` ? ${file.mime_type}`}
+                            {` ? Uploaded: ${formatDate(file.uploaded_at)}`}
                             {file.download_count > 0 &&
-                              ` • Downloaded ${file.download_count} times`}
+                              ` ? Downloaded ${file.download_count} times`}
                           </CardDescription>
                         </div>
                       </div>

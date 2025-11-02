@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -200,8 +201,8 @@ export default function ApiKeysPage() {
     try {
       await navigator.clipboard.writeText(text);
       // You could add a toast notification here
-    } catch (err) {
-      console.error("Failed to copy to clipboard:", err);
+    } catch {
+      // Error copying to clipboard - user can manually copy
     }
   };
 

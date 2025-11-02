@@ -4,22 +4,16 @@ import {
   Activity,
   Database,
   Server,
-  Users,
   Settings,
   FileText,
-  Mail,
-  Key,
   Monitor,
   AlertTriangle,
   CheckCircle,
   XCircle,
   RefreshCw,
-  HardDrive,
-  Cpu,
   MemoryStick,
-  Network,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,20 +35,20 @@ interface SystemStatus {
   logger: {
     totalLogs: number;
     logFileSize: number;
-    metrics: any;
+    metrics: Record<string, unknown>;
     uptime: number;
     memoryUsage: NodeJS.MemoryUsage;
   };
   errorHandler: {
     isHealthy: boolean;
-    errorStats: any;
-    recoveryStats: any;
+    errorStats: Record<string, unknown>;
+    recoveryStats: Record<string, unknown>;
   };
   monitor: {
     isHealthy: boolean;
     overallHealth: "healthy" | "warning" | "critical";
-    healthChecks: any;
-    recentMetrics: any[];
+    healthChecks: Record<string, unknown>;
+    recentMetrics: Array<Record<string, unknown>>;
   };
 }
 
@@ -64,7 +58,7 @@ interface LogEntry {
   level: "debug" | "info" | "warn" | "error" | "fatal";
   service: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export default function SystemPage() {
@@ -96,22 +90,22 @@ export default function SystemPage() {
     }
   };
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchSystemStatus(), fetchLogs()]);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [refreshData]);
 
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(refreshData, 5000);
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, refreshData]);
 
   const getHealthColor = (health: string) => {
     switch (health) {
@@ -381,7 +375,7 @@ export default function SystemPage() {
               <CardContent>
                 <div className="space-y-4">
                   {Object.entries(systemStatus.monitor.healthChecks).map(
-                    ([name, check]: [string, any]) => (
+                    ([name, check]: [string, Record<string, unknown>]) => (
                       <div key={name} className="p-4 border rounded-md">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-2">

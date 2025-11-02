@@ -2,11 +2,7 @@
 
 import {
   User,
-  Mail,
   Shield,
-  Key,
-  Bell,
-  Globe,
   Save,
   RefreshCw,
   CheckCircle,
@@ -15,6 +11,9 @@ import {
   EyeOff,
   Lock,
   Unlock,
+  Bell,
+  Key,
+  Globe,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -174,7 +173,7 @@ export default function ProfilePage() {
       preferences: {
         ...profile.preferences,
         [section]: {
-          ...profile.preferences[section],
+          ...(profile.preferences[section] as Record<string, unknown>),
           [field]: value,
         },
       },

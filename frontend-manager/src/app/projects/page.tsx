@@ -3,17 +3,10 @@
 import {
   Plus,
   Search,
-  Edit,
   Trash2,
   Eye,
   Database,
   FileText,
-  Settings,
-  Users,
-  Key,
-  Mail,
-  Upload,
-  Download,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -56,8 +49,8 @@ interface Collection {
   project_id: string;
   name: string;
   description: string;
-  fields: any[];
-  indexes: any[];
+  fields: Array<Record<string, unknown>>;
+  indexes: Array<Record<string, unknown>>;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -67,7 +60,7 @@ interface Collection {
 interface Document {
   id: string;
   collection_id: string;
-  data: any;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -653,7 +646,7 @@ export default function ProjectsPage() {
                               setNewDocument({
                                 data: JSON.parse(e.target.value),
                               });
-                            } catch (err) {
+                            } catch {
                               // Invalid JSON, keep the text for editing
                             }
                           }}

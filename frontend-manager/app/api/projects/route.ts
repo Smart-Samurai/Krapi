@@ -75,19 +75,10 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    // Debug: Log all headers received
-    
-    request.headers.forEach((value, key) => {
-      
-    });
+    // Debug: Log all headers received (removed for production)
 
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
-
-    console.log(
-      "🔍 [FRONTEND DEBUG] POST - Extracted authToken:",
-      authToken ? `Bearer token of length ${authToken.length}` : "undefined"
-    );
 
     if (!authToken) {
       return NextResponse.json(

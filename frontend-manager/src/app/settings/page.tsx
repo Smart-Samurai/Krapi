@@ -7,10 +7,6 @@ import {
   Shield,
   Monitor,
   Server,
-  Key,
-  User,
-  Bell,
-  Globe,
   Save,
   RefreshCw,
   CheckCircle,
@@ -18,7 +14,6 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 
 interface AppSettings {
   app: {
@@ -154,7 +148,7 @@ export default function SettingsPage() {
   const updateSetting = (
     section: keyof AppSettings,
     field: string,
-    value: any
+    value: unknown
   ) => {
     if (!settings) return;
 
@@ -174,7 +168,6 @@ export default function SettingsPage() {
   ) => {
     if (!settings) return;
 
-    const array = (settings[section] as any)[field] || [];
     const newArray = value
       .split(",")
       .map((item) => item.trim())
