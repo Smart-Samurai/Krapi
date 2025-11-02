@@ -113,6 +113,7 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
 import { DatabaseService } from "./services/database.service";
+import { ProjectAwareDbAdapter } from "./services/project-aware-db-adapter";
 import { SDKServiceManager } from "./services/sdk-service-manager";
 
 // Types imported but used in route files
@@ -229,17 +230,20 @@ const sdkServiceManager = new SDKServiceManager(
   console
 );
 
-// Initialize BackendSDK with real database connection
+// Initialize project-aware database adapter
+const dbAdapter = new ProjectAwareDbAdapter(databaseService);
+
+// Initialize BackendSDK with project-aware database connection
 const backendSDK = new BackendSDK({
   databaseConnection: {
     query: async (sql: string, params?: unknown[]) => {
-      return await databaseService.query(sql, params);
+      return await dbAdapter.query(sql, params);
     },
     connect: async () => {
-      await databaseService.connect();
+      await dbAdapter.connect();
     },
     end: async () => {
-      await databaseService.end();
+      await dbAdapter.end();
     },
   },
   logger: console,
@@ -421,34 +425,34 @@ const HOST = process.env.HOST || "localhost";
 async function startServer() {
   try {
     // Wait for SDK services to be ready
-    console.log("⏳ Initializing SDK services...");
+    console.log("? Initializing SDK services...");
 
     // Perform SDK health check
-    console.log("🔍 Performing SDK health check...");
+    console.log("?? Performing SDK health check...");
     const sdkHealth = await backendSDK.performHealthCheck();
 
     if (!sdkHealth.isHealthy) {
-      console.log("⚠️  SDK health issues detected:");
-      console.log(`   ❌ Database: ${sdkHealth.connected ? "OK" : "FAILED"}`);
+      console.log("??  SDK health issues detected:");
+      console.log(`   ? Database: ${sdkHealth.connected ? "OK" : "FAILED"}`);
       if (sdkHealth.issues && sdkHealth.issues.length > 0) {
-        console.log(`   ❌ Issues: ${sdkHealth.issues.length} found`);
+        console.log(`   ? Issues: ${sdkHealth.issues.length} found`);
       }
     } else {
-      console.log("✅ SDK services are healthy");
-      console.log(`   ✓ Database: ${sdkHealth.connected ? "OK" : "FAILED"}`);
+      console.log("? SDK services are healthy");
+      console.log(`   ? Database: ${sdkHealth.connected ? "OK" : "FAILED"}`);
       if (sdkHealth.total_tables) {
-        console.log(`   ✓ Tables: ${sdkHealth.total_tables}`);
+        console.log(`   ? Tables: ${sdkHealth.total_tables}`);
       }
     }
 
     // Initialize database with default admin user
-    console.log("🔧 Initializing database...");
+    console.log("?? Initializing database...");
     const dbInit = await sdkServiceManager.initializeDatabase();
 
     if (dbInit.success) {
-      console.log("✅ Database initialization completed");
+      console.log("? Database initialization completed");
     } else {
-      console.log("⚠️  Database initialization had issues:", dbInit.message);
+      console.log("??  Database initialization had issues:", dbInit.message);
     }
 
     const server = app.listen(PORT, () => {
@@ -462,13 +466,13 @@ async function startServer() {
       // Start built-in monitoring
       monitor.start();
 
-      console.log(`🚀 KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
-      console.log(`📚 API Base URL: http://${HOST}:${PORT}/krapi/k1`);
-      console.log(`📋 System Status: http://${HOST}:${PORT}/system/status`);
-      console.log(`📝 System Logs: http://${HOST}:${PORT}/system/logs`);
-      console.log(`🔍 Health Monitor: Built-in monitoring active`);
+      console.log(`?? KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
+      console.log(`?? API Base URL: http://${HOST}:${PORT}/krapi/k1`);
+      console.log(`?? System Status: http://${HOST}:${PORT}/system/status`);
+      console.log(`?? System Logs: http://${HOST}:${PORT}/system/logs`);
+      console.log(`?? Health Monitor: Built-in monitoring active`);
       console.log(
-        `🔐 Default admin credentials available in environment or database`
+        `?? Default admin credentials available in environment or database`
       );
 
       // Schedule session cleanup
@@ -478,7 +482,7 @@ async function startServer() {
           const authService = AuthService.getInstance();
           const cleaned = await authService.cleanupSessions();
           if (cleaned > 0) {
-            console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
+            console.log(`?? Cleaned up ${cleaned} expired sessions`);
           }
         } catch (error) {
           console.error("Session cleanup error:", error);
@@ -505,7 +509,7 @@ async function startServer() {
       });
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("? Failed to start server:", error);
     process.exit(1);
   }
 }

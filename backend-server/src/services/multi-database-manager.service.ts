@@ -213,6 +213,58 @@ export class MultiDatabaseManager {
       )
     `);
 
+    // Folders table (project-specific)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        parent_folder_id TEXT,
+        metadata TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_id, name, parent_folder_id)
+      )
+    `);
+
+    // File permissions table (project-specific)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS file_permissions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        file_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        permission TEXT NOT NULL,
+        granted_by TEXT,
+        granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_id, file_id, user_id)
+      )
+    `);
+
+    // File versions table (project-specific)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS file_versions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        file_id TEXT NOT NULL,
+        version_number INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        path TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        uploaded_by TEXT,
+        uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_id, file_id, version_number)
+      )
+    `);
+
+    // Add metadata column to files table if it doesn't exist
+    try {
+      db.exec(`ALTER TABLE files ADD COLUMN metadata TEXT DEFAULT '{}'`);
+    } catch {
+      // Column might already exist, ignore error
+    }
+
     // Create indexes
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_collections_project ON collections(project_id);
@@ -224,6 +276,10 @@ export class MultiDatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);
       CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id);
       CREATE INDEX IF NOT EXISTS idx_changelog_project ON changelog(project_id);
+      CREATE INDEX IF NOT EXISTS idx_folders_project ON folders(project_id);
+      CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_folder_id);
+      CREATE INDEX IF NOT EXISTS idx_file_permissions_file ON file_permissions(file_id);
+      CREATE INDEX IF NOT EXISTS idx_file_versions_file ON file_versions(file_id);
     `);
   }
 
