@@ -1,16 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Activity,
   Database,
@@ -26,6 +15,18 @@ import {
   XCircle,
   RefreshCw,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface SystemStatus {
   timestamp: string;
@@ -36,20 +37,20 @@ interface SystemStatus {
   logger: {
     totalLogs: number;
     logFileSize: number;
-    metrics: any;
+    metrics: Record<string, unknown>;
     uptime: number;
     memoryUsage: NodeJS.MemoryUsage;
   };
   errorHandler: {
     isHealthy: boolean;
-    errorStats: any;
-    recoveryStats: any;
+    errorStats: Record<string, unknown>;
+    recoveryStats: Record<string, unknown>;
   };
   monitor: {
     isHealthy: boolean;
     overallHealth: "healthy" | "warning" | "critical";
-    healthChecks: any;
-    recentMetrics: any[];
+    healthChecks: Record<string, unknown>;
+    recentMetrics: Array<Record<string, unknown>>;
   };
 }
 
@@ -59,7 +60,7 @@ interface LogEntry {
   level: "debug" | "info" | "warn" | "error" | "fatal";
   service: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export default function Dashboard() {
@@ -141,7 +142,7 @@ export default function Dashboard() {
     const sizes = ["Bytes", "KB", "MB", "GB"];
     if (bytes === 0) return "0 Bytes";
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+    return `${Math.round((bytes / Math.pow(1024, i)) * 100) / 100} ${sizes[i]}`;
   };
 
   if (loading) {
@@ -303,7 +304,7 @@ export default function Dashboard() {
               <CardContent className="space-y-2">
                 {systemStatus?.monitor.healthChecks &&
                   Object.entries(systemStatus.monitor.healthChecks).map(
-                    ([name, check]: [string, any]) => (
+                    ([name, check]: [string, Record<string, unknown>]) => (
                       <div
                         key={name}
                         className="flex items-center justify-between p-2 border rounded"
@@ -373,7 +374,7 @@ export default function Dashboard() {
                 {systemStatus?.monitor.recentMetrics &&
                   systemStatus.monitor.recentMetrics.length > 0 &&
                   Object.entries(systemStatus.monitor.recentMetrics[0]).map(
-                    ([key, value]: [string, any]) => (
+                    ([key, value]: [string, unknown]) => (
                       <div key={key} className="p-4 border rounded">
                         <h4 className="font-medium capitalize">
                           {key.replace(/([A-Z])/g, " $1")}

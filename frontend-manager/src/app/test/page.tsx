@@ -1,17 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Play,
   CheckCircle,
@@ -27,12 +15,20 @@ import {
   Settings,
   Monitor,
   RefreshCw,
-  Globe,
-  MousePointer,
-  Smartphone,
-  Eye,
-  Keyboard,
 } from "lucide-react";
+import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TestResult {
   id: string;
@@ -41,7 +37,7 @@ interface TestResult {
   status: "pending" | "running" | "passed" | "failed" | "skipped";
   duration?: number;
   error?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 interface TestSuite {
@@ -366,7 +362,7 @@ export default function TestPage() {
   const [testSuites, setTestSuites] = useState<TestSuite[]>(TEST_SUITES);
   const [isRunning, setIsRunning] = useState(false);
   const [currentTest, setCurrentTest] = useState<string | null>(null);
-  const [results, setResults] = useState<{ [key: string]: any }>({});
+  const [_results, setResults] = useState<{ [key: string]: Record<string, unknown> }>({});
 
   const runTest = async (
     suiteId: string,
@@ -381,7 +377,7 @@ export default function TestPage() {
     setCurrentTest(`${suiteId}-${testId}`);
 
     try {
-      let result: any = { status: "passed" };
+      const result: { status: string; details?: Record<string, unknown> } = { status: "passed" };
 
       switch (testId) {
         case "system-status":
@@ -538,7 +534,7 @@ export default function TestPage() {
     );
 
     const startTime = Date.now();
-    const results: TestResult[] = [];
+    const testResults: TestResult[] = [];
 
     for (const test of suite.tests) {
       // Update test status to running
@@ -556,7 +552,7 @@ export default function TestPage() {
       );
 
       const result = await runTest(suiteId, test.id);
-      results.push(result);
+      testResults.push(result);
 
       // Update test result
       setTestSuites((prev) =>
@@ -572,9 +568,9 @@ export default function TestPage() {
     }
 
     const duration = Date.now() - startTime;
-    const suiteStatus = results.every((r) => r.status === "passed")
+    const suiteStatus = testResults.every((r) => r.status === "passed")
       ? "passed"
-      : results.some((r) => r.status === "failed")
+      : testResults.some((r) => r.status === "failed")
       ? "failed"
       : "passed";
 
@@ -585,7 +581,7 @@ export default function TestPage() {
       )
     );
 
-    setResults((prev) => ({ ...prev, [suiteId]: results }));
+    setResults((prev) => ({ ...prev, [suiteId]: testResults }));
   };
 
   const runAllTests = async () => {

@@ -84,10 +84,18 @@ export { ProjectsService } from "./projects-service";
 export { StorageService } from "./storage-service";
 export { SystemService } from "./system-service";
 export { ActivityLogger } from "./activity-logger";
+export { BackupService } from "./backup-service";
 export { MetadataManager } from "./metadata-manager";
 export { PerformanceMonitor } from "./performance-monitor";
 
 export { UsersService } from "./users-service";
+
+// Export unified client SDK (like Appwrite - easy to import!)
+// Import with: import { KrapiClient } from '@krapi/sdk/client'
+// Or for convenience: import { KrapiClient } from '@krapi/sdk'
+export { KrapiClient, type KrapiClientConfig, type ApiResponse as ClientApiResponse } from "./client";
+export { default as Client } from "./client";
+// Also export from main entry point for convenience (can use '@krapi/sdk' instead of '@krapi/sdk/client')
 
 // Export HTTP clients for granular frontend control
 export { AuthHttpClient } from "./http-clients/auth-http-client";
@@ -114,13 +122,12 @@ export type {
   AdminUser,
   ApiKey,
   SystemStats,
-  ActivityLog,
   DatabaseHealth,
   DiagnosticResult,
 } from "./admin-service";
 
 export type {
-  ActivityLog as ActivityLogType,
+  ActivityLog,
   ActivityQuery,
 } from "./activity-logger";
 
@@ -129,6 +136,12 @@ export type {
   CollectionMetadata,
   MetadataQuery,
 } from "./metadata-manager";
+
+export type {
+  BackupMetadata,
+  BackupOptions,
+  RestoreOptions,
+} from "./backup-service";
 
 export type {
   PerformanceMetric,

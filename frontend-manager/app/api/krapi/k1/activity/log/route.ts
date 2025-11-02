@@ -77,8 +77,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const activityLog = await response.json();
     return NextResponse.json(activityLog, { status: 201 });
-  } catch (error) {
-    console.error("Activity logging error:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         error: "Failed to log activity",

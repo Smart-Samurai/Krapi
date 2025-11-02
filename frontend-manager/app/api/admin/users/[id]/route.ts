@@ -19,13 +19,14 @@ export async function GET(
     const { id } = await params;
     const client = createAuthenticatedSdk(authToken);
     const response = await client.admin.getUser(id);
+    const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
-    if (response.success) {
-      return NextResponse.json(response);
+    if (result.success) {
+      return NextResponse.json(result);
     } else {
-      return NextResponse.json(response, { status: 404 });
+      return NextResponse.json(result, { status: 404 });
     }
-  } catch (error) {
+  } catch {
     // Error logged for debugging
     return NextResponse.json(
       {
@@ -55,13 +56,14 @@ export async function PUT(
     const body = await request.json();
     const client = createAuthenticatedSdk(authToken);
     const response = await client.admin.updateUser(id, body);
+    const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
-    if (response.success) {
-      return NextResponse.json(response);
+    if (result.success) {
+      return NextResponse.json(result);
     } else {
-      return NextResponse.json(response, { status: 400 });
+      return NextResponse.json(result, { status: 400 });
     }
-  } catch (error) {
+  } catch {
     // Error logged for debugging
     return NextResponse.json(
       {
@@ -96,7 +98,7 @@ export async function DELETE(
     } else {
       return NextResponse.json(response, { status: 400 });
     }
-  } catch (error) {
+  } catch {
     // Error logged for debugging
     return NextResponse.json(
       {

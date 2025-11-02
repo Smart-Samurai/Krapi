@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
 
     const activityData = await response.json();
     return NextResponse.json(activityData.logs || []);
-  } catch (error) {
-    console.error("Get recent activity error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to get recent activity" },
       { status: 500 }

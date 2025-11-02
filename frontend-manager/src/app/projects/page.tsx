@@ -1,6 +1,17 @@
 "use client";
 
+import {
+  Plus,
+  Search,
+  Trash2,
+  Eye,
+  Database,
+  FileText,
+} from "lucide-react";
 import { useState, useEffect } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,11 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -22,22 +28,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
-  Database,
-  FileText,
-  Settings,
-  Users,
-  Key,
-  Mail,
-  Upload,
-  Download,
-} from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Project {
   id: string;
@@ -55,8 +49,8 @@ interface Collection {
   project_id: string;
   name: string;
   description: string;
-  fields: any[];
-  indexes: any[];
+  fields: Array<Record<string, unknown>>;
+  indexes: Array<Record<string, unknown>>;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -66,7 +60,7 @@ interface Collection {
 interface Document {
   id: string;
   collection_id: string;
-  data: any;
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -282,7 +276,7 @@ export default function ProjectsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
           <p>Loading projects...</p>
         </div>
       </div>
@@ -652,7 +646,7 @@ export default function ProjectsPage() {
                               setNewDocument({
                                 data: JSON.parse(e.target.value),
                               });
-                            } catch (err) {
+                            } catch {
                               // Invalid JSON, keep the text for editing
                             }
                           }}

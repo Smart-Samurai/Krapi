@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
 
     const templatesData = await response.json();
     return NextResponse.json(templatesData);
-  } catch (error) {
-    console.error("Get email templates error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to get email templates" },
       { status: 500 }
@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
 
     const templateData = await response.json();
     return NextResponse.json(templateData);
-  } catch (error) {
-    console.error("Create email template error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to create email template" },
       { status: 500 }

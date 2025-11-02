@@ -29,7 +29,10 @@ export class StorageHttpClient extends BaseHttpClient {
       storage_used_percentage: number;
       quota: number;
     }>(`/projects/${projectId}/storage/info`);
-    return response.data || {};
+    if (!response.data) {
+      throw new Error("Storage info response is missing data");
+    }
+    return response.data;
   }
 
   // File Management

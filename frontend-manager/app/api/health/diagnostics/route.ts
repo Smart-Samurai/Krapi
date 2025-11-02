@@ -10,7 +10,7 @@ export async function POST(_request: NextRequest) {
   try {
     const diagnostics = await krapi.health.runDiagnostics();
     return NextResponse.json(diagnostics);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

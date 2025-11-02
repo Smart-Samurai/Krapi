@@ -84,6 +84,9 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 
 export default function EmailPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
@@ -362,12 +365,15 @@ export default function EmailPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map(() => {
+            const skeletonId = `email-skeleton-${Math.random()}-${Date.now()}`;
+            return (
             <Skeleton
-              key={`email-skeleton-item-${i}`}
+              key={skeletonId}
               className="h-32 w-full"
             />
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -377,7 +383,7 @@ export default function EmailPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Email Configuration</h1>
+          <h1 className="text-base font-bold">Email Configuration</h1>
           <p className="text-muted-foreground">
             Configure SMTP settings and manage email templates
           </p>
@@ -402,10 +408,10 @@ export default function EmailPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">
+                  <h3 className="text-base font-semibold mb-2">
                     Available Endpoints
                   </h3>
-                  <div className="text-sm space-y-2">
+                  <div className="text-base space-y-2">
                     <p>
                       <strong>GET /email/config</strong> - Get email
                       configuration
@@ -573,7 +579,7 @@ export default function EmailPage() {
                 <Label htmlFor="smtp_secure">Use SSL/TLS</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Button onClick={handleSaveConfig} disabled={isSaving}>
+                <Button className="btn-confirm" onClick={handleSaveConfig} disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Saving..." : "Save Configuration"}
                 </Button>
@@ -603,6 +609,7 @@ export default function EmailPage() {
                 />
               </div>
               <Button
+                className="btn-confirm"
                 onClick={handleTestConfig}
                 disabled={isTesting || !testEmail}
               >
@@ -616,7 +623,7 @@ export default function EmailPage() {
         <TabsContent value="templates" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Email Templates</h2>
+              <h2 className="text-base font-bold">Email Templates</h2>
               <p className="text-muted-foreground">
                 Create and manage email templates for your project
               </p>
@@ -626,7 +633,7 @@ export default function EmailPage() {
               onOpenChange={setIsCreateTemplateDialogOpen}
             >
               <DialogTrigger asChild>
-                <Button>
+                <Button className="btn-add">
                   <Plus className="mr-2 h-4 w-4" />
                   Create Template
                 </Button>
@@ -696,9 +703,9 @@ export default function EmailPage() {
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {templateForm.variables.map((variable, index) => (
+                      {templateForm.variables.map((variable) => (
                         <div
-                          key={`email-variable-${variable}-${index}`}
+                          key={`email-variable-${variable}`}
                           className="flex items-center gap-2"
                         >
                           <Input
@@ -729,6 +736,7 @@ export default function EmailPage() {
                     Cancel
                   </Button>
                   <Button
+                    className="btn-add"
                     onClick={handleCreateTemplate}
                     disabled={
                       !templateForm.name ||
@@ -792,13 +800,13 @@ export default function EmailPage() {
             <Card>
               <CardContent className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-base font-semibold mb-2">
                   No Email Templates Yet
                 </h3>
                 <p className="text-muted-foreground mb-4">
                   Create your first email template to get started
                 </p>
-                <Button onClick={() => setIsCreateTemplateDialogOpen(true)}>
+                <Button className="btn-add" onClick={() => setIsCreateTemplateDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Template
                 </Button>
@@ -837,11 +845,11 @@ export default function EmailPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {template.variables.map((variable, index) => (
+                              {template.variables.map((variable) => (
                                 <Badge
-                                  key={`email-template-variable-${variable}-${index}`}
+                                  key={`email-template-variable-${variable}`}
                                   variant="outline"
-                                  className="text-xs"
+                                  className="text-base"
                                 >
                                   {variable}
                                 </Badge>
@@ -849,7 +857,7 @@ export default function EmailPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-base text-muted-foreground">
                               {new Date(
                                 template.created_at
                               ).toLocaleDateString()}
@@ -968,9 +976,9 @@ export default function EmailPage() {
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {templateForm.variables.map((variable, index) => (
+                    {templateForm.variables.map((variable) => (
                       <div
-                        key={`email-edit-variable-${variable}-${index}`}
+                        key={`email-edit-variable-${variable}`}
                         className="flex items-center gap-2"
                       >
                         <Input
@@ -1001,6 +1009,7 @@ export default function EmailPage() {
                   Cancel
                 </Button>
                 <Button
+                  className="btn-edit"
                   onClick={handleUpdateTemplate}
                   disabled={
                     !templateForm.name ||

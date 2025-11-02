@@ -1,6 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  Upload,
+  Download,
+  Search,
+  File,
+  Trash2,
+  Eye,
+  Copy,
+  FileText,
+  Image,
+  Video,
+  Music,
+  Archive,
+  FileCode,
+  Database,
+  HardDrive,
+} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,10 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +37,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -29,26 +47,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Upload,
-  Download,
-  Search,
-  File,
-  Folder,
-  Trash2,
-  Eye,
-  Copy,
-  HardDrive,
-  FileText,
-  Image,
-  Video,
-  Music,
-  Archive,
-  FileCode,
-  Calendar,
-  User,
-  Database,
-} from "lucide-react";
 
 interface FileItem {
   id: string;
@@ -61,7 +59,7 @@ interface FileItem {
   uploaded_at: string;
   last_accessed?: string;
   download_count: number;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface Project {
@@ -70,7 +68,7 @@ interface Project {
   description: string;
 }
 
-const FILE_TYPE_ICONS: { [key: string]: any } = {
+const FILE_TYPE_ICONS: { [key: string]: React.ComponentType<{ className?: string }> } = {
   "image/": Image,
   "video/": Video,
   "audio/": Music,
@@ -98,7 +96,7 @@ export default function StoragePage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       const url = selectedProject
         ? `/api/krapi/k1/storage/project/${selectedProject}`
@@ -110,9 +108,9 @@ export default function StoragePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
-  };
+  }, [selectedProject]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const response = await fetch("/api/krapi/k1/projects");
       if (!response.ok) throw new Error("Failed to fetch projects");
@@ -121,7 +119,7 @@ export default function StoragePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
-  };
+  }, []);
 
   const uploadFile = async (file: File, projectId?: string) => {
     setUploading(true);
@@ -207,8 +205,8 @@ export default function StoragePage() {
     try {
       await navigator.clipboard.writeText(url);
       // You could add a toast notification here
-    } catch (err) {
-      console.error("Failed to copy URL:", err);
+    } catch {
+      // Error copying to clipboard - user can manually copy
     }
   };
 
@@ -220,7 +218,7 @@ export default function StoragePage() {
     const sizes = ["Bytes", "KB", "MB", "GB"];
     if (bytes === 0) return "0 Bytes";
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+    return `${Math.round((bytes / Math.pow(1024, i)) * 100) / 100  } ${  sizes[i]}`;
   };
 
   const getFileIcon = (mimeType: string) => {
@@ -250,7 +248,7 @@ export default function StoragePage() {
       setLoading(false);
     };
     loadData();
-  }, [selectedProject]);
+  }, [fetchFiles, fetchProjects]);
 
   const filteredFiles = files.filter(
     (file) =>
@@ -262,7 +260,7 @@ export default function StoragePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
           <p>Loading files...</p>
         </div>
       </div>
@@ -345,10 +343,10 @@ export default function StoragePage() {
                           </CardTitle>
                           <CardDescription>
                             {formatFileSize(file.size)}
-                            {` • ${file.mime_type}`}
-                            {` • Uploaded: ${formatDate(file.uploaded_at)}`}
+                            {` ? ${file.mime_type}`}
+                            {` ? Uploaded: ${formatDate(file.uploaded_at)}`}
                             {file.download_count > 0 &&
-                              ` • Downloaded ${file.download_count} times`}
+                              ` ? Downloaded ${file.download_count} times`}
                           </CardDescription>
                         </div>
                       </div>
@@ -531,7 +529,7 @@ export default function StoragePage() {
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
-                  ></div>
+                   />
                 </div>
               </div>
             )}

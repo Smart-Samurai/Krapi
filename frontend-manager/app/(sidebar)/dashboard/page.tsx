@@ -68,14 +68,17 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={`dashboard-skeleton-${i}-${Date.now()}`}>
+          {[...Array(4)].map(() => {
+            const skeletonId = `dashboard-skeleton-${Math.random()}-${Date.now()}`;
+            return (
+            <Card key={skeletonId}>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-8 w-16" />
               </CardHeader>
             </Card>
-          ))}
+          );
+        })}
         </div>
       </div>
     );
@@ -84,10 +87,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1>Dashboard</h1>
         <p className="text-muted-foreground">Welcome to KRAPI Admin.</p>
       </div>
-      <div className="rounded-md border p-4">
+      <div className="border p-4">
         <p className="mb-2">Try the new Model Context Protocol (MCP) tools:</p>
         <a href="/mcp" className="text-primary underline">
           Go to Admin MCP
@@ -95,7 +98,7 @@ export default function DashboardPage() {
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1>
             Welcome back, {user?.username}!
           </h1>
           <p className="text-muted-foreground">
@@ -103,7 +106,7 @@ export default function DashboardPage() {
           </p>
         </div>
         {hasScope(Scope.PROJECTS_WRITE) && (
-          <Button asChild>
+          <Button className="btn-add" asChild>
             <Link href="/projects">
               <Plus className="mr-2 h-4 w-4" />
               Create Project
@@ -116,14 +119,14 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="font-medium">
               Total Projects
             </CardTitle>
             <FolderOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProjects}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="font-bold">{stats.totalProjects}</div>
+            <p className="text-muted-foreground">
               All projects in the system
             </p>
           </CardContent>
@@ -131,20 +134,20 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="font-medium">
               Active Projects
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="font-bold">
               {isLoadingProjects ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 stats.activeProjects
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground">
               {stats.totalProjects > 0
                 ? Math.round((stats.activeProjects / stats.totalProjects) * 100)
                 : 0}
@@ -155,39 +158,39 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="font-medium">
               Total Collections
             </CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="font-bold">
               {isLoadingProjects ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 stats.totalCollections
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Across all projects</p>
+            <p className="text-muted-foreground">Across all projects</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="font-medium">
               Total Documents
             </CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="font-bold">
               {isLoadingProjects ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 stats.totalDocuments
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground">
               Across all collections
             </p>
           </CardContent>
@@ -208,7 +211,7 @@ export default function DashboardPage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm font-medium mb-1">Role</p>
+              <p className="text-base font-medium mb-1">Role</p>
               <Badge
                 variant={
                   user?.role === "master_admin" ? "default" : "secondary"
@@ -218,11 +221,11 @@ export default function DashboardPage() {
               </Badge>
             </div>
             <div>
-              <p className="text-sm font-medium mb-1">Access Level</p>
+              <p className="text-base font-medium mb-1">Access Level</p>
               <Badge variant="outline">{user?.access_level}</Badge>
             </div>
             <div>
-              <p className="text-sm font-medium mb-1">Total Scopes</p>
+              <p className="text-base font-medium mb-1">Total Scopes</p>
               <Badge variant="outline">{scopes.length}</Badge>
             </div>
           </div>
@@ -237,10 +240,10 @@ export default function DashboardPage() {
             </Alert>
           ) : (
             <div>
-              <p className="text-sm font-medium mb-2">Available Scopes:</p>
+              <p className="text-base font-medium mb-2">Available Scopes:</p>
               <div className="flex flex-wrap gap-1">
                 {scopes.map((scope) => (
-                  <Badge key={scope} variant="outline" className="text-xs">
+                  <Badge key={scope} variant="outline" className="text-base">
                     {scope}
                   </Badge>
                 ))}
@@ -253,8 +256,10 @@ export default function DashboardPage() {
       {/* Projects List */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoadingProjects
-          ? [...Array(6)].map((_, i) => (
-              <Card key={`dashboard-project-skeleton-card-${i}`}>
+          ? [...Array(6)].map(() => {
+              const skeletonId = `dashboard-project-skeleton-${Math.random()}-${Date.now()}`;
+              return (
+              <Card key={skeletonId}>
                 <CardHeader>
                   <Skeleton className="h-6 w-40" />
                 </CardHeader>
@@ -263,7 +268,8 @@ export default function DashboardPage() {
                   <Skeleton className="h-4 w-3/4 mt-2" />
                 </CardContent>
               </Card>
-            ))
+              );
+            })
           : projects.map((project) => (
               <Card key={project.id}>
                 <CardHeader>
@@ -306,7 +312,7 @@ export default function DashboardPage() {
                   <Plus className="h-5 w-5" />
                   <div>
                     <p className="font-medium">Create Project</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       Start a new project
                     </p>
                   </div>
@@ -324,7 +330,7 @@ export default function DashboardPage() {
                   <Users className="h-5 w-5" />
                   <div>
                     <p className="font-medium">Manage Users</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       Admin user management
                     </p>
                   </div>
@@ -341,7 +347,7 @@ export default function DashboardPage() {
                 <TrendingUp className="h-5 w-5" />
                 <div>
                   <p className="font-medium">Test Access</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Test API endpoints
                   </p>
                 </div>

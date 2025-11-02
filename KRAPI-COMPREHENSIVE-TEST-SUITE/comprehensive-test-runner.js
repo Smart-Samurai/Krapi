@@ -66,19 +66,43 @@ class ComprehensiveTestRunner {
 
   async killProcessOnPort(port) {
     try {
-      // Windows command to kill process on port
-      const result = await this.runCommand(`netstat -ano | findstr :${port}`);
-      if (result.success && result.stdout) {
-        const lines = result.stdout.split("\n");
-        for (const line of lines) {
-          if (line.includes(`:${port}`)) {
-            const parts = line.trim().split(/\s+/);
-            const pid = parts[parts.length - 1];
-            if (pid && pid !== "0") {
-              this.log(`Killing process ${pid} on port ${port}`, "INFO");
-              await this.runCommand(`taskkill /PID ${pid} /F`, {
-                ignoreStderr: true,
-              });
+      // Try Linux/Unix command first (lsof)
+      let result = await this.runCommand(`lsof -ti:${port}`, {
+        ignoreStderr: true,
+      });
+      if (result.success && result.stdout && result.stdout.trim()) {
+        const pid = result.stdout.trim();
+        if (pid) {
+          this.log(`Killing process ${pid} on port ${port}`, "INFO");
+          await this.runCommand(`kill -9 ${pid}`, {
+            ignoreStderr: true,
+          });
+          return;
+        }
+      }
+      
+      // Fallback to fuser (another Linux command)
+      result = await this.runCommand(`fuser -k ${port}/tcp`, {
+        ignoreStderr: true,
+      });
+      
+      // If both fail, try Windows commands as fallback
+      if (!result.success) {
+        result = await this.runCommand(`netstat -ano | findstr :${port}`, {
+          ignoreStderr: true,
+        });
+        if (result.success && result.stdout) {
+          const lines = result.stdout.split("\n");
+          for (const line of lines) {
+            if (line.includes(`:${port}`)) {
+              const parts = line.trim().split(/\s+/);
+              const pid = parts[parts.length - 1];
+              if (pid && pid !== "0") {
+                this.log(`Killing process ${pid} on port ${port}`, "INFO");
+                await this.runCommand(`taskkill /PID ${pid} /F`, {
+                  ignoreStderr: true,
+                });
+              }
             }
           }
         }
@@ -98,6 +122,17 @@ class ComprehensiveTestRunner {
     await this.killProcessOnPort(3498); // Frontend
     await this.killProcessOnPort(3470); // Backend
     // No database port to clean up - using embedded SQLite
+
+    // Additional cleanup: kill any next processes
+    try {
+      await this.runCommand("pkill -9 -f 'next dev'", { ignoreStderr: true });
+      await this.runCommand("pkill -9 -f 'next-server'", { ignoreStderr: true });
+    } catch (error) {
+      // Ignore errors if processes don't exist
+    }
+
+    // Wait a bit for processes to fully terminate
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     this.log("✅ Cleanup complete", "SUCCESS");
   }

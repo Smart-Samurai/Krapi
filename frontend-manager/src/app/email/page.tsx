@@ -1,6 +1,21 @@
 "use client";
 
+import {
+  Plus,
+  Search,
+  Send,
+  Mail,
+  FileText,
+  Eye,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { useState, useEffect } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,11 +23,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +32,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -30,23 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Plus,
-  Search,
-  Send,
-  Mail,
-  FileText,
-  Settings,
-  BarChart3,
-  Eye,
-  Edit,
-  Trash2,
-  Users,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-} from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface EmailTemplate {
   id: string;
@@ -198,7 +194,7 @@ export default function EmailPage() {
     }
   };
 
-  const useTemplate = (template: EmailTemplate) => {
+  const applyTemplate = (template: EmailTemplate) => {
     setEmailToSend({
       to: "",
       subject: template.subject,
@@ -272,7 +268,7 @@ export default function EmailPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
           <p>Loading email data...</p>
         </div>
       </div>
@@ -350,8 +346,8 @@ export default function EmailPage() {
                         </CardTitle>
                         <CardDescription>
                           Subject: {template.subject}
-                          {` • Created: ${formatDate(template.created_at)}`}
-                          {` • Used ${template.usage_count} times`}
+                          {` ? Created: ${formatDate(template.created_at)}`}
+                          {` ? Used ${template.usage_count} times`}
                         </CardDescription>
                       </div>
                     </div>
@@ -362,7 +358,7 @@ export default function EmailPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => useTemplate(template)}
+                        onClick={() => applyTemplate(template)}
                       >
                         <Send className="h-4 w-4 mr-2" />
                         Use
@@ -424,9 +420,9 @@ export default function EmailPage() {
                         </CardTitle>
                         <CardDescription>
                           To: {email.to}
-                          {` • Sent: ${formatDate(email.sent_at)}`}
+                          {` ? Sent: ${formatDate(email.sent_at)}`}
                           {email.delivered_at &&
-                            ` • Delivered: ${formatDate(email.delivered_at)}`}
+                            ` ? Delivered: ${formatDate(email.delivered_at)}`}
                         </CardDescription>
                       </div>
                     </div>

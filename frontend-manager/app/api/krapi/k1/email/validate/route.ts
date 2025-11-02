@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
 
     const validationData = await response.json();
     return NextResponse.json(validationData);
-  } catch (error) {
-    console.error("Email validation error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to validate email" },
       { status: 500 }

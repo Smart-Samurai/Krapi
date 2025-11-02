@@ -39,8 +39,8 @@ export async function GET(
 
     const apiKeyData = await response.json();
     return NextResponse.json(apiKeyData);
-  } catch (error) {
-    console.error("Get API key details error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to get API key details" },
       { status: 500 }
@@ -79,8 +79,8 @@ export async function DELETE(
 
     const deleteData = await response.json();
     return NextResponse.json(deleteData);
-  } catch (error) {
-    console.error("Delete API key error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to delete API key" },
       { status: 500 }

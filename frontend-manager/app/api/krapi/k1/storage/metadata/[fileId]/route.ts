@@ -38,8 +38,8 @@ export async function GET(
 
     const metadataData = await response.json();
     return NextResponse.json(metadataData);
-  } catch (error) {
-    console.error("Get file metadata error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to get file metadata" },
       { status: 500 }

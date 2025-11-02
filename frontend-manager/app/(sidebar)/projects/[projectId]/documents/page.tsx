@@ -75,6 +75,9 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
 
 export default function DocumentsPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
   const dispatch = useAppDispatch();
@@ -269,7 +272,7 @@ export default function DocumentsPage() {
       case "array":
         return Array.isArray(value) ? value.join(", ") : String(value);
       case "object":
-        return <pre className="text-xs">{JSON.stringify(value, null, 2)}</pre>;
+        return <pre className="text-base">{JSON.stringify(value, null, 2)}</pre>;
       default:
         return String(value);
     }
@@ -283,9 +286,12 @@ export default function DocumentsPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={`documents-skeleton-${i}`} className="h-32 w-full" />
-          ))}
+          {[...Array(3)].map(() => {
+            const skeletonId = `documents-skeleton-${Math.random()}-${Date.now()}`;
+            return (
+            <Skeleton key={skeletonId} className="h-32 w-full" />
+          );
+        })}
         </div>
       </div>
     );
@@ -297,7 +303,7 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Documents</h1>
+          <h1 className="text-base font-bold">Documents</h1>
           <p className="text-muted-foreground">
             Manage documents in your collections
           </p>
@@ -354,7 +360,7 @@ export default function DocumentsPage() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleCreateDocument}>Create Document</Button>
+                <Button className="btn-add" onClick={handleCreateDocument}>Create Document</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -377,14 +383,14 @@ export default function DocumentsPage() {
               </DialogHeader>
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
-                      {`// Initialize KRAPI client
-import { KrapiSDK } from '@krapi/sdk';
+                  <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
+                      {`// Initialize KRAPI client (like Appwrite!)
+import { KrapiClient } from '@krapi/sdk/client';
 
-const krapi = new KrapiSDK({
-  baseURL: 'http://localhost:3470',
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
   apiKey: 'your-api-key'
 });
 
@@ -431,11 +437,11 @@ const searchResults = await krapi.documents.search(collectionId, {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">
+                  <h3 className="text-base font-semibold mb-3">
                     Python Requests
                   </h3>
-                  <div className="bg-muted p-4 rounded-lg">
-                    <pre className="text-sm overflow-x-auto">
+                  <div className="bg-muted p-4 ">
+                    <pre className="text-base overflow-x-auto">
                       {`import requests
 import json
 
@@ -523,35 +529,35 @@ search_results = response.json()`}
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Query Options</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <h3 className="text-base font-semibold mb-3">Query Options</h3>
+                  <div className="grid grid-cols-2 gap-4 text-base">
                     <div>
                       <h4 className="font-medium mb-2">Pagination:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• page - Page number (default: 1)</li>
-                        <li>• limit - Items per page (default: 50)</li>
+                        <li>? page - Page number (default: 1)</li>
+                        <li>? limit - Items per page (default: 50)</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Sorting:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• orderBy - Field to sort by</li>
-                        <li>• order - &apos;asc&apos; or &apos;desc&apos;</li>
+                        <li>? orderBy - Field to sort by</li>
+                        <li>? order - &apos;asc&apos; or &apos;desc&apos;</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Filtering:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• field - Field name</li>
-                        <li>• operator - eq, ne, gt, lt, etc.</li>
-                        <li>• value - Filter value</li>
+                        <li>? field - Field name</li>
+                        <li>? operator - eq, ne, gt, lt, etc.</li>
+                        <li>? value - Filter value</li>
                       </ul>
                     </div>
                     <div>
                       <h4 className="font-medium mb-2">Search:</h4>
                       <ul className="space-y-1 text-muted-foreground">
-                        <li>• search - Text search term</li>
-                        <li>• fields - Specific fields to search</li>
+                        <li>? search - Text search term</li>
+                        <li>? fields - Specific fields to search</li>
                       </ul>
                     </div>
                   </div>
@@ -640,7 +646,7 @@ search_results = response.json()`}
         <Card>
           <CardContent className="text-center py-12">
             <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
+            <h3 className="text-base font-semibold mb-2">
               No Collections Available
             </h3>
             <p className="text-muted-foreground mb-4">
@@ -652,7 +658,7 @@ search_results = response.json()`}
         <Card>
           <CardContent className="text-center py-12">
             <Skeleton className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Loading Documents...</h3>
+            <h3 className="text-base font-semibold mb-2">Loading Documents...</h3>
             <p className="text-muted-foreground mb-4">
               Please wait while we fetch the documents.
             </p>
@@ -662,12 +668,12 @@ search_results = response.json()`}
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Documents Yet</h3>
+            <h3 className="text-base font-semibold mb-2">No Documents Yet</h3>
             <p className="text-muted-foreground mb-4">
               Create your first document in the {currentCollection?.name}{" "}
               collection
             </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Document
             </Button>
@@ -702,7 +708,7 @@ search_results = response.json()`}
                 <TableBody>
                   {documents.map((document) => (
                     <TableRow key={document.id}>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="font-mono text-base">
                         {document.id.substring(0, 8)}...
                       </TableCell>
                       {currentCollection?.fields?.map((field) => (
@@ -714,12 +720,12 @@ search_results = response.json()`}
                         </TableCell>
                       ))}
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-base text-muted-foreground">
                           {new Date(document.created_at).toLocaleDateString()}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-base text-muted-foreground">
                           {new Date(document.updated_at).toLocaleDateString()}
                         </div>
                       </TableCell>
@@ -808,7 +814,7 @@ search_results = response.json()`}
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateDocument}>Update Document</Button>
+            <Button className="btn-edit" onClick={handleUpdateDocument}>Update Document</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

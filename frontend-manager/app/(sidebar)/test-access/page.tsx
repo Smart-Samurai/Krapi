@@ -1,5 +1,6 @@
 "use client";
 
+import { type Project } from "@krapi/sdk";
 import {
   TestTube2,
   Activity,
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { Project, Scope } from "@/lib/krapi";
+import { Scope } from "@/lib/krapi";
 
 interface TestResult {
   name: string;
@@ -98,7 +99,7 @@ export default function TestAccessPage() {
     cleanup: false,
   });
 
-  // TODO: Implement these methods when they're available in the SDK
+  // Note: These methods will be implemented when available in the SDK
   const checkProjectAccess = async () => {
     // Placeholder for now
   };
@@ -107,7 +108,7 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      // TODO: Need a project ID to check collections
+      // Note: Collection access check requires a project ID
       toast.info("Collection access check requires a project ID");
     } catch {
       // Error logged for debugging
@@ -119,7 +120,7 @@ export default function TestAccessPage() {
     if (!krapi) return;
 
     try {
-      // TODO: Need a project ID and collection ID to check documents
+      // Note: Document access check requires a project ID and collection ID
       toast.info(
         "Document access check requires a project ID and collection ID"
       );
@@ -185,7 +186,7 @@ export default function TestAccessPage() {
     }
   };
 
-  // TODO: Implement when repairDatabase is available in the SDK
+  // Note: Database repair will be implemented when available in the SDK
   // const repairDatabase = async () => {
   //   if (!krapi || !hasScope(Scope.MASTER)) return;
   //   // Implementation will go here
@@ -286,12 +287,12 @@ export default function TestAccessPage() {
       const response = await krapi.projects.getAll();
       if (Array.isArray(response)) {
         // Filter test projects (those with "test" in the name)
-        const testProjects = response.filter(
+        const testProjects = (response as unknown as Project[]).filter(
           (p: Project) =>
             p.name.toLowerCase().includes("test") ||
             p.description?.toLowerCase().includes("test")
         );
-        setTestProjects(testProjects);
+        setTestProjects(testProjects as unknown as Project[]);
       }
     } catch {
       // Error logged for debugging
@@ -332,7 +333,7 @@ export default function TestAccessPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Test Access & System Health</h1>
+        <h1 className="text-base font-bold">Test Access & System Health</h1>
         <p className="text-muted-foreground">
           Monitor system health, run diagnostics, and manage test data
         </p>
@@ -367,22 +368,22 @@ export default function TestAccessPage() {
                       {getHealthBadge(healthStatus.healthy)}
                     </div>
                     <div>
-                      <span className="text-sm font-medium">Message</span>
-                      <p className="text-sm text-muted-foreground">
+                      <span className="text-base font-medium">Message</span>
+                      <p className="text-base text-muted-foreground">
                         {healthStatus.message}
                       </p>
                     </div>
                     {healthStatus.version && (
                       <div>
-                        <span className="text-sm font-medium">Version</span>
-                        <p className="text-sm text-muted-foreground">
+                        <span className="text-base font-medium">Version</span>
+                        <p className="text-base text-muted-foreground">
                           {healthStatus.version}
                         </p>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Click &quot;Check Health&quot; to run system health check
                   </p>
                 )}
@@ -426,8 +427,8 @@ export default function TestAccessPage() {
                       {getHealthBadge(dbHealthStatus.healthy)}
                     </div>
                     <div>
-                      <span className="text-sm font-medium">Message</span>
-                      <p className="text-sm text-muted-foreground">
+                      <span className="text-base font-medium">Message</span>
+                      <p className="text-base text-muted-foreground">
                         {dbHealthStatus.message}
                       </p>
                     </div>
@@ -437,8 +438,8 @@ export default function TestAccessPage() {
 
                       return (
                         <div>
-                          <span className="text-sm font-medium">Details</span>
-                          <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto">
+                          <span className="text-base font-medium">Details</span>
+                          <pre className="text-base bg-muted p-2 rounded mt-1 overflow-auto">
                             {typeof details === "string"
                               ? details
                               : JSON.stringify(details, null, 2)}
@@ -448,7 +449,7 @@ export default function TestAccessPage() {
                     })()}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {hasScope(Scope.ADMIN_READ)
                       ? 'Click "Check Database" to run database health check'
                       : "Requires admin read access"}
@@ -477,7 +478,7 @@ export default function TestAccessPage() {
                   {hasScope(Scope.MASTER) && (
                     <Button
                       onClick={() => {
-                        // TODO: Implement when repairDatabase is available in the SDK
+                        // Note: Database repair will be implemented when available in the SDK
                         toast.info(
                           "Repair Database functionality is not yet implemented."
                         );
@@ -510,28 +511,28 @@ export default function TestAccessPage() {
             <CardContent className="space-y-4">
               {diagnosticResults ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                  <div className="grid grid-cols-3 gap-4 p-4 bg-muted ">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">
+                      <div className="text-base font-bold text-primary">
                         {diagnosticResults.summary.passed}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-base text-muted-foreground">
                         Passed
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">
+                      <div className="text-base font-bold text-red-600">
                         {diagnosticResults.summary.failed}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-base text-muted-foreground">
                         Failed
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold">
+                      <div className="text-base font-bold">
                         {diagnosticResults.summary.total}
                       </div>
-                      <div className="text-sm text-muted-foreground">Total</div>
+                      <div className="text-base text-muted-foreground">Total</div>
                     </div>
                   </div>
 
@@ -554,9 +555,9 @@ export default function TestAccessPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {diagnosticResults.tests.map((test, index) => (
+                      {diagnosticResults.tests.map((test) => (
                         <TableRow
-                          key={`test-access-diagnostic-${test.name}-${index}`}
+                          key={`test-access-diagnostic-${test.name}`}
                         >
                           <TableCell className="font-medium">
                             {test.name}
@@ -591,7 +592,7 @@ export default function TestAccessPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Zap className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No diagnostic results available</p>
-                  <p className="text-sm">
+                  <p className="text-base">
                     Run diagnostics to check system health
                   </p>
                 </div>
@@ -632,12 +633,12 @@ export default function TestAccessPage() {
             <CardContent className="space-y-4">
               {testResults.length > 0 ? (
                 <div className="space-y-6">
-                  {testResults.map((suite, suiteIndex) => (
+                  {testResults.map((suite) => (
                     <div
-                      key={`test-access-suite-${suite.suite}-${suiteIndex}`}
+                      key={`test-access-suite-${suite.suite}`}
                       className="space-y-3"
                     >
-                      <h4 className="font-semibold text-lg">{suite.suite}</h4>
+                      <h4 className="font-semibold text-base">{suite.suite}</h4>
 
                       <Table>
                         <TableHeader>
@@ -649,9 +650,9 @@ export default function TestAccessPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {suite.tests.map((test, testIndex) => (
+                          {suite.tests.map((test) => (
                             <TableRow
-                              key={`test-access-test-${suite.suite}-${test.name}-${testIndex}`}
+                              key={`test-access-test-${suite.suite}-${test.name}`}
                             >
                               <TableCell className="font-medium">
                                 {test.name}
@@ -672,7 +673,7 @@ export default function TestAccessPage() {
                                   <div className="space-y-1">
                                     <span className="text-red-600">Failed</span>
                                     {test.error && (
-                                      <p className="text-xs text-muted-foreground">
+                                      <p className="text-base text-muted-foreground">
                                         {test.error}
                                       </p>
                                     )}
@@ -692,7 +693,7 @@ export default function TestAccessPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <TestTube2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No test results available</p>
-                  <p className="text-sm">
+                  <p className="text-base">
                     Run integration tests to verify system functionality
                   </p>
                 </div>
@@ -805,7 +806,7 @@ export default function TestAccessPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Plus className="mx-auto h-12 w-12 mb-4 opacity-50" />
                   <p>No test projects found</p>
-                  <p className="text-sm">
+                  <p className="text-base">
                     Create test projects to experiment with features
                   </p>
                 </div>

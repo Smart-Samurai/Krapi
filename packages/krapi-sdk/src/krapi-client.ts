@@ -6,7 +6,7 @@
  * 2. HTTP Mode: API client for remote access (for frontend/external)
  */
 
-import axios from "axios";
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from "axios";
 
 import { AdminService } from "./admin-service";
 import { AuthService } from "./auth-service";
@@ -74,7 +74,7 @@ export class KrapiClient implements BaseClient {
 
   private config: KrapiClientConfig;
   private logger: Logger;
-  private httpClient?: Record<string, unknown>; // Axios instance for HTTP mode
+  private httpClient?: AxiosInstance; // Axios instance for HTTP mode
 
   constructor(config: KrapiClientConfig) {
     this.config = config;
@@ -154,7 +154,7 @@ export class KrapiClient implements BaseClient {
 
     // Add request interceptor for authentication
     this.httpClient.interceptors.request.use(
-      (config: Record<string, unknown>) => {
+      (config: InternalAxiosRequestConfig) => {
         if (httpConfig.sessionToken) {
           config.headers.Authorization = `Bearer ${httpConfig.sessionToken}`;
         } else if (httpConfig.apiKey) {
@@ -166,14 +166,14 @@ export class KrapiClient implements BaseClient {
 
     // Add response interceptor for error handling
     this.httpClient.interceptors.response.use(
-      (response: Record<string, unknown>) => response,
-      (error: Record<string, unknown>) => {
+      (response: AxiosResponse) => response,
+      (error: AxiosError) => {
         // Enhanced error handling
         if (error.response) {
           const { status, data } = error.response;
           const enhancedError = {
             ...error,
-            message: data?.error || data?.message || error.message,
+            message: (data as { error?: string; message?: string })?.error || (data as { message?: string })?.message || error.message,
             status,
             isApiError: true,
             originalError: error,

@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
 
     const apiKeysData = await response.json();
     return NextResponse.json(apiKeysData);
-  } catch (error) {
-    console.error("Get API keys error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to get API keys" },
       { status: 500 }
@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
 
     const apiKeyData = await response.json();
     return NextResponse.json(apiKeyData);
-  } catch (error) {
-    console.error("Create API key error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to create API key" },
       { status: 500 }

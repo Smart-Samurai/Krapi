@@ -66,8 +66,8 @@ export async function GET(
     // Backend returns { success: true, data: {...} }
     // Return it directly
     return NextResponse.json(backendResponse);
-  } catch (error) {
-    console.error("Error getting storage info:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

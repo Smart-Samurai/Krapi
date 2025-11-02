@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(mockCleanup);
-  } catch (error) {
-    console.error("Activity cleanup error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to cleanup activity logs" },
       { status: 500 }

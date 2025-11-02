@@ -25,7 +25,7 @@ export function Form<T extends z.ZodSchema>({
   formProps,
 }: FormProps<T>) {
   const methods = useForm<z.infer<T>>({
-    resolver: (values, _context, _options) => {
+    resolver: async (values, _context, _options) => {
       const result = schema.safeParse(values);
       if (result.success) {
         return { values: result.data, errors: {} };

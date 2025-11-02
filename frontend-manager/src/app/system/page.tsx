@@ -1,6 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  Activity,
+  Database,
+  Server,
+  Settings,
+  FileText,
+  Monitor,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  MemoryStick,
+} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,28 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Activity,
-  Database,
-  Server,
-  Users,
-  Settings,
-  FileText,
-  Mail,
-  Key,
-  Monitor,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  HardDrive,
-  Cpu,
-  MemoryStick,
-  Network,
-} from "lucide-react";
 
 interface SystemStatus {
   timestamp: string;
@@ -40,20 +35,20 @@ interface SystemStatus {
   logger: {
     totalLogs: number;
     logFileSize: number;
-    metrics: any;
+    metrics: Record<string, unknown>;
     uptime: number;
     memoryUsage: NodeJS.MemoryUsage;
   };
   errorHandler: {
     isHealthy: boolean;
-    errorStats: any;
-    recoveryStats: any;
+    errorStats: Record<string, unknown>;
+    recoveryStats: Record<string, unknown>;
   };
   monitor: {
     isHealthy: boolean;
     overallHealth: "healthy" | "warning" | "critical";
-    healthChecks: any;
-    recentMetrics: any[];
+    healthChecks: Record<string, unknown>;
+    recentMetrics: Array<Record<string, unknown>>;
   };
 }
 
@@ -63,7 +58,7 @@ interface LogEntry {
   level: "debug" | "info" | "warn" | "error" | "fatal";
   service: string;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export default function SystemPage() {
@@ -95,22 +90,22 @@ export default function SystemPage() {
     }
   };
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchSystemStatus(), fetchLogs()]);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [refreshData]);
 
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(refreshData, 5000);
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, refreshData]);
 
   const getHealthColor = (health: string) => {
     switch (health) {
@@ -165,14 +160,14 @@ export default function SystemPage() {
     const sizes = ["Bytes", "KB", "MB", "GB"];
     if (bytes === 0) return "0 Bytes";
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
+    return `${Math.round((bytes / Math.pow(1024, i)) * 100) / 100  } ${  sizes[i]}`;
   };
 
   if (loading && !systemStatus) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4" />
           <p>Loading system status...</p>
         </div>
       </div>
@@ -380,7 +375,7 @@ export default function SystemPage() {
               <CardContent>
                 <div className="space-y-4">
                   {Object.entries(systemStatus.monitor.healthChecks).map(
-                    ([name, check]: [string, any]) => (
+                    ([name, check]: [string, Record<string, unknown>]) => (
                       <div key={name} className="p-4 border rounded-md">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-2">

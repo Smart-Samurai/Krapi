@@ -79,8 +79,8 @@ export async function POST(
       valid: backendResponse.valid || backendResponse.isValid || false,
       ...backendResponse,
     });
-  } catch (error) {
-    console.error("Error validating collection schema:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

@@ -42,7 +42,8 @@ class ComprehensiveTestSuite {
         duration: duration,
         error: error.message,
       });
-      throw error;
+      // Don't throw - continue running all tests
+      // throw error;
     }
   }
 
@@ -97,6 +98,9 @@ class ComprehensiveTestSuite {
       // SDK Functionality Tests
       await this.runSDKTests();
 
+      // Backup Tests
+      await this.runBackupTests();
+
       // Complete CMS Integration Tests
       await this.runCMSIntegrationTests();
     } catch (error) {
@@ -110,6 +114,8 @@ class ComprehensiveTestSuite {
     } finally {
       await this.cleanup();
       this.printResults();
+      // Return true if all tests passed, false otherwise
+      return this.testResults.failed === 0;
     }
   }
 
@@ -1070,16 +1076,118 @@ class ComprehensiveTestSuite {
     });
   }
 
+  async runBackupTests() {
+    console.log("\n💾 Backup Tests");
+    console.log("-".repeat(30));
+
+    let backupId = null;
+    let backupPassword = null;
+
+    await this.test("Create project backup", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for backup test");
+      }
+
+      const response = await axios.post(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}/backup`,
+        {
+          description: "Test backup",
+          password: "test-backup-password-123",
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.backup_id, "Should return backup ID");
+      this.assert(response.data.password, "Should return backup password");
+
+      backupId = response.data.backup_id;
+      backupPassword = response.data.password || "test-backup-password-123";
+    });
+
+    await this.test("List project backups", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for backup test");
+      }
+
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}/backups`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        Array.isArray(response.data.backups),
+        "Should return backups array"
+      );
+    });
+
+    await this.test("List all backups", async () => {
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backups`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        Array.isArray(response.data.backups),
+        "Should return backups array"
+      );
+    });
+
+    await this.test("Create system backup", async () => {
+      const response = await axios.post(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backup/system`,
+        {
+          description: "Test system backup",
+          password: "test-system-backup-password-123",
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.backup_id, "Should return backup ID");
+      this.assert(response.data.password, "Should return backup password");
+    });
+
+    await this.test("Delete backup", async () => {
+      if (!backupId) {
+        console.log("   Skipping - no backup ID available");
+        return;
+      }
+
+      const response = await axios.delete(
+        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backups/${backupId}`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+    });
+  }
+
   async runCMSIntegrationTests() {
     console.log("\n🌐 Complete CMS Integration Tests");
     console.log("-".repeat(30));
 
     await this.test("Full CMS workflow", async () => {
-      // Create a new project
+      // Create a new project with unique name to avoid conflicts
+      const uniqueId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+      const projectName = `CMS Test Project ${uniqueId}`;
+      
       const projectResponse = await axios.post(
         `${CONFIG.FRONTEND_URL}/api/projects`,
         {
-          name: "CMS Test Project",
+          name: projectName,
           description: "Project for CMS integration testing",
         },
         {
@@ -1226,14 +1334,14 @@ class ComprehensiveTestSuite {
   }
 
   printResults() {
+    const totalTests = this.testResults.passed + this.testResults.failed;
+    
     console.log("\n" + "=".repeat(60));
     console.log("📊 COMPREHENSIVE TEST RESULTS");
     console.log("=".repeat(60));
     console.log(`✅ Passed: ${this.testResults.passed}`);
     console.log(`❌ Failed: ${this.testResults.failed}`);
-    console.log(
-      `📊 Total: ${this.testResults.passed + this.testResults.failed}`
-    );
+    console.log(`📊 Total: ${totalTests}`);
 
     if (this.testResults.errors.length > 0) {
       console.log("\n❌ Failed Tests:");
@@ -1242,18 +1350,18 @@ class ComprehensiveTestSuite {
       });
     }
 
-    const successRate = (
-      (this.testResults.passed /
-        (this.testResults.passed + this.testResults.failed)) *
-      100
-    ).toFixed(1);
-    console.log(`\n🎯 Success Rate: ${successRate}%`);
+    const successRate = totalTests > 0
+      ? ((this.testResults.passed / totalTests) * 100).toFixed(1)
+      : "0.0";
+    console.log(`\n🎯 Success Rate: ${successRate}% (${this.testResults.passed}/${totalTests})`);
 
-    if (this.testResults.failed === 0) {
+    if (this.testResults.failed === 0 && totalTests > 0) {
       console.log("\n🎉 ALL TESTS PASSED! KRAPI is production ready! 🎉");
+    } else if (totalTests === 0) {
+      console.log("\n⚠️  No tests were executed. Please check test suite configuration.");
     } else {
       console.log(
-        `\n⚠️  ${this.testResults.failed} test(s) failed. Please review and fix.`
+        `\n⚠️  ${this.testResults.failed} of ${totalTests} test(s) failed. Please review and fix.`
       );
     }
 

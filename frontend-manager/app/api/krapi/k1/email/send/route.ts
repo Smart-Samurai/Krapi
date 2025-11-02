@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
 
     const emailData = await response.json();
     return NextResponse.json(emailData);
-  } catch (error) {
-    console.error("Email send error:", error);
+  } catch {
+    
     return NextResponse.json(
       { error: "Failed to send email" },
       { status: 500 }

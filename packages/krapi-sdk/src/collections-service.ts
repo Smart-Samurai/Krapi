@@ -1,5 +1,4 @@
 import { CollectionsSchemaManager } from "./collections-schema-manager";
-import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
 import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import {
   Collection,
@@ -115,7 +114,7 @@ export class CollectionsService {
   /**
    * Map database row to Document interface
    */
-  private mapDocument(row: any): Document {
+  private mapDocument(row: Record<string, unknown>): Document {
     // Parse data from JSON string (SQLite stores JSON as TEXT)
     let parsedData: Record<string, unknown> = {};
     if (typeof row.data === "string") {
@@ -126,22 +125,22 @@ export class CollectionsService {
         parsedData = {};
       }
     } else if (typeof row.data === "object" && row.data !== null) {
-      parsedData = row.data;
+      parsedData = row.data as Record<string, unknown>;
     }
 
     return {
-      id: row.id,
-      collection_id: row.collection_id,
-      project_id: row.project_id,
+      id: row.id as string,
+      collection_id: row.collection_id as string,
+      project_id: row.project_id as string | undefined,
       data: parsedData,
-      version: row.version || 1,
-      is_deleted: row.is_deleted || false,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      created_by: row.created_by || "system",
-      updated_by: row.updated_by || row.created_by || "system",
-      deleted_at: row.deleted_at,
-      deleted_by: row.deleted_by,
+      version: (row.version as number | undefined) || 1,
+      is_deleted: (row.is_deleted as boolean | undefined) || false,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string | undefined,
+      created_by: (row.created_by as string | undefined) || "system",
+      updated_by: (row.updated_by as string | undefined) || (row.created_by as string | undefined) || "system",
+      deleted_at: row.deleted_at as string | undefined,
+      deleted_by: row.deleted_by as string | undefined,
     };
   }
 
@@ -682,17 +681,41 @@ export class CollectionsService {
       const dbCollection = result.rows[0] as Record<string, unknown>;
       this.logger.info(`Found collection:`, dbCollection);
 
+      // Parse JSON fields and indexes from database
+      let fields: FieldDefinition[] = [];
+      let indexes: IndexDefinition[] = [];
+      
+      try {
+        if (typeof dbCollection.fields === 'string') {
+          fields = JSON.parse(dbCollection.fields as string) as FieldDefinition[];
+        } else if (Array.isArray(dbCollection.fields)) {
+          fields = dbCollection.fields as FieldDefinition[];
+        }
+      } catch (error) {
+        this.logger.warn('Failed to parse fields:', error);
+      }
+      
+      try {
+        if (typeof dbCollection.indexes === 'string') {
+          indexes = JSON.parse(dbCollection.indexes as string) as IndexDefinition[];
+        } else if (Array.isArray(dbCollection.indexes)) {
+          indexes = dbCollection.indexes as IndexDefinition[];
+        }
+      } catch (error) {
+        this.logger.warn('Failed to parse indexes:', error);
+      }
+
       // Convert database collection to Collection interface
       return {
         id: dbCollection.id as string,
         name: dbCollection.name as string,
         description: dbCollection.description as string,
         project_id: dbCollection.project_id as string,
-        fields: (dbCollection.fields as unknown as FieldDefinition[]) || [],
-        indexes: (dbCollection.indexes as unknown as IndexDefinition[]) || [],
+        fields,
+        indexes,
         schema: {
-          fields: (dbCollection.fields as unknown as FieldDefinition[]) || [],
-          indexes: (dbCollection.indexes as unknown as IndexDefinition[]) || [],
+          fields,
+          indexes,
         },
         settings: (dbCollection.settings as unknown as CollectionSettings) || {
           read_permissions: [],
@@ -1029,9 +1052,10 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT * FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let query = `SELECT * FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       // Apply filters
       if (filter) {
@@ -1164,9 +1188,10 @@ export class CollectionsService {
         );
       }
 
+      // Include project_id in query for proper database routing
       const result = await this.db.query(
-        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       if (result.rows.length === 0) {
@@ -1174,7 +1199,7 @@ export class CollectionsService {
       }
 
       // Use mapDocument to parse JSON data and ensure proper formatting
-      const document = this.mapDocument(result.rows[0]);
+      const document = this.mapDocument(result.rows[0] as Record<string, unknown>);
       // Ensure project_id is set from collection
       document.project_id = collection.project_id || projectId;
       
@@ -1217,25 +1242,30 @@ export class CollectionsService {
         : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
       // SQLite-compatible INSERT (no RETURNING *)
+      // Include project_id and updated_by in INSERT for proper database routing
+      const createdBy = documentData.created_by || documentData.data?.created_by || "system";
       await this.db.query(
-        `INSERT INTO documents (id, collection_id, data, created_by)
-         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO documents (id, collection_id, project_id, data, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           documentId,
           collection.id,
+          projectId,
           JSON.stringify(actualDocumentData),
-          documentData.created_by || documentData.data?.created_by || "system",
+          createdBy,
+          createdBy, // updated_by defaults to created_by for new documents
         ]
       );
 
       // Query back the inserted row (SQLite doesn't support RETURNING *)
+      // Use collection_id and project_id for proper database routing
       const result = await this.db.query(
-        `SELECT * FROM documents WHERE id = $1`,
-        [documentId]
+        `SELECT * FROM documents WHERE id = $1 AND collection_id = $2 AND project_id = $3`,
+        [documentId, collection.id, projectId]
       );
 
       this.logger.info(`Created document in collection "${collectionName}"`);
-      return this.mapDocument(result.rows[0]);
+      return this.mapDocument(result.rows[0] as Record<string, unknown>);
     } catch (error) {
       this.logger.error("Failed to create document:", error);
 
@@ -1294,16 +1324,24 @@ export class CollectionsService {
       await this.validateDocumentData(collection, mergedData);
 
       // Update the document (SQLite doesn't support RETURNING *)
+      // Include project_id in UPDATE for proper database routing
       await this.db.query(
-        `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP
-         WHERE collection_id = $2 AND id = $3`,
-        [JSON.stringify(mergedData), collection.id, documentId]
+        `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+         WHERE collection_id = $3 AND id = $4 AND project_id = $5`,
+        [
+          JSON.stringify(mergedData),
+          updateData.updated_by || "system",
+          collection.id,
+          documentId,
+          projectId,
+        ]
       );
 
       // Query back the updated document
+      // Include project_id in query for proper database routing
       const result = await this.db.query(
-        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `SELECT * FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       if (!result.rows || result.rows.length === 0) {
@@ -1314,7 +1352,7 @@ export class CollectionsService {
         `Updated document ${documentId} in collection "${collectionName}"`
       );
       
-      const updatedDocument = this.mapDocument(result.rows[0]);
+      const updatedDocument = this.mapDocument(result.rows[0] as Record<string, unknown>);
       // Ensure project_id is set from collection
       updatedDocument.project_id = collection.project_id || projectId;
       
@@ -1362,8 +1400,8 @@ export class CollectionsService {
 
       // Note: Implementing as hard delete since soft delete columns don't exist in database schema
       const result = await this.db.query(
-        `DELETE FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `DELETE FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       this.logger.info(
@@ -1396,8 +1434,8 @@ export class CollectionsService {
       }
 
       const result = await this.db.query(
-        `DELETE FROM documents WHERE collection_id = $1 AND id = $2`,
-        [collection.id, documentId]
+        `DELETE FROM documents WHERE collection_id = $1 AND id = $2 AND project_id = $3`,
+        [collection.id, documentId, projectId]
       );
 
       this.logger.info(
@@ -1460,9 +1498,10 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT COUNT(*) as count FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let query = `SELECT COUNT(*) as count FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       if (filter) {
         // Note: Soft delete not implemented in current database schema
@@ -1634,9 +1673,10 @@ export class CollectionsService {
         );
       }
 
-      let query = `SELECT * FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let query = `SELECT * FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       if (searchQuery) {
         // Search all fields (SQLite uses LIKE with lower() for case-insensitive search)
@@ -1701,19 +1741,22 @@ export class CollectionsService {
           : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
         // SQLite-compatible INSERT (no RETURNING *)
+        // Include project_id and updated_by in INSERT for proper database routing
+        const createdBy = doc.created_by || "system";
         await this.db.query(
-          `INSERT INTO documents (id, collection_id, data, created_by)
-           VALUES ($1, $2, $3, $4)`,
-          [documentId, collection.id, JSON.stringify(doc.data), doc.created_by || "system"]
+          `INSERT INTO documents (id, collection_id, project_id, data, created_by, updated_by)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [documentId, collection.id, projectId, JSON.stringify(doc.data), createdBy, createdBy]
         );
 
         // Query back the inserted row (SQLite doesn't support RETURNING *)
+        // Use collection_id and project_id for proper database routing
         const result = await this.db.query(
-          `SELECT * FROM documents WHERE id = $1`,
-          [documentId]
+          `SELECT * FROM documents WHERE id = $1 AND collection_id = $2 AND project_id = $3`,
+          [documentId, collection.id, projectId]
         );
 
-        results.push(this.mapDocument(result.rows[0]));
+        results.push(this.mapDocument(result.rows[0] as Record<string, unknown>));
       }
 
       this.logger.info(
@@ -1782,22 +1825,25 @@ export class CollectionsService {
         await this.validateDocumentData(collection, mergedData);
 
         // Update the document (SQLite doesn't support RETURNING * or NOW())
+        // Include project_id in UPDATE for proper database routing
         await this.db.query(
-          `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          [JSON.stringify(mergedData), update.id]
+          `UPDATE documents SET data = $1, updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $2 AND collection_id = $3 AND project_id = $4`,
+          [JSON.stringify(mergedData), update.id, collection.id, projectId]
         );
         
         // Query back the updated document
+        // Include project_id in query for proper database routing
         const result = await this.db.query(
-          `SELECT * FROM documents WHERE id = $1`,
-          [update.id]
+          `SELECT * FROM documents WHERE id = $1 AND collection_id = $2 AND project_id = $3`,
+          [update.id, collection.id, projectId]
         );
         
         if (!result.rows || result.rows.length === 0) {
           throw new Error(`Document ${update.id} not found after update`);
         }
         
-        const updatedDocument = this.mapDocument(result.rows[0]);
+        const updatedDocument = this.mapDocument(result.rows[0] as Record<string, unknown>);
         // Ensure project_id is set from collection
         updatedDocument.project_id = collection.project_id || projectId;
         results.push(updatedDocument);
@@ -1853,13 +1899,14 @@ export class CollectionsService {
         return [];
       }
       // Create placeholders for the IN clause
+      // Include project_id in DELETE for proper database routing
       const placeholders = documentIds
         .map((_, index) => `$${index + 1}`)
         .join(",");
       const query = `DELETE FROM documents WHERE collection_id = $${
         documentIds.length + 1
-      } AND id IN (${placeholders})`;
-      const params = [...documentIds, collection.id];
+      } AND project_id = ${documentIds.length + 2} AND id IN (${placeholders})`;
+      const params = [...documentIds, collection.id, projectId];
 
       const result = await this.db.query(query, params);
 
@@ -1898,17 +1945,17 @@ export class CollectionsService {
 
       // For now, implement basic aggregation operations
       // This is a simplified implementation - in a real system, you'd want more sophisticated aggregation
-      let sqlQuery = `SELECT * FROM documents WHERE collection_id = $1`;
-      const params: unknown[] = [collection.id];
-      let paramCount = 1;
+      // Include project_id in query for proper database routing
+      let sqlQuery = `SELECT * FROM documents WHERE collection_id = $1 AND project_id = $2`;
+      const params: unknown[] = [collection.id, projectId];
+      let paramCount = 2;
 
       // Process pipeline stages
       for (const stage of pipeline) {
-        if (stage.$match) {
+        if (stage.$match && typeof stage.$match === 'object' && stage.$match !== null) {
           const matchConditions = [];
-          for (const [field, value] of Object.entries(
-            stage.$match as Record<string, unknown>
-          )) {
+          const matchObj = stage.$match as Record<string, unknown>;
+          for (const [field, value] of Object.entries(matchObj)) {
             paramCount++;
             matchConditions.push(`data->>'${field}' = $${paramCount}`);
             params.push(value);
@@ -1941,7 +1988,10 @@ export class CollectionsService {
       }
 
       const result = await this.db.query(sqlQuery, params);
-      return result.rows.map((row: any) => row.data);
+      return result.rows.map((row: Record<string, unknown>) => {
+        const data = row.data as Record<string, unknown>;
+        return data as Record<string, unknown>;
+      });
     } catch (error) {
       this.logger.error(`Error aggregating documents: ${error}`);
       throw error;

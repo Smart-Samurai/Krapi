@@ -1,24 +1,53 @@
 {
   "name": "@krapi/sdk",
   "version": "2.0.0",
-  "description": "KRAPI TypeScript SDK - Shared between backend and frontend",
+  "description": "KRAPI TypeScript SDK - Easy-to-use client SDK for connecting to self-hosted KRAPI servers (like Appwrite SDK)",
+  "keywords": ["krapi", "backend", "sdk", "api", "client", "self-hosted", "database", "collections", "documents"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/krapi.git",
+    "directory": "packages/krapi-sdk"
+  },
+  "homepage": "https://github.com/your-org/krapi#readme",
+  "license": "MIT",
+  "author": "KRAPI Team",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.mjs",
+      "require": "./dist/client.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/index.ts src/client.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts src/client.ts --format cjs,esm --dts --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix"
+    "lint:fix": "eslint . --ext .ts --fix",
+    "security-check": "npm audit --audit-level=moderate && npm outdated",
+    "prepublishOnly": "npm run security-check && npm run build && npm run type-check",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "axios": "^1.10.0",
-    "nodemailer": "^7.0.4"
+    "axios": "^1.13.1",
+    "nodemailer": "^7.0.10"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

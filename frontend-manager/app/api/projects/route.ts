@@ -17,19 +17,8 @@ function getAuthToken(headers: Headers): string | undefined {
  */
 export async function GET(request: NextRequest): Promise<Response> {
   try {
-    // Debug: Log all headers received
-    console.log("🔍 [FRONTEND DEBUG] GET - All headers received:");
-    request.headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`);
-    });
-
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
-
-    console.log(
-      "🔍 [FRONTEND DEBUG] GET - Extracted authToken:",
-      authToken ? `Bearer token of length ${authToken.length}` : "undefined"
-    );
 
     if (!authToken) {
       return NextResponse.json(
@@ -56,11 +45,6 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const backendResponse = await response.json();
 
-    console.log(
-      "🔍 [FRONTEND DEBUG] Backend returned projects:",
-      JSON.stringify(backendResponse, null, 2)
-    );
-
     // Wrap response to match test expectations: { success: true, projects: [...] }
     if (backendResponse.success && Array.isArray(backendResponse.data)) {
       return NextResponse.json({
@@ -72,8 +56,8 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     // Return the backend response as-is if format is different
     return NextResponse.json(backendResponse);
-  } catch (error) {
-    console.error("🔍 [FRONTEND ERROR] Failed to get projects:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -91,19 +75,10 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    // Debug: Log all headers received
-    console.log("🔍 [FRONTEND DEBUG] POST - All headers received:");
-    request.headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`);
-    });
+    // Debug: Log all headers received (removed for production)
 
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
-
-    console.log(
-      "🔍 [FRONTEND DEBUG] POST - Extracted authToken:",
-      authToken ? `Bearer token of length ${authToken.length}` : "undefined"
-    );
 
     if (!authToken) {
       return NextResponse.json(
@@ -144,11 +119,6 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const backendResponse = await response.json();
 
-    console.log(
-      "🔍 [FRONTEND DEBUG] Backend created project:",
-      JSON.stringify(backendResponse, null, 2)
-    );
-
     // Wrap response to match test expectations: { success: true, project: ... }
     if (backendResponse.success && backendResponse.data) {
       return NextResponse.json(
@@ -161,8 +131,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     return NextResponse.json(backendResponse, { status: 201 });
-  } catch (error) {
-    console.error("🔍 [FRONTEND ERROR] Failed to create project:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

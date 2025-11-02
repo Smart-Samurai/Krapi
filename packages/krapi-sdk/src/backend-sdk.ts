@@ -9,6 +9,7 @@
 import { ActivityLogger } from "./activity-logger";
 import { AdminService } from "./admin-service";
 import { AuthService } from "./auth-service";
+import { BackupService } from "./backup-service";
 import { ChangelogService } from "./changelog-service";
 import { CollectionsSchemaManager } from "./collections-schema-manager";
 import {
@@ -25,10 +26,9 @@ import { HealthService } from "./health-service";
 import { MetadataManager } from "./metadata-manager";
 import { PerformanceMonitor } from "./performance-monitor";
 import { PostgreSQLAutoFixer } from "./postgresql-auto-fixer";
-import { PostgreSQLSchemaInspector } from "./postgresql-schema-inspector";
-import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import { ProjectsService } from "./projects-service";
 import { SchemaGenerator } from "./schema-generator";
+import { SQLiteSchemaInspector } from "./sqlite-schema-inspector";
 import { StorageService } from "./storage-service";
 import { SystemService } from "./system-service";
 import { TestingService } from "./testing-service";
@@ -66,6 +66,7 @@ export class BackendSDK {
   public users: UsersService;
   public testing: TestingService;
   public activity: ActivityLogger;
+  public backup: BackupService;
   public metadata: MetadataManager;
   public performance: PerformanceMonitor;
   public apiKeys: {
@@ -285,6 +286,12 @@ export class BackendSDK {
 
     // Initialize activity logger
     this.activity = new ActivityLogger(config.databaseConnection, this.logger);
+
+    // Initialize backup service
+    this.backup = new BackupService(config.databaseConnection, this.logger);
+
+    // Set backup service in admin service
+    this.admin.setBackupService(this.backup);
 
     // Initialize metadata manager
     this.metadata = new MetadataManager(config.databaseConnection, this.logger);

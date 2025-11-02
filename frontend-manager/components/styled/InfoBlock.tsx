@@ -38,7 +38,7 @@ export const InfoBlock: React.FC<InfoBlockProps> = ({
   return (
     <div
       className={cn(
-        "rounded-lg p-4 shadow-sm",
+        " p-4 shadow-sm",
         variantClasses[variant],
         className
       )}
@@ -48,7 +48,7 @@ export const InfoBlock: React.FC<InfoBlockProps> = ({
           {icon && <span className="flex-shrink-0">{icon}</span>}
           {title && (
             <h3
-              className={cn("text-lg font-bold", variantTextClasses[variant])}
+              className={cn("text-base font-bold", variantTextClasses[variant])}
             >
               {title}
             </h3>

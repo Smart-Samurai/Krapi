@@ -39,7 +39,7 @@ import { Input } from "@/components/ui/input";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { AdminRole, AccessLevel, Scope } from "@/lib/krapi";
+import { AdminRole, AccessLevel, Scope, type AdminUser } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 // Permission types
@@ -138,8 +138,9 @@ export default function ServerAdministrationPage() {
         limit: 100,
         offset: 0,
       });
-      if (response && response.data) {
-        setAdminUsers(response.data);
+      const result = response as unknown as { data?: AdminUser[] };
+      if (result && result.data) {
+        setAdminUsers(result.data as unknown as LocalAdminUser[]);
       } else {
         setAdminUsers([]);
       }
@@ -172,7 +173,7 @@ export default function ServerAdministrationPage() {
         <div className="text-center">
           <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-4" />
           <p className="text-destructive">{error}</p>
-          <Button onClick={loadUsers} className="mt-4">
+          <Button className="btn-confirm mt-4" onClick={loadUsers}>
             Retry
           </Button>
         </div>
@@ -210,8 +211,9 @@ export default function ServerAdministrationPage() {
           .map(([key]) => key as string) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         active: selectedUser.status === "active",
       });
+      const result = response as unknown as { success: boolean; error?: string };
 
-      if (response.success) {
+      if (result.success) {
         // Refresh the admin users list
         loadUsers();
         setIsEditDialogOpen(false);
@@ -235,8 +237,9 @@ export default function ServerAdministrationPage() {
       try {
         setIsLoading(true);
         const response = await krapi.admin.deleteUser(userId);
+        const result = response as unknown as { success: boolean; error?: string };
 
-        if (response.success) {
+        if (result.success) {
           // Remove the user from the local state
           loadUsers();
         }
@@ -258,8 +261,9 @@ export default function ServerAdministrationPage() {
       const response = await krapi.admin.updateUser(userId, {
         active: newStatus === "active",
       });
+      const result = response as unknown as { success: boolean; error?: string };
 
-      if (response.success) {
+      if (result.success) {
         // Update the local state
         loadUsers();
       }
@@ -336,7 +340,7 @@ export default function ServerAdministrationPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text">
+          <h1 className="text-base font-bold text-text">
             Server Administration
           </h1>
           <p className="text-text/60 mt-1">
@@ -344,8 +348,7 @@ export default function ServerAdministrationPage() {
           </p>
         </div>
         <Button
-          variant="default"
-          size="lg"
+          className="btn-add"
           onClick={() => setIsCreateDialogOpen(true)}
           disabled={!hasScope(Scope.ADMIN_WRITE)}
           title={
@@ -361,62 +364,62 @@ export default function ServerAdministrationPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Total Admins</p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-medium text-text/60">Total Admins</p>
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading ? "..." : adminUsers.length}
               </p>
             </div>
-            <div className="p-3 bg-primary/10 rounded-lg">
+            <div className="p-3 bg-primary/10 ">
               <Shield className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Active Admins</p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-medium text-text/60">Active Admins</p>
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading
                   ? "..."
                   : adminUsers.filter((u) => u.status === "active").length}
               </p>
             </div>
-            <div className="p-3 bg-primary/10 dark:bg-primary/20 rounded-lg">
+            <div className="p-3 bg-primary/10 dark:bg-primary/20 ">
               <UserCheck className="h-6 w-6 text-primary" />
             </div>
           </div>
         </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">Master Admins</p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-medium text-text/60">Master Admins</p>
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading
                   ? "..."
                   : adminUsers.filter((u) => u.role === "master_admin").length}
               </p>
             </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/20 rounded-lg">
+            <div className="p-3 bg-red-100 dark:bg-red-900/20 ">
               <Shield className="h-6 w-6 text-red-600" />
             </div>
           </div>
         </div>
-        <div className="bg-background border border-secondary rounded-lg p-6">
+        <div className="bg-background border border-secondary  p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text/60">
+              <p className="text-base font-medium text-text/60">
                 Inactive/Suspended
               </p>
-              <p className="text-2xl font-bold text-text mt-1">
+              <p className="text-base font-bold text-text mt-1">
                 {isLoading
                   ? "..."
                   : adminUsers.filter((u) => u.status !== "active").length}
               </p>
             </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 ">
               <UserX className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
@@ -432,34 +435,34 @@ export default function ServerAdministrationPage() {
             placeholder="Search admin users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-secondary rounded-lg bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-10 pr-4 py-2 border border-secondary  bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
 
       {/* Admin Users List */}
-      <div className="bg-background border border-secondary rounded-lg">
+      <div className="bg-background border border-secondary ">
         <div className="p-6 border-b border-secondary">
-          <h2 className="text-xl font-semibold text-text">
+          <h2 className="text-base font-semibold text-text">
             Administrative Users
           </h2>
         </div>
         <div className="divide-y divide-secondary/50">
           {isLoading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+              <div className="animate-spin  h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
               <p className="text-text/60">Loading admin users...</p>
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="p-12 text-center">
               <Shield className="h-12 w-12 text-text/20 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-text mb-2">
+              <h3 className="text-base font-medium text-text mb-2">
                 No Admin Users Found
               </h3>
               <p className="text-text/60 mb-4">
                 No admin users were found in the database.
               </p>
-              <p className="text-sm text-text/40">
+              <p className="text-base text-text/40">
                 Default login: admin@krapi.local / admin
               </p>
             </div>
@@ -471,7 +474,7 @@ export default function ServerAdministrationPage() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-primary/10  flex items-center justify-center">
                       <Shield className="h-6 w-6 text-primary" />
                     </div>
                     <div className="flex-1">
@@ -480,22 +483,22 @@ export default function ServerAdministrationPage() {
                           {user.firstName} {user.lastName}
                         </h3>
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(
+                          className={`px-2 py-1 text-base font-medium  ${getRoleColor(
                             user.role
                           )}`}
                         >
                           {user.role.replace("_", " ")}
                         </span>
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                          className={`px-2 py-1 text-base font-medium  ${getStatusColor(
                             user.status
                           )}`}
                         >
                           {user.status}
                         </span>
                       </div>
-                      <p className="text-sm text-text/60 mt-1">{user.email}</p>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-text/60">
+                      <p className="text-base text-text/60 mt-1">{user.email}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-base text-text/60">
                         <span>
                           Last active:{" "}
                           {new Date(user.lastActive).toLocaleDateString()}
@@ -517,7 +520,7 @@ export default function ServerAdministrationPage() {
                           .map(([key, _value]) => (
                             <div
                               key={key}
-                              className="flex items-center space-x-1 text-xs text-text/60"
+                              className="flex items-center space-x-1 text-base text-text/60"
                             >
                               {getPermissionIcon(key as keyof AdminPermissions)}
                               <span>
@@ -529,7 +532,7 @@ export default function ServerAdministrationPage() {
                           ))}
                         {Object.values(user.permissions).filter(Boolean)
                           .length > 6 && (
-                          <span className="text-xs text-text/40">
+                          <span className="text-base text-text/40">
                             +
                             {Object.values(user.permissions).filter(Boolean)
                               .length - 6}{" "}
@@ -694,7 +697,7 @@ export default function ServerAdministrationPage() {
 
               {/* Permissions Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Permissions</h3>
+                <h3 className="text-base font-semibold">Permissions</h3>
 
                 {/* System Permissions */}
                 <div className="space-y-3">
@@ -810,7 +813,7 @@ export default function ServerAdministrationPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="default">
+                <Button type="submit" className="btn-edit">
                   Update Admin User
                 </Button>
               </DialogFooter>
@@ -825,7 +828,7 @@ export default function ServerAdministrationPage() {
         variant="info"
         className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
       >
-        <div className="text-sm space-y-2">
+        <div className="text-base space-y-2">
           <p>
             Server Administration allows you to manage administrative users with
             granular permissions.

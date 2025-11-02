@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 
 export default function ProjectMcpPage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const [provider, setProvider] = useState("openai");
   const [endpoint, setEndpoint] = useState("");
@@ -51,7 +54,7 @@ export default function ProjectMcpPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Project MCP</h1>
+        <h1 className="text-base font-bold">Project MCP</h1>
         <p className="text-muted-foreground">
           Chat with project-scoped tools to inspect and modify your database.
         </p>
@@ -104,8 +107,8 @@ export default function ProjectMcpPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="border rounded p-3 h-80 overflow-auto bg-background">
-            {messages.map((m, i) => (
-              <div key={`project-mcp-message-${m.role}-${i}`} className="mb-2">
+            {messages.map((m) => (
+              <div key={`project-mcp-message-${m.role}-${m.content?.substring(0, 30) || Date.now()}-${Math.random()}`} className="mb-2">
                 <span className="font-semibold mr-2">{m.role}:</span>
                 <span className="whitespace-pre-wrap break-words">
                   {m.content}
@@ -119,7 +122,7 @@ export default function ProjectMcpPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask to list collections, create documents, etc."
             />
-            <Button onClick={send} disabled={loading || !endpoint || !model}>
+            <Button className="btn-confirm" onClick={send} disabled={loading || !endpoint || !model}>
               {loading ? "Sending..." : "Send"}
             </Button>
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { type Project } from "@krapi/sdk";
 import React, { useState, useEffect, useCallback } from "react";
 import { FiInfo } from "react-icons/fi";
 
@@ -24,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Project, Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
+import { Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 interface StreamlinedUserDialogProps {
@@ -150,7 +151,7 @@ export function StreamlinedUserDialog({
       setLoadingProjects(true);
       const response = await krapi!.projects.getAll();
       if (Array.isArray(response)) {
-        setProjects(response);
+        setProjects(response as unknown as Project[]);
       }
     } catch {
       // Error logged for debugging
@@ -244,7 +245,7 @@ export function StreamlinedUserDialog({
         project_ids: projectIds,
       };
 
-      let response;
+      let response: { success: boolean; error?: string };
       if (editUser) {
         // For update, we need to send the data in the format the API expects
         const updateData: Partial<AdminUser> = {
@@ -254,7 +255,8 @@ export function StreamlinedUserDialog({
           access_level: userData.access_level as AccessLevel,
           permissions: [], // Will be derived from scopes on backend
         };
-        response = await krapi.admin.updateUser(editUser.id, updateData);
+        const result = await krapi.admin.updateUser(editUser.id, updateData);
+        response = result as unknown as { success: boolean; error?: string };
       } else {
         // For create, the API expects a different structure
         const createData = {
@@ -265,7 +267,8 @@ export function StreamlinedUserDialog({
           access_level: userData.access_level,
           permissions: [], // Will be derived from scopes on backend
         };
-        response = await krapi.admin.createUser(createData);
+        const result = await krapi.admin.createUser(createData);
+        response = result as unknown as { success: boolean; error?: string };
       }
 
       if (response.success) {
@@ -312,7 +315,7 @@ export function StreamlinedUserDialog({
         <div className="space-y-6 py-4">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Basic Information</h3>
+            <h3 className="text-base font-medium">Basic Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="username">Username</Label>
@@ -361,7 +364,7 @@ export function StreamlinedUserDialog({
 
           {/* Account Type */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Account Type</h3>
+            <h3 className="text-base font-medium">Account Type</h3>
             <Select
               value={accountType}
               onValueChange={(value) => setAccountType(value as AccountType)}
@@ -374,7 +377,7 @@ export function StreamlinedUserDialog({
                   <SelectItem key={key} value={key}>
                     <div>
                       <p className="font-medium">{info.title}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-base text-muted-foreground">
                         {info.description}
                       </p>
                     </div>
@@ -387,7 +390,7 @@ export function StreamlinedUserDialog({
           {/* Project Selection (for project admins) */}
           {accountType === "project_admin" && (
             <div className="space-y-4">
-              <h3 className="text-sm font-medium">Project Access</h3>
+              <h3 className="text-base font-medium">Project Access</h3>
               <Alert>
                 <FiInfo className="h-4 w-4" />
                 <AlertDescription>
@@ -395,11 +398,11 @@ export function StreamlinedUserDialog({
                 </AlertDescription>
               </Alert>
               {loadingProjects ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   Loading projects...
                 </p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                <div className="space-y-2 max-h-48 overflow-y-auto border  p-3">
                   {projects.map((project) => (
                     <div
                       key={project.id}
@@ -427,7 +430,7 @@ export function StreamlinedUserDialog({
                       >
                         {project.name}
                         {project.description && (
-                          <span className="text-xs text-muted-foreground ml-2">
+                          <span className="text-base text-muted-foreground ml-2">
                             {project.description}
                           </span>
                         )}
@@ -442,7 +445,7 @@ export function StreamlinedUserDialog({
           {/* Custom Permissions (for limited admins) */}
           {accountType === "limited_admin" && (
             <div className="space-y-4">
-              <h3 className="text-sm font-medium">Custom Permissions</h3>
+              <h3 className="text-base font-medium">Custom Permissions</h3>
               <Alert>
                 <FiInfo className="h-4 w-4" />
                 <AlertDescription>
@@ -452,13 +455,13 @@ export function StreamlinedUserDialog({
               <div className="space-y-4">
                 {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => (
                   <div key={groupKey} className="space-y-2">
-                    <h4 className="text-sm font-medium text-muted-foreground">
+                    <h4 className="text-base font-medium text-muted-foreground">
                       {group.label}
                     </h4>
                     <div className="grid grid-cols-2 gap-2">
-                      {group.permissions.map((perm, id) => (
+                      {group.permissions.map((perm) => (
                         <div
-                          key={`streamlined-user-perm-${perm.scope}-${perm.label}-${id}`}
+                          key={`streamlined-user-perm-${perm.scope}-${perm.label}`}
                           className="flex items-center space-x-2"
                         >
                           <Checkbox
@@ -470,7 +473,7 @@ export function StreamlinedUserDialog({
                           />
                           <Label
                             htmlFor={perm.scope}
-                            className="text-sm cursor-pointer"
+                            className="text-base cursor-pointer"
                           >
                             {perm.label}
                           </Label>

@@ -52,7 +52,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
       disabled={disabled}
       title={title}
       className={cn(
-        "rounded-full flex items-center justify-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
+        " flex items-center justify-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
         sizeClasses[size],
         variantClasses[variant],
         className

@@ -65,8 +65,8 @@ export async function GET(
     const stats = await response.json();
     // Extract the data from the backend response and return it directly
     return NextResponse.json(stats.data);
-  } catch (error) {
-    console.error("Error fetching project statistics:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

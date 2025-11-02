@@ -100,7 +100,7 @@ export const FormField: React.FC<FormFieldProps> = ({
             {label && (
               <Label
                 htmlFor={name}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-base font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 {label}
               </Label>
@@ -151,13 +151,13 @@ export const FormField: React.FC<FormFieldProps> = ({
       )}
 
       {description && (
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-base text-muted-foreground">{description}</p>
       )}
 
       {renderInput()}
 
       {hasError && (
-        <p className="text-sm text-destructive">
+        <p className="text-base text-destructive">
           {error.message as string}
         </p>
       )}

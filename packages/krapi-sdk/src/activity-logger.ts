@@ -328,18 +328,50 @@ export class ActivityLogger {
     await this.ensureInitialized();
 
     try {
-      let whereClause = "WHERE timestamp >= NOW() - INTERVAL '1 day' * $1";
-      const params: unknown[] = [days];
+      // For SQLite, calculate the date in JavaScript and pass as parameter
+      // datetime('now', '-' || $1 || ' days') doesn't work with parameter binding
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      let whereClause = "WHERE timestamp >= $1";
+      const params: unknown[] = [cutoffDate];
 
       if (projectId) {
         whereClause += " AND project_id = $2";
         params.push(projectId);
       }
 
+      // Optimize queries for SQLite - return empty stats if table doesn't exist or has no data
+      // This prevents timeouts on empty databases
+      try {
+        // Check if table exists and has data
+        const checkResult = await this.dbConnection.query(
+          `SELECT COUNT(*) as count FROM activity_logs LIMIT 1`
+        );
+        const hasData = parseInt(
+          (checkResult.rows?.[0] as { count: string })?.count || "0"
+        ) > 0;
+
+        if (!hasData) {
+          return {
+            total_actions: 0,
+            actions_by_type: {},
+            actions_by_severity: {},
+            actions_by_user: {},
+          };
+        }
+      } catch {
+        // Table doesn't exist, return empty stats
+        return {
+          total_actions: 0,
+          actions_by_type: {},
+          actions_by_severity: {},
+          actions_by_user: {},
+        };
+      }
+
       // Total actions
       const totalResult = await this.dbConnection.query(
         `
-        SELECT COUNT(*) FROM activity_logs ${whereClause}
+        SELECT COUNT(*) as count FROM activity_logs ${whereClause}
       `,
         params
       );
@@ -347,13 +379,14 @@ export class ActivityLogger {
         (totalResult.rows?.[0] as { count: string }).count || "0"
       );
 
-      // Actions by type
+      // Actions by type - optimized query
       const typeResult = await this.dbConnection.query(
         `
         SELECT action, COUNT(*) as count 
         FROM activity_logs ${whereClause}
         GROUP BY action
         ORDER BY count DESC
+        LIMIT 50
       `,
         params
       );
@@ -364,13 +397,14 @@ export class ActivityLogger {
         );
       });
 
-      // Actions by severity
+      // Actions by severity - optimized query
       const severityResult = await this.dbConnection.query(
         `
         SELECT severity, COUNT(*) as count 
         FROM activity_logs ${whereClause}
         GROUP BY severity
         ORDER BY count DESC
+        LIMIT 20
       `,
         params
       );
@@ -381,7 +415,7 @@ export class ActivityLogger {
         );
       });
 
-      // Actions by user
+      // Actions by user - optimized query with LIMIT
       const userResult = await this.dbConnection.query(
         `
         SELECT user_id, COUNT(*) as count 

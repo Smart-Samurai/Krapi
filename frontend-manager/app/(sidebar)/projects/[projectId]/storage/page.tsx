@@ -45,6 +45,9 @@ const formatFileSize = (bytes: number): string => {
 
 export default function StoragePage() {
   const params = useParams();
+  if (!params || !params.projectId) {
+    throw new Error("Project ID is required");
+  }
   const projectId = params.projectId as string;
   const krapi = useKrapi();
 
@@ -100,7 +103,7 @@ export default function StoragePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Storage Management</h1>
+          <h1 className="text-base font-bold">Storage Management</h1>
           <p className="text-muted-foreground">
             Monitor and manage your project&apos;s storage usage
           </p>
@@ -114,16 +117,16 @@ export default function StoragePage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Usage</CardTitle>
+            <CardTitle className="text-base font-medium">Total Usage</CardTitle>
             <HardDrive className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-base font-bold">
               {storageStats
                 ? formatFileSize(storageStats.total_size_bytes)
                 : "0 B"}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               Current storage used
             </p>
           </CardContent>
@@ -131,47 +134,47 @@ export default function StoragePage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Storage Limit</CardTitle>
+            <CardTitle className="text-base font-medium">Storage Limit</CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-base font-bold">
               {storageStats
                 ? formatFileSize(storageStats.storage_quota.limit)
                 : "0 B"}
             </div>
-            <p className="text-xs text-muted-foreground">Maximum allowed</p>
+            <p className="text-base text-muted-foreground">Maximum allowed</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-base font-medium">
               Usage Percentage
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-base font-bold">
               {storageStats
                 ? Math.round(storageStats.storage_quota.percentage)
                 : 0}
               %
             </div>
-            <p className="text-xs text-muted-foreground">Of total limit</p>
+            <p className="text-base text-muted-foreground">Of total limit</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">File Count</CardTitle>
+            <CardTitle className="text-base font-medium">File Count</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-base font-bold">
               {storageStats ? storageStats.total_files : 0}
             </div>
-            <p className="text-xs text-muted-foreground">Total files stored</p>
+            <p className="text-base text-muted-foreground">Total files stored</p>
           </CardContent>
         </Card>
       </div>
@@ -186,7 +189,7 @@ export default function StoragePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-base">
               <span>Used: {formatFileSize(storageStats.total_size_bytes)}</span>
               <span>
                 Available:{" "}
@@ -200,7 +203,7 @@ export default function StoragePage() {
               value={storageStats.storage_quota.percentage}
               className="w-full"
             />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center justify-between text-base text-muted-foreground">
               <span>0%</span>
               <span>{Math.round(storageStats.storage_quota.percentage)}%</span>
               <span>100%</span>
@@ -241,7 +244,7 @@ export default function StoragePage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h4 className="font-medium mb-2">Storage Features</h4>
-              <ul className="space-y-1 text-sm text-muted-foreground">
+              <ul className="space-y-1 text-base text-muted-foreground">
                 <li>• Secure file storage with encryption</li>
                 <li>• Automatic backup and redundancy</li>
                 <li>• CDN integration for fast delivery</li>
@@ -250,7 +253,7 @@ export default function StoragePage() {
             </div>
             <div>
               <h4 className="font-medium mb-2">Usage Guidelines</h4>
-              <ul className="space-y-1 text-sm text-muted-foreground">
+              <ul className="space-y-1 text-base text-muted-foreground">
                 <li>• Monitor usage regularly</li>
                 <li>• Clean up unused files</li>
                 <li>• Use appropriate file formats</li>

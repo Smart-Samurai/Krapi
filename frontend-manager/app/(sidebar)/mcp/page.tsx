@@ -48,7 +48,7 @@ export default function AdminMcpPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Admin MCP</h1>
+        <h1 className="text-base font-bold">Admin MCP</h1>
         <p className="text-muted-foreground">
           Create/edit projects and query global statistics via tools.
         </p>
@@ -101,8 +101,8 @@ export default function AdminMcpPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="border rounded p-3 h-80 overflow-auto bg-background">
-            {messages.map((m, i) => (
-              <div key={`mcp-message-${m.role}-${i}`} className="mb-2">
+            {messages.map((m) => (
+              <div key={`mcp-message-${m.role}-${m.content?.substring(0, 30) || Date.now()}-${Math.random()}`} className="mb-2">
                 <span className="font-semibold mr-2">{m.role}:</span>
                 <span className="whitespace-pre-wrap break-words">
                   {m.content}
@@ -116,7 +116,7 @@ export default function AdminMcpPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask to list projects, create a project, etc."
             />
-            <Button onClick={send} disabled={loading || !endpoint || !model}>
+            <Button className="btn-confirm" onClick={send} disabled={loading || !endpoint || !model}>
               {loading ? "Sending..." : "Send"}
             </Button>
           </div>

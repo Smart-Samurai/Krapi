@@ -154,8 +154,8 @@ export async function GET(
     // Test expects response.data.data to be the array of documents
     // So we should return { success: true, data: backendResponse.data }
     return NextResponse.json({ success: true, data: backendResponse.data });
-  } catch (error) {
-    console.error("Error fetching documents:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,
@@ -176,13 +176,13 @@ export async function POST(
   { params }: { params: Promise<{ projectId: string; collectionName: string }> }
 ): Promise<Response> {
   try {
-    console.log("🔍 [FRONTEND DOCUMENTS] POST request received");
+    
 
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
 
     if (!authToken) {
-      console.log("❌ [FRONTEND DOCUMENTS] No auth token found");
+      
       return NextResponse.json(
         { success: false, error: "Authentication required" },
         { status: 401 }
@@ -190,13 +190,10 @@ export async function POST(
     }
 
     const { projectId, collectionName } = await params;
-    console.log(
-      `🔍 [FRONTEND DOCUMENTS] Project: ${projectId}, Collection: ${collectionName}`
-    );
 
     // Validate UUID format before making backend call
     if (!isValidUUID(projectId)) {
-      console.log("❌ [FRONTEND DOCUMENTS] Invalid project ID format");
+      
       return NextResponse.json(
         { success: false, error: "Invalid project ID format" },
         { status: 400 }
@@ -204,7 +201,7 @@ export async function POST(
     }
 
     if (!collectionName) {
-      console.log("❌ [FRONTEND DOCUMENTS] Collection name missing");
+      
       return NextResponse.json(
         { success: false, error: "Collection name is required" },
         { status: 400 }
@@ -212,10 +209,10 @@ export async function POST(
     }
 
     const documentData = await request.json();
-    console.log(`🔍 [FRONTEND DOCUMENTS] Document data:`, documentData);
+    
 
     if (!documentData.data) {
-      console.log("❌ [FRONTEND DOCUMENTS] Document data missing");
+      
       return NextResponse.json(
         { success: false, error: "Document data is required" },
         { status: 400 }
@@ -225,7 +222,6 @@ export async function POST(
     // Call the backend directly
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const fullBackendUrl = `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`;
-    console.log(`🔍 [FRONTEND DOCUMENTS] Calling backend: ${fullBackendUrl}`);
 
     const response = await fetch(fullBackendUrl, {
       method: "POST",
@@ -236,13 +232,9 @@ export async function POST(
       body: JSON.stringify(documentData),
     });
 
-    console.log(
-      `🔍 [FRONTEND DOCUMENTS] Backend response status: ${response.status}`
-    );
-
     // Log response body for debugging
     const responseText = await response.text();
-    console.log(`🔍 [FRONTEND DOCUMENTS] Backend response body:`, responseText);
+    
 
     if (!response.ok) {
       let errorData;
@@ -251,7 +243,7 @@ export async function POST(
       } catch {
         errorData = { error: responseText };
       }
-      console.log(`❌ [FRONTEND DOCUMENTS] Backend error:`, errorData);
+      
       return NextResponse.json(
         {
           success: false,
@@ -262,20 +254,20 @@ export async function POST(
     }
 
     const backendResponse = JSON.parse(responseText);
-    console.log(`✅ [FRONTEND DOCUMENTS] Backend response:`, backendResponse);
+    
     
     // Extract document from backend response
     // Backend returns { success: true, data: document }, extract document
     const document = backendResponse.data || backendResponse;
-    console.log(`✅ [FRONTEND DOCUMENTS] Document created:`, document);
+    
     
     // Test expects response.data.id, so return document directly in data field
     return NextResponse.json(
       { success: true, ...document },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Error creating document:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         success: false,

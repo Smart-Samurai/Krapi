@@ -63,8 +63,8 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const result = await response.json();
     return NextResponse.json(result);
-  } catch (error) {
-    console.error("Activity query error:", error);
+  } catch {
+    
     return NextResponse.json(
       {
         error: "Failed to query activity logs",
