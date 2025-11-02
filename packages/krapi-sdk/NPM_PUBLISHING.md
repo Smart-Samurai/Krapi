@@ -22,7 +22,9 @@ Update `packages/krapi-sdk/package.json` with real information:
 - Update the `author` field with your name and email
 - Ensure the `version` is correct (following semantic versioning)
 
-**Important**: The SDK can stay in your main KRAPI GitHub repo! The `directory` field in `package.json` tells npm where it is within the monorepo. You don't need a separate repository.
+**Important Notes**:
+- The SDK can stay in your main KRAPI GitHub repo! The `directory` field in `package.json` tells npm where it is within the monorepo. You don't need a separate repository.
+- **Your repo can be private!** The npm package works independently. Users install from npm (not GitHub), and the `repository` field is just optional metadata. See `PRIVATE_REPO.md` for details.
 
 ### Step 2: Security Check
 

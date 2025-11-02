@@ -544,7 +544,7 @@ For KRAPI maintainers - to publish this package to npm for external developers.
 3. Verify package contents: `npm pack --dry-run`
 4. Test installation in a new project after publishing
 
-**Note**: The SDK stays in your main KRAPI monorepo! The `directory` field in `package.json` tells npm where it is. No separate repo needed. See `MONOREPO.md` for details.
+**Note**: The SDK stays in your main KRAPI monorepo! The `directory` field in `package.json` tells npm where it is. No separate repo needed. **Your repo can be private** - the npm package works independently! See `MONOREPO.md` and `PRIVATE_REPO.md` for details.
 
 ### Quick Start Publishing
 
