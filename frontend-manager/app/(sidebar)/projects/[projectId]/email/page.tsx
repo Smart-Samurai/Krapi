@@ -81,6 +81,12 @@ import {
 } from "@/store/emailSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 export default function EmailPage() {
   const params = useParams();
@@ -380,22 +386,18 @@ export default function EmailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Email Configuration</h1>
-          <p className="text-muted-foreground">
-            Configure SMTP settings and manage email templates
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
-                API Docs
-              </Button>
-            </DialogTrigger>
+    <PageLayout>
+      <PageHeader
+        title="Email Configuration"
+        description="Configure SMTP settings and manage email templates"
+        action={
+          <div className="flex items-center gap-2">
+            <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="outline" icon={BookOpen}>
+                  API Docs
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -579,7 +581,12 @@ export default function EmailPage() {
                 <Label htmlFor="smtp_secure">Use SSL/TLS</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Button className="btn-confirm" onClick={handleSaveConfig} disabled={isSaving}>
+                <ActionButton
+                  variant="default"
+                  icon={Save}
+                  onClick={handleSaveConfig}
+                  disabled={isSaving}
+                >
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Saving..." : "Save Configuration"}
                 </Button>
@@ -633,10 +640,9 @@ export default function EmailPage() {
               onOpenChange={setIsCreateTemplateDialogOpen}
             >
               <DialogTrigger asChild>
-                <Button className="btn-add">
-                  <Plus className="mr-2 h-4 w-4" />
+                <ActionButton variant="add" icon={Plus}>
                   Create Template
-                </Button>
+                </ActionButton>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
@@ -729,14 +735,14 @@ export default function EmailPage() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button
+                  <ActionButton
                     variant="outline"
                     onClick={() => setIsCreateTemplateDialogOpen(false)}
                   >
                     Cancel
-                  </Button>
-                  <Button
-                    className="btn-add"
+                  </ActionButton>
+                  <ActionButton
+                    variant="add"
                     onClick={handleCreateTemplate}
                     disabled={
                       !templateForm.name ||
@@ -745,7 +751,7 @@ export default function EmailPage() {
                     }
                   >
                     Create Template
-                  </Button>
+                  </ActionButton>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -797,21 +803,16 @@ export default function EmailPage() {
           )}
 
           {sortedTemplates.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-base font-semibold mb-2">
-                  No Email Templates Yet
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  Create your first email template to get started
-                </p>
-                <Button className="btn-add" onClick={() => setIsCreateTemplateDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Template
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={FileText}
+              title="No Email Templates Yet"
+              description="Create your first email template to get started"
+              action={{
+                label: "Create Template",
+                onClick: () => setIsCreateTemplateDialogOpen(true),
+                icon: Plus,
+              }}
+            />
           ) : (
             <Card>
               <CardHeader>
@@ -1002,14 +1003,14 @@ export default function EmailPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button
+                <ActionButton
                   variant="outline"
                   onClick={() => setIsEditTemplateDialogOpen(false)}
                 >
                   Cancel
-                </Button>
-                <Button
-                  className="btn-edit"
+                </ActionButton>
+                <ActionButton
+                  variant="edit"
                   onClick={handleUpdateTemplate}
                   disabled={
                     !templateForm.name ||
@@ -1018,12 +1019,15 @@ export default function EmailPage() {
                   }
                 >
                   Update Template
-                </Button>
+                </ActionButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </TabsContent>
       </Tabs>
-    </div>
+        </div>
+        </>
+      )}
+    </PageLayout>
   );
 }

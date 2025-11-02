@@ -64,6 +64,12 @@ import {
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { ProjectScope } from "@/lib/krapi";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.READ]: "Read Projects",
@@ -343,46 +349,36 @@ export default function ApiKeysPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 cursor-progress" aria-busy>
+      <PageLayout className="cursor-progress" aria-busy>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map(() => {
-            const skeletonId = `api-keys-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Skeleton
-              key={skeletonId}
-              className="h-32 w-full"
-            />
-          );
-        })}
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={`api-keys-skeleton-${i}`} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">API Keys</h1>
-          <p className="text-muted-foreground">
-            Manage API keys for programmatic access to your project
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create API Key
-              </Button>
-            </DialogTrigger>
+    <PageLayout>
+      <PageHeader
+        title="API Keys"
+        description="Manage API keys for programmatic access to your project"
+        action={
+          <div className="flex items-center gap-2">
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <ActionButton variant="add" icon={Plus}>
+                  Create API Key
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New API Key</DialogTitle>
@@ -435,25 +431,28 @@ export default function ApiKeysPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button
+                <ActionButton
                   variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
                 >
                   Cancel
-                </Button>
-                <Button className="btn-add" onClick={handleCreateApiKey} disabled={!formData.name}>
+                </ActionButton>
+                <ActionButton
+                  variant="add"
+                  onClick={handleCreateApiKey}
+                  disabled={!formData.name}
+                >
                   Create API Key
-                </Button>
+                </ActionButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
-                API Docs
-              </Button>
-            </DialogTrigger>
+            <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="outline" icon={BookOpen}>
+                  API Docs
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -697,19 +696,16 @@ headers_with_key = {
       )}
 
       {sortedApiKeys.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <KeyRound className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-2">No API Keys Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first API key to enable programmatic access
-            </p>
-            <Button className="btn-add" onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create API Key
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={KeyRound}
+          title="No API Keys Yet"
+          description="Create your first API key to enable programmatic access"
+          action={{
+            label: "Create API Key",
+            onClick: () => setIsCreateDialogOpen(true),
+            icon: Plus,
+          }}
+        />
       ) : (
         <Card>
           <CardHeader>
@@ -931,18 +927,25 @@ headers_with_key = {
             </div>
           </div>
           <DialogFooter>
-            <Button
+            <ActionButton
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
             >
               Cancel
-            </Button>
-            <Button className="btn-edit" onClick={handleUpdateApiKey} disabled={!formData.name}>
+            </ActionButton>
+            <ActionButton
+              variant="edit"
+              onClick={handleUpdateApiKey}
+              disabled={!formData.name}
+            >
               Update API Key
-            </Button>
+            </ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+        </>
+      )}
+    </PageLayout>
   );
 }

@@ -42,6 +42,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Scope } from "@/lib/krapi";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+} from "@/components/common";
 
 interface TestResult {
   name: string;
@@ -331,13 +336,11 @@ export default function TestAccessPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-base font-bold">Test Access & System Health</h1>
-        <p className="text-muted-foreground">
-          Monitor system health, run diagnostics, and manage test data
-        </p>
-      </div>
+    <PageLayout>
+      <PageHeader
+        title="Test Access & System Health"
+        description="Monitor system health, run diagnostics, and manage test data"
+      />
 
       <Tabs defaultValue="health" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
@@ -824,6 +827,6 @@ export default function TestAccessPage() {
           while database operations require admin access.
         </AlertDescription>
       </Alert>
-    </div>
+    </PageLayout>
   );
 }

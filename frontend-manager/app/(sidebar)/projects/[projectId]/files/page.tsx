@@ -15,6 +15,7 @@ import {
   HardDrive,
   MoreHorizontal,
   Eye,
+  Edit,
   Link,
   Copy,
   Code2,
@@ -22,6 +23,7 @@ import {
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -70,9 +72,16 @@ import {
   fetchFiles,
   fetchStorageStats,
   uploadFile,
+  updateFile,
   deleteFile,
 } from "@/store/storageSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;
@@ -137,8 +146,14 @@ export default function FilesPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [editingFile, setEditingFile] = useState<FileInfo | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    original_name: "",
+    metadata: {} as Record<string, unknown>,
+  });
 
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -247,6 +262,48 @@ export default function FilesPage() {
     setIsDetailsDialogOpen(true);
   };
 
+  const openEditFile = (file: FileInfo) => {
+    setEditingFile(file);
+    setEditFormData({
+      original_name: file.original_name,
+      metadata: (file.metadata as Record<string, unknown>) || {},
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateFile = async () => {
+    if (!editingFile) return;
+
+    try {
+      dispatch(beginBusy());
+      const action = await dispatch(
+        updateFile({
+          projectId,
+          fileId: editingFile.id,
+          updates: {
+            original_name: editFormData.original_name,
+            metadata: editFormData.metadata,
+          },
+          krapi,
+        })
+      );
+      if (updateFile.fulfilled.match(action)) {
+        setIsEditDialogOpen(false);
+        setEditingFile(null);
+        loadFilesCb();
+        toast.success("File updated successfully");
+      } else {
+        const msg =
+          (action as { payload?: string }).payload || "Failed to update file";
+        setError(String(msg));
+      }
+    } catch {
+      setError("An error occurred while updating file");
+    } finally {
+      dispatch(endBusy());
+    }
+  };
+
   const filteredFiles = files.filter((file) => {
     const matchesSearch =
       file.original_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -295,65 +352,56 @@ export default function FilesPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <PageLayout>
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map(() => {
-            const skeletonId = `files-skeleton-${Math.random()}-${Date.now()}`;
-            return (
-            <Skeleton
-              key={skeletonId}
-              className="h-32 w-full"
-            />
-          );
-        })}
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={`files-skeleton-${i}`} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Files</h1>
-          <p className="text-muted-foreground">
-            Manage your project&apos;s file storage
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={(e) => {
-              const files = e.target.files;
-              if (files && files.length > 0) {
-                for (let i = 0; i < files.length; i++) {
-                  handleUpload(files[i]);
+    <PageLayout>
+      <PageHeader
+        title="Files"
+        description="Manage your project's file storage"
+        action={
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files;
+                if (files && files.length > 0) {
+                  for (let i = 0; i < files.length; i++) {
+                    handleUpload(files[i]);
+                  }
                 }
-              }
-            }}
-            className="hidden"
-            accept="*/*"
-          />
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {isUploading ? "Uploading..." : "Upload Files"}
-          </Button>
-          <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
-                API Docs
-              </Button>
-            </DialogTrigger>
+              }}
+              className="hidden"
+              accept="*/*"
+            />
+            <ActionButton
+              variant="add"
+              icon={Upload}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? "Uploading..." : "Upload Files"}
+            </ActionButton>
+            <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="outline" icon={BookOpen}>
+                  API Docs
+                </ActionButton>
+              </DialogTrigger>
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -508,7 +556,8 @@ stats = response.json()`}
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+        </>
+      )}
 
       {/* Storage Stats */}
       {storageStats && (
@@ -633,19 +682,16 @@ stats = response.json()`}
       )}
 
       {sortedFiles.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-2">No Files Yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Upload your first file to get started
-            </p>
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Files
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="No Files Yet"
+          description="Upload your first file to get started"
+          action={{
+            label: "Upload Files",
+            onClick: () => fileInputRef.current?.click(),
+            icon: Upload,
+          }}
+        />
       ) : (
         <Card>
           <CardHeader>
@@ -715,6 +761,12 @@ stats = response.json()`}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openEditFile(file)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Metadata
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDownload(file)}
@@ -853,6 +905,78 @@ stats = response.json()`}
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Edit File Metadata Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit File Metadata</DialogTitle>
+            <DialogDescription>
+              Update file name and custom metadata
+            </DialogDescription>
+          </DialogHeader>
+          {editingFile && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-original-name">File Name</Label>
+                <Input
+                  id="edit-original-name"
+                  value={editFormData.original_name}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      original_name: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter file name"
+                />
+              </div>
+
+              <div>
+                <Label>Metadata (JSON)</Label>
+                <Textarea
+                  value={JSON.stringify(editFormData.metadata, null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      setEditFormData((prev) => ({
+                        ...prev,
+                        metadata: parsed,
+                      }));
+                    } catch {
+                      // Invalid JSON - ignore
+                    }
+                  }}
+                  placeholder='{"key": "value"}'
+                  className="font-mono text-base"
+                  rows={6}
+                />
+                <p className="text-base text-muted-foreground mt-1">
+                  Enter metadata as JSON object
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <ActionButton
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingFile(null);
+              }}
+            >
+              Cancel
+            </ActionButton>
+            <ActionButton
+              variant="edit"
+              onClick={handleUpdateFile}
+              disabled={!editFormData.original_name}
+            >
+              Update File
+            </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PageLayout>
   );
 }

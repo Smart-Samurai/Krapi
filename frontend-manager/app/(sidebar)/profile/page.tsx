@@ -29,6 +29,11 @@ import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Scope } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+} from "@/components/common";
 
 export default function ProfilePage() {
   const { user, scopes, sessionToken } = useReduxAuth();
@@ -218,15 +223,11 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-base font-bold text-text">My Profile</h1>
-          <p className="text-text/60 mt-2">
-            Manage your account settings and preferences
-          </p>
-        </div>
+    <PageLayout className="max-w-4xl mx-auto">
+      <PageHeader
+        title="My Profile"
+        description="Manage your account settings and preferences"
+      />
 
         {/* Profile Card */}
         <Card className="mb-6">
@@ -605,7 +606,6 @@ export default function ProfilePage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </div>
+    </PageLayout>
   );
 }
