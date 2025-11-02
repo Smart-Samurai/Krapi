@@ -84,7 +84,7 @@ export default function ProjectMcpPage() {
     setError(null);
 
     try {
-      const resp = await fetch(`/krapi/k1/mcp/projects/${projectId}/chat`, {
+      const resp = await fetch(`/api/krapi/k1/mcp/projects/${projectId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

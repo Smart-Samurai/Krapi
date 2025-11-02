@@ -82,7 +82,7 @@ export default function ProjectBackupPage() {
     try {
       setLoading(true);
       const response = await fetch(
-        `/krapi/k1/projects/${projectId}/backups?type=project`
+        `/api/krapi/k1/projects/${projectId}/backups?type=project`
       );
       const data = await response.json();
       if (data.success) {
@@ -106,7 +106,7 @@ export default function ProjectBackupPage() {
   const handleCreateBackup = async () => {
     try {
       setCreating(true);
-      const response = await fetch(`/krapi/k1/projects/${projectId}/backup`, {
+      const response = await fetch(`/api/krapi/k1/projects/${projectId}/backup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm),
@@ -139,7 +139,7 @@ export default function ProjectBackupPage() {
     if (!selectedBackup) return;
     try {
       setRestoring(selectedBackup.id);
-      const response = await fetch(`/krapi/k1/projects/${projectId}/restore`, {
+      const response = await fetch(`/api/krapi/k1/projects/${projectId}/restore`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,7 +175,7 @@ export default function ProjectBackupPage() {
   const handleDeleteBackup = async (backupId: string) => {
     try {
       setDeleting(backupId);
-      const response = await fetch(`/krapi/k1/backups/${backupId}`, {
+      const response = await fetch(`/api/krapi/k1/backups/${backupId}`, {
         method: "DELETE",
       });
       const data = await response.json();

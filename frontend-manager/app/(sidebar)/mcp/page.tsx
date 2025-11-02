@@ -78,7 +78,7 @@ export default function AdminMcpPage() {
     setError(null);
 
     try {
-      const resp = await fetch(`/krapi/k1/mcp/admin/chat`, {
+      const resp = await fetch(`/api/krapi/k1/mcp/admin/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

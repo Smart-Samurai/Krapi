@@ -162,9 +162,7 @@ export default function ProfilePage() {
     setIsCreatingMasterKey(true);
     try {
       const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3470/krapi/k1"
-        }/admin/master-api-keys`,
+        `/api/krapi/k1/admin/master-api-keys`,
         {
           method: "POST",
           headers: {

@@ -80,7 +80,7 @@ export default function ProjectChangelogPage() {
         queryParams.append("action_type", filters.action_type);
       }
       const response = await fetch(
-        `/krapi/k1/changelog/projects/${projectId}?${queryParams}`
+        `/api/krapi/k1/changelog/projects/${projectId}?${queryParams}`
       );
       const data = await response.json();
       if (data.success) {
@@ -123,7 +123,7 @@ export default function ProjectChangelogPage() {
 
   const handleExport = async () => {
     try {
-      const response = await fetch(`/krapi/k1/changelog/export/${projectId}`, {
+      const response = await fetch(`/api/krapi/k1/changelog/export/${projectId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
