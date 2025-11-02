@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { MigrationService } from "./migration.service";
 import { SQLiteAdapter } from "./sqlite-adapter.service";
+import { MultiDatabaseManager } from "./multi-database-manager.service";
 
 import {
   AdminUser,
@@ -31,7 +32,8 @@ import {
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
 export class DatabaseService {
-  private adapter: SQLiteAdapter;
+  private adapter: SQLiteAdapter; // Keep for backward compatibility during migration
+  private dbManager: MultiDatabaseManager;
   private static instance: DatabaseService;
   private isConnected = false;
   private connectionAttempts = 0;
@@ -50,7 +52,12 @@ export class DatabaseService {
       this.readyReject = reject;
     });
 
-    // SQLite database configuration
+    // Initialize multi-database manager
+    const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
+    const projectsDbDir = process.env.PROJECTS_DB_DIR || undefined;
+    this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
+
+    // SQLite database configuration (keep for backward compatibility)
     const dbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH;
     this.adapter = new SQLiteAdapter(dbPath);
 
@@ -100,12 +107,33 @@ export class DatabaseService {
     return this.adapter;
   }
 
-  // Public method to execute queries
+  // Public method to execute queries (defaults to main database for backward compatibility)
   async query(
     sql: string,
     params?: unknown[]
   ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
-    return await this.adapter.query(sql, params);
+    // For backward compatibility, route to main database
+    return await this.dbManager.queryMain(sql, params);
+  }
+
+  // Query main database (admin/app data)
+  async queryMain(
+    sql: string,
+    params?: unknown[]
+  ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
+    return await this.dbManager.queryMain(sql, params);
+  }
+
+  // Query project-specific database
+  async queryProject(
+    projectId: string,
+    sql: string,
+    params?: unknown[]
+  ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> {
+    if (!projectId) {
+      throw new Error("Project ID is required for project database queries");
+    }
+    return await this.dbManager.queryProject(projectId, sql, params);
   }
 
   // Method to implement DatabaseConnection interface
@@ -119,6 +147,8 @@ export class DatabaseService {
   }
 
   async runSchemaFixes(): Promise<void> {
+    // Migration service still uses adapter for backward compatibility
+    // TODO: Update migration service to work with multi-database manager
     if (!this.migrationService) {
       // Initialize migration service if not already initialized
       this.migrationService = new MigrationService(this.adapter);
@@ -147,24 +177,21 @@ export class DatabaseService {
     };
   }> {
     try {
-      // Check connection
-      await this.adapter.query("SELECT 1");
+      // Check main database connection
+      await this.dbManager.queryMain("SELECT 1");
 
-      // Check critical tables (SQLite uses sqlite_master instead of information_schema)
+      // Check critical tables in main database (SQLite uses sqlite_master instead of information_schema)
       const criticalTables = [
         "admin_users",
         "projects",
-        "collections",
-        "documents",
         "sessions",
         "api_keys",
-        "changelog",
         "migrations",
       ];
 
       const missingTables = [];
       for (const table of criticalTables) {
-        const result = await this.adapter.query(
+        const result = await this.dbManager.queryMain(
           "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
           [table]
         );
@@ -172,6 +199,9 @@ export class DatabaseService {
           missingTables.push(table);
         }
       }
+
+      // Note: collections, documents, files, changelog are in project-specific databases
+      // They will be checked when projects are accessed
 
       if (missingTables.length > 0) {
         return {
@@ -255,7 +285,7 @@ export class DatabaseService {
       repairs.push("Fixed missing columns");
 
       // Create default admin if none exists
-      const adminCount = await this.adapter.query(
+      const adminCount = await this.dbManager.queryMain(
         "SELECT COUNT(*) as count FROM admin_users"
       );
       if (parseInt(String(adminCount.rows[0]?.count || 0)) === 0) {
@@ -308,14 +338,16 @@ export class DatabaseService {
       );
 
       try {
+        // Connect to main database
+        await this.dbManager.connectMain();
+
         // Test the connection
-        await this.adapter.connect();
-        await this.adapter.query("SELECT 1");
+        await this.dbManager.queryMain("SELECT 1");
 
         this.isConnected = true;
-        console.log("Successfully connected to SQLite database");
+        console.log("Successfully connected to main SQLite database");
 
-        // Initialize tables first
+        // Initialize main database tables first
         if (process.env.NODE_ENV === "development") {
           await this.createEssentialTables();
         } else {
@@ -358,11 +390,9 @@ export class DatabaseService {
 
   private async initializeTables() {
     try {
-      // SQLite doesn't need explicit BEGIN - it auto-commits transactions
-      // SQLite doesn't need extensions - it has built-in functions
-
-      // Admin Users Table
-      await this.adapter.query(`
+      // Initialize MAIN database tables only
+      // Admin Users Table (main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS admin_users (
           id TEXT PRIMARY KEY,
           username TEXT UNIQUE NOT NULL,
@@ -381,8 +411,8 @@ export class DatabaseService {
         )
       `);
 
-      // API Keys Table
-      await this.adapter.query(`
+      // API Keys Table (admin/system level in main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS api_keys (
           id TEXT PRIMARY KEY,
           key TEXT UNIQUE NOT NULL,
@@ -402,15 +432,15 @@ export class DatabaseService {
       `);
 
       // Create indexes for API keys (SQLite partial indexes use different syntax)
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = 1
       `);
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_id)
       `);
 
-      // Projects Table
-      await this.adapter.query(`
+      // Projects Table (metadata only in main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS projects (
           id TEXT PRIMARY KEY,
           name TEXT UNIQUE NOT NULL,
@@ -430,8 +460,8 @@ export class DatabaseService {
         )
       `);
 
-      // Project Users Table (for admin access to projects)
-      await this.adapter.query(`
+      // Project Users Table (for admin access to projects - main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS project_admins (
           id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -442,93 +472,8 @@ export class DatabaseService {
         )
       `);
 
-      // Project Users Table (for project-specific user accounts)
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS project_users (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          username TEXT NOT NULL,
-          email TEXT NOT NULL,
-          password_hash TEXT NOT NULL,
-          phone TEXT,
-          is_verified INTEGER DEFAULT 0,
-          is_active INTEGER DEFAULT 1,
-          scopes TEXT NOT NULL DEFAULT '[]',
-          metadata TEXT DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          last_login TEXT,
-          email_verified_at TEXT,
-          phone_verified_at TEXT,
-          UNIQUE(project_id, username),
-          UNIQUE(project_id, email)
-        )
-      `);
-
-      // Create indexes for project users
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_project ON project_users(project_id)
-      `);
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_email ON project_users(project_id, email)
-      `);
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_project_users_username ON project_users(project_id, username)
-      `);
-
-      // Collections Table (formerly table_schemas)
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS collections (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          name TEXT NOT NULL,
-          description TEXT,
-          fields TEXT NOT NULL DEFAULT '[]',
-          indexes TEXT DEFAULT '[]',
-          document_count INTEGER DEFAULT 0,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          created_by TEXT REFERENCES admin_users(id),
-          UNIQUE(project_id, name)
-        )
-      `);
-
-      // Documents Table
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS documents (
-          id TEXT PRIMARY KEY,
-          collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-          data TEXT NOT NULL DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          created_by TEXT NOT NULL REFERENCES admin_users(id)
-        )
-      `);
-
-      // Create indexes for documents
-      await this.adapter.query(`
-        CREATE INDEX IF NOT EXISTS idx_documents_collection_id
-        ON documents(collection_id)
-      `);
-
-      // Files Table
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS files (
-          id TEXT PRIMARY KEY,
-          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-          filename TEXT NOT NULL,
-          original_name TEXT NOT NULL,
-          mime_type TEXT NOT NULL,
-          size INTEGER NOT NULL,
-          path TEXT NOT NULL,
-          metadata TEXT DEFAULT '{}',
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          uploaded_by TEXT REFERENCES admin_users(id)
-        )
-      `);
-
-      // Sessions Table
-      await this.adapter.query(`
+      // Sessions Table (main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
@@ -547,27 +492,15 @@ export class DatabaseService {
       `);
 
       // Create index for sessions
-      await this.adapter.query(`
+      await this.dbManager.queryMain(`
         CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)
       `);
 
-      // Changelog Table
-      await this.adapter.query(`
-        CREATE TABLE IF NOT EXISTS changelog (
-          id TEXT PRIMARY KEY,
-          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
-          entity_type TEXT NOT NULL,
-          entity_id TEXT NOT NULL,
-          action TEXT NOT NULL,
-          changes TEXT DEFAULT '{}',
-          performed_by TEXT REFERENCES admin_users(id),
-          session_id TEXT,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+      // Note: Changelog is stored in project-specific databases
+      // It is initialized when a project database is first accessed
 
-      // Email Templates Table
-      await this.adapter.query(`
+      // Email Templates Table (main DB - shared templates)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS email_templates (
           id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -580,8 +513,8 @@ export class DatabaseService {
         )
       `);
 
-      // System checks table
-      await this.adapter.query(`
+      // System checks table (main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS system_checks (
           id TEXT PRIMARY KEY,
           check_type TEXT NOT NULL,
@@ -596,12 +529,10 @@ export class DatabaseService {
       const tablesWithUpdatedAt = [
         "admin_users",
         "projects",
-        "collections",
-        "documents",
         "email_templates",
       ];
       for (const table of tablesWithUpdatedAt) {
-        await this.adapter.query(`
+        await this.dbManager.queryMain(`
           DROP TRIGGER IF EXISTS update_${table}_updated_at;
           CREATE TRIGGER update_${table}_updated_at 
           AFTER UPDATE ON ${table}
@@ -611,9 +542,8 @@ export class DatabaseService {
         `);
       }
 
-      // Note: sessions, api_keys, changelog already created above - avoid duplicates
-      // Only create migrations table if not exists
-      await this.adapter.query(`
+      // Migrations table (main DB)
+      await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS migrations (
           version INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
@@ -1434,7 +1364,8 @@ export class DatabaseService {
       // Generate project ID (SQLite doesn't support RETURNING *)
       const projectId = uuidv4();
       
-      await this.adapter.query(
+      // Insert into main database (project metadata)
+      await this.dbManager.queryMain(
         `INSERT INTO projects (id, name, description, project_url, api_key, is_active, created_by, settings, owner_id) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
@@ -1450,8 +1381,12 @@ export class DatabaseService {
         ]
       );
 
+      // Initialize project database (will be created on first access)
+      // Just ensure it exists for future queries
+      await this.dbManager.getProjectDb(projectId);
+
       // Query back the inserted row (SQLite doesn't support RETURNING *)
-      const rows = await this.queryWithRetry<Record<string, unknown>>(
+      const rows = await this.dbManager.queryMain(
         `SELECT * FROM projects WHERE id = $1`,
         [projectId]
       );
@@ -1484,7 +1419,7 @@ export class DatabaseService {
         return null;
       }
 
-      const rows = await this.queryWithRetry<BackendProject>(
+      const rows = await this.dbManager.queryMain(
         `SELECT * FROM projects WHERE id = $1`,
         [sanitizedId]
       );
@@ -1500,7 +1435,7 @@ export class DatabaseService {
 
   async getProjectByApiKey(apiKey: string): Promise<BackendProject | null> {
     await this.ensureReady();
-    const result = await this.adapter.query(
+    const result = await this.dbManager.queryMain(
       "SELECT * FROM projects WHERE api_key = $1 AND is_active = true",
       [apiKey]
     );
@@ -1510,19 +1445,19 @@ export class DatabaseService {
 
   async getAllProjects(): Promise<BackendProject[]> {
     try {
-      const rows = await this.queryWithRetry<Record<string, unknown>>(
+      const result = await this.dbManager.queryMain(
         `SELECT * FROM projects ORDER BY created_at DESC`
       );
-      return rows.map((row) => this.mapProject(row));
+      return result.rows.map((row) => this.mapProject(row as unknown as Record<string, unknown>));
     } catch (error) {
       console.error("Failed to get all projects:", error);
       // Attempt to fix the issue
       await this.autoRepair();
       // Retry once after repair
-      const rows = await this.queryWithRetry<Record<string, unknown>>(
+      const result = await this.dbManager.queryMain(
         `SELECT * FROM projects ORDER BY created_at DESC`
       );
-      return rows.map((row) => this.mapProject(row));
+      return result.rows.map((row) => this.mapProject(row as unknown as Record<string, unknown>));
     }
   }
 
@@ -1564,7 +1499,7 @@ export class DatabaseService {
       values.push(id);
 
       // SQLite doesn't support RETURNING *, so update and query back separately
-      await this.adapter.query(
+      await this.dbManager.queryMain(
         `UPDATE projects SET ${updates.join(
           ", "
         )} WHERE id = $${paramCount}`,
@@ -1580,27 +1515,33 @@ export class DatabaseService {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    // SQLite doesn't use connection pooling - adapter is already connected
     try {
-      // SQLite doesn't need explicit BEGIN
+      // Delete project-specific data from project database
+      if (this.dbManager.projectDbExists(id)) {
+        // Delete from project database
+        await this.dbManager.queryProject(id, "DELETE FROM documents", []);
+        await this.dbManager.queryProject(id, "DELETE FROM collections", []);
+        await this.dbManager.queryProject(id, "DELETE FROM project_users", []);
+        await this.dbManager.queryProject(id, "DELETE FROM files", []);
+        await this.dbManager.queryProject(id, "DELETE FROM changelog", []);
+        await this.dbManager.queryProject(id, "DELETE FROM api_keys", []);
+        
+        // Close and delete project database file
+        await this.dbManager.closeProjectDb(id);
+        const projectDbPath = this.dbManager.getProjectDbPath(id);
+        const fs = await import("fs/promises");
+        try {
+          await fs.unlink(projectDbPath);
+        } catch (error) {
+          // Ignore if file doesn't exist
+        }
+      }
 
-      // Delete related data in correct order
-      await this.adapter.query(
-        "DELETE FROM documents WHERE collection_id IN (SELECT id FROM collections WHERE project_id = $1)",
+      // Delete project metadata from main database
+      const result = await this.dbManager.queryMain(
+        "DELETE FROM projects WHERE id = $1",
         [id]
       );
-      await this.adapter.query("DELETE FROM collections WHERE project_id = $1", [id]);
-      await this.adapter.query("DELETE FROM project_users WHERE project_id = $1", [
-        id,
-      ]);
-      await this.adapter.query("DELETE FROM files WHERE project_id = $1", [id]);
-      await this.adapter.query("DELETE FROM changelog WHERE project_id = $1", [id]);
-      await this.adapter.query("DELETE FROM api_keys WHERE owner_id = $1", [id]);
-
-      // Finally delete the project
-      const result = await this.adapter.query("DELETE FROM projects WHERE id = $1", [
-        id,
-      ]);
 
       // SQLite auto-commits
       return result.rowCount > 0;
@@ -1608,8 +1549,6 @@ export class DatabaseService {
       // SQLite handles rollback automatically
       console.error("Failed to delete project:", error);
       throw error;
-    } finally {
-      // SQLite doesn't need connection release
     }
   }
 
@@ -1959,18 +1898,28 @@ export class DatabaseService {
     createdBy: string
   ): Promise<Collection> {
     try {
-      const result = await this.adapter.query(
-        `INSERT INTO collections (project_id, name, description, fields, indexes, created_by) 
-         VALUES ($1, $2, $3, $4, $5, $6) 
-         RETURNING *`,
+      // Collections are stored in project-specific databases
+      const collectionId = uuidv4();
+      await this.dbManager.queryProject(
+        projectId,
+        `INSERT INTO collections (id, project_id, name, description, fields, indexes, created_by) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
+          collectionId,
           projectId,
           collectionName,
-          schema.description,
+          schema.description || null,
           JSON.stringify(schema.fields),
-          JSON.stringify(schema.indexes),
+          JSON.stringify(schema.indexes || []),
           createdBy,
         ]
+      );
+
+      // Query back the inserted row
+      const result = await this.dbManager.queryProject(
+        projectId,
+        `SELECT * FROM collections WHERE id = $1`,
+        [collectionId]
       );
 
       return this.mapCollection(result.rows[0]);
@@ -2002,7 +1951,8 @@ export class DatabaseService {
     projectId: string,
     collectionName: string
   ): Promise<Collection | null> {
-    const result = await this.adapter.query(
+    const result = await this.dbManager.queryProject(
+      projectId,
       "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
       [projectId, collectionName]
     );
@@ -2011,16 +1961,16 @@ export class DatabaseService {
   }
 
   async getCollectionById(collectionId: string): Promise<Collection | null> {
-    const result = await this.adapter.query(
-      "SELECT * FROM collections WHERE id = $1",
-      [collectionId]
-    );
-
-    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+    // Need to search across all project databases to find the collection
+    // For now, we'll need projectId to be provided or search main DB for collection metadata
+    // This is a limitation - we'd need to add a collections lookup table in main DB
+    // For now, throw an error suggesting to use getCollection with projectId
+    throw new Error("getCollectionById requires projectId. Use getCollection(projectId, collectionName) instead.");
   }
 
   async getProjectCollections(projectId: string): Promise<Collection[]> {
-    const result = await this.adapter.query(
+    const result = await this.dbManager.queryProject(
+      projectId,
       "SELECT * FROM collections WHERE project_id = $1 ORDER BY created_at DESC",
       [projectId]
     );
@@ -2037,18 +1987,26 @@ export class DatabaseService {
       indexes?: CollectionIndex[];
     }
   ): Promise<Collection | null> {
-    const result = await this.adapter.query(
+    // Collections are stored in project-specific databases
+    await this.dbManager.queryProject(
+      projectId,
       `UPDATE collections 
        SET description = $1, fields = $2, indexes = $3 
-       WHERE project_id = $4 AND name = $5 
-       RETURNING *`,
+       WHERE project_id = $4 AND name = $5`,
       [
-        schema.description,
-        JSON.stringify(schema.fields),
-        JSON.stringify(schema.indexes),
+        schema.description || null,
+        JSON.stringify(schema.fields || []),
+        JSON.stringify(schema.indexes || []),
         projectId,
         collectionName,
       ]
+    );
+
+    // Query back the updated row
+    const result = await this.dbManager.queryProject(
+      projectId,
+      `SELECT * FROM collections WHERE project_id = $1 AND name = $2`,
+      [projectId, collectionName]
     );
 
     return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
@@ -2058,18 +2016,30 @@ export class DatabaseService {
     projectId: string,
     collectionName: string
   ): Promise<boolean> {
-    // SQLite doesn't use connection pooling - adapter is already connected
     try {
-      // SQLite doesn't need explicit BEGIN
-
-      // Delete all documents for this collection
-      await this.adapter.query(
-        "DELETE FROM documents WHERE project_id = $1 AND collection_name = $2",
+      // Get collection ID first
+      const collectionResult = await this.dbManager.queryProject(
+        projectId,
+        "SELECT id FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, collectionName]
       );
 
+      if (collectionResult.rows.length === 0) {
+        return false;
+      }
+
+      const collectionId = collectionResult.rows[0].id as string;
+
+      // Delete all documents for this collection (CASCADE will handle this, but explicit is better)
+      await this.dbManager.queryProject(
+        projectId,
+        "DELETE FROM documents WHERE collection_id = $1",
+        [collectionId]
+      );
+
       // Delete the collection
-      const result = await this.adapter.query(
+      const result = await this.dbManager.queryProject(
+        projectId,
         "DELETE FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, collectionName]
       );
