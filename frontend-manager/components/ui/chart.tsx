@@ -125,6 +125,8 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed"
     nameKey?: string
     labelKey?: string
+    payload?: Array<{ value?: unknown; name?: string; dataKey?: string; color?: string; payload?: Record<string, unknown> }>
+    label?: unknown
   }) {
   const { config } = useChart()
 
@@ -141,10 +143,10 @@ function ChartTooltipContent({
         ? config[label as keyof typeof config]?.label || label
         : itemConfig?.label
 
-    if (labelFormatter) {
+    if (labelFormatter && payload) {
       return (
         <div className={cn("font-medium", labelClassName)}>
-          {labelFormatter(value, payload)}
+          {labelFormatter(value, payload as unknown as Parameters<typeof labelFormatter>[1])}
         </div>
       )
     }
@@ -179,10 +181,10 @@ function ChartTooltipContent({
     >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
-        {payload.map((item, index) => {
+        {(payload || []).map((item: { value?: unknown; name?: string; dataKey?: string; color?: string; payload?: Record<string, unknown> }, index: number) => {
           const key = `${nameKey || item.name || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
-          const indicatorColor = color || item.payload.fill || item.color
+          const indicatorColor = color || (item.payload?.fill as string | undefined) || item.color
 
           return (
             <div
@@ -193,7 +195,7 @@ function ChartTooltipContent({
               )}
             >
               {formatter && item?.value !== undefined && item.name ? (
-                formatter(item.value, item.name, item, index, item.payload)
+                formatter(item.value as Parameters<typeof formatter>[0], item.name, item as Parameters<typeof formatter>[2], index, (item.payload as unknown) as Parameters<typeof formatter>[4])
               ) : (
                 <>
                   {itemConfig?.icon ? (
@@ -232,9 +234,9 @@ function ChartTooltipContent({
                         {itemConfig?.label || item.name}
                       </span>
                     </div>
-                    {item.value && (
+                    {item.value !== undefined && item.value !== null && (
                       <span className="text-foreground font-mono font-medium tabular-nums">
-                        {item.value.toLocaleString()}
+                        {typeof item.value === "number" ? item.value.toLocaleString() : String(item.value)}
                       </span>
                     )}
                   </div>
@@ -256,14 +258,15 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+}: React.ComponentProps<"div"> & {
     hideIcon?: boolean
     nameKey?: string
+    payload?: Array<{ value?: string; dataKey?: string; type?: string; color?: string }>
+    verticalAlign?: "top" | "bottom"
   }) {
   const { config } = useChart()
 
-  if (!payload?.length) {
+  if (!payload || !Array.isArray(payload) || payload.length === 0) {
     return null
   }
 
@@ -275,7 +278,7 @@ function ChartLegendContent({
         className
       )}
     >
-      {payload.map((item) => {
+      {payload.map((item: { value?: string; dataKey?: string; type?: string; color?: string }) => {
         const key = `${nameKey || item.dataKey || "value"}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 

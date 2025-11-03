@@ -364,7 +364,7 @@ export default function UITestComponent() {
       const duration = Date.now() - startTime;
       return {
         ...test,
-        status: result.status || "passed",
+        status: (result.status || "passed") as "pending" | "running" | "passed" | "failed" | "skipped",
         duration,
         details: result.details,
       };
@@ -441,7 +441,7 @@ export default function UITestComponent() {
       )
     );
 
-    setResults((prev) => ({ ...prev, [suiteId]: results }));
+    setResults((prev) => ({ ...prev, [suiteId]: results as unknown as Record<string, unknown> }));
   };
 
   const runAllTests = async () => {

@@ -11,12 +11,12 @@ export default async function handler(
 
   try {
     // Start performance monitoring using SDK
-    krapi.performance.startMonitoring();
+    const session = await krapi.performance.start();
 
     res.status(200).json({
       success: true,
-      monitoring_id: `monitor_${Date.now()}`,
-      active: true,
+      monitoring_id: session.session_id,
+      active: session.status === "active",
       message: "Performance monitoring started",
     });
   } catch (error) {

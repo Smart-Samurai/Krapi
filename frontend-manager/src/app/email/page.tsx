@@ -90,11 +90,16 @@ export default function EmailPage() {
     useState<EmailTemplate | null>(null);
 
   // Form states
-  const [newTemplate, setNewTemplate] = useState({
+  const [newTemplate, setNewTemplate] = useState<{
+    name: string;
+    subject: string;
+    content: string;
+    type: "html" | "text";
+  }>({
     name: "",
     subject: "",
     content: "",
-    type: "html" as const,
+    type: "html",
   });
 
   const [emailToSend, setEmailToSend] = useState({
@@ -199,7 +204,7 @@ export default function EmailPage() {
       to: "",
       subject: template.subject,
       content: template.content,
-      type: template.type,
+      type: (template.type === "html" ? "html" : "html") as "html",
       template_id: template.id,
     });
     setShowSendEmail(true);
@@ -657,7 +662,7 @@ export default function EmailPage() {
               <Select
                 value={emailToSend.type}
                 onValueChange={(value: "html" | "text") =>
-                  setEmailToSend({ ...emailToSend, type: value })
+                  setEmailToSend({ ...emailToSend, type: value as "html" })
                 }
               >
                 <SelectTrigger>

@@ -172,10 +172,10 @@ export default function ProfilePage() {
       ...profile,
       preferences: {
         ...profile.preferences,
-        [section]: {
+        [section]: field ? {
           ...(profile.preferences[section] as Record<string, unknown>),
           [field]: value,
-        },
+        } : value,
       },
     });
   };
@@ -372,7 +372,7 @@ export default function ProfilePage() {
                   <Select
                     value={profile.preferences.theme}
                     onValueChange={(value: "light" | "dark" | "system") =>
-                      updatePreference("preferences", "theme", value)
+                      updatePreference("theme", "", value)
                     }
                   >
                     <SelectTrigger>
@@ -389,8 +389,8 @@ export default function ProfilePage() {
                   <Label htmlFor="language">Language</Label>
                   <Select
                     value={profile.preferences.language}
-                    onValueChange={(value) =>
-                      updatePreference("preferences", "language", value)
+                    onValueChange={(value: string) =>
+                      updatePreference("language", "", value)
                     }
                   >
                     <SelectTrigger>
@@ -408,8 +408,8 @@ export default function ProfilePage() {
                   <Label htmlFor="timezone">Timezone</Label>
                   <Select
                     value={profile.preferences.timezone}
-                    onValueChange={(value) =>
-                      updatePreference("preferences", "timezone", value)
+                    onValueChange={(value: string) =>
+                      updatePreference("timezone", "", value)
                     }
                   >
                     <SelectTrigger>

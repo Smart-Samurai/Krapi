@@ -304,20 +304,24 @@ export default function Dashboard() {
               <CardContent className="space-y-2">
                 {systemStatus?.monitor.healthChecks &&
                   Object.entries(systemStatus.monitor.healthChecks).map(
-                    ([name, check]: [string, Record<string, unknown>]) => (
-                      <div
-                        key={name}
-                        className="flex items-center justify-between p-2 border rounded"
-                      >
-                        <div className="flex items-center space-x-2">
-                          {getHealthIcon(check.status)}
-                          <span className="font-medium capitalize">{name}</span>
+                    ([name, check]: [string, unknown]) => {
+                      const checkObj = check as Record<string, unknown>;
+                      const status = checkObj.status as string | undefined;
+                      return (
+                        <div
+                          key={name}
+                          className="flex items-center justify-between p-2 border rounded"
+                        >
+                          <div className="flex items-center space-x-2">
+                            {getHealthIcon(status || "unknown")}
+                            <span className="font-medium capitalize">{name}</span>
+                          </div>
+                          <Badge className={getHealthColor(status || "unknown")}>
+                            {status || "unknown"}
+                          </Badge>
                         </div>
-                        <Badge className={getHealthColor(check.status)}>
-                          {check.status}
-                        </Badge>
-                      </div>
-                    )
+                      );
+                    }
                   )}
               </CardContent>
             </Card>

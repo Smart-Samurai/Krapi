@@ -301,7 +301,7 @@ export default function SystemPage() {
                     <div>
                       <p className="font-medium">Database</p>
                       <p className="text-sm text-gray-600">
-                        {systemStatus.monitor.healthChecks.database?.status ||
+                        {(systemStatus.monitor.healthChecks.database as { status?: string } | undefined)?.status ||
                           "Unknown"}
                       </p>
                     </div>
@@ -311,10 +311,9 @@ export default function SystemPage() {
                     <div>
                       <p className="font-medium">Backend API</p>
                       <p className="text-sm text-gray-600">
-                        {systemStatus.monitor.healthChecks.services?.details
-                          ?.backend
+                        {((systemStatus.monitor.healthChecks.services as { details?: { backend?: boolean } } | undefined)?.details?.backend
                           ? "Running"
-                          : "Stopped"}
+                          : "Stopped")}
                       </p>
                     </div>
                   </div>
@@ -323,10 +322,9 @@ export default function SystemPage() {
                     <div>
                       <p className="font-medium">Frontend</p>
                       <p className="text-sm text-gray-600">
-                        {systemStatus.monitor.healthChecks.services?.details
-                          ?.frontend
+                        {((systemStatus.monitor.healthChecks.services as { details?: { frontend?: boolean } } | undefined)?.details?.frontend
                           ? "Running"
-                          : "Stopped"}
+                          : "Stopped")}
                       </p>
                     </div>
                   </div>
@@ -375,35 +373,40 @@ export default function SystemPage() {
               <CardContent>
                 <div className="space-y-4">
                   {Object.entries(systemStatus.monitor.healthChecks).map(
-                    ([name, check]: [string, Record<string, unknown>]) => (
+                    ([name, check]: [string, unknown]) => {
+                      const checkObj = check as Record<string, unknown>;
+                      const status = checkObj.status as string | undefined;
+                      const message = checkObj.message as string | unknown;
+                      const details = checkObj.details as Record<string, unknown> | undefined;
+                      return (
                       <div key={name} className="p-4 border rounded-md">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-2">
-                            {getHealthIcon(check.status)}
+                            {getHealthIcon(status || "unknown")}
                             <h4 className="font-medium capitalize">
-                              {check.name}
+                              {checkObj.name as string | undefined || name}
                             </h4>
                           </div>
-                          <Badge className={getHealthColor(check.status)}>
-                            {check.status}
+                          <Badge className={getHealthColor(status || "unknown")}>
+                            {status || "unknown"}
                           </Badge>
                         </div>
                         <p className="text-sm text-gray-600 mb-2">
-                          {check.message}
+                          {message as string | undefined || ""}
                         </p>
-                        {check.details && (
+                        {details && (
                           <details className="mt-2">
                             <summary className="text-sm text-gray-500 cursor-pointer">
                               Details
                             </summary>
                             <pre className="text-xs bg-gray-50 p-2 mt-1 rounded overflow-x-auto">
-                              {JSON.stringify(check.details, null, 2)}
+                              {JSON.stringify(details, null, 2)}
                             </pre>
                           </details>
                         )}
                       </div>
-                    )
-                  )}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

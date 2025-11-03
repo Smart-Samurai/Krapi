@@ -97,19 +97,30 @@ export default function UsersPage() {
   const [selectedProject, setSelectedProject] = useState<string>("");
 
   // Form states
-  const [newAdminUser, setNewAdminUser] = useState({
+  const [newAdminUser, setNewAdminUser] = useState<{
+    username: string;
+    email: string;
+    password: string;
+    role: "master_admin" | "admin" | "user";
+  }>({
     username: "",
     email: "",
     password: "",
-    role: "user" as const,
+    role: "user",
   });
 
-  const [newProjectUser, setNewProjectUser] = useState({
+  const [newProjectUser, setNewProjectUser] = useState<{
+    username: string;
+    email: string;
+    password: string;
+    project_id: string;
+    role: "owner" | "admin" | "editor" | "viewer";
+  }>({
     username: "",
     email: "",
     password: "",
     project_id: "",
-    role: "viewer" as const,
+    role: "viewer",
   });
 
   const fetchAdminUsers = async () => {
@@ -155,7 +166,7 @@ export default function UsersPage() {
       if (!response.ok) throw new Error("Failed to create admin user");
       await fetchAdminUsers();
       setShowCreateAdmin(false);
-      setNewAdminUser({ username: "", email: "", password: "", role: "user" });
+      setNewAdminUser({ username: "", email: "", password: "", role: "user" as "master_admin" | "admin" | "user" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
@@ -522,7 +533,7 @@ export default function UsersPage() {
               <Label htmlFor="admin-role">Role</Label>
               <Select
                 value={newAdminUser.role}
-                onValueChange={(value: string) =>
+                onValueChange={(value: "master_admin" | "admin" | "user") =>
                   setNewAdminUser({ ...newAdminUser, role: value })
                 }
               >
@@ -531,7 +542,7 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {USER_ROLES.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
+                    <SelectItem key={role.id} value={role.id as "master_admin" | "admin" | "user"}>
                       {role.name} - {role.description}
                     </SelectItem>
                   ))}
@@ -634,7 +645,7 @@ export default function UsersPage() {
               <Label htmlFor="project-role">Role</Label>
               <Select
                 value={newProjectUser.role}
-                onValueChange={(value: string) =>
+                onValueChange={(value: "owner" | "admin" | "editor" | "viewer") =>
                   setNewProjectUser({ ...newProjectUser, role: value })
                 }
               >
@@ -643,7 +654,7 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {PROJECT_ROLES.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
+                    <SelectItem key={role.id} value={role.id as "owner" | "admin" | "editor" | "viewer"}>
                       {role.name} - {role.description}
                     </SelectItem>
                   ))}

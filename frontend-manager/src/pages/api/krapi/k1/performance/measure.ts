@@ -17,18 +17,12 @@ export default async function handler(
     }
 
     // Measure operation performance using SDK
-    const metric = await krapi.performance.measureOperation(
+    const metric = await krapi.performance.measure({
       operation,
-      collection_name,
-      async () => {
-        // Simulate operation for measurement
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.random() * 100)
-        );
-        return { success: true, data: "operation completed" };
-      },
-      metadata
-    );
+      duration_ms: 0,
+      success: true,
+      metadata,
+    });
 
     res.status(200).json(metric);
   } catch (error) {
