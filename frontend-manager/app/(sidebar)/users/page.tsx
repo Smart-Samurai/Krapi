@@ -351,11 +351,6 @@ export default function ServerAdministrationPage() {
             icon={Plus}
             onClick={() => setIsCreateDialogOpen(true)}
             disabled={!hasScope(Scope.ADMIN_WRITE)}
-            title={
-              !hasScope(Scope.ADMIN_WRITE)
-                ? "You don't have permission to create admin users"
-                : undefined
-            }
           >
             Add Admin User
           </ActionButton>
@@ -812,7 +807,7 @@ export default function ServerAdministrationPage() {
                 >
                   Cancel
                 </ActionButton>
-                <ActionButton variant="edit" type="submit">
+                <ActionButton variant="edit">
                   Update Admin User
                 </ActionButton>
               </DialogFooter>

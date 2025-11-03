@@ -92,7 +92,7 @@ export default function ProjectBackupPage() {
       toast({
         title: "Error",
         description: "Failed to fetch backups",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setLoading(false);
@@ -128,7 +128,7 @@ export default function ProjectBackupPage() {
         title: "Error",
         description:
           error instanceof Error ? error.message : "Failed to create backup",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setCreating(false);
@@ -165,7 +165,7 @@ export default function ProjectBackupPage() {
         title: "Error",
         description:
           error instanceof Error ? error.message : "Failed to restore backup",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setRestoring(null);
@@ -193,7 +193,7 @@ export default function ProjectBackupPage() {
         title: "Error",
         description:
           error instanceof Error ? error.message : "Failed to delete backup",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setDeleting(null);

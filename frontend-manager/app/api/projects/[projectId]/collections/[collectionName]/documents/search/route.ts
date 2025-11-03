@@ -84,7 +84,7 @@ export async function POST(
     // Backend returns { success: true, documents: [...], total: ..., limit: ..., offset: ..., query: ... }
     // Return it directly
     return NextResponse.json(backendResponse);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

@@ -635,7 +635,7 @@ export default function TestAccessPage() {
             <CardContent className="space-y-4">
               {testResults.length > 0 ? (
                 <div className="space-y-6">
-                  {testResults.map((suite) => (
+                  {testResults.map((suite, suiteIndex) => (
                     <div
                       key={`test-access-suite-${suite.suite}`}
                       className="space-y-3"

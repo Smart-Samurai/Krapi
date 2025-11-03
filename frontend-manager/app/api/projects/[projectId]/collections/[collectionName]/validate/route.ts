@@ -79,7 +79,7 @@ export async function POST(
       valid: backendResponse.valid || backendResponse.isValid || false,
       ...backendResponse,
     });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

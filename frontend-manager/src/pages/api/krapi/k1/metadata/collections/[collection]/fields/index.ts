@@ -14,18 +14,14 @@ export default async function handler(
   try {
     switch (req.method) {
       case "GET":
-        // Get all custom fields for a collection
-        const fields = await krapi.metadata.getCustomFields(collection);
-        res.status(200).json(fields);
+        // Get all custom fields for a collection - method not yet implemented in SDK
+        res.status(501).json({ error: "Method not yet implemented" });
         break;
 
       case "POST":
         // Add a new custom field
         const fieldData = req.body;
-        const newField = await krapi.metadata.addCustomField(
-          collection,
-          fieldData
-        );
+        const newField = await krapi.metadata.addCustomField(fieldData);
         res.status(201).json(newField);
         break;
 

@@ -22,13 +22,8 @@ export default async function handler(
       return res.status(400).json({ error: "Document data is required" });
     }
 
-    // Validate document against custom fields using SDK
-    const validationResult = await krapi.metadata.validateDocument(
-      collection,
-      document
-    );
-
-    res.status(200).json(validationResult);
+    // Validate document against custom fields using SDK - method not yet implemented
+    res.status(501).json({ error: "Method not yet implemented" });
   } catch (error) {
     res.status(500).json({
       error: "Failed to validate document",

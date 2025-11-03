@@ -18,23 +18,13 @@ export default async function handler(
   try {
     switch (req.method) {
       case "PUT":
-        // Update a custom field
-        const updates = req.body;
-        const updatedField = await krapi.metadata.updateCustomField(
-          collection,
-          field,
-          updates
-        );
-        res.status(200).json(updatedField);
+        // Update a custom field - method not yet implemented in SDK
+        res.status(501).json({ error: "Method not yet implemented" });
         break;
 
       case "DELETE":
-        // Remove a custom field
-        const success = await krapi.metadata.removeCustomField(
-          collection,
-          field
-        );
-        res.status(200).json({ success });
+        // Remove a custom field - method not yet implemented in SDK
+        res.status(501).json({ error: "Method not yet implemented" });
         break;
 
       default:

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const logoutResult = await response.json();
     return NextResponse.json(logoutResult);
-  } catch {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,

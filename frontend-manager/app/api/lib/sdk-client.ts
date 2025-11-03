@@ -6,7 +6,7 @@ krapi
     endpoint: process.env.KRAPI_BACKEND_URL || "http://localhost:3470",
     apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
   })
-  .catch((_error) => {
+  .catch((_error: unknown) => {
     // Failed to connect SDK to backend
   });
 

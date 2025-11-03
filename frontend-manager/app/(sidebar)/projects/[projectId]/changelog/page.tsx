@@ -91,7 +91,7 @@ export default function ProjectChangelogPage() {
       toast({
         title: "Error",
         description: "Failed to fetch changelog entries",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setLoading(false);
@@ -153,7 +153,7 @@ export default function ProjectChangelogPage() {
       toast({
         title: "Error",
         description: "Failed to export changelog",
-        variant: "destructive",
+        variant: "error",
       });
     }
   };

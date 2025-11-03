@@ -514,7 +514,7 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {user.permissions.slice(0, 3).map((scope) => (
+                        {user.permissions.slice(0, 3).map((scope: string) => (
                           <Badge
                             key={scope}
                             variant="outline"

@@ -154,7 +154,7 @@ export async function GET(
     // Test expects response.data.data to be the array of documents
     // So we should return { success: true, data: backendResponse.data }
     return NextResponse.json({ success: true, data: backendResponse.data });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -240,7 +240,7 @@ export async function POST(
       let errorData;
       try {
         errorData = JSON.parse(responseText);
-      } catch {
+      } catch (error: unknown) {
         errorData = { error: responseText };
       }
       
@@ -266,7 +266,7 @@ export async function POST(
       { success: true, ...document },
       { status: 201 }
     );
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

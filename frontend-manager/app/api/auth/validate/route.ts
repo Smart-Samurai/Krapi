@@ -53,7 +53,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     } else {
       return NextResponse.json(validationResult);
     }
-  } catch {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,

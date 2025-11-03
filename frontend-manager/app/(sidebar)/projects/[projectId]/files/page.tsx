@@ -186,9 +186,9 @@ export default function FilesPage() {
   const loadFolders = useCallback(async () => {
     if (!krapi?.storage) return;
     try {
-      const result = await krapi.storage.getAllFolders(projectId);
-      if (result.success && result.data) {
-        setFolders(result.data as Array<{ id: string; name: string; path: string; parent_id?: string }>);
+      const result = await krapi.storage.getFolders(projectId);
+      if (result && result.length > 0) {
+        setFolders(result as Array<{ id: string; name: string; path: string; parent_id?: string }>);
       }
     } catch {
       // Error logged for debugging
@@ -291,7 +291,7 @@ export default function FilesPage() {
 
   const openEditFile = (file: FileInfo) => {
     setEditingFile(file);
-    setSelectedFolderId(file.folder_id || null);
+    setSelectedFolderId(file.folder || null);
     setEditFormData({
       original_name: file.original_name,
       metadata: (file.metadata as Record<string, unknown>) || {},
@@ -340,16 +340,16 @@ export default function FilesPage() {
       dispatch(beginBusy());
       const result = await krapi.storage.createFolder(projectId, {
         name: folderFormData.name,
-        parent_id: folderFormData.parent_id || undefined,
-        description: folderFormData.description || undefined,
+        parent_folder_id: folderFormData.parent_id || undefined,
+        metadata: folderFormData.description ? { description: folderFormData.description } : undefined,
       });
-      if (result.success) {
+      if (result && result.id) {
         setIsFolderDialogOpen(false);
         setFolderFormData({ name: "", parent_id: "", description: "" });
         loadFolders();
         toast.success("Folder created successfully");
       } else {
-        setError(result.error || "Failed to create folder");
+        setError("Failed to create folder");
       }
     } catch {
       setError("An error occurred while creating folder");
@@ -371,7 +371,7 @@ export default function FilesPage() {
         loadFolders();
         toast.success("Folder deleted successfully");
       } else {
-        setError(result.error || "Failed to delete folder");
+        setError("Failed to delete folder");
       }
     } catch {
       setError("An error occurred while deleting folder");
@@ -384,7 +384,7 @@ export default function FilesPage() {
     const matchesSearch =
       file.original_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       file.filename.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFolder = !selectedFolderId || file.folder_id === selectedFolderId;
+    const matchesFolder = !selectedFolderId || file.folder === selectedFolderId;
     const matchesType =
       fileTypeFilter === "all" ||
       getFileTypeCategory(file.mime_type) === fileTypeFilter;
@@ -1056,7 +1056,7 @@ stats = response.json()`}
                 <div>
                   <Label>Relations</Label>
                   <div className="space-y-2">
-                    {selectedFile.relations.map((relation) => (
+                    {selectedFile.relations.map((relation: { id: string; type: string; target_id: string; target_type: string; metadata?: Record<string, unknown> }) => (
                       <div
                         key={`files-relation-${relation.type}-${
                           relation.target_id

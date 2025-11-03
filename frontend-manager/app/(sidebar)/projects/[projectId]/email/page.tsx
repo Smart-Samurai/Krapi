@@ -710,7 +710,7 @@ export default function EmailPage() {
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {templateForm.variables.map((variable) => (
+                      {templateForm.variables.map((variable, index) => (
                         <div
                           key={`email-variable-${variable}`}
                           className="flex items-center gap-2"
@@ -847,7 +847,7 @@ export default function EmailPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {template.variables.map((variable) => (
+                              {template.variables.map((variable: string) => (
                                 <Badge
                                   key={`email-template-variable-${variable}`}
                                   variant="outline"
@@ -978,7 +978,7 @@ export default function EmailPage() {
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {templateForm.variables.map((variable) => (
+                    {templateForm.variables.map((variable, index) => (
                       <div
                         key={`email-edit-variable-${variable}`}
                         className="flex items-center gap-2"

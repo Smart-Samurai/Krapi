@@ -12,7 +12,7 @@ export async function POST(_request: NextRequest) {
     const repairResult = await krapi.health.autoFix();
 
     return NextResponse.json(repairResult);
-  } catch {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,

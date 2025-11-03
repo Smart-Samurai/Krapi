@@ -145,12 +145,69 @@ class ComprehensiveTestRunner {
     return true;
   }
 
+  async detectPackageManager() {
+    // Detect package manager (prefer pnpm, fallback to npm)
+    try {
+      const { stdout } = await execAsync("which pnpm", { cwd: this.projectRoot });
+      if (stdout && stdout.trim()) {
+        return "pnpm";
+      }
+    } catch {
+      // pnpm not found
+    }
+    try {
+      const { stdout } = await execAsync("which npm", { cwd: this.projectRoot });
+      if (stdout && stdout.trim()) {
+        return "npm";
+      }
+    } catch {
+      // npm not found
+    }
+    // Default to npm if neither found
+    return "npm";
+  }
+
   async buildServices() {
     this.log("🔨 Building all services...", "INFO");
 
+    // Detect package manager
+    const packageManager = await this.detectPackageManager();
+    this.log(`   Using package manager: ${packageManager}`, "INFO");
+
+    // Rebuild better-sqlite3 to ensure native bindings are compiled
+    // This is critical for SQLite to work - better-sqlite3 requires native bindings
+    this.log("   Rebuilding better-sqlite3 native bindings...", "INFO");
+    const rebuildResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "cd backend-server && pnpm rebuild better-sqlite3" 
+        : "cd backend-server && npm rebuild better-sqlite3",
+      { cwd: this.projectRoot }
+    );
+    if (!rebuildResult.success) {
+      this.log("   Warning: better-sqlite3 rebuild failed, trying root rebuild...", "WARNING");
+      // Fallback: try rebuilding from root
+      const rootRebuildResult = await this.runCommand(
+        packageManager === "pnpm" 
+          ? "pnpm rebuild better-sqlite3" 
+          : "npm rebuild better-sqlite3 --force",
+        { cwd: this.projectRoot }
+      );
+      if (!rootRebuildResult.success) {
+        this.log("   Warning: Root rebuild also failed, continuing anyway", "WARNING");
+      } else {
+        this.log("   ✅ better-sqlite3 rebuild successful (root)", "SUCCESS");
+      }
+    } else {
+      this.log("   ✅ better-sqlite3 rebuild successful", "SUCCESS");
+    }
+
     // Build packages first
     this.log("   Building packages...", "INFO");
-    const packagesResult = await this.runCommand("npm run build:packages");
+    const packagesResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "pnpm run build:packages" 
+        : "npm run build:packages"
+    );
     if (!packagesResult.success) {
       throw new Error(`Failed to build packages: ${packagesResult.stderr}`);
     }
@@ -158,7 +215,11 @@ class ComprehensiveTestRunner {
 
     // Build backend
     this.log("   Building backend...", "INFO");
-    const backendResult = await this.runCommand("npm run build:backend");
+    const backendResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "pnpm run build:backend" 
+        : "npm run build:backend"
+    );
     if (!backendResult.success) {
       throw new Error(`Failed to build backend: ${backendResult.stderr}`);
     }
@@ -166,7 +227,11 @@ class ComprehensiveTestRunner {
 
     // Build frontend
     this.log("   Building frontend...", "INFO");
-    const frontendResult = await this.runCommand("npm run build:frontend");
+    const frontendResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "pnpm run build:frontend" 
+        : "npm run build:frontend"
+    );
     if (!frontendResult.success) {
       throw new Error(`Failed to build frontend: ${frontendResult.stderr}`);
     }
@@ -178,13 +243,20 @@ class ComprehensiveTestRunner {
   async startServices() {
     this.log("🚀 Starting services...", "INFO");
 
+    // Detect package manager
+    const packageManager = await this.detectPackageManager();
+
     // Start backend
     this.log("   Starting backend...", "INFO");
-    const backendProcess = spawn("npm", ["run", "dev:backend"], {
-      cwd: this.projectRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
-    });
+    const backendProcess = spawn(
+      packageManager === "pnpm" ? "pnpm" : "npm",
+      ["run", "dev:backend"],
+      {
+        cwd: this.projectRoot,
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: true,
+      }
+    );
 
     this.services.backend = backendProcess;
 
@@ -205,11 +277,15 @@ class ComprehensiveTestRunner {
 
     // Start frontend
     this.log("   Starting frontend...", "INFO");
-    const frontendProcess = spawn("npm", ["run", "dev:frontend"], {
-      cwd: this.projectRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
-    });
+    const frontendProcess = spawn(
+      packageManager === "pnpm" ? "pnpm" : "npm",
+      ["run", "dev:frontend"],
+      {
+        cwd: this.projectRoot,
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: true,
+      }
+    );
 
     this.services.frontend = frontendProcess;
 

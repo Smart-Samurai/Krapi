@@ -386,7 +386,6 @@ export default function SettingsPage() {
                   <ActionButton
                     variant="default"
                     icon={Save}
-                    type="submit"
                     disabled={isSaving}
                   >
                     {isSaving ? "Saving..." : "Save Changes"}
@@ -474,7 +473,6 @@ export default function SettingsPage() {
                   <ActionButton
                     variant="default"
                     icon={Save}
-                    type="submit"
                     disabled={isSaving}
                   >
                     {isSaving ? "Saving..." : "Save Changes"}
@@ -648,7 +646,6 @@ export default function SettingsPage() {
                   <ActionButton
                     variant="default"
                     icon={Save}
-                    type="submit"
                     disabled={isSaving}
                   >
                     {isSaving ? "Saving..." : "Save Changes"}

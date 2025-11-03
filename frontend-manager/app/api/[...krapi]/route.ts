@@ -103,7 +103,7 @@ async function proxyRequest(
     if (method !== "GET" && method !== "DELETE") {
       try {
         body = await request.text();
-      } catch {
+      } catch (error: unknown) {
         
       }
     }
@@ -121,7 +121,7 @@ async function proxyRequest(
 
     try {
       responseData = JSON.parse(responseText);
-    } catch {
+    } catch (error: unknown) {
       responseData = responseText;
     }
 
