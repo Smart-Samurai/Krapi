@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const activityData = await response.json();
     return NextResponse.json(activityData.logs || []);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to get recent activity" },

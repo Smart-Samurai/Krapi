@@ -802,7 +802,7 @@ headers_with_key = {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {apiKey.scopes.slice(0, 3).map((scope) => (
+                          {apiKey.scopes.slice(0, 3).map((scope: string) => (
                             <Badge
                               key={scope}
                               variant="outline"

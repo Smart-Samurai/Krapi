@@ -392,7 +392,7 @@ export default function CollectionsPage() {
                     </Button>
                   </div>
                   <div className="space-y-3">
-                    {formData.fields.map((field) => {
+                    {formData.fields.map((field, _index) => {
                       const _Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <div
@@ -753,7 +753,9 @@ response = requests.delete(
                       size="sm"
                       icon={Trash2}
                       onClick={() => handleDeleteCollection(collection.id)}
-                    />
+                    >
+                      Delete
+                    </ActionButton>
                   </div>
                 </div>
               </CardHeader>
@@ -767,7 +769,7 @@ response = requests.delete(
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {collection.fields?.map((field, _index) => {
+                    {collection.fields?.map((field: CollectionField, _index: number) => {
                       const Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <TableRow

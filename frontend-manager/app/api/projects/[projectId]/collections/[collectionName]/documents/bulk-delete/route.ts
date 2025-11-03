@@ -81,7 +81,7 @@ export async function POST(
 
     const result = await response.json();
     return NextResponse.json({ success: true, data: result });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

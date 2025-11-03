@@ -67,7 +67,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Document } from "@/lib/krapi";
+import type { Document, CollectionField } from "@/lib/krapi";
 import { fetchCollections } from "@/store/collectionsSlice";
 import {
   fetchDocuments,
@@ -329,7 +329,7 @@ export default function DocumentsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {currentCollection?.fields?.map((field) => (
+                {currentCollection?.fields?.map((field: CollectionField) => (
                   <div key={field.name}>
                     <Label htmlFor={field.name}>
                       {field.name}
@@ -704,7 +704,7 @@ search_results = response.json()`}
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID</TableHead>
-                    {currentCollection?.fields?.map((field) => (
+                    {currentCollection?.fields?.map((field: CollectionField) => (
                       <TableHead key={field.name}>{field.name}</TableHead>
                     ))}
                     <TableHead>Created</TableHead>
@@ -718,7 +718,7 @@ search_results = response.json()`}
                       <TableCell className="font-mono text-base">
                         {document.id.substring(0, 8)}...
                       </TableCell>
-                      {currentCollection?.fields?.map((field) => (
+                      {currentCollection?.fields?.map((field: CollectionField) => (
                         <TableCell key={field.name}>
                           {renderFieldValue(
                             document.data[field.name],
@@ -785,7 +785,7 @@ search_results = response.json()`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {currentCollection?.fields?.map((field) => (
+            {currentCollection?.fields?.map((field: CollectionField) => (
               <div key={field.name}>
                 <Label htmlFor={`edit-${field.name}`}>
                   {field.name}

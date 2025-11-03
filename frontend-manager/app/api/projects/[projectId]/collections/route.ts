@@ -77,7 +77,7 @@ export async function GET(
       success: true,
       collections: collectionsArray,
     });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -154,7 +154,7 @@ export async function POST(
       { success: true, collection },
       { status: 201 }
     );
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

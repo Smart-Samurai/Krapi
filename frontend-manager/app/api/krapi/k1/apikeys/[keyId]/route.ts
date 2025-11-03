@@ -39,7 +39,7 @@ export async function GET(
 
     const apiKeyData = await response.json();
     return NextResponse.json(apiKeyData);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to get API key details" },
@@ -79,7 +79,7 @@ export async function DELETE(
 
     const deleteData = await response.json();
     return NextResponse.json(deleteData);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to delete API key" },

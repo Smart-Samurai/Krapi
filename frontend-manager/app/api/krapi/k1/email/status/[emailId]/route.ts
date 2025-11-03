@@ -38,7 +38,7 @@ export async function GET(
 
     const statusData = await response.json();
     return NextResponse.json(statusData);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to get email status" },

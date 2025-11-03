@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const unsubscribeData = await response.json();
     return NextResponse.json(unsubscribeData);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to handle email unsubscribe" },

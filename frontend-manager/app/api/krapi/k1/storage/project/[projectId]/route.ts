@@ -38,7 +38,7 @@ export async function GET(
 
     const filesData = await response.json();
     return NextResponse.json(filesData);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to list files" },

@@ -84,7 +84,7 @@ export async function POST(
     // Test expects response.data.created to be an array
     // Return the backend response directly, not wrapped in data
     return NextResponse.json(backendResponse, { status: 201 });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -169,7 +169,7 @@ export async function PUT(
 
     const result = await response.json();
     return NextResponse.json({ success: true, data: result });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const stats = await response.json();
     return NextResponse.json(stats);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

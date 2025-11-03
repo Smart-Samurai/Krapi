@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(mockCleanup);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       { error: "Failed to cleanup activity logs" },

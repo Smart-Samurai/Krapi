@@ -65,7 +65,7 @@ export async function GET(
     const settings = await response.json();
     // Extract the data from the backend response and return it directly
     return NextResponse.json(settings.data);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -138,7 +138,7 @@ export async function PUT(
     const settings = await response.json();
     // Extract the data from the backend response and return it directly
     return NextResponse.json(settings.data);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

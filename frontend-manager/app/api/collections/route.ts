@@ -27,7 +27,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
 
     return NextResponse.json({ success: true, data: collections });
-  } catch {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       { success: true, data: collection },
       { status: 201 }
     );
-  } catch {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         success: false,

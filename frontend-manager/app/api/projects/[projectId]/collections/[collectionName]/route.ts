@@ -78,7 +78,7 @@ export async function GET(
       success: true,
       collection,
     });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -162,7 +162,7 @@ export async function PUT(
       success: true,
       collection,
     });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -241,7 +241,7 @@ export async function DELETE(
       success: true,
       message: "Collection deleted successfully",
     });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {

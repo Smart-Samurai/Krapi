@@ -56,7 +56,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     // Return the backend response as-is if format is different
     return NextResponse.json(backendResponse);
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     return NextResponse.json(backendResponse, { status: 201 });
-  } catch {
+  } catch (error: unknown) {
     
     return NextResponse.json(
       {
