@@ -34,6 +34,29 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Global package manager variable
+PACKAGE_MANAGER=""
+
+# Function to detect package manager
+detect_package_manager() {
+    if [ -n "$PACKAGE_MANAGER" ]; then
+        return 0
+    fi
+    
+    if command_exists pnpm; then
+        PACKAGE_MANAGER="pnpm"
+        export PACKAGE_MANAGER
+        print_success "Detected: pnpm (recommended)"
+    elif command_exists npm; then
+        PACKAGE_MANAGER="npm"
+        export PACKAGE_MANAGER
+        print_warning "Detected: npm (pnpm recommended for faster installs)"
+    else
+        print_error "Neither npm nor pnpm found. Please install Node.js first."
+        exit 1
+    fi
+}
+
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
@@ -43,10 +66,7 @@ check_prerequisites() {
         exit 1
     fi
     
-    if ! command_exists pnpm; then
-        print_error "pnpm is not installed. Please install pnpm first."
-        exit 1
-    fi
+    detect_package_manager
     
     if ! command_exists docker; then
         print_warning "Docker is not installed. Some features may not work."
@@ -73,7 +93,8 @@ install_dependencies() {
     init_environment
     
     # Use the unified install script from root package.json
-    pnpm run install:all
+    detect_package_manager
+    $PACKAGE_MANAGER install
     
     print_success "All dependencies installed successfully"
 }
@@ -83,7 +104,7 @@ run_linting() {
     print_status "Running linting checks..."
     
     # Use the unified linting script from root package.json
-    if ! pnpm run lint:all; then
+    if ! $PACKAGE_MANAGER run lint:all; then
         print_error "Linting checks failed! Please fix the issues before continuing."
         exit 1
     fi
@@ -96,7 +117,7 @@ run_type_checking() {
     print_status "Running TypeScript type checks..."
     
     # Use the unified type checking script from root package.json
-    if ! pnpm run type-check:all; then
+    if ! $PACKAGE_MANAGER run type-check:all; then
         print_error "Type checking failed! Please fix the type errors before continuing."
         exit 1
     fi
@@ -111,16 +132,16 @@ start_dev_mode() {
     # Check if Docker is running
     if command_exists docker; then
         print_status "Starting Docker services..."
-        pnpm run docker:up
+        $PACKAGE_MANAGER run docker:up
     fi
     
     print_success "KRAPI development mode started!"
-    print_status "Backend will run on http://localhost:3470"
-    print_status "Frontend will run on http://localhost:3469"
+    print_status "Backend API: http://localhost:3499"
+    print_status "Frontend UI: http://localhost:3498"
     print_status "Press Ctrl+C to stop all services"
     
-    # Use the unified development script from root package.json
-    pnpm run dev:all
+    # Use the unified development script from root package.json (includes SDK build)
+    $PACKAGE_MANAGER run dev:all
 }
 
 # Function to start production mode
@@ -130,16 +151,16 @@ start_production_mode() {
     # Start Docker services
     if command_exists docker; then
         print_status "Starting Docker services..."
-        pnpm run docker:up
+        $PACKAGE_MANAGER run docker:up
     fi
     
     print_success "KRAPI production mode started!"
-    print_status "Backend will run on http://localhost:3470"
-    print_status "Frontend will run on http://localhost:3469"
+    print_status "Backend API: http://localhost:3499"
+    print_status "Frontend UI: http://localhost:3498"
     print_status "Press Ctrl+C to stop all services"
     
     # Use the unified production script from root package.json (builds and starts)
-    pnpm run start:all
+    $PACKAGE_MANAGER run start:all
 }
 
 # Function to show help
@@ -169,7 +190,7 @@ run_health_checks() {
     print_status "Running comprehensive health checks..."
     
     # Use the unified health check script from root package.json
-    if ! pnpm run health; then
+    if ! $PACKAGE_MANAGER run health; then
         print_error "Health checks failed! Please fix the issues before continuing."
         exit 1
     fi
