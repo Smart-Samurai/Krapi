@@ -17,7 +17,6 @@ import {
 } from "@/components/common";
 import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,

@@ -28,6 +28,12 @@ import { useParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,6 +74,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { FileInfo } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -79,12 +86,6 @@ import {
   deleteFile,
 } from "@/store/storageSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-  EmptyState,
-} from "@/components/common";
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;

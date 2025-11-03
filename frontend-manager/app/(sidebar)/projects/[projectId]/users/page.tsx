@@ -13,6 +13,12 @@ import {
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,12 +60,6 @@ import {
   updateUser,
   deleteUser,
 } from "@/store/usersSlice";
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-  EmptyState,
-} from "@/components/common";
 
 const scopeLabels: Record<ProjectScope, string> = {
   [ProjectScope.READ]: "Read Projects",

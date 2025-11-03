@@ -18,6 +18,12 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,12 +72,6 @@ import {
 } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-  EmptyState,
-} from "@/components/common";
 
 // FieldType is now imported from the SDK
 

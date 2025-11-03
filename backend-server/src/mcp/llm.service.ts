@@ -83,7 +83,12 @@ export class LlmService {
 
     // Format messages for OpenAI-compatible API
     const formattedMessages = messages.map((msg) => {
-      const formatted: any = {
+      const formatted: {
+        role: string;
+        content: string;
+        name?: string;
+        tool_call_id?: string;
+      } = {
         role: msg.role,
         content: msg.content,
       };
@@ -338,7 +343,7 @@ Always use the <tool_call>...</tool_call> tags when calling tools. Otherwise, re
 
   private static buildOllamaPrompt(
     messages: ChatMessage[],
-    tools: ToolSpec[]
+    _tools: ToolSpec[]
   ): string {
     return messages
       .map((msg) => {

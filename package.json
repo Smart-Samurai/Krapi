@@ -2,6 +2,12 @@
   "name": "krapi-monorepo",
   "version": "2.0.0",
   "private": true,
+  "workspaces": [
+    "backend-server",
+    "frontend-manager",
+    "packages/*",
+    "KRAPI-COMPREHENSIVE-TEST-SUITE"
+  ],
   "scripts": {
     "init-env": "node scripts/init-env.js",
     "dev": "npm run dev:with-db",
@@ -24,7 +30,8 @@
     "start:all": "npm run build:all && concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run start:backend\" \"npm run start:frontend\"",
     "start:backend": "cd backend-server && cross-env DB_HOST=localhost DB_NAME=krapi DB_USER=postgres DB_PASSWORD=postgres JWT_SECRET=default-secret-change-this JWT_EXPIRES_IN=7d SESSION_EXPIRES_IN=1h DEFAULT_ADMIN_PASSWORD=admin123 PORT=3470 HOST=localhost NODE_ENV=production npm run start",
     "start:frontend": "cd frontend-manager && npm run start",
-    "install:all": "npm install && cd backend-server && npm install && cd ../frontend-manager && npm install && cd ../packages/krapi-sdk && npm install",
+    "install:all": "npm install",
+    "install:pnpm": "pnpm install",
     "clean": "npm run clean:all",
     "clean:all": "cd backend-server && rmdir /s /q dist node_modules 2>nul & cd ../frontend-manager && rmdir /s /q .next node_modules 2>nul & cd ../packages/krapi-sdk && rmdir /s /q dist node_modules 2>nul & rmdir /s /q node_modules 2>nul",
     "reset": "npm run clean:all && npm run install:all",
@@ -63,6 +70,7 @@
     "better-sqlite3": "^12.4.1",
     "concurrently": "^9.2.0",
     "cross-env": "^10.0.0",
+    "husky": "^9.1.7",
     "typescript": "^5.9.3"
   }
 }

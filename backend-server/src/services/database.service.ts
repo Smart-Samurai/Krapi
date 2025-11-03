@@ -4,10 +4,10 @@ import { ApiKeyScope, FieldType } from "@krapi/sdk";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
+import { DatabaseQueue, QueueMetrics } from "./database-queue.service";
 import { MigrationService } from "./migration.service";
 import { MultiDatabaseManager } from "./multi-database-manager.service";
 import { SQLiteAdapter } from "./sqlite-adapter.service";
-import { DatabaseQueue, QueueMetrics } from "./database-queue.service";
 
 import {
   AdminUser,

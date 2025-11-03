@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 
+import { PageLayout, PageHeader, ActionButton } from "@/components/common";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,7 +29,6 @@ import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
-import { PageLayout, PageHeader, ActionButton } from "@/components/common";
 
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope } = useReduxAuth();

@@ -13,6 +13,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+} from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
@@ -23,15 +28,9 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project } from "@/lib/krapi";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-} from "@/components/common";
 
 export default function ProjectDetailPage() {
   const params = useParams();

@@ -11,6 +11,10 @@ import {
 } from "react-icons/fi";
 import { toast } from "sonner";
 
+import {
+  PageLayout,
+  PageHeader,
+} from "@/components/common";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,11 +33,6 @@ import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Scope } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-} from "@/components/common";
 
 export default function ProfilePage() {
   const { user, scopes, sessionToken } = useReduxAuth();

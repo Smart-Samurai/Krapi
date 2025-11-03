@@ -1,0 +1,5 @@
+packages:
+  - 'backend-server'
+  - 'frontend-manager'
+  - 'packages/*'
+  - 'KRAPI-COMPREHENSIVE-TEST-SUITE'

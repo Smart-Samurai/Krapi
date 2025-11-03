@@ -20,6 +20,12 @@ import {
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 
+import {
+  PageLayout,
+  PageHeader,
+  ActionButton,
+  EmptyState,
+} from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,12 +87,6 @@ import {
 } from "@/store/emailSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-  EmptyState,
-} from "@/components/common";
 
 export default function EmailPage() {
   const params = useParams();
