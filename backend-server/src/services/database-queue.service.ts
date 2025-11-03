@@ -27,12 +27,12 @@ interface QueueItem<T = unknown> {
 }
 
 interface DatabaseConnection {
-  query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[]; rowCount: number }>;
+  query: (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[]; rowCount: number }>;
   connect?: () => Promise<void>;
   end?: () => Promise<void>;
 }
 
-interface QueueMetrics {
+export interface QueueMetrics {
   queueSize: number;
   processingCount: number;
   totalProcessed: number;

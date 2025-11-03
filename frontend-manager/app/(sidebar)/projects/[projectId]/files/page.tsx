@@ -717,8 +717,8 @@ stats = response.json()`}
             </DialogContent>
           </Dialog>
         </div>
-        </>
-      )}
+      }
+      />
 
       {/* Storage Stats */}
       {storageStats && (

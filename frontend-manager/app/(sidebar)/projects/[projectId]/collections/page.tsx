@@ -687,7 +687,8 @@ response = requests.delete(
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      }
+      />
 
       {error && (
         <Alert variant="destructive">

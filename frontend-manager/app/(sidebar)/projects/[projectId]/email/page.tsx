@@ -374,12 +374,12 @@ export default function EmailPage() {
           {[...Array(3)].map(() => {
             const skeletonId = `email-skeleton-${Math.random()}-${Date.now()}`;
             return (
-            <Skeleton
-              key={skeletonId}
-              className="h-32 w-full"
-            />
-          );
-        })}
+              <Skeleton
+                key={skeletonId}
+                className="h-32 w-full"
+              />
+            );
+          })}
         </div>
       </div>
     );
@@ -451,7 +451,8 @@ export default function EmailPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      }
+      />
 
       <Tabs defaultValue="config" className="space-y-6">
         <TabsList>
@@ -589,7 +590,7 @@ export default function EmailPage() {
                 >
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Saving..." : "Save Configuration"}
-                </Button>
+                </ActionButton>
               </div>
             </CardContent>
           </Card>
@@ -1025,9 +1026,6 @@ export default function EmailPage() {
           </Dialog>
         </TabsContent>
       </Tabs>
-        </div>
-        </>
-      )}
     </PageLayout>
   );
 }

@@ -9,10 +9,13 @@ import { BackendSDK } from "@krapi/sdk";
 import { Request, Response, Router } from "express";
 
 
-import { requireScopes } from "../middleware/auth.middleware";
+import { authenticate, requireScopes } from "../middleware/auth.middleware";
 import { Scope } from "../types";
 
 const router = Router({ mergeParams: true });
+
+// Apply authentication middleware to all backup routes
+router.use(authenticate);
 
 // Initialize SDK function - called from app.ts
 let backendSDK: BackendSDK;
@@ -27,8 +30,8 @@ export const initializeBackupSDK = (sdk: BackendSDK) => {
  * Returns: { backup_id, password, created_at }
  */
 router.post(
-  "/:projectId/backup",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP], projectSpecific: true }),
+  "/backup",
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
       const { projectId } = req.params;
@@ -50,7 +53,7 @@ router.post(
       res.json({
         success: true,
         backup_id: backup.id,
-        password: (backup as { password: string }).password,
+        password: password || "",
         created_at: backup.created_at,
         size: backup.size,
         description: backup.description,
@@ -74,8 +77,8 @@ router.post(
  * Returns: { success: true }
  */
 router.post(
-  "/:projectId/restore",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP], projectSpecific: true }),
+  "/restore",
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
       const { projectId } = req.params;
@@ -123,7 +126,7 @@ router.post(
  * Returns: { backups: BackupMetadata[] }
  */
 router.get(
-  "/:projectId/backups",
+  "/backups",
   requireScopes({ scopes: [Scope.PROJECTS_READ], projectSpecific: true }),
   async (req: Request, res: Response) => {
     try {
@@ -174,7 +177,7 @@ router.get(
  */
 router.delete(
   "/backups/:backupId",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP] }),
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE] }),
   async (req: Request, res: Response) => {
     try {
       const { backupId } = req.params;
@@ -212,7 +215,7 @@ router.delete(
  */
 router.post(
   "/backup/system",
-  requireScopes({ scopes: [Scope.PROJECTS_BACKUP] }),
+  requireScopes({ scopes: [Scope.ADMIN_WRITE] }),
   async (req: Request, res: Response) => {
     try {
       const { description, password } = req.body;
@@ -232,7 +235,7 @@ router.post(
       res.json({
         success: true,
         backup_id: backup.id,
-        password: (backup as { password: string }).password,
+        password: password || "",
         created_at: backup.created_at,
         size: backup.size,
         description: backup.description,

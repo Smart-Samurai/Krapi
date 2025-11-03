@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { MigrationService } from "./migration.service";
 import { MultiDatabaseManager } from "./multi-database-manager.service";
 import { SQLiteAdapter } from "./sqlite-adapter.service";
+import { DatabaseQueue, QueueMetrics } from "./database-queue.service";
 
 import {
   AdminUser,
@@ -125,7 +126,7 @@ export class DatabaseService {
       query: async (
         sql: string,
         params?: unknown[]
-      ): Promise<{ rows: unknown[]; rowCount: number }> => {
+      ): Promise<{ rows: Record<string, unknown>[]; rowCount: number }> => {
         // Route based on SQL content
         const dbType = this.determineQueryType(sql);
         if (dbType === "project") {
@@ -218,7 +219,7 @@ export class DatabaseService {
     await this.initializeQueue();
 
     // Enqueue the operation with normal priority
-    return await this.queue.enqueue(async () => {
+    return await this.queue.enqueue(async (_db) => {
       // For backward compatibility, route to main database
       return await this.dbManager.queryMain(sql, params);
     }, 0);
@@ -233,7 +234,7 @@ export class DatabaseService {
     await this.initializeQueue();
 
     // Enqueue the operation with normal priority
-    return await this.queue.enqueue(async () => {
+    return await this.queue.enqueue(async (_db) => {
       return await this.dbManager.queryMain(sql, params);
     }, 0);
   }
@@ -252,7 +253,7 @@ export class DatabaseService {
     await this.initializeQueue();
 
     // Enqueue the operation with normal priority
-    return await this.queue.enqueue(async () => {
+    return await this.queue.enqueue(async (_db) => {
       return await this.dbManager.queryProject(projectId, sql, params);
     }, 0);
   }
@@ -260,7 +261,7 @@ export class DatabaseService {
   /**
    * Get queue metrics for monitoring
    */
-  getQueueMetrics() {
+  getQueueMetrics(): QueueMetrics {
     return this.queue.getMetrics();
   }
 
@@ -514,6 +515,7 @@ export class DatabaseService {
       }
     }
   }
+
 
   private async initializeTables() {
     try {
@@ -6384,6 +6386,26 @@ export class DatabaseService {
 
       // Note: files, changelog are now created in project databases via initializeProjectDatabase()
       // They should NOT be in the main database
+
+      // Backups table (main DB) - CRITICAL for backup functionality
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS backups (
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('project', 'system')),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          size INTEGER NOT NULL,
+          encrypted INTEGER DEFAULT 0,
+          version TEXT DEFAULT '2.0.0',
+          description TEXT,
+          file_path TEXT NOT NULL
+        )
+      `);
+
+      // Create index for backups
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_backups_project ON backups(project_id)
+      `);
 
       await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS migrations (
