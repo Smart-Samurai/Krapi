@@ -53,7 +53,7 @@ Before installing KRAPI, ensure you have the following installed on your system:
 ### Platform-Specific Requirements
 
 - **Linux/macOS**: Bash shell (comes pre-installed)
-- **Windows**: PowerShell 5.1+ or Windows Terminal
+- **Windows**: PowerShell 5.1+ or Windows Terminal (or use `krapi-manager.bat`)
 
 ## ?? Installation
 
@@ -68,14 +68,25 @@ cd krapi
 chmod +x krapi-manager.sh
 ./krapi-manager.sh install
 
-# Initialize environment
-npm run init-env
-
-# Start development server
+# Start development server (includes SDK build)
 ./krapi-manager.sh dev
 ```
 
 ### Quick Start (Windows)
+
+**Option 1: Using Batch File (Recommended)**
+
+Double-click `krapi-manager.bat` or run:
+```cmd
+krapi-manager.bat
+```
+
+For unattended install and launch:
+```cmd
+krapi-manager.bat --unattended
+```
+
+**Option 2: Using PowerShell**
 
 ```powershell
 # Clone the repository
@@ -94,6 +105,8 @@ npm run init-env
 
 ### Manual Installation
 
+#### Using npm
+
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
@@ -102,10 +115,9 @@ npm run init-env
 
 2. **Install dependencies**:
    ```bash
-   npm run install:all
-   # Or use pnpm
-   pnpm run install:all
+   npm install
    ```
+   This installs all dependencies across all workspaces (root, backend-server, frontend-manager, packages/*, and test suite).
 
 3. **Initialize environment**:
    ```bash
@@ -113,26 +125,102 @@ npm run init-env
    ```
    This creates a `.env` file from `env.example` with default values.
 
-4. **Configure your environment**:
-   Edit `.env` file and update:
-   - `JWT_SECRET`: Generate a secure 256-bit secret key
-   - `DEFAULT_ADMIN_PASSWORD`: Change from default
-   - `DB_PASSWORD`: Set a secure database password
-   - Other configuration values as needed
+4. **Build packages and SDK**:
+   ```bash
+   npm run build:packages
+   ```
+   This builds all internal packages including the SDK (`krapi-logger`, `krapi-error-handler`, `krapi-monitor`, and `krapi-sdk`). **Important**: The SDK must be built before the application can run.
 
-5. **Build the application**:
+5. **Build the application** (optional, for production):
    ```bash
    npm run build:all
+   ```
+   This builds all packages, backend, and frontend.
+
+6. **Start the application**:
+   ```bash
+   # Development mode (includes SDK build)
+   npm run dev:all
+
+   # Production mode (builds everything then starts)
+   npm run start:all
+   ```
+
+#### Using pnpm
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd krapi
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pnpm install
+   ```
+   This installs all dependencies across all workspaces using pnpm's efficient workspace management.
+
+3. **Initialize environment**:
+   ```bash
+   npm run init-env
+   ```
+   This creates a `.env` file from `env.example` with default values.
+
+4. **Build packages and SDK**:
+   ```bash
+   npm run build:packages
+   ```
+   Or use pnpm directly:
+   ```bash
+   pnpm run build:packages
+   ```
+   This builds all internal packages including the SDK. **Important**: The SDK must be built before the application can run.
+
+5. **Build the application** (optional, for production):
+   ```bash
+   npm run build:all
+   ```
+   Or:
+   ```bash
+   pnpm run build:all
    ```
 
 6. **Start the application**:
    ```bash
-   # Development mode
-   npm run dev:all
+   # Development mode (includes SDK build)
+   pnpm run dev:all
 
-   # Production mode
-   npm run start:all
+   # Production mode (builds everything then starts)
+   pnpm run start:all
    ```
+
+### Environment Configuration
+
+After installation, configure your environment:
+
+1. **Edit `.env` file** and update:
+   - `JWT_SECRET`: Generate a secure 256-bit secret key (use `openssl rand -hex 32`)
+   - `DEFAULT_ADMIN_PASSWORD`: Change from default `admin`
+   - `DB_PASSWORD`: Set a secure database password (if using PostgreSQL)
+   - Other configuration values as needed
+
+2. **Database Setup**:
+   - **SQLite** (default): No additional setup needed, databases are created automatically
+   - **PostgreSQL**: Ensure Docker is running or configure connection in `.env`
+
+### Installation Commands Summary
+
+**Complete Installation (npm)**:
+```bash
+npm install && npm run init-env && npm run build:packages && npm run dev:all
+```
+
+**Complete Installation (pnpm)**:
+```bash
+pnpm install && npm run init-env && npm run build:packages && pnpm run dev:all
+```
+
+**Note**: The `dev:all` and `start:all` commands automatically build packages (including SDK) before starting, so you don't need to manually run `build:packages` if using those commands.
 
 ## ??? Architecture
 
@@ -216,8 +304,8 @@ npm run type-check   # Run TypeScript checks
 
 Once started, access the application at:
 
-- **Frontend UI**: http://localhost:3469
-- **Backend API**: http://localhost:3470
+- **Frontend UI**: http://localhost:3498
+- **Backend API**: http://localhost:3499
 
 ### Default Admin Account
 
@@ -281,7 +369,8 @@ krapi/
 ?   ??? uploads/             # File uploads
 ?   ??? backups/             # Encrypted backups
 ??? krapi-manager.sh         # Linux/macOS management script
-??? krapi-manager.ps1        # Windows management script
+??? krapi-manager.bat        # Windows batch launcher (recommended)
+??? krapi-manager.ps1        # Windows PowerShell script (alternative)
 ??? env.example              # Environment configuration template
 ??? README.md                # This file
 ```
