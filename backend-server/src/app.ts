@@ -159,14 +159,27 @@ app.use(helmet());
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((origin) =>
   origin.trim()
-) || ["http://localhost:3469"];
+) || [
+  "http://localhost:3469",
+  "http://localhost:3498", // Frontend default port
+  "http://localhost:3000", // Alternative frontend port
+];
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        // In development, allow localhost origins
+        if (process.env.NODE_ENV !== "production" && origin.startsWith("http://localhost:")) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
       }
     },
     credentials: true,
@@ -453,6 +466,20 @@ async function startServer() {
       console.log("? Database initialization completed");
     } else {
       console.log("??  Database initialization had issues:", dbInit.message);
+    }
+
+    // Clean up expired sessions on startup
+    try {
+      const authService = AuthService.getInstance();
+      const cleaned = await authService.cleanupSessions();
+      if (cleaned > 0) {
+        console.log(`🧹 Cleaned up ${cleaned} expired sessions on startup`);
+      }
+      // Also invalidate very old sessions (older than 30 days)
+      const dbService = DatabaseService.getInstance();
+      await dbService.cleanupOldSessions();
+    } catch (error) {
+      console.error("⚠️  Session cleanup on startup failed:", error);
     }
 
     const server = app.listen(PORT, () => {

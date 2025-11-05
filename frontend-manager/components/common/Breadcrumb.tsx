@@ -66,6 +66,9 @@ export function Breadcrumb({ items, homeHref = "/dashboard" }: BreadcrumbProps) 
   }
 
   // Otherwise, auto-generate from pathname
+  if (!pathname) {
+    return null;
+  }
   const pathSegments = pathname.split("/").filter(Boolean);
   
   if (pathSegments.length === 0) {

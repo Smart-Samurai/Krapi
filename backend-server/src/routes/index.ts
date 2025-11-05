@@ -49,6 +49,116 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
 
 // ===== System Routes (SDK-driven) =====
 /**
+ * Health diagnostics endpoint (SDK-compatible)
+ * POST /krapi/k1/health/diagnostics
+ */
+router.post("/health/diagnostics", async (req, res) => {
+  try {
+    if (!backendSDK) {
+      throw new Error("BackendSDK not initialized");
+    }
+
+    // Use HealthService to get diagnostics
+    const diagnostics = await backendSDK.health.runDiagnostics();
+    
+    // Transform HealthDiagnostics to match frontend expectations
+    const tests = [
+      {
+        name: "database",
+        passed: diagnostics.details.database.status === "healthy",
+        message: diagnostics.details.database.message,
+        duration: 0,
+      },
+      {
+        name: "system",
+        passed: diagnostics.details.system.status === "healthy",
+        message: `System status: ${diagnostics.details.system.status}`,
+        duration: 0,
+      },
+      {
+        name: "services",
+        passed: diagnostics.details.services.every(
+          (s: { status: string }) => s.status === "healthy"
+        ),
+        message: `Services: ${
+          diagnostics.details.services.filter(
+            (s: { status: string }) => s.status === "healthy"
+          ).length
+        }/${diagnostics.details.services.length} healthy`,
+        duration: 0,
+      },
+    ];
+
+    const passed = tests.filter((t) => t.passed).length;
+    const failed = tests.filter((t) => !t.passed).length;
+
+    res.json({
+      success: true,
+      data: {
+        tests,
+        summary: {
+          total: tests.length,
+          passed,
+          failed,
+          duration: tests.reduce((sum, t) => sum + t.duration, 0),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Health diagnostics error:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      data: {
+        summary: {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          duration: 0,
+        },
+        tests: [],
+      },
+    });
+  }
+});
+
+/**
+ * Database health check endpoint (SDK-compatible)
+ * GET /krapi/k1/health/database
+ */
+router.get("/health/database", async (req, res) => {
+  try {
+    if (!backendSDK) {
+      throw new Error("BackendSDK not initialized");
+    }
+
+    // Use HealthService to get database health
+    const diagnostics = await backendSDK.health.runDiagnostics();
+    const dbHealth = diagnostics.details.database;
+    
+    res.json({
+      success: true,
+      data: {
+        healthy: dbHealth.status === "healthy",
+        message: dbHealth.message,
+        details: dbHealth as unknown as Record<string, unknown>,
+      },
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Database health check error:", error);
+    res.status(503).json({
+      success: false,
+      error: errorMessage,
+      data: {
+        healthy: false,
+        message: errorMessage,
+      },
+    });
+  }
+});
+
+/**
  * Health check endpoint - uses SDK health management
  * GET /krapi/k1/health
  */
@@ -58,26 +168,31 @@ router.get("/health", async (req, res) => {
       throw new Error("BackendSDK not initialized");
     }
 
-    const health = await backendSDK.performHealthCheck();
-
-    // Get database queue metrics
-    const { DatabaseService } = await import("../services/database.service");
-    const dbService = DatabaseService.getInstance();
-    const queueMetrics = dbService.getQueueMetrics();
+    // Use HealthService to get comprehensive diagnostics
+    const diagnostics = await backendSDK.health.runDiagnostics();
+    
+    // Format response to match SDK's expected format
+    const health = {
+      healthy: diagnostics.success,
+      message: diagnostics.message,
+      details: diagnostics as unknown as Record<string, unknown>,
+      version: "2.0.0",
+    };
 
     res.json({
       success: true,
-      message: "KRAPI Backend is running",
-      version: "2.0.0",
-      timestamp: new Date().toISOString(),
-      database: health,
-      queue: queueMetrics,
+      data: health,
     });
   } catch (error) {
+    console.error("Health check error:", error);
     res.status(503).json({
       success: false,
-      message: "Health check failed",
       error: error instanceof Error ? error.message : "Unknown error",
+      data: {
+        healthy: false,
+        message: error instanceof Error ? error.message : "Health check failed",
+        version: "2.0.0",
+      },
     });
   }
 });
@@ -92,17 +207,26 @@ router.post("/health/repair", async (req, res) => {
       throw new Error("BackendSDK not initialized");
     }
 
-    const repairResult = await backendSDK.autoFixDatabase();
+    // Use DatabaseService directly to repair and create tables
+    const { DatabaseService } = await import("../services/database.service");
+    const dbService = DatabaseService.getInstance();
+    
+    // First, try to create essential tables
+    console.log("Creating essential tables...");
+    const tablesCreated = await dbService.createEssentialTables();
+    
+    // Then run auto-repair to fix any remaining issues
+    console.log("Running auto-repair...");
+    const repairResult = await dbService.autoRepair();
 
     res.json({
-      success: repairResult.success,
-      message:
-        "message" in repairResult
-          ? repairResult.message
-          : "Database repair completed",
-      actions: repairResult,
+      success: repairResult.success && tablesCreated,
+      message: repairResult.message || "Database repair completed",
+      actions: repairResult.repairs || [],
+      tablesCreated: tablesCreated ? "Essential tables created" : "Failed to create tables",
     });
   } catch (error) {
+    console.error("Database repair error:", error);
     res.status(500).json({
       success: false,
       message: "Database repair failed",

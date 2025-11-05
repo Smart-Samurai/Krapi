@@ -66,6 +66,8 @@ export class KrapiMonitor extends EventEmitter {
   private healthCheckInterval?: NodeJS.Timeout;
   private metricsInterval?: NodeJS.Timeout;
   private startTime = Date.now();
+  private lastRecoveryAttempt: Map<string, number> = new Map();
+  private recoveryCooldown = 5 * 60 * 1000; // 5 minutes cooldown between recovery attempts
 
   private constructor(config: Partial<MonitorConfig> = {}) {
     super();
@@ -233,15 +235,20 @@ export class KrapiMonitor extends EventEmitter {
 
   private async checkMemoryHealth(): Promise<void> {
     const memory = process.memoryUsage();
+    // Calculate RSS (Resident Set Size) usage as a percentage of total system memory
+    // This is more accurate than heap usage for overall memory pressure
+    // For now, use a simple check: if RSS is growing, it's a warning, not critical
     const memoryUsagePercent = (memory.heapUsed / memory.heapTotal) * 100;
+    
+    // Only mark as critical if memory usage is very high (>90%) and RSS is also high
+    // This prevents false positives from normal heap usage
+    const isCritical = memoryUsagePercent > 90 && memory.rss > 500 * 1024 * 1024; // >500MB RSS
+    const isWarning = memoryUsagePercent > this.config.alertThresholds.memoryUsage;
 
     const health: HealthCheck = {
       name: "memory",
-      status:
-        memoryUsagePercent > this.config.alertThresholds.memoryUsage
-          ? "critical"
-          : "healthy",
-      message: `Memory usage: ${memoryUsagePercent.toFixed(1)}%`,
+      status: isCritical ? "critical" : isWarning ? "warning" : "healthy",
+      message: `Memory usage: ${memoryUsagePercent.toFixed(1)}% (RSS: ${(memory.rss / 1024 / 1024).toFixed(1)}MB)`,
       timestamp: new Date().toISOString(),
       details: {
         usage: memoryUsagePercent,
@@ -341,14 +348,40 @@ export class KrapiMonitor extends EventEmitter {
   private async attemptAutoRecovery(
     criticalChecks: HealthCheck[]
   ): Promise<void> {
+    const now = Date.now();
+    const checksToRecover: HealthCheck[] = [];
+
+    // Filter out checks that are in cooldown period
+    for (const check of criticalChecks) {
+      const lastAttempt = this.lastRecoveryAttempt.get(check.name) || 0;
+      const timeSinceLastAttempt = now - lastAttempt;
+
+      if (timeSinceLastAttempt >= this.recoveryCooldown) {
+        checksToRecover.push(check);
+      } else {
+        const remainingCooldown = Math.ceil((this.recoveryCooldown - timeSinceLastAttempt) / 1000);
+        this.logger.debug(
+          "monitor",
+          `Skipping auto-recovery for ${check.name} (cooldown: ${remainingCooldown}s remaining)`
+        );
+      }
+    }
+
+    if (checksToRecover.length === 0) {
+      return; // All checks are in cooldown, skip recovery attempt
+    }
+
     this.logger.warn(
       "monitor",
       "Attempting auto-recovery for critical issues",
-      { checks: criticalChecks }
+      { checks: checksToRecover.map(c => c.name) }
     );
 
-    for (const check of criticalChecks) {
+    for (const check of checksToRecover) {
       try {
+        // Record recovery attempt time
+        this.lastRecoveryAttempt.set(check.name, now);
+
         switch (check.name) {
           case "database":
             // Attempt database recovery
@@ -378,8 +411,22 @@ export class KrapiMonitor extends EventEmitter {
 
   private async cleanupMemory(): Promise<void> {
     this.logger.info("monitor", "Attempting memory cleanup");
+    
+    // Only run GC if it's explicitly enabled (Node.js --expose-gc flag)
     if (global.gc) {
-      global.gc();
+      try {
+        global.gc();
+        this.logger.info("monitor", "Memory cleanup completed (GC triggered)");
+      } catch (error) {
+        this.logger.warn("monitor", "GC failed", { error });
+      }
+    } else {
+      // If GC isn't available, log that memory cleanup isn't possible
+      // Don't spam the logs - only log once per recovery attempt
+      this.logger.debug(
+        "monitor",
+        "Memory cleanup skipped - GC not available (run Node with --expose-gc for automatic cleanup)"
+      );
     }
   }
 

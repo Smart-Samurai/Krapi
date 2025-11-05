@@ -39,6 +39,8 @@ export class MultiDatabaseManager {
       path.join(process.cwd(), "data", "krapi_main.db");
     
     // Projects database directory (e.g., data/projects/)
+    // Each project will have its own folder: data/projects/{projectId}/
+    // Inside each project folder: database.db and files/ subfolder
     this.projectsDbDir = projectsDbDir || 
       path.join(process.cwd(), "data", "projects");
 
@@ -93,8 +95,20 @@ export class MultiDatabaseManager {
       this.projectDbs.delete(projectId);
     }
 
-    // Create new connection
-    const dbPath = path.join(this.projectsDbDir, `project_${projectId}.db`);
+    // Create project-specific folder structure: data/projects/{projectId}/
+    const projectFolder = path.join(this.projectsDbDir, projectId);
+    if (!fs.existsSync(projectFolder)) {
+      fs.mkdirSync(projectFolder, { recursive: true });
+    }
+    
+    // Database file inside project folder: data/projects/{projectId}/database.db
+    const dbPath = path.join(projectFolder, "database.db");
+    
+    // Also create files subfolder for project-specific file storage
+    const filesFolder = path.join(projectFolder, "files");
+    if (!fs.existsSync(filesFolder)) {
+      fs.mkdirSync(filesFolder, { recursive: true });
+    }
     
     try {
       const db = new Database(dbPath);
@@ -438,7 +452,21 @@ export class MultiDatabaseManager {
    * Get project database file path (for backup/versioning)
    */
   getProjectDbPath(projectId: string): string {
-    return path.join(this.projectsDbDir, `project_${projectId}.db`);
+    return path.join(this.projectsDbDir, projectId, "database.db");
+  }
+
+  /**
+   * Get project folder path (contains database.db and files/)
+   */
+  getProjectFolderPath(projectId: string): string {
+    return path.join(this.projectsDbDir, projectId);
+  }
+
+  /**
+   * Get project files folder path
+   */
+  getProjectFilesPath(projectId: string): string {
+    return path.join(this.projectsDbDir, projectId, "files");
   }
 
   /**
@@ -459,7 +487,11 @@ export class MultiDatabaseManager {
 
     const files = fs.readdirSync(this.projectsDbDir);
     return files
-      .filter(file => file.startsWith("project_") && file.endsWith(".db"))
-      .map(file => file.replace("project_", "").replace(".db", ""));
+      .filter(file => {
+        const projectPath = path.join(this.projectsDbDir, file);
+        return fs.statSync(projectPath).isDirectory() && 
+               fs.existsSync(path.join(projectPath, "database.db"));
+      })
+      .map(file => file);
   }
 }

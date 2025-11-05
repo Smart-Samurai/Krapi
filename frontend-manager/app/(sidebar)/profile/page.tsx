@@ -35,9 +35,52 @@ import { Scope } from "@/lib/krapi";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 export default function ProfilePage() {
-  const { user, scopes, sessionToken } = useReduxAuth();
+  const { user, scopes, sessionToken, loading: authLoading, isInitialized } = useReduxAuth();
   const krapi = useKrapi();
   const extendedUser = user as ExtendedAdminUser;
+
+  // Show loading state if auth is still initializing
+  if (!isInitialized || authLoading) {
+    return (
+      <PageLayout className="max-w-4xl mx-auto">
+        <PageHeader
+          title="My Profile"
+          description="Manage your account settings and preferences"
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-base text-muted-foreground">
+              Loading profile...
+            </p>
+          </CardContent>
+        </Card>
+      </PageLayout>
+    );
+  }
+
+  // Show error state if no user
+  if (!user) {
+    return (
+      <PageLayout className="max-w-4xl mx-auto">
+        <PageHeader
+          title="My Profile"
+          description="Manage your account settings and preferences"
+        />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <p className="text-base text-destructive">
+                Not authenticated. Please log in.
+              </p>
+              <Button onClick={() => window.location.href = "/login"}>
+                Go to Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </PageLayout>
+    );
+  }
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");

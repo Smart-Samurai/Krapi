@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { DatabaseService } from "./database.service";
+import { MultiDatabaseManager } from "./multi-database-manager.service";
 
 import { FileInfo, StorageStats } from "@/types";
 
@@ -13,9 +14,14 @@ import { FileInfo, StorageStats } from "@/types";
 export class StorageService {
   private static instance: StorageService;
   private db: DatabaseService;
+  private dbManager: MultiDatabaseManager;
 
   private constructor() {
     this.db = DatabaseService.getInstance();
+    // Initialize MultiDatabaseManager to access project folder paths
+    const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
+    const projectsDbDir = process.env.PROJECTS_DB_DIR || undefined;
+    this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
   }
 
   static getInstance(): StorageService {
@@ -29,9 +35,11 @@ export class StorageService {
     file: File | Buffer,
     metadata?: Record<string, unknown>
   ): Promise<FileInfo> {
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), "uploads");
-    await fs.promises.mkdir(uploadsDir, { recursive: true });
+    const projectId = (metadata as { projectId?: string })?.projectId || "default";
+    
+    // Get project-specific files folder: data/projects/{projectId}/files/
+    const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
+    await fs.promises.mkdir(projectFilesPath, { recursive: true });
 
     // Generate unique filename
     const originalName =
@@ -42,7 +50,7 @@ export class StorageService {
     const uniqueFilename = `${Date.now()}-${Math.random()
       .toString(36)
       .substring(2)}${fileExtension}`;
-    const filePath = path.join(uploadsDir, uniqueFilename);
+    const filePath = path.join(projectFilesPath, uniqueFilename);
 
     // Save file to disk
     if (file instanceof Buffer) {
@@ -60,17 +68,19 @@ export class StorageService {
     }
 
     // Create file record in database
+    // Store relative path: files/{filename} (relative to project folder)
+    const relativePath = `files/${uniqueFilename}`;
     const fileRecord = await this.db.createFile({
-      project_id: (metadata as { projectId?: string })?.projectId || "default",
+      project_id: projectId,
       filename: uniqueFilename,
       original_name: originalName,
       mime_type:
         (file as { mimetype?: string })?.mimetype || "application/octet-stream",
       size: (file as { size?: number })?.size || 0,
-      path: "/uploads/",
+      path: relativePath, // Store relative path: files/{filename}
       url: `${
         (metadata as { baseUrl?: string })?.baseUrl || ""
-      }/uploads/${uniqueFilename}`,
+      }/files/${uniqueFilename}`,
       metadata: metadata || {},
       uploaded_by:
         (metadata as { uploadedBy?: string })?.uploadedBy || "system",
@@ -105,13 +115,10 @@ export class StorageService {
       throw new Error("File not found");
     }
 
-    // Read file from filesystem
-    const filePath = path.join(
-      process.cwd(),
-      "uploads",
-      fileRecord.path,
-      fileRecord.filename
-    );
+    // Construct full file path: data/projects/{projectId}/files/{filename}
+    // file.path is stored as relative: files/{filename}
+    const projectFilesPath = this.dbManager.getProjectFilesPath(fileRecord.project_id);
+    const filePath = path.join(projectFilesPath, fileRecord.filename);
 
     try {
       const buffer = await fs.promises.readFile(filePath);

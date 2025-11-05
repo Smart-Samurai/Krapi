@@ -47,9 +47,15 @@ export interface KrapiSocketInterface {
 
     setSessionToken(token: string): void;
 
+    setApiKey(apiKey: string): void;
+
     logout(): Promise<{ success: boolean }>;
 
-    getCurrentUser(): Promise<AdminUser | ProjectUser | null>;
+    getCurrentUser(): Promise<{
+      success: boolean;
+      data?: AdminUser | ProjectUser;
+      error?: string;
+    }>;
 
     refreshSession(): Promise<{
       session_token: string;

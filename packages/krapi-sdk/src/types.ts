@@ -269,27 +269,38 @@ export enum Scope {
   FILES_DELETE = "files:delete",
 }
 
+/**
+ * Project-specific scopes for users within a project
+ * 
+ * NOTE: These scopes are ONLY for managing resources within a SINGLE project.
+ * Global scopes like "projects:read" are reserved for main KRAPI app admin users,
+ * not for project users. Projects are isolated - they cannot see or manage other projects.
+ */
 export enum ProjectScope {
-  READ = "projects:read",
-  WRITE = "projects:write",
-  DELETE = "projects:delete",
-  ADMIN = "projects:admin",
-  // User management scopes
+  // User management scopes (for users within THIS project only)
   USERS_READ = "users:read",
   USERS_WRITE = "users:write",
   USERS_DELETE = "users:delete",
-  // Data management scopes
+  // Data management scopes (collections and documents within THIS project only)
   DATA_READ = "data:read",
   DATA_WRITE = "data:write",
   DATA_DELETE = "data:delete",
-  // File management scopes
+  // File management scopes (files within THIS project only)
   FILES_READ = "files:read",
   FILES_WRITE = "files:write",
   FILES_DELETE = "files:delete",
-  // Function execution scopes
+  // Function execution scopes (functions within THIS project only)
   FUNCTIONS_EXECUTE = "functions:execute",
-  // Email scopes
+  // Email scopes (emails within THIS project only)
   EMAIL_SEND = "email:send",
+  // Collection-specific scopes (within THIS project only)
+  COLLECTIONS_READ = "collections:read",
+  COLLECTIONS_WRITE = "collections:write",
+  COLLECTIONS_DELETE = "collections:delete",
+  // Document-specific scopes (within THIS project only)
+  DOCUMENTS_READ = "documents:read",
+  DOCUMENTS_WRITE = "documents:write",
+  DOCUMENTS_DELETE = "documents:delete",
 }
 
 export interface CreateUserRequest {

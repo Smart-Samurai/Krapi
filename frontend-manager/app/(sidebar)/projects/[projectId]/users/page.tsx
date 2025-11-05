@@ -61,17 +61,19 @@ import {
   deleteUser,
 } from "@/store/usersSlice";
 
-const scopeLabels: Record<ProjectScope, string> = {
-  [ProjectScope.READ]: "Read Projects",
-  [ProjectScope.WRITE]: "Write Projects",
-  [ProjectScope.DELETE]: "Delete Projects",
-  [ProjectScope.ADMIN]: "Admin Projects",
-  [ProjectScope.USERS_READ]: "Read Users",
-  [ProjectScope.USERS_WRITE]: "Write Users",
-  [ProjectScope.USERS_DELETE]: "Delete Users",
-  [ProjectScope.DATA_READ]: "Read Data",
-  [ProjectScope.DATA_WRITE]: "Write Data",
-  [ProjectScope.DATA_DELETE]: "Delete Data",
+// Project-specific scopes only - these are for managing THIS project only
+// Note: Global scopes like "projects:read" are NOT included here as they are
+// reserved for the main KRAPI app admin users, not project users.
+const scopeLabels: Record<string, string> = {
+  [ProjectScope.USERS_READ]: "Read Users (in this project)",
+  [ProjectScope.USERS_WRITE]: "Write Users (in this project)",
+  [ProjectScope.USERS_DELETE]: "Delete Users (in this project)",
+  [ProjectScope.COLLECTIONS_READ]: "Read Collections",
+  [ProjectScope.COLLECTIONS_WRITE]: "Write Collections",
+  [ProjectScope.COLLECTIONS_DELETE]: "Delete Collections",
+  [ProjectScope.DOCUMENTS_READ]: "Read Documents",
+  [ProjectScope.DOCUMENTS_WRITE]: "Write Documents",
+  [ProjectScope.DOCUMENTS_DELETE]: "Delete Documents",
   [ProjectScope.FILES_READ]: "Read Files",
   [ProjectScope.FILES_WRITE]: "Write Files",
   [ProjectScope.FILES_DELETE]: "Delete Files",

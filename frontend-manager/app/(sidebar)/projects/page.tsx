@@ -68,6 +68,17 @@ export default function ProjectsPage() {
   const projectsState = useAppSelector((s) => s.projects);
   const projects = projectsState.items;
   const loading = projectsState.loading;
+  
+  // Debug logging
+  useEffect(() => {
+    console.log("🔍 [PROJECTS DEBUG] Current projects state:", {
+      items: projects,
+      itemsCount: projects.length,
+      loading,
+      error: projectsState.error,
+    });
+  }, [projects, loading, projectsState.error]);
+  
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -88,19 +99,36 @@ export default function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     if (!krapi || !hasScope(Scope.PROJECTS_READ)) {
+      console.log("🔍 [PROJECTS DEBUG] Cannot load projects:", {
+        hasKrapi: !!krapi,
+        hasScope: hasScope(Scope.PROJECTS_READ),
+      });
       return;
     }
 
+    console.log("🔍 [PROJECTS DEBUG] Loading projects...");
     dispatch(beginBusy());
     try {
       // Use Redux thunk with krapi instance
       const action = await dispatch(fetchProjects({ krapi }));
+      console.log("🔍 [PROJECTS DEBUG] Fetch action result:", {
+        fulfilled: fetchProjects.fulfilled.match(action),
+        rejected: fetchProjects.rejected.match(action),
+        payload: action.payload,
+        error: fetchProjects.rejected.match(action) ? (action.payload || (action as any).error?.message) : undefined,
+      });
+      
       if (fetchProjects.fulfilled.match(action)) {
+        console.log("✅ [PROJECTS DEBUG] Projects loaded successfully:", action.payload);
         // Projects are now stored in Redux store
         // No need to set local state
+      } else if (fetchProjects.rejected.match(action)) {
+        const errorMessage = action.payload || action.error?.message || "Unknown error";
+        console.error("❌ [PROJECTS DEBUG] Failed to load projects:", errorMessage);
+        toast.error(`Failed to load projects: ${errorMessage}`);
       }
-    } catch {
-      // Error logged to console for debugging
+    } catch (error) {
+      console.error("❌ [PROJECTS DEBUG] Exception loading projects:", error);
       toast.error("Failed to load projects");
     } finally {
       dispatch(endBusy());
@@ -163,6 +191,8 @@ export default function ProjectsPage() {
       };
       delete sdkData.active;
 
+      console.log("🔍 [PROJECTS DEBUG] Updating project with data:", sdkData);
+
       // Use Redux thunk with krapi instance
       const action = await dispatch(
         updateProjectThunk({
@@ -176,10 +206,15 @@ export default function ProjectsPage() {
         setIsEditDialogOpen(false);
         setSelectedProject(null);
         // Projects are automatically updated in Redux store
+      } else if (updateProjectThunk.rejected.match(action)) {
+        const errorMessage = action.payload || "Unknown error";
+        console.error("❌ [PROJECTS DEBUG] Failed to update project:", errorMessage);
+        toast.error(`Failed to update project: ${errorMessage}`);
       }
-    } catch {
-      // Error logged to console for debugging
-      toast.error("Failed to update project");
+    } catch (error) {
+      console.error("❌ [PROJECTS DEBUG] Exception updating project:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to update project: ${errorMessage}`);
     } finally {
       setIsUpdating(false);
       dispatch(endBusy());
@@ -190,9 +225,14 @@ export default function ProjectsPage() {
     return (
       <PageLayout>
         <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div 
+          className="grid gap-4 w-full max-w-full overflow-x-hidden"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          }}
+        >
           {[...Array(3)].map((_, i) => (
-            <Card key={`projects-skeleton-${i}`}>
+            <Card key={`projects-skeleton-${i}`} className="min-w-0 max-w-full">
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />
@@ -264,38 +304,41 @@ export default function ProjectsPage() {
             />
           </ScopeGuard>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div 
+            className="grid gap-4 w-full max-w-full overflow-x-hidden"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            }}
+          >
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="krapi-card-hover"
+                className="krapi-card-hover min-w-0 max-w-full flex flex-col"
                 onClick={() => router.push(`/projects/${project.id}`)}
               >
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base font-semibold">
+                <CardHeader className="flex-shrink-0 min-w-0">
+                  <div className="flex justify-between items-start gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base font-semibold truncate">
                         {project.name}
                       </CardTitle>
-                      <CardDescription className="text-base">
+                      <CardDescription className="text-base line-clamp-2 text-ellipsis overflow-hidden">
                         {project.description || "No description"}
                       </CardDescription>
                     </div>
                     <Badge
                       variant={project.is_active ? "default" : "secondary"}
+                      className="flex-shrink-0"
                     >
                       {project.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-shrink-0 mt-auto">
                   <ActionButton
                     variant="outline"
                     icon={ArrowRight}
                     className="w-full"
-                    onClick={() => {
-                      router.push(`/projects/${project.id}`);
-                    }}
                   >
                     Enter Project
                   </ActionButton>

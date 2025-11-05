@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { DatabaseService } from "@/services/database.service";
 import { AuthenticatedRequest, ApiResponse } from "@/types";
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
+import { getDefaultCollections } from "@/utils/default-collections";
 
 /**
  * Project Controller
@@ -28,6 +29,66 @@ export class ProjectController {
 
   setBackendSDK(sdk: BackendSDK) {
     this.backendSDK = sdk;
+  }
+
+  /**
+   * Create default collections for a new project
+   * Called automatically after project creation
+   */
+  private async createDefaultCollections(
+    projectId: string,
+    createdBy: string
+  ): Promise<void> {
+    if (!this.backendSDK) {
+      console.warn("BackendSDK not available, cannot create default collections");
+      return;
+    }
+
+    const defaultCollections = getDefaultCollections();
+
+    for (const collectionSchema of defaultCollections) {
+      try {
+        // Check if collection already exists (shouldn't happen for new projects, but safe check)
+        const existing = await this.backendSDK.getCollection(projectId, collectionSchema.name);
+        if (existing) {
+          console.log(
+            `Default collection "${collectionSchema.name}" already exists in project ${projectId}, skipping`
+          );
+          continue;
+        }
+
+        // Create the collection using BackendSDK
+        await this.backendSDK.createCollection(
+          projectId,
+          collectionSchema.name,
+          {
+            description: collectionSchema.description,
+            fields: collectionSchema.fields.map((f) => ({
+              name: f.name,
+              type: f.type as string,
+              required: f.required ?? false,
+              unique: f.unique ?? false,
+              indexed: f.indexed ?? false,
+              default: f.default,
+              description: f.description,
+            })),
+            indexes: collectionSchema.indexes || [],
+          },
+          createdBy
+        );
+
+        console.log(
+          `✅ Created default collection "${collectionSchema.name}" for project ${projectId}`
+        );
+      } catch (error) {
+        // Log error but don't fail project creation if default collection creation fails
+        console.error(
+          `⚠️ Failed to create default collection "${collectionSchema.name}" for project ${projectId}:`,
+          error
+        );
+        // Continue with other default collections
+      }
+    }
   }
 
   /**
@@ -290,6 +351,17 @@ export class ProjectController {
           );
 
           if (project) {
+            // Create default collections for the new project
+            try {
+              await this.createDefaultCollections(project.id, currentUser.id);
+            } catch (collectionsError) {
+              // Log error but don't fail project creation if default collections fail
+              console.error(
+                `⚠️ Failed to create default collections for project ${project.id}:`,
+                collectionsError
+              );
+            }
+
             res.status(201).json({
               success: true,
               data: project,
@@ -403,24 +475,27 @@ export class ProjectController {
       // Use SDK method for updating project (SDK-first architecture)
       if (this.backendSDK) {
         try {
+          console.log("🔍 [PROJECT DEBUG] Updating project:", sanitizedId, "with updates:", updates);
           const project = await this.backendSDK.projects.updateProject(
             sanitizedId,
             updates
           );
 
           if (project) {
+            console.log("✅ [PROJECT DEBUG] Project updated successfully:", project.id);
             res.status(200).json({
               success: true,
               data: project,
             } as ApiResponse);
           } else {
+            console.error("❌ [PROJECT DEBUG] Project not found after update");
             res.status(404).json({
               success: false,
               error: "Project not found",
             } as ApiResponse);
           }
         } catch (sdkError) {
-          console.error("SDK updateProject error:", sdkError);
+          console.error("❌ [PROJECT DEBUG] SDK updateProject error:", sdkError);
           // Fall back to database method if SDK fails
           const project = await this.db.updateProject(projectId, updates);
 

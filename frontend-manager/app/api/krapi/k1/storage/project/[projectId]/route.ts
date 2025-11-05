@@ -9,7 +9,7 @@ const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -21,12 +21,16 @@ export async function GET(
       );
     }
 
-    const response = await fetch(`${backendUrl}/storage/project/${params.projectId}`, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-      },
-    });
+    const resolvedParams = await params;
+    const response = await fetch(
+      `${backendUrl}/storage/project/${resolvedParams.projectId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: authHeader,
+        },
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -38,12 +42,10 @@ export async function GET(
 
     const filesData = await response.json();
     return NextResponse.json(filesData);
-  } catch (error: unknown) {
-    
+  } catch {
     return NextResponse.json(
       { error: "Failed to list files" },
       { status: 500 }
     );
   }
 }
-

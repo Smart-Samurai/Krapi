@@ -31,9 +31,11 @@ import {
   UserRole,
 } from "@/types";
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
+import { getDefaultCollections } from "@/utils/default-collections";
 
 export class DatabaseService {
-  private adapter: SQLiteAdapter; // Keep for backward compatibility during migration
+  private adapter: SQLiteAdapter
+  private isInitializingTables = false;; // Keep for backward compatibility during migration
   private dbManager: MultiDatabaseManager;
   private static instance: DatabaseService;
   private isConnected = false;
@@ -518,6 +520,13 @@ export class DatabaseService {
 
 
   private async initializeTables() {
+    // Prevent recursive calls
+    if (this.isInitializingTables) {
+      console.log("⚠️  Table initialization already in progress, skipping...");
+      return;
+    }
+
+    this.isInitializingTables = true;
     try {
       // Initialize MAIN database tables only
       // Admin Users Table (main DB)
@@ -589,7 +598,10 @@ export class DatabaseService {
         )
       `);
 
-      // Project Users Table (for admin access to projects - main DB)
+      // Project Admins Table (for admin users accessing projects - MAIN DB)
+      // NOTE: This is ONLY for admin users (from main KRAPI app) accessing projects
+      // Projects themselves have their own users in the "users" collection (isolated)
+      // Projects cannot see admin users or other projects - they are self-contained
       await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS project_admins (
           id TEXT PRIMARY KEY,
@@ -655,19 +667,30 @@ export class DatabaseService {
       `);
 
       // Create triggers for updated_at (SQLite doesn't support functions, triggers directly)
+      // Note: better-sqlite3 doesn't support multiple statements in one query
+      // So we must execute DROP and CREATE separately
       const tablesWithUpdatedAt = [
         "admin_users",
         "projects",
         "email_templates",
       ];
       for (const table of tablesWithUpdatedAt) {
+        // Drop trigger if exists (ignore errors if it doesn't exist)
+        try {
+          await this.dbManager.queryMain(
+            `DROP TRIGGER IF EXISTS update_${table}_updated_at`
+          );
+        } catch (error) {
+          // Ignore errors if trigger doesn't exist
+        }
+        
+        // Create trigger (separate query)
         await this.dbManager.queryMain(`
-          DROP TRIGGER IF EXISTS update_${table}_updated_at;
           CREATE TRIGGER update_${table}_updated_at 
           AFTER UPDATE ON ${table}
           BEGIN
             UPDATE ${table} SET updated_at = CURRENT_TIMESTAMP WHERE rowid = NEW.rowid;
-          END;
+          END
         `);
       }
 
@@ -702,62 +725,32 @@ export class DatabaseService {
 
       // SQLite auto-commits, no need for explicit COMMIT
 
-      // Repair database structure if needed
-      await this.repairDatabase();
+      // Don't call repairDatabase here as it can cause infinite loops
+      // Tables are just created, so they should be fine
+      // Repair should only be called explicitly, not during initialization
 
       // Seed default data after tables are created
       await this.seedDefaultData();
+      
+      // Reset initialization flag after successful completion
+      this.isInitializingTables = false;
     } catch (error) {
       // SQLite handles rollback automatically on error
+
+      // Reset initialization flag even on error
+      this.isInitializingTables = false;
 
       // Log more detailed error information
       console.error("Error during table initialization:", error);
 
-      // Check if it's a specific PostgreSQL error
-      if (error instanceof Error && "code" in error) {
-        const pgError = error as Error & { code: string };
-
-        // If it's a "column does not exist" error, it might mean tables are partially created
-        if (pgError.code === "42703") {
-          console.log(
-            "Tables might be partially created. Attempting to drop and recreate..."
-          );
-
-          try {
-            // SQLite doesn't need explicit BEGIN
-
-            // Drop tables in reverse order of dependencies
-            const tablesToDrop = [
-              "audit_logs",
-              "system_checks",
-              "sessions",
-              "documents",
-              "collections",
-              "project_admins",
-              "project_users",
-              "projects",
-              "api_keys",
-              "admin_users",
-            ];
-
-            await this.dbManager.connectMain();
-            for (const table of tablesToDrop) {
-              await this.dbManager.queryMain(`DROP TABLE IF EXISTS ${table}`);
-            }
-
-            // SQLite doesn't have functions, skip function drop
-
-            // SQLite auto-commits
-
-            console.log(
-              "Cleaned up existing tables. Please restart the application."
-            );
-          } catch (cleanupError) {
-            // SQLite handles rollback automatically
-            console.error("Failed to clean up tables:", cleanupError);
-          }
-        }
-      }
+      // Note: Error recovery that drops tables is disabled for data safety
+      // SQLite uses "CREATE TABLE IF NOT EXISTS" which prevents schema conflicts
+      // If schema errors occur, they should be fixed manually or via migrations
+      // We don't auto-delete tables on error to prevent data loss
+      
+      // Log the error for manual investigation
+      console.error("Table initialization error occurred. Data is safe - tables were not dropped.");
+      console.error("If schema changes are needed, use migrations or manual database updates.");
 
       throw error;
     } finally {
@@ -1094,11 +1087,13 @@ export class DatabaseService {
       // Run health check first
       const health = await this.performHealthCheck();
 
-      // Fix missing tables
-      if (!health.checks.tables.status && health.checks.tables.missing) {
+      // Fix missing tables (only if not already initializing)
+      if (!health.checks.tables.status && health.checks.tables.missing && !this.isInitializingTables) {
         console.log("Repairing: Creating missing tables...");
         await this.initializeTables();
         actions.push("Created missing tables");
+      } else if (this.isInitializingTables) {
+        console.log("⚠️  Skipping table creation - already initializing");
       }
 
       // Fix missing columns in existing tables
@@ -1432,6 +1427,7 @@ export class DatabaseService {
       fields.push(`access_level = $${paramCount++}`);
       values.push(data.access_level);
     }
+    // Handle 'active' field (AdminUser type uses 'active', database uses 'is_active')
     if (data.active !== undefined) {
       fields.push(`is_active = $${paramCount++}`);
       values.push(data.active ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
@@ -1580,13 +1576,16 @@ export class DatabaseService {
       // Just ensure it exists for future queries
       await this.dbManager.getProjectDb(projectId);
 
+      // Create default collections for the new project
+      await this.createDefaultCollections(projectId, data.created_by);
+
       // Query back the inserted row (SQLite doesn't support RETURNING *)
       const rows = await this.dbManager.queryMain(
         `SELECT * FROM projects WHERE id = $1`,
         [projectId]
       );
 
-      return this.mapProject(rows[0]);
+      return this.mapProject(rows.rows[0] as unknown as Record<string, unknown>);
     } catch (error) {
       console.error("Failed to create project:", error);
       // Check if it's a schema issue (missing column)
@@ -1677,7 +1676,12 @@ export class DatabaseService {
         updates.push(`project_url = $${paramCount++}`);
         values.push(data.project_url);
       }
-      if (data.active !== undefined) {
+      // Handle both 'active' and 'is_active' fields (normalize to is_active)
+      // Priority: is_active > active (is_active is the canonical field name)
+      if (data.is_active !== undefined) {
+        updates.push(`is_active = $${paramCount++}`);
+        values.push(data.is_active ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
+      } else if (data.active !== undefined) {
         updates.push(`is_active = $${paramCount++}`);
         values.push(data.active ? 1 : 0); // SQLite uses INTEGER 1/0 for booleans
       }
@@ -1711,9 +1715,10 @@ export class DatabaseService {
 
   async deleteProject(id: string): Promise<boolean> {
     try {
-      // Delete project-specific data from project database
+      await this.ensureReady();
+
       if (this.dbManager.projectDbExists(id)) {
-        // Delete from project database
+        // Delete all project-specific data from project DB
         await this.dbManager.queryProject(id, "DELETE FROM documents", []);
         await this.dbManager.queryProject(id, "DELETE FROM collections", []);
         await this.dbManager.queryProject(id, "DELETE FROM project_users", []);
@@ -1721,18 +1726,29 @@ export class DatabaseService {
         await this.dbManager.queryProject(id, "DELETE FROM changelog", []);
         await this.dbManager.queryProject(id, "DELETE FROM api_keys", []);
         
-        // Close and delete project database file
+        // Close project database connection
         await this.dbManager.closeProjectDb(id);
-        const projectDbPath = this.dbManager.getProjectDbPath(id);
+        
+        // Delete entire project folder (database.db + files/)
+        const projectFolderPath = this.dbManager.getProjectFolderPath(id);
         const fs = await import("fs/promises");
         try {
-          await fs.unlink(projectDbPath);
-        } catch {
-          // Ignore if file doesn't exist
+          // Delete entire project folder recursively
+          await fs.rm(projectFolderPath, { recursive: true, force: true });
+          console.log(`✅ Deleted project folder: ${projectFolderPath}`);
+        } catch (error) {
+          console.error(`⚠️ Error deleting project folder ${projectFolderPath}:`, error);
+          // Try to delete just the database file as fallback
+          try {
+            const projectDbPath = this.dbManager.getProjectDbPath(id);
+            await fs.unlink(projectDbPath);
+          } catch {
+            // Ignore if file doesn't exist
+          }
         }
       }
 
-      // Delete project metadata from main database
+      // Delete project metadata from main DB
       const result = await this.dbManager.queryMain(
         "DELETE FROM projects WHERE id = $1",
         [id]
@@ -1795,6 +1811,8 @@ export class DatabaseService {
   }
 
   // Project User Methods
+  // NOTE: Project users are stored in the "users" collection, NOT in project_users table
+  // Projects are isolated - they cannot see admin users or other projects
   async createProjectUser(
     projectId: string,
     userData: {
@@ -1809,33 +1827,59 @@ export class DatabaseService {
   ): Promise<BackendProjectUser> {
     await this.ensureReady();
 
-    // Hash the password (stored in project_users table schema)
-    await bcrypt.hash(userData.password, 10);
+    // Hash the password before storing
+    const passwordHash = await bcrypt.hash(userData.password, 10);
 
-    // Project users are stored in project-specific databases
-    const userId = uuidv4();
-    await this.dbManager.queryProject(
+    // Generate unique user ID
+    const userUniqueId = uuidv4();
+    const now = new Date().toISOString();
+
+    // Create user as a document in the "users" collection
+    // The users collection is automatically created for every project
+    const userDocument = {
+      username: userData.username,
+      user_unique_id: userUniqueId,
+      password: passwordHash, // Store hashed password
+      email: userData.email || null,
+      phone: userData.phone || null,
+      confirmation_state: userData.is_verified ? "confirmed" : "not_confirmed",
+      address: null,
+      name: null,
+      last_name: null,
+      created_at: now,
+      updated_at: now,
+      // Additional metadata
+      role: userData.role || "user",
+      is_active: true,
+      login_count: 0,
+    };
+
+    // Create the user document in the users collection
+    const document = await this.createDocument(
       projectId,
-      `INSERT INTO project_users (id, project_id, user_id, email, role, permissions) 
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        userId,
-        projectId,
-        userId, // user_id same as id
-        userData.email,
-        userData.role || "user",
-        JSON.stringify(userData.scopes || []),
-      ]
+      "users",
+      userDocument,
+      "system"
     );
 
-    // Query back the inserted row
-    const result = await this.dbManager.queryProject(
-      projectId,
-      "SELECT * FROM project_users WHERE id = $1",
-      [userId]
-    );
-
-    return this.mapProjectUser(result.rows[0]);
+    // Map document to BackendProjectUser format
+    const userDataFromDoc = document.data as Record<string, unknown>;
+    return {
+      id: document.id,
+      project_id: projectId,
+      username: userData.username,
+      email: userData.email,
+      phone: userData.phone,
+      is_verified: userData.is_verified || false,
+      scopes: userData.scopes || [],
+      password: passwordHash, // Return hashed password
+      permissions: [],
+      created_at: now,
+      updated_at: now,
+      status: "active",
+      is_active: true,
+      login_count: 0,
+    };
   }
 
   async getProjectUser(
@@ -2155,6 +2199,61 @@ export class DatabaseService {
 
       // Re-throw other errors
       throw error;
+    }
+  }
+
+  /**
+   * Create default collections for a new project
+   * Called automatically when a project is created
+   */
+  private async createDefaultCollections(
+    projectId: string,
+    createdBy: string
+  ): Promise<void> {
+    try {
+      const defaultCollections = getDefaultCollections();
+
+      for (const collectionSchema of defaultCollections) {
+        try {
+          // Check if collection already exists (shouldn't happen for new projects, but safe check)
+          const existing = await this.getCollection(projectId, collectionSchema.name);
+          if (existing) {
+            console.log(
+              `Default collection "${collectionSchema.name}" already exists in project ${projectId}, skipping`
+            );
+            continue;
+          }
+
+          // Create the collection
+          await this.createCollection(
+            projectId,
+            collectionSchema.name,
+            {
+              description: collectionSchema.description,
+              fields: collectionSchema.fields,
+              indexes: collectionSchema.indexes || [],
+            },
+            createdBy
+          );
+
+          console.log(
+            `✅ Created default collection "${collectionSchema.name}" for project ${projectId}`
+          );
+        } catch (error) {
+          // Log error but don't fail project creation if default collection creation fails
+          console.error(
+            `⚠️ Failed to create default collection "${collectionSchema.name}" for project ${projectId}:`,
+            error
+          );
+          // Continue with other default collections
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail project creation
+      console.error(
+        `⚠️ Failed to create default collections for project ${projectId}:`,
+        error
+      );
     }
   }
 
@@ -3010,10 +3109,35 @@ export class DatabaseService {
 
   async cleanupExpiredSessions(): Promise<number> {
     const result = await this.dbManager.queryMain(
-      "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP OR is_active = 0"
+      "UPDATE sessions SET is_active = 0 WHERE expires_at < CURRENT_TIMESTAMP AND is_active = 1"
     );
 
     return result.rowCount ?? 0;
+  }
+
+  /**
+   * Clean up very old sessions (older than 30 days)
+   * This is useful for cleaning up sessions from old development runs
+   */
+  async cleanupOldSessions(): Promise<number> {
+    try {
+      // Invalidate sessions older than 30 days
+      const result = await this.dbManager.queryMain(
+        `UPDATE sessions 
+         SET is_active = 0 
+         WHERE created_at < datetime('now', '-30 days') 
+         AND is_active = 1`
+      );
+
+      const cleaned = result.rowCount ?? 0;
+      if (cleaned > 0) {
+        console.log(`🧹 Invalidated ${cleaned} old sessions (older than 30 days)`);
+      }
+      return cleaned;
+    } catch (error) {
+      console.error("Failed to cleanup old sessions:", error);
+      return 0;
+    }
   }
 
   // Changelog Methods (changelog is stored in project-specific databases)

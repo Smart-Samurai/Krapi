@@ -1,7 +1,7 @@
 /* eslint-env node */
 
-// Register module aliases
-require('module-alias/register');
+// Path aliases are resolved at build time by tsc-alias
+// No runtime module alias registration needed
 
 // Start the application
 require('./dist/app.js');

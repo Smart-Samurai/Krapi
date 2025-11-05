@@ -44,7 +44,7 @@ export default function SidebarGroupLayout({
           <SidebarTrigger className="-ml-1" />
           <h1 className="text-base font-semibold">{pageTitle}</h1>
         </header>
-        <main className="flex flex-1 flex-col p-6">
+        <main className="flex flex-1 flex-col p-6 w-full max-w-full overflow-x-hidden min-w-0">
           {children}
         </main>
       </SidebarInset>

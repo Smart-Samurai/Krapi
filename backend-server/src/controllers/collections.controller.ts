@@ -151,6 +151,15 @@ export class CollectionsController {
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { name, fields, description, indexes } = req.body;
 
+      console.log("🔍 [COLLECTIONS DEBUG] Creating collection with data:", {
+        projectId: sanitizedId,
+        name,
+        fieldsCount: fields?.length,
+        fields: fields,
+        description,
+        indexes,
+      });
+
       // Validate collection data before creating
       const validationErrors = [];
 
@@ -183,6 +192,7 @@ export class CollectionsController {
 
       // If there are validation errors, return them
       if (validationErrors.length > 0) {
+        console.error("❌ [COLLECTIONS DEBUG] Validation errors:", validationErrors);
         return res.status(400).json({
           success: false,
           error: "Validation failed",

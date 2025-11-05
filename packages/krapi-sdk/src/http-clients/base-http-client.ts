@@ -43,12 +43,18 @@ export class BaseHttpClient {
     });
 
     // Add request interceptor for authentication
+    // Use a closure to always read the latest token values
     this.httpClient.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
+        // Always read from instance properties to get the latest values
         if (this.sessionToken) {
           config.headers.Authorization = `Bearer ${this.sessionToken}`;
+          // Remove API key header if session token is set
+          delete config.headers["X-API-Key"];
         } else if (this.apiKey) {
           config.headers["X-API-Key"] = this.apiKey;
+          // Remove Authorization header if API key is set
+          delete config.headers.Authorization;
         }
         return config;
       }
@@ -85,11 +91,25 @@ export class BaseHttpClient {
   setSessionToken(token: string) {
     this.sessionToken = token;
     delete this.apiKey;
+    // Update axios instance if it exists
+    // The interceptor will read from this.sessionToken, so we don't need to update defaults
+    // But we'll update them anyway for consistency
+    if (this.httpClient) {
+      this.httpClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      delete this.httpClient.defaults.headers.common["X-API-Key"];
+    }
   }
 
   setApiKey(key: string) {
     this.apiKey = key;
     delete this.sessionToken;
+    // Update axios instance if it exists
+    // The interceptor will read from this.apiKey, so we don't need to update defaults
+    // But we'll update them anyway for consistency
+    if (this.httpClient) {
+      this.httpClient.defaults.headers.common["X-API-Key"] = key;
+      delete this.httpClient.defaults.headers.common["Authorization"];
+    }
   }
 
   clearAuth() {

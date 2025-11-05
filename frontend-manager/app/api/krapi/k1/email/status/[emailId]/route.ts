@@ -9,7 +9,7 @@ const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { emailId: string } }
+  { params }: { params: Promise<{ emailId: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -21,7 +21,8 @@ export async function GET(
       );
     }
 
-    const response = await fetch(`${backendUrl}/email/status/${params.emailId}`, {
+    const resolvedParams = await params;
+    const response = await fetch(`${backendUrl}/email/status/${resolvedParams.emailId}`, {
       method: "GET",
       headers: {
         Authorization: authHeader,

@@ -214,52 +214,40 @@ export class HealthService {
       await this.db.query("SELECT 1");
       const queryTime = Date.now() - startTime;
 
-      // Check critical tables
+      // Check critical tables (only main database tables)
+      // Note: collections, documents, files, changelog, email_templates are project-specific
+      // and are created in project databases, not the main database
       const criticalTables = [
         "admin_users",
         "projects",
-        "collections",
-        "documents",
         "sessions",
         "api_keys",
-        "changelog",
-        "email_templates",
-        "files",
       ];
 
       const tableHealth: TableHealthStatus[] = [];
       for (const table of criticalTables) {
         try {
-          const existsResult = await this.db.query(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)",
-            [table]
-          );
-
-          const exists = (existsResult.rows[0] as { exists: boolean }).exists;
+          // SQLite compatible table existence check
+          // SQLite doesn't have information_schema, use PRAGMA table_list or try/catch
+          let exists = false;
           let rowCount = 0;
           let size = "0 KB";
 
-          if (exists) {
-            try {
-              const countResult = await this.db.query(
-                `SELECT COUNT(*) FROM ${table}`
-              );
-              rowCount = parseInt(
-                (countResult.rows[0] as { count: string }).count
-              );
-
-              // Get table size (PostgreSQL specific)
-              const sizeResult = await this.db.query(
-                `SELECT pg_size_pretty(pg_total_relation_size($1)) as size`,
-                [table]
-              );
-              size = (sizeResult.rows[0] as { size: string }).size;
-            } catch (error) {
-              this.logger.warn(
-                `Could not get stats for table ${table}:`,
-                error
-              );
-            }
+          try {
+            // Try to query the table - if it exists, this will succeed
+            const countResult = await this.db.query(
+              `SELECT COUNT(*) as count FROM ${table}`
+            );
+            exists = true;
+            rowCount = parseInt(
+              String((countResult.rows[0] as { count: number | string }).count)
+            );
+            size = `${rowCount} rows`; // SQLite doesn't have pg_size_pretty
+          } catch (error) {
+            // Table doesn't exist or query failed
+            exists = false;
+            rowCount = 0;
+            size = "0 KB";
           }
 
           tableHealth.push({

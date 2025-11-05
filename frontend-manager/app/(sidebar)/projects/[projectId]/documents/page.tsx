@@ -329,8 +329,8 @@ export default function DocumentsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {currentCollection?.fields?.map((field: CollectionField) => (
-                  <div key={field.name}>
+                {currentCollection?.fields?.map((field: CollectionField, index: number) => (
+                  <div key={`create-doc-field-${field.name}-${index}`}>
                     <Label htmlFor={field.name}>
                       {field.name}
                       {field.required && (
@@ -351,6 +351,10 @@ export default function DocumentsPage() {
                       }
                       placeholder={`Enter ${field.name}`}
                       required={field.required}
+                      onBlur={(e) => {
+                        // Prevent modal from refocusing when input loses focus
+                        e.stopPropagation();
+                      }}
                     />
                   </div>
                 ))}
@@ -785,8 +789,8 @@ search_results = response.json()`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {currentCollection?.fields?.map((field: CollectionField) => (
-              <div key={field.name}>
+            {currentCollection?.fields?.map((field: CollectionField, index: number) => (
+              <div key={`edit-doc-field-${field.name}-${index}`}>
                 <Label htmlFor={`edit-${field.name}`}>
                   {field.name}
                   {field.required && (
@@ -810,6 +814,10 @@ search_results = response.json()`}
                   }
                   placeholder={`Enter ${field.name}`}
                   required={field.required}
+                  onBlur={(e) => {
+                    // Prevent modal from refocusing when input loses focus
+                    e.stopPropagation();
+                  }}
                 />
               </div>
             ))}

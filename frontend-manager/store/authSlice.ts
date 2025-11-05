@@ -49,7 +49,7 @@ export const initializeAuth = createAsyncThunk(
     const storedApiKey = localStorage.getItem("api_key");
 
     if (storedToken) {
-      krapi.setSessionToken(storedToken);
+      krapi.auth.setSessionToken(storedToken);
       // Validate session
       try {
         const response = await krapi.auth.getCurrentUser();
@@ -85,7 +85,7 @@ export const initializeAuth = createAsyncThunk(
         return { user: null, scopes: [], sessionToken: null };
       }
     } else if (storedApiKey) {
-      krapi.setApiKey(storedApiKey);
+      krapi.auth.setApiKey(storedApiKey);
       // Validate API key
       try {
         const response = await krapi.auth.adminApiLogin(storedApiKey);
@@ -179,7 +179,7 @@ export const validateApiKey = createAsyncThunk(
         localStorage.setItem("session_token", response.data.session_token);
         setCookie("session_token", response.data.session_token);
         localStorage.setItem("user_scopes", JSON.stringify(userScopes));
-        krapi.setSessionToken(response.data.session_token);
+        krapi.auth.setSessionToken(response.data.session_token);
 
         return {
           user: response.data.user,
@@ -211,19 +211,34 @@ export const login = createAsyncThunk(
     const { sessionToken } = state.auth;
 
     if (sessionToken) {
-      krapi.setSessionToken(sessionToken);
+      krapi.auth.setSessionToken(sessionToken);
     }
 
     const response = await krapi.auth.adminLogin({ username, password });
+    
+    // Log the full response for debugging
+    console.log("🔍 Login response:", JSON.stringify(response, null, 2));
+    
     if (response.success && response.data) {
-      const userScopes = response.data.user.scopes || [];
+      const userScopes = response.data.user?.scopes || response.data.scopes || [];
+
+      // Validate required fields
+      if (!response.data.session_token) {
+        console.error("❌ Missing session_token in response:", response);
+        throw new Error(`Login failed: Missing session token. Response: ${JSON.stringify(response)}`);
+      }
+      
+      if (!response.data.user) {
+        console.error("❌ Missing user in response:", response);
+        throw new Error(`Login failed: Missing user data. Response: ${JSON.stringify(response)}`);
+      }
 
       // Store in both localStorage and cookies
       localStorage.setItem("session_token", response.data.session_token);
       setCookie("session_token", response.data.session_token);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
-      krapi.setSessionToken(response.data.session_token);
+      krapi.auth.setSessionToken(response.data.session_token);
 
       return {
         user: response.data.user,
@@ -231,7 +246,9 @@ export const login = createAsyncThunk(
         sessionToken: response.data.session_token,
       };
     } else {
-      throw new Error("Login failed");
+      const errorMsg = response.error || "Unknown error";
+      console.error("❌ Login failed:", response);
+      throw new Error(`Login failed: ${errorMsg}. Response: ${JSON.stringify(response)}`);
     }
   }
 );
@@ -246,7 +263,7 @@ export const loginWithApiKey = createAsyncThunk(
     const { sessionToken } = state.auth;
 
     if (sessionToken) {
-      krapi.setSessionToken(sessionToken);
+      krapi.auth.setSessionToken(sessionToken);
     }
 
     const response = await krapi.auth.adminApiLogin(apiKey);
@@ -259,7 +276,7 @@ export const loginWithApiKey = createAsyncThunk(
       localStorage.setItem("api_key", apiKey);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
-      krapi.setSessionToken(response.data.session_token);
+      krapi.auth.setSessionToken(response.data.session_token);
 
       return {
         user: response.data.user,
@@ -280,7 +297,7 @@ export const logout = createAsyncThunk(
     const { sessionToken } = state.auth;
 
     if (sessionToken) {
-      krapi.setSessionToken(sessionToken);
+      krapi.auth.setSessionToken(sessionToken);
     }
 
     try {

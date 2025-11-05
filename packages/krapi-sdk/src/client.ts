@@ -248,9 +248,24 @@ export class KrapiClient {
       },
       list: async (projectId) => {
         const result = await collectionsClient.getProjectCollections(projectId);
+        // Handle different response formats
+        if (result && typeof result === "object") {
+          if ("collections" in result && Array.isArray(result.collections)) {
+            return {
+              success: true,
+              data: result.collections,
+            } as ApiResponse<unknown[]>;
+          }
+          if ("data" in result && Array.isArray(result.data)) {
+            return {
+              success: true,
+              data: result.data,
+            } as ApiResponse<unknown[]>;
+          }
+        }
         return {
           success: true,
-          data: result.data || [],
+          data: [],
         } as ApiResponse<unknown[]>;
       },
       get: async (projectId, collectionName) => {

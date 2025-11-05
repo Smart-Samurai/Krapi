@@ -335,10 +335,18 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 
     const userScopes = authReq.user.scopes || [];
 
+    console.log(
+      `🔍 [SCOPE DEBUG] Checking scopes. User scopes: [${userScopes.join(", ")}], Required: [${requirement.scopes.map(s => s.toString()).join(", ")}]`
+    );
+
     // Master scope bypasses all checks
-    if (userScopes.includes(Scope.MASTER)) {
-      next();
-      return;
+    // Check both enum value and string value
+    const masterScopeString = Scope.MASTER.toString();
+    if (userScopes.includes(Scope.MASTER) || userScopes.includes("master") || userScopes.includes(masterScopeString)) {
+      console.log(
+        `✅ [SCOPE DEBUG] MASTER scope detected (${masterScopeString}) - bypassing all checks and calling next()`
+      );
+      return next();
     }
 
     // Check if project-specific scope is required
@@ -372,37 +380,33 @@ export const requireScopes = (requirement: ScopeRequirement) => {
     if (requirement.requireAll) {
       // All scopes required
       hasAccess = requirement.scopes.every((scope) =>
-        userScopes.includes(scope)
+        userScopes.includes(scope.toString())
       );
     } else {
       // Any scope is sufficient
       hasAccess = requirement.scopes.some((scope) =>
-        userScopes.includes(scope)
+        userScopes.includes(scope.toString())
       );
     }
 
     if (!hasAccess) {
       console.log(
-        `🔍 [SCOPE DEBUG] Access denied. Required: ${requirement.scopes.join(
-          ", "
-        )}, User has: ${userScopes.join(", ")}`
+        `🔍 [SCOPE DEBUG] Access denied. Required: [${requirement.scopes.map(s => s.toString()).join(", ")}], User has: [${userScopes.join(", ")}]`
       );
       res.status(403).json({
         success: false,
         error: "Insufficient permissions",
-        required_scopes: requirement.scopes,
+        required_scopes: requirement.scopes.map(s => s.toString()),
         user_scopes: userScopes,
       });
       return;
     }
 
     console.log(
-      `✅ [SCOPE DEBUG] Access granted for scopes: ${requirement.scopes.join(
-        ", "
-      )}`
+      `✅ [SCOPE DEBUG] Access granted for scopes: [${requirement.scopes.map(s => s.toString()).join(", ")}] - calling next()`
     );
 
-    next();
+    return next();
   };
 };
 

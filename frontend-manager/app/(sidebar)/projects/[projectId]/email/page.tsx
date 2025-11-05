@@ -712,7 +712,7 @@ export default function EmailPage() {
                     <div className="space-y-2">
                       {templateForm.variables.map((variable, index) => (
                         <div
-                          key={`email-variable-${variable}`}
+                          key={`email-variable-${index}`}
                           className="flex items-center gap-2"
                         >
                           <Input
@@ -721,6 +721,10 @@ export default function EmailPage() {
                               updateVariable(index, e.target.value)
                             }
                             placeholder="variable_name"
+                            onBlur={(e) => {
+                              // Prevent modal from refocusing when input loses focus
+                              e.stopPropagation();
+                            }}
                           />
                           <Button
                             type="button"
@@ -980,7 +984,7 @@ export default function EmailPage() {
                   <div className="space-y-2">
                     {templateForm.variables.map((variable, index) => (
                       <div
-                        key={`email-edit-variable-${variable}`}
+                        key={`email-edit-variable-${index}`}
                         className="flex items-center gap-2"
                       >
                         <Input
@@ -989,6 +993,10 @@ export default function EmailPage() {
                             updateVariable(index, e.target.value)
                           }
                           placeholder="variable_name"
+                          onBlur={(e) => {
+                            // Prevent modal from refocusing when input loses focus
+                            e.stopPropagation();
+                          }}
                         />
                         <Button
                           type="button"

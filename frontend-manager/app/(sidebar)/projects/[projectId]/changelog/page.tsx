@@ -53,7 +53,11 @@ interface ChangelogEntry {
 
 export default function ProjectChangelogPage() {
   const params = useParams();
-  const projectId = params.projectId as string;
+  const projectId = params?.projectId as string;
+  
+  if (!projectId) {
+    return <div>Project ID is required</div>;
+  }
   const { toast } = useToast();
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);

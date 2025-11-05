@@ -9,7 +9,7 @@ interface PageLayoutProps {
 
 export function PageLayout({ children, className = "" }: PageLayoutProps) {
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={`w-full max-w-full overflow-x-hidden space-y-6 ${className}`}>
       {children}
     </div>
   );

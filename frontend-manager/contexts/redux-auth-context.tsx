@@ -41,25 +41,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const [sdkInitialized, setSdkInitialized] = useState(false);
 
   const { user, loading, error, sessionToken, apiKey, scopes, isInitialized } =
     useAppSelector((state) => state.auth);
 
-  // Initialize auth on mount
+  // Initialize SDK in client mode on mount
   useEffect(() => {
-    if (!isInitialized) {
+    if (!sdkInitialized) {
+      const initSdk = async () => {
+        try {
+          const endpoint = process.env.NEXT_PUBLIC_API_URL?.replace('/krapi/k1', '') || 'http://localhost:3470';
+          await krapi.connect({
+            endpoint: endpoint,
+          });
+          console.log("✅ KRAPI SDK initialized in client mode");
+          setSdkInitialized(true);
+        } catch (error) {
+          console.error("❌ Failed to initialize KRAPI SDK:", error);
+          setSdkInitialized(true); // Set to true anyway to prevent infinite retries
+        }
+      };
+      initSdk();
+    }
+  }, [sdkInitialized]);
+
+  // Initialize auth on mount (after SDK is initialized)
+  useEffect(() => {
+    if (!isInitialized && sdkInitialized) {
       dispatch(initializeAuth({ krapi }));
     }
-  }, [dispatch, isInitialized]);
+  }, [dispatch, isInitialized, sdkInitialized]);
 
   // Update krapi client when session token changes
   useEffect(() => {
-    if (sessionToken) {
-      // Note: setSessionToken method not available in current SDK
-    } else if (apiKey) {
-      // Note: setApiKey method not available in current SDK
+    if (sessionToken && sdkInitialized) {
+      krapi.auth.setSessionToken(sessionToken);
+    } else if (apiKey && sdkInitialized) {
+      krapi.auth.setApiKey(apiKey);
     }
-  }, [sessionToken, apiKey]);
+  }, [sessionToken, apiKey, sdkInitialized]);
 
   // Handle auth errors and redirect
   const handleAuthError = useCallback(

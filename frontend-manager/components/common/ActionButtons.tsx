@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import React, { ReactNode, cloneElement, isValidElement } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -53,6 +53,35 @@ export function ActionButton({
     variant === "delete" ? "destructive" : 
     variant === "edit" ? "secondary" : "default";
 
+  // When asChild is true, Slot requires exactly one child
+  // If we have an icon, we need to add it to the children element
+  let buttonContent: ReactNode;
+  
+  if (asChild && Icon && isValidElement(children)) {
+    // Clone the children and prepend the icon to its children
+    const childElement = children as React.ReactElement<any>;
+    const existingChildren = childElement.props?.children ?? null;
+    buttonContent = cloneElement(childElement, {
+      children: (
+        <>
+          <Icon className="h-4 w-4" />
+          {existingChildren}
+        </>
+      ),
+    });
+  } else if (asChild) {
+    // No icon, just pass children as-is
+    buttonContent = children;
+  } else {
+    // Normal mode: icon and children as siblings
+    buttonContent = (
+      <>
+        {Icon && <Icon className="h-4 w-4" />}
+        {children}
+      </>
+    );
+  }
+
   return (
     <Button
       variant={buttonVariant}
@@ -62,8 +91,7 @@ export function ActionButton({
       disabled={disabled}
       asChild={asChild}
     >
-      {Icon && <Icon className="h-4 w-4" />}
-      {children}
+      {buttonContent}
     </Button>
   );
 }

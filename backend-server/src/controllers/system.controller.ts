@@ -122,17 +122,48 @@ export class SystemController {
       }
 
       if (updates.security) {
-        if (updates.security.session_timeout) {
-          process.env.SESSION_TIMEOUT =
-            updates.security.session_timeout.toString();
+        if (updates.security.session_timeout !== undefined) {
+          const timeout = typeof updates.security.session_timeout === 'string'
+            ? parseInt(updates.security.session_timeout, 10)
+            : updates.security.session_timeout;
+          if (!isNaN(timeout)) {
+            process.env.SESSION_TIMEOUT = timeout.toString();
+          }
         }
-        if (updates.security.passwordMinLength) {
-          process.env.PASSWORD_MIN_LENGTH =
-            updates.security.passwordMinLength.toString();
+        if (updates.security.passwordMinLength !== undefined) {
+          const minLength = typeof updates.security.passwordMinLength === 'string'
+            ? parseInt(updates.security.passwordMinLength, 10)
+            : updates.security.passwordMinLength;
+          if (!isNaN(minLength)) {
+            process.env.PASSWORD_MIN_LENGTH = minLength.toString();
+          }
         }
-        if (updates.security.max_login_attempts) {
-          process.env.MAX_LOGIN_ATTEMPTS =
-            updates.security.max_login_attempts.toString();
+        if (updates.security.max_login_attempts !== undefined) {
+          const maxAttempts = typeof updates.security.max_login_attempts === 'string'
+            ? parseInt(updates.security.max_login_attempts, 10)
+            : updates.security.max_login_attempts;
+          if (!isNaN(maxAttempts)) {
+            process.env.MAX_LOGIN_ATTEMPTS = maxAttempts.toString();
+          }
+        }
+      }
+
+      if (updates.rate_limiting) {
+        if (updates.rate_limiting.requests_per_minute !== undefined) {
+          const rpm = typeof updates.rate_limiting.requests_per_minute === 'string'
+            ? parseInt(updates.rate_limiting.requests_per_minute, 10)
+            : updates.rate_limiting.requests_per_minute;
+          if (!isNaN(rpm)) {
+            process.env.RATE_LIMIT_PER_MINUTE = rpm.toString();
+          }
+        }
+        if (updates.rate_limiting.requests_per_hour !== undefined) {
+          const rph = typeof updates.rate_limiting.requests_per_hour === 'string'
+            ? parseInt(updates.rate_limiting.requests_per_hour, 10)
+            : updates.rate_limiting.requests_per_hour;
+          if (!isNaN(rph)) {
+            process.env.RATE_LIMIT_PER_HOUR = rph.toString();
+          }
         }
       }
 
@@ -140,8 +171,13 @@ export class SystemController {
         if (updates.email.smtpHost) {
           process.env.SMTP_HOST = updates.email.smtpHost;
         }
-        if (updates.email.smtpPort) {
-          process.env.SMTP_PORT = updates.email.smtpPort.toString();
+        if (updates.email.smtpPort !== undefined) {
+          const port = typeof updates.email.smtpPort === 'string'
+            ? parseInt(updates.email.smtpPort, 10)
+            : updates.email.smtpPort;
+          if (!isNaN(port)) {
+            process.env.SMTP_PORT = port.toString();
+          }
         }
         if (updates.email.smtpUsername) {
           process.env.SMTP_USERNAME = updates.email.smtpUsername;
@@ -158,13 +194,41 @@ export class SystemController {
       }
 
       if (updates.database) {
-        if (updates.database.connectionPoolSize) {
-          process.env.DB_POOL_SIZE =
-            updates.database.connectionPoolSize.toString();
+        if (updates.database.connectionPoolSize !== undefined) {
+          // Coerce to number if it's a string
+          const poolSize = typeof updates.database.connectionPoolSize === 'string' 
+            ? parseInt(updates.database.connectionPoolSize, 10)
+            : updates.database.connectionPoolSize;
+          if (!isNaN(poolSize)) {
+            process.env.DB_POOL_SIZE = poolSize.toString();
+          }
         }
-        if (updates.database.queryTimeout) {
-          process.env.DB_QUERY_TIMEOUT =
-            updates.database.queryTimeout.toString();
+        if (updates.database.queryTimeout !== undefined) {
+          // Coerce to number if it's a string
+          const timeout = typeof updates.database.queryTimeout === 'string'
+            ? parseInt(updates.database.queryTimeout, 10)
+            : updates.database.queryTimeout;
+          if (!isNaN(timeout)) {
+            process.env.DB_QUERY_TIMEOUT = timeout.toString();
+          }
+        }
+        if (updates.database.max_connections !== undefined) {
+          // Coerce to number if it's a string
+          const maxConn = typeof updates.database.max_connections === 'string'
+            ? parseInt(updates.database.max_connections, 10)
+            : updates.database.max_connections;
+          if (!isNaN(maxConn)) {
+            process.env.DB_MAX_CONNECTIONS = maxConn.toString();
+          }
+        }
+        if (updates.database.backupRetentionDays !== undefined) {
+          // Coerce to number if it's a string
+          const retention = typeof updates.database.backupRetentionDays === 'string'
+            ? parseInt(updates.database.backupRetentionDays, 10)
+            : updates.database.backupRetentionDays;
+          if (!isNaN(retention)) {
+            process.env.DB_BACKUP_RETENTION = retention.toString();
+          }
         }
       }
 

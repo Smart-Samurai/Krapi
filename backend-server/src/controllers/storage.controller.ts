@@ -6,36 +6,37 @@ import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 
 import { DatabaseService } from "@/services/database.service";
+import { MultiDatabaseManager } from "@/services/multi-database-manager.service";
 import { AuthenticatedRequest, ApiResponse, FileRecord } from "@/types";
 
 export class StorageController {
   private db: DatabaseService;
-  private uploadPath: string;
+  private dbManager: MultiDatabaseManager;
   private maxFileSize: number;
 
   constructor() {
     this.db = DatabaseService.getInstance();
-    this.uploadPath = process.env.UPLOAD_PATH || "./data/uploads";
+    // Get MultiDatabaseManager instance to access project folder paths
+    const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
+    const projectsDbDir = process.env.PROJECTS_DB_DIR || undefined;
+    this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
     this.maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "52428800"); // 50MB default
-
-    // Ensure upload directory exists
-    if (!fs.existsSync(this.uploadPath)) {
-      fs.mkdirSync(this.uploadPath, { recursive: true });
-    }
   }
 
   // Configure multer for file uploads
+  // Files are now stored in: data/projects/{projectId}/files/
   private getMulterConfig(projectId: string) {
-    const projectPath = path.join(this.uploadPath, projectId);
+    // Get project-specific files folder: data/projects/{projectId}/files/
+    const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
 
-    // Ensure project directory exists
-    if (!fs.existsSync(projectPath)) {
-      fs.mkdirSync(projectPath, { recursive: true });
+    // Ensure project files directory exists
+    if (!fs.existsSync(projectFilesPath)) {
+      fs.mkdirSync(projectFilesPath, { recursive: true });
     }
 
     const storage = multer.diskStorage({
       destination: (req, file, cb) => {
-        cb(null, projectPath);
+        cb(null, projectFilesPath);
       },
       filename: (req, file, cb) => {
         const uniqueId = uuidv4();
@@ -121,13 +122,15 @@ export class StorageController {
         }
 
         // Create file record
+        // Store relative path: files/{filename} (relative to project folder)
+        const relativePath = `files/${req.file.filename}`;
         const fileRecord = await this.db.createFile({
           project_id: projectId,
           filename: req.file.filename,
           original_name: req.file.originalname,
           mime_type: req.file.mimetype,
           size: req.file.size,
-          path: req.file.path,
+          path: relativePath, // Store relative path: files/{filename}
           url: `/files/${req.file.filename}`, // Generate a URL for the file
           uploaded_by: authReq.user?.id || authReq.session?.user_id || "system",
           created_at: new Date().toISOString(),
@@ -261,8 +264,12 @@ export class StorageController {
         return;
       }
 
-      // Check if file exists on disk
-      if (!fs.existsSync(file.path)) {
+      // Construct full file path: data/projects/{projectId}/files/{filename}
+      // file.path is stored as relative: files/{filename}
+      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
+      const filePath = path.join(projectFilesPath, file.filename);
+
+      if (!fs.existsSync(filePath)) {
         res.status(404).json({
           success: false,
           error: "File not found on disk",
@@ -279,7 +286,7 @@ export class StorageController {
       );
 
       // Stream file
-      const fileStream = fs.createReadStream(file.path);
+      const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {
       console.error("Download file error:", error);
@@ -307,9 +314,14 @@ export class StorageController {
         return;
       }
 
+      // Construct full file path: data/projects/{projectId}/files/{filename}
+      // file.path is stored as relative: files/{filename}
+      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
+      const filePath = path.join(projectFilesPath, file.filename);
+
       // Delete file from disk
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
       }
 
       // Delete file record

@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
@@ -77,10 +78,16 @@ export default function ProjectSettingsPage() {
 
   useEffect(() => {
     if (project) {
+      // Handle both 'is_active' and 'active' fields (backend may return either)
+      // Priority: is_active > active (is_active is the canonical field name)
+      const isActive = (project as { is_active?: boolean; active?: boolean }).is_active ?? 
+                      (project as { is_active?: boolean; active?: boolean }).active ?? 
+                      true;
+      
       form.reset({
         name: project.name,
         description: project.description || "",
-        is_active: project.is_active,
+        is_active: isActive,
       });
     }
   }, [project, form]);
@@ -134,11 +141,18 @@ export default function ProjectSettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-bold">Project Settings</h1>
-          <p className="text-muted-foreground">
-            Manage settings for this project
-          </p>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild className="cursor-pointer">
+            <Link href={`/projects/${projectId}`}>
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-base font-bold">Project Settings</h1>
+            <p className="text-muted-foreground">
+              Manage settings for this project
+            </p>
+          </div>
         </div>
       </div>
 

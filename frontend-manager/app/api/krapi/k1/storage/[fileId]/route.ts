@@ -9,7 +9,7 @@ const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const authHeader = request.headers.get("authorization");
@@ -21,7 +21,8 @@ export async function DELETE(
       );
     }
 
-    const response = await fetch(`${backendUrl}/storage/${params.fileId}`, {
+    const resolvedParams = await params;
+    const response = await fetch(`${backendUrl}/storage/${resolvedParams.fileId}`, {
       method: "DELETE",
       headers: {
         Authorization: authHeader,

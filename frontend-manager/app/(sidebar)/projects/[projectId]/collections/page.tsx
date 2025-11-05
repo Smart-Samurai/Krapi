@@ -13,6 +13,8 @@ import {
   Code2,
   BookOpen,
   Link as LinkIcon,
+  ArrowRight,
+  Eye,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
@@ -163,7 +165,7 @@ export default function CollectionsPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    fields: [] as CollectionField[],
+    fields: [] as Array<CollectionField & { _tempId?: string }>,
   });
 
   const loadCollections = useCallback(() => {
@@ -176,14 +178,69 @@ export default function CollectionsPage() {
 
   const handleCreateCollection = async () => {
     try {
+      // Validate fields before submitting
+      const validFields = formData.fields.filter((field) => {
+        // Remove empty fields and fields without valid names
+        if (!field.name || field.name.trim() === "") {
+          return false;
+        }
+        // Validate field name format (must start with letter/underscore, contain only alphanumeric/underscore)
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field.name.trim())) {
+          toast.error(
+            `Invalid field name: "${field.name}". Field names must start with a letter or underscore and contain only letters, numbers, and underscores.`
+          );
+          return false;
+        }
+        return true;
+      });
+
+      if (validFields.length === 0) {
+        toast.error("Please add at least one field with a valid name");
+        return;
+      }
+
+      // Validate collection name format
+      if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(formData.name.trim())) {
+        toast.error(
+          "Collection name must start with a letter and contain only letters, numbers, and underscores."
+        );
+        return;
+      }
+
       dispatch(beginBusy());
+      
+      // Clean up fields: remove _tempId and ensure all required properties are present
+      const cleanedFields: CollectionField[] = validFields.map((field) => {
+        const { _tempId, ...cleanField } = field;
+        
+        // Ensure type is set (should always be FieldType enum)
+        if (!cleanField.type) {
+          console.error("⚠️ [COLLECTIONS DEBUG] Field missing type:", cleanField);
+          throw new Error(`Field "${cleanField.name}" is missing a type`);
+        }
+        
+        return {
+          name: cleanField.name.trim(),
+          type: cleanField.type, // Keep as FieldType enum (serializes to string automatically)
+          required: cleanField.required ?? false,
+          unique: cleanField.unique ?? false,
+          indexed: cleanField.indexed ?? false,
+        };
+      });
+
+      console.log("🔍 [COLLECTIONS DEBUG] Creating collection with data:", {
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        fields: cleanedFields,
+      });
+
       const action = await dispatch(
         createCollection({
           projectId,
           data: {
-            name: formData.name,
-            description: formData.description,
-            fields: formData.fields,
+            name: formData.name.trim(),
+            description: formData.description.trim() || undefined,
+            fields: cleanedFields,
           },
           krapi,
         })
@@ -197,11 +254,15 @@ export default function CollectionsPage() {
         const msg =
           (action as { payload?: string }).payload ||
           "Failed to create collection";
+        console.error("❌ [COLLECTIONS DEBUG] Create collection failed:", msg);
         setError(String(msg));
+        toast.error(`Failed to create collection: ${msg}`);
       }
-    } catch {
+    } catch (error) {
       // Error logged for debugging
-      setError("Failed to create collection");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setError(errorMessage);
+      toast.error(`Failed to create collection: ${errorMessage}`);
     } finally {
       dispatch(endBusy());
     }
@@ -284,6 +345,7 @@ export default function CollectionsPage() {
           required: false,
           unique: false,
           indexed: false,
+          _tempId: `field-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         },
       ],
     }));
@@ -305,10 +367,15 @@ export default function CollectionsPage() {
 
   const openEditDialog = (collection: Collection) => {
     setEditingCollection(collection);
+    // Add temp IDs to existing fields to prevent remounting issues
+    const fieldsWithIds = (collection.fields || []).map((field) => ({
+      ...field,
+      _tempId: `edit-field-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    }));
     setFormData({
       name: collection.name,
       description: collection.description || "",
-      fields: collection.fields || [],
+      fields: fieldsWithIds,
     });
     setIsEditDialogOpen(true);
   };
@@ -394,9 +461,11 @@ export default function CollectionsPage() {
                   <div className="space-y-3">
                     {formData.fields.map((field, _index) => {
                       const _Icon = fieldTypeIcons[field.type] || Type;
+                      // Use stable key based on temp ID or index to prevent remounting on name change
+                      const fieldKey = field._tempId || `field-${_index}`;
                       return (
                         <div
-                          key={`collections-field-${field.name || "unnamed"}-${field.type}`}
+                          key={fieldKey}
                           className="flex items-center gap-2 p-3 border "
                         >
                           <div className="flex-1 grid grid-cols-2 gap-2">
@@ -406,6 +475,10 @@ export default function CollectionsPage() {
                               onChange={(e) =>
                                 updateField(_index, { name: e.target.value })
                               }
+                              onBlur={(e) => {
+                                // Prevent modal from refocusing when input loses focus
+                                e.stopPropagation();
+                              }}
                             />
                             <Select
                               value={field.type}
@@ -438,7 +511,7 @@ export default function CollectionsPage() {
                           <div className="flex items-center gap-1">
                             <Button
                               type="button"
-                              variant="outline"
+                              variant={field.required ? "default" : "outline"}
                               size="sm"
                               onClick={() =>
                                 updateField(_index, {
@@ -447,38 +520,38 @@ export default function CollectionsPage() {
                               }
                               className={
                                 field.required
-                                  ? "bg-primary text-primary-foreground"
-                                  : ""
+                                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  : "hover:bg-muted"
                               }
                             >
                               Required
                             </Button>
                             <Button
                               type="button"
-                              variant="outline"
+                              variant={field.unique ? "default" : "outline"}
                               size="sm"
                               onClick={() =>
                                 updateField(_index, { unique: !field.unique })
                               }
                               className={
                                 field.unique
-                                  ? "bg-primary text-primary-foreground"
-                                  : ""
+                                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  : "hover:bg-muted"
                               }
                             >
                               Unique
                             </Button>
                             <Button
                               type="button"
-                              variant="outline"
+                              variant={field.indexed ? "default" : "outline"}
                               size="sm"
                               onClick={() =>
                                 updateField(_index, { indexed: !field.indexed })
                               }
                               className={
                                 field.indexed
-                                  ? "bg-primary text-primary-foreground"
-                                  : ""
+                                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  : "hover:bg-muted"
                               }
                             >
                               Indexed
@@ -713,40 +786,54 @@ response = requests.delete(
             <Card key={collection.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Database className="h-5 w-5" />
-                      {collection.name}
-                    </CardTitle>
-                    {collection.description && (
-                      <CardDescription>
-                        {collection.description}
-                      </CardDescription>
-                    )}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Database className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <CardTitle 
+                          className="cursor-pointer hover:text-primary transition-colors flex-1 min-w-0 truncate"
+                          onClick={() =>
+                            router.push(
+                              `/projects/${projectId}/collections/${collection.name}/documents`
+                            )
+                          }
+                          title="Click to view documents"
+                        >
+                          {collection.name}
+                        </CardTitle>
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <ActionButton
+                            variant="outline"
+                            size="sm"
+                            icon={Edit}
+                            onClick={() => openEditDialog(collection)}
+                          >
+                            Edit
+                          </ActionButton>
+                        </span>
+                      </div>
+                      {collection.description && (
+                        <CardDescription className="mt-1">
+                          {collection.description}
+                        </CardDescription>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Badge variant="outline">
                       {collection.fields?.length || 0} fields
                     </Badge>
                     <ActionButton
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      icon={Edit}
-                      onClick={() => openEditDialog(collection)}
-                    >
-                      Edit
-                    </ActionButton>
-                    <ActionButton
-                      variant="outline"
-                      size="sm"
-                      icon={FileText}
+                      icon={ArrowRight}
                       onClick={() =>
                         router.push(
                           `/projects/${projectId}/collections/${collection.name}/documents`
                         )
                       }
                     >
-                      Documents
+                      View
                     </ActionButton>
                     <ActionButton
                       variant="delete"
@@ -861,11 +948,11 @@ response = requests.delete(
               <div className="space-y-3">
                 {formData.fields.map((field, _index) => {
                   const _Icon = fieldTypeIcons[field.type] || Type;
+                  // Use stable key based on temp ID or index to prevent remounting on name change
+                  const fieldKey = field._tempId || `edit-field-${_index}`;
                   return (
                     <div
-                      key={`collections-edit-field-${
-                        field.name || "unnamed"
-                      }-${Date.now()}`}
+                      key={fieldKey}
                       className="flex items-center gap-2 p-3 border "
                     >
                       <div className="flex-1 grid grid-cols-2 gap-2">
@@ -875,6 +962,10 @@ response = requests.delete(
                           onChange={(e) =>
                             updateField(_index, { name: e.target.value })
                           }
+                          onBlur={(e) => {
+                            // Prevent modal from refocusing when input loses focus
+                            e.stopPropagation();
+                          }}
                         />
                         <Select
                           value={field.type}
@@ -906,45 +997,45 @@ response = requests.delete(
                       <div className="flex items-center gap-1">
                         <Button
                           type="button"
-                          variant="outline"
+                          variant={field.required ? "default" : "outline"}
                           size="sm"
                           onClick={() =>
                             updateField(_index, { required: !field.required })
                           }
                           className={
                             field.required
-                              ? "bg-primary text-primary-foreground"
-                              : ""
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "hover:bg-muted"
                           }
                         >
                           Required
                         </Button>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant={field.unique ? "default" : "outline"}
                           size="sm"
                           onClick={() =>
                             updateField(_index, { unique: !field.unique })
                           }
                           className={
                             field.unique
-                              ? "bg-primary text-primary-foreground"
-                              : ""
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "hover:bg-muted"
                           }
                         >
                           Unique
                         </Button>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant={field.indexed ? "default" : "outline"}
                           size="sm"
                           onClick={() =>
                             updateField(_index, { indexed: !field.indexed })
                           }
                           className={
                             field.indexed
-                              ? "bg-primary text-primary-foreground"
-                              : ""
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "hover:bg-muted"
                           }
                         >
                           Indexed

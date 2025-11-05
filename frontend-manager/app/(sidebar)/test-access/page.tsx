@@ -103,9 +103,9 @@ export default function TestAccessPage() {
     cleanup: false,
   });
 
-  // Note: These methods will be implemented when available in the SDK
+  // Check project access and refresh test projects list
   const checkProjectAccess = async () => {
-    // Placeholder for now
+    await loadTestProjects();
   };
 
   const checkCollectionAccess = async () => {
@@ -239,24 +239,51 @@ export default function TestAccessPage() {
   };
 
   const createTestProject = async () => {
-    if (!krapi) return;
+    if (!krapi) {
+      console.error("❌ [TESTING DEBUG] krapi instance not available");
+      toast.error("KRAPI instance not initialized");
+      return;
+    }
 
     try {
+      console.log("🔍 [TESTING DEBUG] Starting test project creation");
       setRunning((prev) => ({ ...prev, testProject: true }));
       const response = await krapi.testing.createTestProject();
+      console.log("🔍 [TESTING DEBUG] Response received:", response);
 
       if (response) {
+        console.log("✅ [TESTING DEBUG] Test project created successfully");
         toast.success("Test project created successfully");
         // Refresh projects list
         await checkProjectAccess();
       } else {
-        toast.error("Failed to create test project");
+        console.error("❌ [TESTING DEBUG] Response was null/undefined");
+        toast.error("Failed to create test project: No response received");
       }
-    } catch {
-      // Error logged for debugging
-      toast.error("Failed to create test project");
+    } catch (error) {
+      console.error("❌ [TESTING DEBUG] Error creating test project:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to create test project: ${errorMessage}`);
     } finally {
       setRunning((prev) => ({ ...prev, testProject: false }));
+    }
+  };
+
+  const deleteTestProject = async (projectId: string) => {
+    if (!krapi) return;
+
+    try {
+      setRunning((prev) => ({ ...prev, cleanup: true }));
+      await krapi.testing.deleteTestProject(projectId);
+      toast.success("Test project deleted successfully");
+      // Refresh test projects list
+      await loadTestProjects();
+    } catch (error) {
+      console.error("❌ [TESTING DEBUG] Error deleting test project:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to delete test project: ${errorMessage}`);
+    } finally {
+      setRunning((prev) => ({ ...prev, cleanup: false }));
     }
   };
 
@@ -269,15 +296,15 @@ export default function TestAccessPage() {
 
       if (response) {
         toast.success("Test data cleanup completed");
-        // Refresh data
-        await checkProjectAccess();
+        // Refresh test projects list
+        await loadTestProjects();
         await checkCollectionAccess();
         await checkDocumentAccess();
       } else {
         toast.error("Failed to cleanup test data");
       }
-    } catch {
-      // Error logged for debugging
+    } catch (error) {
+      console.error("❌ [TESTING DEBUG] Error cleaning up test data:", error);
       toast.error("Test data cleanup failed");
     } finally {
       setRunning((prev) => ({ ...prev, cleanup: false }));
@@ -290,16 +317,35 @@ export default function TestAccessPage() {
     try {
       const response = await krapi.projects.getAll();
       if (Array.isArray(response)) {
-        // Filter test projects (those with "test" in the name)
+        // Filter test projects (those with "test" in the name/description OR settings.isTestProject flag)
         const testProjects = (response as unknown as Project[]).filter(
-          (p: Project) =>
-            p.name.toLowerCase().includes("test") ||
-            p.description?.toLowerCase().includes("test")
+          (p: Project) => {
+            const settings = p.settings as { isTestProject?: boolean } | undefined;
+            return (
+              settings?.isTestProject === true ||
+              p.name.toLowerCase().includes("test") ||
+              p.description?.toLowerCase().includes("test")
+            );
+          }
         );
         setTestProjects(testProjects as unknown as Project[]);
+      } else if (response && typeof response === "object" && "data" in response) {
+        // Handle ApiResponse format
+        const projects = (response as { data: Project[] }).data;
+        if (Array.isArray(projects)) {
+          const testProjects = projects.filter((p: Project) => {
+            const settings = p.settings as { isTestProject?: boolean } | undefined;
+            return (
+              settings?.isTestProject === true ||
+              p.name.toLowerCase().includes("test") ||
+              p.description?.toLowerCase().includes("test")
+            );
+          });
+          setTestProjects(testProjects);
+        }
       }
-    } catch {
-      // Error logged for debugging
+    } catch (error) {
+      console.error("❌ [TESTING DEBUG] Error loading test projects:", error);
     }
   }, [krapi]);
 
@@ -795,7 +841,7 @@ export default function TestAccessPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => cleanupTestData()}
+                            onClick={() => deleteTestProject(project.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

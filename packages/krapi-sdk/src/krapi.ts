@@ -281,6 +281,210 @@ class KrapiWrapper implements KrapiSocketInterface {
     },
 
     /**
+     * Admin login (alias for login, returns wrapped response format)
+     * Used by frontend for login flow
+     */
+    adminLogin: async (credentials: {
+      username: string;
+      password: string;
+      remember_me?: boolean;
+    }): Promise<{
+      success: boolean;
+      data?: {
+        session_token: string;
+        expires_at: string;
+        user: AdminUser | ProjectUser;
+        scopes: string[];
+      };
+      error?: string;
+    }> => {
+      try {
+        // Use login method directly by calling it via the wrapper context
+        if (this.mode === "client") {
+          if (!this.authHttpClient) {
+            return {
+              success: false,
+              error: "HTTP client not initialized",
+            };
+          }
+          const response = await this.authHttpClient.adminLogin({
+            username: credentials.username,
+            password: credentials.password,
+            remember_me: credentials.remember_me,
+          });
+          
+          // Log raw response for debugging
+          console.log("🔍 Raw HTTP client response:", JSON.stringify(response, null, 2));
+          
+          // Response is already unwrapped by axios interceptor, so it's ApiResponse<LoginResponse>
+          // Backend returns: { success: true, data: { user: {...}, token: "...", session_token: "...", expires_at: "..." } }
+          if (!response) {
+            return {
+              success: false,
+              error: "No response from admin login",
+            };
+          }
+          
+          // Handle error response
+          if ("success" in response && response.success === false) {
+            return {
+              success: false,
+              error: (response as { error?: string }).error || "Login failed",
+            };
+          }
+          
+          // Extract data from ApiResponse structure
+          // Backend returns { success: true, data: { user, token, session_token, expires_at } }
+          let loginData: { token?: string; session_token?: string; user?: unknown; expires_at?: string; scopes?: string[] };
+          
+          if ("data" in response && response.data) {
+            // It's ApiResponse<LoginResponse>, extract the data
+            loginData = response.data as typeof loginData;
+            console.log("🔍 Extracted loginData from response.data:", JSON.stringify(loginData, null, 2));
+          } else if ("token" in response || "user" in response) {
+            // It's LoginResponse directly (shouldn't happen with axios interceptor, but handle it)
+            loginData = response as typeof loginData;
+            console.log("🔍 Using response directly as loginData:", JSON.stringify(loginData, null, 2));
+          } else {
+            console.error("❌ Login response structure unexpected:", JSON.stringify(response, null, 2));
+            return {
+              success: false,
+              error: "Invalid login response format - unexpected structure",
+            };
+          }
+          
+          // Check if loginData has the required fields
+          if (!loginData || (!loginData.token && !loginData.session_token) || !loginData.user) {
+            console.error("❌ Login response missing fields:", {
+              hasLoginData: !!loginData,
+              hasToken: !!loginData?.token,
+              hasSessionToken: !!loginData?.session_token,
+              hasUser: !!loginData?.user,
+              loginData: JSON.stringify(loginData, null, 2),
+              response: JSON.stringify(response, null, 2)
+            });
+            return {
+              success: false,
+              error: `Invalid login response format. Missing: ${!loginData?.token && !loginData?.session_token ? 'token ' : ''}${!loginData?.user ? 'user' : ''}`,
+            };
+          }
+          
+          // Extract scopes from user object if not directly in loginData
+          const scopes = loginData.scopes || 
+                        (loginData.user as { scopes?: string[] })?.scopes || 
+                        [];
+          
+          // Convert auth service types to expected types
+          const result = {
+            success: true,
+            data: {
+              session_token: loginData.token || loginData.session_token || "",
+              expires_at: loginData.expires_at || "",
+              user: loginData.user as unknown as AdminUser | ProjectUser,
+              scopes: scopes,
+            },
+          };
+          
+          console.log("✅ Login successful, returning:", JSON.stringify(result, null, 2));
+          return result;
+        } else {
+          const result = await this.authService?.authenticateAdmin({
+            username: credentials.username,
+            password: credentials.password,
+            remember_me: credentials.remember_me,
+          });
+          if (!result) {
+            return {
+              success: false,
+              error: "No result from authenticate admin",
+            };
+          }
+          // Convert auth service types to expected types
+          return {
+            success: true,
+            data: {
+              session_token: result.token,
+              expires_at: result.expires_at,
+              user: result.user as unknown as AdminUser | ProjectUser,
+              scopes: result.scopes,
+            },
+          };
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Login failed",
+        };
+      }
+    },
+
+    /**
+     * Admin API login (login using API key)
+     * Used by frontend for API key authentication
+     */
+    adminApiLogin: async (apiKey: string | { api_key?: string }): Promise<{
+      success: boolean;
+      data?: {
+        user: AdminUser & { scopes: string[] };
+        session_token: string;
+        expires_at: string;
+      };
+      error?: string;
+    }> => {
+      if (this.mode === "client") {
+        if (!this.authHttpClient) {
+          return {
+            success: false,
+            error: "HTTP client not initialized",
+          };
+        }
+        try {
+          // Handle both string and object format, ensure api_key is present
+          const apiKeyValue = typeof apiKey === "string" ? apiKey : apiKey.api_key;
+          if (!apiKeyValue) {
+            return {
+              success: false,
+              error: "API key is required",
+            };
+          }
+          const request = { api_key: apiKeyValue };
+          
+          const response = await this.authHttpClient.adminApiLogin(request);
+          if (response.data && response.data.user) {
+            // ApiKeyAuthResponse has token, user, expires_at, scopes
+            const userData = response.data.user;
+            const scopes = response.data.scopes || [];
+            return {
+              success: true,
+              data: {
+                user: {
+                  ...userData,
+                  scopes: scopes,
+                } as AdminUser & { scopes: string[] },
+                session_token: response.data.token,
+                expires_at: response.data.expires_at,
+              },
+            };
+          }
+          return {
+            success: false,
+            error: "No data in response",
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "API key login failed",
+          };
+        }
+      } else {
+        return {
+          success: false,
+          error: "adminApiLogin not available in server mode",
+        };
+      }
+    },
+
+    /**
      * Register a new user
      */
     register: async (registerData: {
@@ -326,7 +530,11 @@ class KrapiWrapper implements KrapiSocketInterface {
         if (
           !this.authHttpClient ||
           !this.projectsHttpClient ||
-          !this.collectionsHttpClient
+          !this.collectionsHttpClient ||
+          !this.storageHttpClient ||
+          !this.systemHttpClient ||
+          !this.healthHttpClient ||
+          !this.testingHttpClient
         ) {
           throw new Error(
             "HTTP clients not initialized. Please ensure you're in client mode."
@@ -335,6 +543,42 @@ class KrapiWrapper implements KrapiSocketInterface {
         this.authHttpClient.setSessionToken(token);
         this.projectsHttpClient.setSessionToken(token);
         this.collectionsHttpClient.setSessionToken(token);
+        this.storageHttpClient.setSessionToken(token);
+        this.systemHttpClient.setSessionToken(token);
+        this.healthHttpClient.setSessionToken(token);
+        this.emailHttpClient.setSessionToken(token);
+        this.adminHttpClient.setSessionToken(token);
+        this.testingHttpClient.setSessionToken(token);
+      }
+    },
+
+    /**
+     * Set API key for subsequent requests (client mode only)
+     */
+    setApiKey: (apiKey: string): void => {
+      if (this.mode === "client") {
+        if (
+          !this.authHttpClient ||
+          !this.projectsHttpClient ||
+          !this.collectionsHttpClient ||
+          !this.storageHttpClient ||
+          !this.systemHttpClient ||
+          !this.healthHttpClient ||
+          !this.testingHttpClient
+        ) {
+          throw new Error(
+            "HTTP clients not initialized. Please ensure you're in client mode."
+          );
+        }
+        this.authHttpClient.setApiKey(apiKey);
+        this.projectsHttpClient.setApiKey(apiKey);
+        this.collectionsHttpClient.setApiKey(apiKey);
+        this.storageHttpClient.setApiKey(apiKey);
+        this.systemHttpClient.setApiKey(apiKey);
+        this.healthHttpClient.setApiKey(apiKey);
+        this.emailHttpClient.setApiKey(apiKey);
+        this.adminHttpClient.setApiKey(apiKey);
+        this.testingHttpClient.setApiKey(apiKey);
       }
     },
 
@@ -364,20 +608,73 @@ class KrapiWrapper implements KrapiSocketInterface {
     /**
      * Get current user information
      */
-    getCurrentUser: async (): Promise<AdminUser | ProjectUser | null> => {
+    getCurrentUser: async (): Promise<{
+      success: boolean;
+      data?: AdminUser | ProjectUser;
+      error?: string;
+    }> => {
       if (this.mode === "client") {
         if (!this.authHttpClient) {
           throw new Error(
             "HTTP client not initialized. Please ensure you're in client mode."
           );
         }
-        const response = await this.authHttpClient.getCurrentSession();
-        return (response.data as unknown as AdminUser | ProjectUser) || null;
+        try {
+          const response = await this.authHttpClient.getCurrentSession();
+          // The response from HTTP client is already unwrapped by interceptor
+          // Backend returns { success: true, data: AdminUser }
+          // Check if it has success/data structure or is directly the user data
+          if (response && typeof response === "object") {
+            // Handle ApiResponse format with success and data
+            if ("success" in response) {
+              const apiResponse = response as { success: boolean; data?: unknown; error?: string };
+              if (apiResponse.success === false) {
+                return {
+                  success: false,
+                  error: apiResponse.error || "Failed to get user",
+                };
+              }
+              if (apiResponse.data) {
+                // data might be the user object
+                return {
+                  success: true,
+                  data: apiResponse.data as AdminUser | ProjectUser,
+                };
+              }
+            }
+            // Handle response with user field
+            if ("user" in response) {
+              return {
+                success: true,
+                data: (response as { user: AdminUser | ProjectUser }).user,
+              };
+            }
+            // If response looks like a user object directly (has id, username, or email)
+            if (("id" in response || "username" in response || "email" in response) && 
+                !("success" in response)) {
+              return {
+                success: true,
+                data: response as AdminUser | ProjectUser,
+              };
+            }
+          }
+          return {
+            success: false,
+            error: "Invalid response format",
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to get user",
+          };
+        }
       } else {
         // For server mode, would need session context
-        throw new Error(
-          "getCurrentUser requires session context in server mode"
-        );
+        // Return error response format to match interface
+        return {
+          success: false,
+          error: "getCurrentUser requires session context in server mode",
+        };
       }
     },
 
@@ -991,7 +1288,21 @@ class KrapiWrapper implements KrapiSocketInterface {
           projectId,
           collectionData
         );
-        return (response.data as unknown as Collection) || ({} as Collection);
+        // Handle different response formats from backend
+        // Backend returns { success: true, collection: {...} }
+        if (response && typeof response === "object") {
+          if ("collection" in response && response.collection) {
+            return response.collection as unknown as Collection;
+          }
+          if ("data" in response && response.data) {
+            return response.data as unknown as Collection;
+          }
+          // If response itself looks like a Collection
+          if ("id" in response && "name" in response) {
+            return response as unknown as Collection;
+          }
+        }
+        return ({} as Collection);
       } else {
         if (!this.collectionsSchemaManager) {
           throw new Error(
@@ -1095,7 +1406,21 @@ class KrapiWrapper implements KrapiSocketInterface {
           projectId,
           options
         );
-        return (response.data as unknown as Collection[]) || [];
+        // Handle different response formats from backend
+        // Backend returns { success: true, collections: [...] }
+        if (response && typeof response === "object") {
+          if ("collections" in response && Array.isArray(response.collections)) {
+            return response.collections as unknown as Collection[];
+          }
+          if ("data" in response && Array.isArray(response.data)) {
+            return response.data as unknown as Collection[];
+          }
+          // If response itself is an array (fallback)
+          if (Array.isArray(response)) {
+            return response as unknown as Collection[];
+          }
+        }
+        return [];
       } else {
         if (!this.collectionsSchemaManager) {
           throw new Error(
@@ -1182,7 +1507,21 @@ class KrapiWrapper implements KrapiSocketInterface {
           projectId,
           collectionData
         );
-        return (response.data as unknown as Collection) || ({} as Collection);
+        // Handle different response formats from backend
+        // Backend returns { success: true, collection: {...} }
+        if (response && typeof response === "object") {
+          if ("collection" in response && response.collection) {
+            return response.collection as unknown as Collection;
+          }
+          if ("data" in response && response.data) {
+            return response.data as unknown as Collection;
+          }
+          // If response itself looks like a Collection
+          if ("id" in response && "name" in response) {
+            return response as unknown as Collection;
+          }
+        }
+        return ({} as Collection);
       } else {
         if (!this.collectionsService) {
           throw new Error(

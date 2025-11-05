@@ -28,13 +28,47 @@ export const fetchCollections = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
+      console.log("🔍 [REDUX DEBUG] Fetching collections for project:", projectId);
       const response = await krapi.collections.getAll(projectId);
-      if (response.success && response.data) {
-        return { projectId, collections: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to fetch collections");
+      console.log("🔍 [REDUX DEBUG] Collections getAll response:", response);
+      
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        console.log("✅ [REDUX DEBUG] Response is array, returning:", response.length, "collections");
+        return { projectId, collections: response };
       }
+      
+      if (response && typeof response === "object") {
+        // Backend returns { success: true, collections: [...] }
+        if ("collections" in response && Array.isArray(response.collections)) {
+          console.log("✅ [REDUX DEBUG] Response has collections array, returning:", response.collections.length, "collections");
+          return { projectId, collections: response.collections };
+        }
+        
+        // Alternative format: { success: true, data: [...] }
+        if ("data" in response && Array.isArray(response.data)) {
+          console.log("✅ [REDUX DEBUG] Response has data array, returning:", response.data.length, "collections");
+          return { projectId, collections: response.data };
+        }
+        
+        // Check for ApiResponse format
+        if ("success" in response && "data" in response) {
+          const apiResponse = response as { success: boolean; data?: Collection[]; collections?: Collection[] };
+          if (apiResponse.success) {
+            const collections = apiResponse.collections || apiResponse.data || [];
+            console.log("✅ [REDUX DEBUG] ApiResponse format, returning:", collections.length, "collections");
+            return { projectId, collections };
+          } else {
+            console.error("❌ [REDUX DEBUG] ApiResponse failed:", (response as { error?: string }).error);
+            return rejectWithValue((response as { error?: string }).error || "Failed to fetch collections");
+          }
+        }
+      }
+      
+      console.warn("⚠️ [REDUX DEBUG] Unexpected response format, returning empty array:", response);
+      return { projectId, collections: [] };
     } catch (error: unknown) {
+      console.error("❌ [REDUX DEBUG] Exception fetching collections:", error);
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch collections"
       );
@@ -65,16 +99,75 @@ export const createCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
+      console.log("🔍 [REDUX DEBUG] Creating collection:", { projectId, data });
       const response = await krapi.collections.create(projectId, data);
-      if (response.success && response.data) {
-        return { projectId, collection: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to create collection");
+      console.log("🔍 [REDUX DEBUG] Collection create response:", response);
+      
+      // If response is a Collection object directly (success case)
+      if (response && typeof response === "object" && "id" in response && "name" in response) {
+        console.log("✅ [REDUX DEBUG] Response is Collection object, returning:", response.id);
+        return { projectId, collection: response as Collection };
       }
+      
+      // If response has success/data structure
+      if (response && typeof response === "object" && "success" in response) {
+        const apiResponse = response as { success: boolean; data?: Collection; collection?: Collection; error?: string; issues?: string[] };
+        if (apiResponse.success && (apiResponse.data || apiResponse.collection)) {
+          const collection = apiResponse.collection || apiResponse.data;
+          console.log("✅ [REDUX DEBUG] ApiResponse success, returning collection:", collection?.id);
+          return { projectId, collection: collection! };
+        } else {
+          // Extract detailed error message including validation issues
+          const errorMessage = apiResponse.error || "Failed to create collection";
+          const issues = apiResponse.issues;
+          const fullError = issues && issues.length > 0 
+            ? `${errorMessage}: ${issues.join(", ")}`
+            : errorMessage;
+          console.error("❌ [REDUX DEBUG] Collection create failed:", fullError);
+          return rejectWithValue(fullError);
+        }
+      }
+      
+      // Fallback: assume response is a Collection
+      console.warn("⚠️ [REDUX DEBUG] Unexpected response format, assuming Collection:", response);
+      return { projectId, collection: response as Collection };
     } catch (error: unknown) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to create collection"
-      );
+      console.error("❌ [REDUX DEBUG] Collection create exception:", error);
+      
+      // Try to extract error details from axios error
+      let errorMessage = "Failed to create collection";
+      let issues: string[] = [];
+      
+      if (error && typeof error === "object") {
+        // Check for axios error with response data
+        const axiosError = error as {
+          response?: {
+            data?: {
+              error?: string;
+              message?: string;
+              issues?: string[];
+            };
+            status?: number;
+          };
+          message?: string;
+        };
+        
+        if (axiosError.response?.data) {
+          errorMessage = axiosError.response.data.error || axiosError.response.data.message || errorMessage;
+          issues = axiosError.response.data.issues || [];
+        } else if (axiosError.message) {
+          errorMessage = axiosError.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      const fullError = issues.length > 0 
+        ? `${errorMessage}: ${issues.join(", ")}`
+        : errorMessage;
+      
+      console.error("❌ [REDUX DEBUG] Full error details:", { errorMessage, issues, fullError });
+      return rejectWithValue(fullError);
     }
   }
 );

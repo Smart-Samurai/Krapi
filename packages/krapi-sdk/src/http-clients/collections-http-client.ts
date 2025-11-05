@@ -156,11 +156,12 @@ export class CollectionsHttpClient extends BaseHttpClient {
   async getProjectCollections(
     projectId: string,
     options?: QueryOptions
-  ): Promise<PaginatedResponse<Collection>> {
-    return this.getPaginated<Collection>(
+  ): Promise<{ success: boolean; collections: Collection[] } | ApiResponse<Collection[]>> {
+    // Backend returns { success: true, collections: [...] }, not PaginatedResponse
+    return this.get<Collection[]>(
       `/projects/${projectId}/collections`,
       options
-    );
+    ) as Promise<{ success: boolean; collections: Collection[] } | ApiResponse<Collection[]>>;
   }
 
   // Document Management
