@@ -1,15 +1,46 @@
 import { SQLiteAdapter } from "./sqlite-adapter.service";
 
+/**
+ * Migration definition
+ * 
+ * @typedef {Object} Migration
+ * @property {number} version - Migration version number
+ * @property {string} name - Migration name/description
+ * @property {Function} up - Migration function that applies the migration
+ */
 interface Migration {
   version: number;
   name: string;
   up: (adapter: SQLiteAdapter) => Promise<void>;
 }
 
+/**
+ * Migration Service
+ * 
+ * Handles database schema migrations and automatic schema fixes.
+ * Manages versioned migrations that can be applied to update the database schema.
+ * 
+ * Features:
+ * - Versioned migrations
+ * - Automatic schema fixes
+ * - Migration history tracking
+ * - Safe migration application
+ * 
+ * @class MigrationService
+ * @example
+ * const adapter = new SQLiteAdapter(dbPath);
+ * const migrationService = new MigrationService(adapter);
+ * await migrationService.checkAndFixSchema();
+ */
 export class MigrationService {
   private adapter: SQLiteAdapter;
   private migrations: Migration[] = [];
 
+  /**
+   * Create a new MigrationService instance
+   * 
+   * @param {SQLiteAdapter} adapter - SQLite adapter for database operations
+   */
   constructor(adapter: SQLiteAdapter) {
     this.adapter = adapter;
     this.initializeMigrations();
@@ -155,6 +186,18 @@ export class MigrationService {
     ];
   }
 
+  /**
+   * Run all pending migrations
+   * 
+   * Applies all migrations that haven't been executed yet, in version order.
+   * Tracks executed migrations in the migrations table to prevent re-running.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If migration execution fails
+   * 
+   * @example
+   * await migrationService.runMigrations();
+   */
   async runMigrations() {
     try {
       // Create migrations table if it doesn't exist
@@ -209,6 +252,25 @@ export class MigrationService {
     }
   }
 
+  /**
+   * Check and fix database schema
+   * 
+   * Performs comprehensive schema validation and applies automatic fixes:
+   * - Runs pending migrations
+   * - Fixes missing columns
+   * - Fixes column types
+   * - Creates missing indexes
+   * - Ensures required tables exist
+   * 
+   * This method is safe to run multiple times and will only apply necessary fixes.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If schema check or fix fails
+   * 
+   * @example
+   * await migrationService.checkAndFixSchema();
+   * // Schema is now up to date
+   */
   async checkAndFixSchema() {
     try {
       console.log("Checking database schema integrity...");

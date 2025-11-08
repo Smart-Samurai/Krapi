@@ -8,8 +8,33 @@ import { FileInfo, StorageStats } from "@/types";
 
 /**
  * Storage Service
- *
- * This service handles file operations and storage management.
+ * 
+ * Singleton service that handles file upload, storage, and management operations.
+ * Manages file storage in project-specific directories and maintains file metadata
+ * in the database.
+ * 
+ * Features:
+ * - File upload with metadata support
+ * - Project-specific file storage directories
+ * - File retrieval and download
+ * - File deletion and cleanup
+ * - Storage statistics and quota management
+ * - File versioning support
+ * 
+ * Files are stored in project-specific directories: `data/projects/{projectId}/files/`
+ * 
+ * @class StorageService
+ * @example
+ * const storage = StorageService.getInstance();
+ * 
+ * // Upload a file
+ * const fileInfo = await storage.uploadFile(fileBuffer, {
+ *   projectId: 'project-uuid',
+ *   uploadedBy: 'user-id'
+ * });
+ * 
+ * // Get file
+ * const file = await storage.getFile('file-id');
  */
 export class StorageService {
   private static instance: StorageService;
@@ -24,6 +49,17 @@ export class StorageService {
     this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
   }
 
+  /**
+   * Get singleton instance of StorageService
+   * 
+   * Creates a new instance if one doesn't exist, otherwise returns
+   * the existing singleton instance.
+   * 
+   * @returns {StorageService} The singleton StorageService instance
+   * 
+   * @example
+   * const storage = StorageService.getInstance();
+   */
   static getInstance(): StorageService {
     if (!StorageService.instance) {
       StorageService.instance = new StorageService();
@@ -31,6 +67,29 @@ export class StorageService {
     return StorageService.instance;
   }
 
+  /**
+   * Upload a file to storage
+   * 
+   * Uploads a file to the project-specific storage directory and creates
+   * a file record in the database. Supports both File objects and Buffers.
+   * 
+   * @param {File | Buffer} file - The file to upload (File object or Buffer)
+   * @param {Record<string, unknown>} [metadata] - Optional file metadata
+   * @param {string} [metadata.projectId] - Project ID (defaults to "default")
+   * @param {string} [metadata.baseUrl] - Base URL for file access
+   * @param {string} [metadata.uploadedBy] - User ID who uploaded the file
+   * @returns {Promise<FileInfo>} File information including ID, path, and URL
+   * @throws {Error} If file upload fails or project ID is invalid
+   * 
+   * @example
+   * const fileBuffer = Buffer.from('file content');
+   * const fileInfo = await storage.uploadFile(fileBuffer, {
+   *   projectId: 'project-uuid',
+   *   uploadedBy: 'user-id',
+   *   baseUrl: 'https://api.example.com'
+   * });
+   * console.log('File uploaded:', fileInfo.id);
+   */
   async uploadFile(
     file: File | Buffer,
     metadata?: Record<string, unknown>

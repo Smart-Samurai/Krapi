@@ -101,6 +101,17 @@ export class DatabaseQueue {
 
   /**
    * Initialize the queue with a database connection
+   * 
+   * Sets up the database connection and starts the queue processor.
+   * Must be called before enqueueing operations.
+   * 
+   * @param {DatabaseConnection} dbConnection - Database connection interface
+   * @returns {Promise<void>}
+   * @throws {Error} If queue is already initialized
+   * 
+   * @example
+   * await queue.initialize(dbConnection);
+   * // Queue is now ready to process operations
    */
   async initialize(dbConnection: DatabaseConnection): Promise<void> {
     if (this.dbConnection) {
@@ -121,7 +132,21 @@ export class DatabaseQueue {
 
   /**
    * Enqueue a database operation
-   * Operations are processed in FIFO order (or priority order if enabled)
+   * 
+   * Adds a database operation to the queue for processing. Operations are
+   * processed in FIFO order by default, or priority order if priority is enabled.
+   * 
+   * @template T
+   * @param {Function} operation - Database operation function
+   * @param {number} [priority=0] - Operation priority (higher = processed first)
+   * @returns {Promise<T>} Result of the database operation
+   * @throws {Error} If queue is not initialized
+   * @throws {Error} If queue is full
+   * 
+   * @example
+   * const result = await queue.enqueue(async (db) => {
+   *   return await db.query('SELECT * FROM users');
+   * });
    */
   async enqueue<T>(
     operation: (db: DatabaseConnection) => Promise<T>,
@@ -276,6 +301,20 @@ export class DatabaseQueue {
 
   /**
    * Get current queue metrics
+   */
+  /**
+   * Get queue metrics for monitoring
+   * 
+   * Returns comprehensive metrics about the queue including size, processing
+   * statistics, wait times, and error counts.
+   * 
+   * @returns {QueueMetrics} Queue metrics object
+   * 
+   * @example
+   * const metrics = queue.getMetrics();
+   * console.log(`Queue size: ${metrics.queueSize}`);
+   * console.log(`Total processed: ${metrics.totalProcessed}`);
+   * console.log(`Average wait time: ${metrics.averageWaitTime}ms`);
    */
   getMetrics(): QueueMetrics {
     const averageWaitTime =

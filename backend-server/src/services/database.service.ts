@@ -33,6 +33,38 @@ import {
 import { getDefaultCollections } from "@/utils/default-collections";
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
+/**
+ * Database Service
+ * 
+ * Singleton service that provides unified database access for KRAPI.
+ * Manages both the main database (admin users, projects, sessions) and
+ * project-specific databases (collections, documents, files).
+ * 
+ * Features:
+ * - Multi-database architecture (main + per-project SQLite databases)
+ * - Automatic table creation and schema management
+ * - Database queue for rate limiting and operation ordering
+ * - Health checks and auto-repair functionality
+ * - Migration support for schema updates
+ * - Connection pooling and retry logic
+ * 
+ * The service uses a queue system to ensure database operations are executed
+ * in order and with rate limiting to prevent database overload.
+ * 
+ * @class DatabaseService
+ * @example
+ * // Get singleton instance
+ * const db = DatabaseService.getInstance();
+ * 
+ * // Wait for database to be ready
+ * await db.waitForReady();
+ * 
+ * // Query main database
+ * const result = await db.queryMain('SELECT * FROM admin_users');
+ * 
+ * // Query project database
+ * const projectData = await db.queryProject('project-id', 'SELECT * FROM collections');
+ */
 export class DatabaseService {
   private adapter: SQLiteAdapter
   private isInitializingTables = false;; // Keep for backward compatibility during migration
@@ -98,6 +130,17 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * Get singleton instance of DatabaseService
+   * 
+   * Creates a new instance if one doesn't exist, otherwise returns
+   * the existing singleton instance.
+   * 
+   * @returns {DatabaseService} The singleton DatabaseService instance
+   * 
+   * @example
+   * const db = DatabaseService.getInstance();
+   */
   static getInstance(): DatabaseService {
     if (!DatabaseService.instance) {
       DatabaseService.instance = new DatabaseService();
@@ -105,12 +148,37 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
-  // Public method to wait for database to be ready
+  /**
+   * Wait for database to be ready
+   * 
+   * Returns a promise that resolves when the database has finished
+   * initialization. This should be called before performing any
+   * database operations to ensure the database is ready.
+   * 
+   * @returns {Promise<void>} Promise that resolves when database is ready
+   * @throws {Error} If database initialization fails
+   * 
+   * @example
+   * const db = DatabaseService.getInstance();
+   * await db.waitForReady();
+   * // Database is now ready for operations
+   */
   async waitForReady(): Promise<void> {
     return this.readyPromise;
   }
 
-  // Public method to get a database connection (for compatibility, returns adapter)
+  /**
+   * Get database connection adapter
+   * 
+   * Returns the SQLite adapter for backward compatibility.
+   * For new code, prefer using queryMain() or queryProject() methods.
+   * 
+   * @returns {Promise<SQLiteAdapter>} The SQLite adapter instance
+   * 
+   * @example
+   * const adapter = await db.getConnection();
+   * // Use adapter for direct database access
+   */
   async getConnection() {
     return this.adapter;
   }
@@ -212,8 +280,22 @@ export class DatabaseService {
     return null;
   }
 
-  // Public method to execute queries (defaults to main database for backward compatibility)
-  // Now goes through queue for rate limiting and ordering
+  /**
+   * Execute a query on the main database
+   * 
+   * Executes a SQL query on the main database (admin/app data).
+   * Queries are queued for rate limiting and ordered execution.
+   * 
+   * @param {string} sql - SQL query string
+   * @param {unknown[]} [params] - Optional query parameters
+   * @returns {Promise<{rows: Record<string, unknown>[], rowCount: number}>} Query results
+   * @throws {Error} If database is not ready or query fails
+   * 
+   * @example
+   * const result = await db.query('SELECT * FROM admin_users WHERE id = $1', ['user-id']);
+   * console.log(result.rows); // Array of matching rows
+   * console.log(result.rowCount); // Number of rows returned
+   */
   async query(
     sql: string,
     params?: unknown[]
@@ -227,8 +309,21 @@ export class DatabaseService {
     }, 0);
   }
 
-  // Query main database (admin/app data)
-  // Now goes through queue for rate limiting and ordering
+  /**
+   * Query the main database
+   * 
+   * Executes a SQL query on the main database (admin users, projects, sessions, etc.).
+   * Queries are queued for rate limiting and ordered execution.
+   * 
+   * @param {string} sql - SQL query string
+   * @param {unknown[]} [params] - Optional query parameters
+   * @returns {Promise<{rows: Record<string, unknown>[], rowCount: number}>} Query results
+   * @throws {Error} If database is not ready or query fails
+   * 
+   * @example
+   * const result = await db.queryMain('SELECT * FROM projects WHERE active = $1', [true]);
+   * const projects = result.rows;
+   */
   async queryMain(
     sql: string,
     params?: unknown[]
@@ -242,7 +337,26 @@ export class DatabaseService {
   }
 
   // Query project-specific database
-  // Now goes through queue for rate limiting and ordering
+  /**
+   * Query a project-specific database
+   * 
+   * Executes a SQL query on the database for a specific project.
+   * Each project has its own SQLite database file containing collections,
+   * documents, files, and project users.
+   * 
+   * @param {string} projectId - The project ID
+   * @param {string} sql - SQL query string
+   * @param {unknown[]} [params] - Optional query parameters
+   * @returns {Promise<{rows: Record<string, unknown>[], rowCount: number}>} Query results
+   * @throws {Error} If projectId is missing or database is not ready
+   * 
+   * @example
+   * const result = await db.queryProject(
+   *   'project-uuid',
+   *   'SELECT * FROM collections WHERE name = $1',
+   *   ['users']
+   * );
+   */
   async queryProject(
     projectId: string,
     sql: string,
@@ -262,21 +376,64 @@ export class DatabaseService {
 
   /**
    * Get queue metrics for monitoring
+   * 
+   * Returns metrics about the database operation queue, including
+   * pending operations, processing rate, and queue health.
+   * 
+   * @returns {QueueMetrics} Queue metrics including pending count, processed count, etc.
+   * 
+   * @example
+   * const metrics = db.getQueueMetrics();
+   * console.log(`Pending operations: ${metrics.pending}`);
+   * console.log(`Processed: ${metrics.processed}`);
    */
   getQueueMetrics(): QueueMetrics {
     return this.queue.getMetrics();
   }
 
-  // Method to implement DatabaseConnection interface
+  /**
+   * Connect to the database
+   * 
+   * Ensures the database is ready for operations. Implements the
+   * DatabaseConnection interface for compatibility.
+   * 
+   * @returns {Promise<void>} Promise that resolves when database is ready
+   * @throws {Error} If database connection fails
+   * 
+   * @example
+   * await db.connect();
+   */
   async connect(): Promise<void> {
     await this.ensureReady();
   }
 
-  // Method to implement DatabaseConnection interface
+  /**
+   * Close database connection
+   * 
+   * Closes all database connections and cleans up resources.
+   * Implements the DatabaseConnection interface for compatibility.
+   * 
+   * @returns {Promise<void>} Promise that resolves when connections are closed
+   * 
+   * @example
+   * await db.end();
+   */
   async end(): Promise<void> {
     await this.close();
   }
 
+  /**
+   * Run schema fixes and migrations
+   * 
+   * Checks the database schema and applies any necessary fixes or migrations.
+   * This ensures the database schema is up to date with the current codebase.
+   * 
+   * @returns {Promise<void>} Promise that resolves when schema fixes are complete
+   * @throws {Error} If schema fixes fail
+   * 
+   * @example
+   * await db.runSchemaFixes();
+   */
   async runSchemaFixes(): Promise<void> {
     // Migration service still uses adapter for backward compatibility
     if (!this.migrationService) {
@@ -286,12 +443,49 @@ export class DatabaseService {
     await this.migrationService.checkAndFixSchema();
   }
 
-  // Check if database is ready (non-blocking)
+  /**
+   * Check if database is ready (non-blocking)
+   * 
+   * Returns whether the database connection is established and ready.
+   * This is a synchronous check - use waitForReady() for async waiting.
+   * 
+   * @returns {boolean} True if database is ready, false otherwise
+   * 
+   * @example
+   * if (db.isReady()) {
+   *   // Database is ready for operations
+   * }
+   */
   isReady(): boolean {
     return this.isConnected;
   }
 
-  // Health check method
+  /**
+   * Check database health
+   * 
+   * Performs a comprehensive health check of the database, including:
+   * - Connection status
+   * - Critical table existence
+   * - Database accessibility
+   * 
+   * @returns {Promise<Object>} Health check results
+   * @returns {boolean} returns.healthy - Whether database is healthy
+   * @returns {string} returns.message - Health status message
+   * @returns {Object} [returns.details] - Additional health details
+   * @returns {string[]} [returns.details.missingTables] - List of missing critical tables
+   * @returns {Date} [returns.details.lastCheck] - Timestamp of last health check
+   * @returns {Object} [returns.details.connectionPool] - Connection pool statistics
+   * @returns {string} [returns.details.error] - Error message if unhealthy
+   * 
+   * @example
+   * const health = await db.checkHealth();
+   * if (!health.healthy) {
+   *   console.error('Database unhealthy:', health.message);
+   *   if (health.details?.missingTables) {
+   *     console.error('Missing tables:', health.details.missingTables);
+   *   }
+   * }
+   */
   async checkHealth(): Promise<{
     healthy: boolean;
     message: string;

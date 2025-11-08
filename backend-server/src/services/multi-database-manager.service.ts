@@ -56,6 +56,17 @@ export class MultiDatabaseManager {
 
   /**
    * Connect to the main database
+   * 
+   * Establishes connection to the main database (krapi_main.db).
+   * Enables WAL (Write-Ahead Logging) mode for better concurrency.
+   * Safe to call multiple times - will reuse existing connection.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If connection fails
+   * 
+   * @example
+   * await manager.connectMain();
+   * // Main database is now connected
    */
   async connectMain(): Promise<void> {
     if (this.mainDb && this.isMainConnected) {
@@ -78,7 +89,20 @@ export class MultiDatabaseManager {
 
   /**
    * Get connection to a project-specific database
-   * Creates the database file if it doesn't exist
+   * 
+   * Returns a connection to the project-specific database, creating it
+   * if it doesn't exist. Also creates the project folder structure and
+   * initializes required tables.
+   * 
+   * Connections are cached and reused for performance.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Database.Database>} SQLite database connection
+   * @throws {Error} If projectId is missing or database creation fails
+   * 
+   * @example
+   * const db = await manager.getProjectDb('project-uuid');
+   * // Use db for project-specific queries
    */
   async getProjectDb(projectId: string): Promise<Database.Database> {
     if (!projectId) {
@@ -301,6 +325,18 @@ export class MultiDatabaseManager {
 
   /**
    * Query the main database
+   * 
+   * Executes a SQL query on the main database. Automatically connects
+   * if not already connected. Converts PostgreSQL-style parameters ($1, $2)
+   * to SQLite-style parameters (?).
+   * 
+   * @param {string} sql - SQL query string
+   * @param {unknown[]} [params] - Query parameters
+   * @returns {Promise<QueryResult>} Query results with rows and rowCount
+   * @throws {Error} If query execution fails
+   * 
+   * @example
+   * const result = await manager.queryMain('SELECT * FROM projects WHERE id = $1', ['project-id']);
    */
   async queryMain(
     sql: string,
@@ -315,6 +351,22 @@ export class MultiDatabaseManager {
 
   /**
    * Query a project-specific database
+   * 
+   * Executes a SQL query on a project's database. Automatically gets or creates
+   * the project database connection. Converts PostgreSQL-style parameters to SQLite.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} sql - SQL query string
+   * @param {unknown[]} [params] - Query parameters
+   * @returns {Promise<QueryResult>} Query results with rows and rowCount
+   * @throws {Error} If projectId is missing or query fails
+   * 
+   * @example
+   * const result = await manager.queryProject(
+   *   'project-uuid',
+   *   'SELECT * FROM collections WHERE name = $1',
+   *   ['users']
+   * );
    */
   async queryProject(
     projectId: string,
