@@ -12,14 +12,27 @@ import {
 
 /**
  * Testing Controller
- *
+ * 
  * Provides utilities for development and testing.
- * Only available in development mode.
+ * Only available in development mode or when ENABLE_TESTING is set to "true".
+ * 
+ * Features:
+ * - Create test projects with sample data
+ * - Reset test data
+ * - Development utilities
+ * 
+ * @class TestingController
+ * @example
+ * const controller = new TestingController();
+ * // Controller is ready to handle testing requests
  */
 export class TestingController {
   private db: DatabaseAdapterService;
   private authService: AuthService;
 
+  /**
+   * Create a new TestingController instance
+   */
   constructor() {
     this.db = DatabaseAdapterService.getInstance();
     this.authService = AuthService.getInstance();
@@ -27,6 +40,24 @@ export class TestingController {
 
   /**
    * Create a test project with optional sample data
+   * 
+   * POST /krapi/k1/testing/projects
+   * 
+   * Creates a test project with optional collections and documents.
+   * Only available in development mode or when ENABLE_TESTING is enabled.
+   * 
+   * @param {Request} req - Express request with project data in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {403} If not in development mode and testing is not enabled
+   * @throws {401} If user is not authenticated
+   * @throws {500} If project creation fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/testing/projects
+   * // Body: { name: 'Test Project', withCollections: true, withDocuments: true }
+   * // Response: { success: true, project: {...} }
    */
   createTestProject = async (req: Request, res: Response): Promise<void> => {
     console.log("🔍 [TESTING DEBUG] createTestProject called");

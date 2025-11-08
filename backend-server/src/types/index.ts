@@ -1,3 +1,10 @@
+/**
+ * Type Definitions
+ * 
+ * Re-exports SDK types and defines backend-specific type extensions.
+ * 
+ * @module types/index
+ */
 // Re-export all types from the SDK to maintain compatibility
 export * from "@krapi/sdk";
 
@@ -15,6 +22,14 @@ import type {
 } from "@krapi/sdk";
 import type { Request as ExpressRequest } from "express";
 
+/**
+ * Backend-specific session interface
+ * 
+ * Completely separate from SDK Session type.
+ * Used internally by the backend for session management.
+ * 
+ * @interface BackendSession
+ */
 // Backend-specific session interface - completely separate from SDK Session
 export interface BackendSession {
   id: string;

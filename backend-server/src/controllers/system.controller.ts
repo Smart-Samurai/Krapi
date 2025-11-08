@@ -5,10 +5,26 @@ import { EmailService } from "../services/email.service";
 
 import { ApiResponse, SystemSettings } from "@/types";
 
+/**
+ * System Controller
+ * 
+ * Handles system-level HTTP requests including:
+ * - System settings management
+ * - Health checks
+ * - System information
+ * 
+ * @class SystemController
+ * @example
+ * const controller = new SystemController();
+ * // Controller is ready to handle system requests
+ */
 export class SystemController {
   private db: DatabaseService;
   private emailService: EmailService;
 
+  /**
+   * Create a new SystemController instance
+   */
   constructor() {
     this.db = DatabaseService.getInstance();
     this.emailService = EmailService.getInstance();
@@ -16,7 +32,21 @@ export class SystemController {
 
   /**
    * Get system settings
+   * 
    * GET /krapi/k1/system/settings
+   * 
+   * Retrieves current system settings including debug mode, log level,
+   * rate limiting, security, email, and database configuration.
+   * 
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {500} If settings retrieval fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/system/settings
+   * // Response: { success: true, data: {...} }
    */
   getSettings = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -96,7 +126,21 @@ export class SystemController {
 
   /**
    * Update system settings
+   * 
    * PUT /krapi/k1/system/settings
+   * 
+   * Updates system settings. Only updates provided fields.
+   * 
+   * @param {Request} req - Express request with settings in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {500} If settings update fails
+   * 
+   * @example
+   * // Request: PUT /krapi/k1/system/settings
+   * // Body: { debug_mode: true, log_level: 'debug' }
+   * // Response: { success: true, data: {...} }
    */
   updateSettings = async (req: Request, res: Response): Promise<void> => {
     try {

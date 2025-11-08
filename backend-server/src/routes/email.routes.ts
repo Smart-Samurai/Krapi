@@ -1,10 +1,23 @@
 /**
  * Email Routes
- *
- * Handles email configuration and template management for projects
- * All routes are prefixed with /projects/:projectId/email
- *
- * SDK-driven implementation using BackendSDK for all functionality
+ * 
+ * Handles email configuration and template management for projects.
+ * Base path: /krapi/k1/projects/:projectId/email
+ * 
+ * Routes:
+ * - GET /config - Get email configuration
+ * - PUT /config - Update email configuration
+ * - POST /test - Test email configuration
+ * - GET /templates - List email templates
+ * - POST /templates - Create email template
+ * - GET /templates/:templateId - Get email template
+ * - PUT /templates/:templateId - Update email template
+ * - DELETE /templates/:templateId - Delete email template
+ * - POST /send - Send email
+ * 
+ * SDK-driven implementation using BackendSDK for all functionality.
+ * 
+ * @module routes/email.routes
  */
 
 import { BackendSDK } from "@krapi/sdk";
@@ -19,6 +32,12 @@ const router: Router = Router({ mergeParams: true });
 // Initialize the BackendSDK - will be set from app.ts
 let backendSDK: BackendSDK;
 
+/**
+ * Initialize BackendSDK for email routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
 export const initializeEmailSDK = (sdk: BackendSDK) => {
   backendSDK = sdk;
 };

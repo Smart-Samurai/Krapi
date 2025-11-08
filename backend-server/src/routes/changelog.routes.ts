@@ -1,8 +1,15 @@
 /**
  * Changelog Routes
- *
- * Handles changelog and activity tracking for projects
- * All routes are prefixed with /changelog
+ * 
+ * Handles changelog and activity tracking for projects.
+ * Base path: /krapi/k1/changelog
+ * 
+ * Routes:
+ * - GET /projects/:projectId - Get changelog entries for a project
+ * 
+ * All routes require authentication and appropriate scopes.
+ * 
+ * @module routes/changelog.routes
  */
 
 import { BackendSDK } from "@krapi/sdk";
@@ -17,6 +24,12 @@ const router: Router = Router();
 // Initialize the BackendSDK - will be set from app.ts
 let backendSDK: BackendSDK;
 
+/**
+ * Initialize BackendSDK for changelog routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
 export const initializeChangelogSDK = (sdk: BackendSDK) => {
   backendSDK = sdk;
 };
@@ -25,8 +38,24 @@ export const initializeChangelogSDK = (sdk: BackendSDK) => {
 router.use(authenticate);
 
 /**
- * GET /changelog/projects/:projectId
  * Get changelog entries for a project
+ * 
+ * GET /krapi/k1/changelog/projects/:projectId
+ * 
+ * Retrieves changelog entries with optional filtering and pagination.
+ * Requires authentication and projects:read scope.
+ * 
+ * @route GET /projects/:projectId
+ * @param {string} projectId - Project ID
+ * @query {number} [limit=50] - Maximum number of entries
+ * @query {number} [offset=0] - Number of entries to skip
+ * @query {string} [action_type] - Filter by action type
+ * @query {string} [user_id] - Filter by user ID
+ * @query {string} [start_date] - Filter by start date (ISO string)
+ * @query {string} [end_date] - Filter by end date (ISO string)
+ * @query {string} [collection_name] - Filter by collection name
+ * @query {string} [document_id] - Filter by document ID
+ * @returns {Object} Changelog entries with pagination
  */
 router.get(
   "/projects/:projectId",

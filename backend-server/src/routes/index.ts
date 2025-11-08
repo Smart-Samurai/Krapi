@@ -1,11 +1,28 @@
 /**
  * Main Router Configuration
- *
- * This file defines the complete API route structure for KRAPI backend.
+ * 
+ * Defines the complete API route structure for KRAPI backend.
  * All routes are prefixed with /krapi/k1 (configured in app.ts).
- *
- * CRITICAL: This backend now uses the SDK-driven architecture.
+ * 
+ * CRITICAL: This backend uses the SDK-driven architecture.
  * All functionality comes from the SDK - backend just wires it up.
+ * 
+ * Route Structure:
+ * - /krapi/k1/auth/* - Authentication endpoints
+ * - /krapi/k1/admin/* - Admin user management
+ * - /krapi/k1/projects/* - Project CRUD operations
+ * - /krapi/k1/projects/:projectId/collections/* - Collection operations
+ * - /krapi/k1/projects/:projectId/storage/* - File storage operations
+ * - /krapi/k1/projects/:projectId/users/* - Project user management
+ * - /krapi/k1/projects/:projectId/email/* - Email operations
+ * - /krapi/k1/system/* - System settings and health
+ * - /krapi/k1/health/* - Health check endpoints
+ * 
+ * @module routes/index
+ * @example
+ * // Routes are automatically registered when this module is imported
+ * import routes from './routes';
+ * app.use('/krapi/k1', routes);
  */
 
 import { BackendSDK } from "@krapi/sdk";
@@ -34,7 +51,19 @@ const router: RouterType = Router();
 // This will be properly configured in app.ts
 let backendSDK: BackendSDK;
 
-// Initialize SDK function - called from app.ts
+/**
+ * Initialize BackendSDK for all routes
+ * 
+ * Called from app.ts to set up the BackendSDK instance for all route handlers.
+ * Initializes route-specific SDK instances.
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ * 
+ * @example
+ * initializeBackendSDK(backendSDK);
+ * // All routes now have access to the SDK
+ */
 export const initializeBackendSDK = (sdk: BackendSDK) => {
   backendSDK = sdk;
   // Initialize route-specific SDK instances
@@ -50,7 +79,18 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
 // ===== System Routes (SDK-driven) =====
 /**
  * Health diagnostics endpoint (SDK-compatible)
+ * 
  * POST /krapi/k1/health/diagnostics
+ * 
+ * Runs comprehensive health diagnostics including database, system, and services.
+ * 
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * // Request: POST /krapi/k1/health/diagnostics
+ * // Response: { success: true, data: { tests: [...], summary: {...} } }
  */
 router.post("/health/diagnostics", async (req, res) => {
   try {

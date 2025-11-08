@@ -1,6 +1,30 @@
+/**
+ * Validation Middleware
+ * 
+ * Provides request validation using Zod schemas.
+ * Validates request body, query parameters, and route parameters.
+ * 
+ * @module middleware/validation.middleware
+ */
 import { Request, Response, NextFunction } from "express";
 import { z, ZodError } from "zod";
 
+/**
+ * Create a validation middleware function
+ * 
+ * Validates request body, query, and params against a Zod schema.
+ * Returns 400 with validation errors if validation fails.
+ * 
+ * @param {z.ZodSchema} schema - Zod schema to validate against
+ * @returns {Function} Express middleware function
+ * 
+ * @example
+ * const schema = z.object({
+ *   body: z.object({ name: z.string() }),
+ *   query: z.object({ page: z.number() })
+ * });
+ * router.post('/endpoint', validate(schema), handler);
+ */
 export const validate = (schema: z.ZodSchema) => {
   return async (
     req: Request,
@@ -36,6 +60,13 @@ export const validate = (schema: z.ZodSchema) => {
   };
 };
 
+/**
+ * Common validation schemas
+ * 
+ * Pre-defined Zod schemas for common validation patterns.
+ * 
+ * @namespace schemas
+ */
 // Common validation schemas
 export const schemas = {
   // ID validation

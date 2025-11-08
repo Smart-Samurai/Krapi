@@ -1,6 +1,23 @@
 import { EmailService } from "@krapi/sdk";
 
+/**
+ * SDK Email Service Wrapper
+ * 
+ * Wrapper service that delegates to the SDK EmailService.
+ * Provides a consistent interface for backend services to access email operations.
+ * 
+ * @class SDKEmailService
+ * @example
+ * const emailService = new EmailService(dbConnection);
+ * const sdkEmailService = new SDKEmailService(emailService);
+ * await sdkEmailService.sendEmailToProject('project-id', emailData);
+ */
 export class SDKEmailService {
+  /**
+   * Create a new SDKEmailService instance
+   * 
+   * @param {EmailService} emailService - SDK EmailService instance
+   */
   constructor(private emailService: EmailService) {}
 
   async sendEmail(_emailData: {
@@ -24,6 +41,28 @@ export class SDKEmailService {
     );
   }
 
+  /**
+   * Send email to project recipients
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} emailData - Email data
+   * @param {string | string[]} emailData.to - Recipient email(s)
+   * @param {string} emailData.subject - Email subject
+   * @param {string} emailData.body - Email body (HTML)
+   * @param {string} [emailData.from] - Sender email
+   * @param {string} [emailData.replyTo] - Reply-to email
+   * @param {string[]} [emailData.cc] - CC recipients
+   * @param {string[]} [emailData.bcc] - BCC recipients
+   * @param {Array} [emailData.attachments] - Email attachments
+   * @returns {Promise<unknown>} Send result
+   * 
+   * @example
+   * await sdkEmailService.sendEmailToProject('project-id', {
+   *   to: 'user@example.com',
+   *   subject: 'Welcome',
+   *   body: '<h1>Welcome!</h1>'
+   * });
+   */
   async sendEmailToProject(
     projectId: string,
     emailData: {
@@ -63,6 +102,27 @@ export class SDKEmailService {
     throw new Error("sendTemplateEmail not implemented in SDK");
   }
 
+  /**
+   * Create an email template
+   * 
+   * @param {Object} templateData - Template data
+   * @param {string} templateData.name - Template name
+   * @param {string} templateData.subject - Email subject (supports variables)
+   * @param {string} templateData.body - Email body (supports variables)
+   * @param {string[]} templateData.variables - Available template variables
+   * @param {boolean} [templateData.is_active] - Whether template is active
+   * @param {string} templateData.project_id - Project ID
+   * @returns {Promise<unknown>} Created template
+   * 
+   * @example
+   * const template = await sdkEmailService.createEmailTemplate({
+   *   name: 'Welcome Email',
+   *   subject: 'Welcome to {{company_name}}!',
+   *   body: 'Hello {{user_name}}!',
+   *   variables: ['company_name', 'user_name'],
+   *   project_id: 'project-id'
+   * });
+   */
   async createEmailTemplate(templateData: {
     name: string;
     subject: string;

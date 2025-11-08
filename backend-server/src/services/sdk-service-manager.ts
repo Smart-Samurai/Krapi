@@ -17,9 +17,27 @@ interface AdminUser$1 {
   login_count?: number;
 }
 
+/**
+ * SDK Service Manager
+ * 
+ * Manages the BackendSDK instance and provides initialization and service access.
+ * Handles database initialization and provides access to all SDK services.
+ * 
+ * @class SDKServiceManager
+ * @example
+ * const manager = new SDKServiceManager(dbConnection, logger);
+ * await manager.initializeDatabase();
+ * const backendSDK = manager.getBackendSDK();
+ */
 export class SDKServiceManager {
   private backendSDK: BackendSDK;
 
+  /**
+   * Create a new SDKServiceManager instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     // Create the real BackendSDK instance
     this.backendSDK = new BackendSDK({
@@ -28,6 +46,25 @@ export class SDKServiceManager {
     });
   }
 
+  /**
+   * Initialize the database schema
+   * 
+   * Creates all required tables and inserts default data.
+   * Uses direct table creation first, falls back to SDK auto-fix if needed.
+   * 
+   * @returns {Promise<Object>} Initialization result
+   * @returns {boolean} returns.success - Whether initialization succeeded
+   * @returns {string} returns.message - Status message
+   * @returns {string[]} returns.tablesCreated - List of created tables
+   * @returns {boolean} returns.defaultDataInserted - Whether default data was inserted
+   * @throws {Error} If initialization fails
+   * 
+   * @example
+   * const result = await manager.initializeDatabase();
+   * if (result.success) {
+   *   console.log('Database initialized:', result.tablesCreated);
+   * }
+   */
   async initializeDatabase(): Promise<{
     success: boolean;
     message: string;
@@ -107,6 +144,19 @@ export class SDKServiceManager {
     }
   }
 
+  /**
+   * Get system health status
+   * 
+   * Checks the health of database and storage systems.
+   * 
+   * @returns {Promise<Object>} Health status
+   * @returns {boolean} returns.database - Whether database is healthy
+   * @returns {boolean} returns.storage - Whether storage is healthy
+   * 
+   * @example
+   * const health = await manager.getSystemHealth();
+   * console.log('Database healthy:', health.database);
+   */
   async getSystemHealth(): Promise<{
     database: boolean;
     storage: boolean;
@@ -173,6 +223,17 @@ export class SDKServiceManager {
     }
   }
 
+  /**
+   * Get the BackendSDK instance
+   * 
+   * Returns the BackendSDK instance for direct access to SDK services.
+   * 
+   * @returns {Promise<BackendSDK>} BackendSDK instance
+   * 
+   * @example
+   * const backendSDK = await manager.getBackendSDK();
+   * const projects = await backendSDK.projects.list();
+   */
   async getBackendSDK(): Promise<BackendSDK> {
     return this.backendSDK;
   }

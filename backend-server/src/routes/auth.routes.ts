@@ -1,8 +1,24 @@
 /**
  * Authentication Routes
- *
+ * 
  * Handles all authentication-related endpoints for both admin and project users.
  * Base path: /krapi/k1/auth
+ * 
+ * Routes:
+ * - POST /admin/login - Admin login with username/password
+ * - POST /admin/api-login - Admin login with API key
+ * - POST /admin/session - Create admin session from API key
+ * - POST /project/:projectId/session - Create project session
+ * - POST /session/validate - Validate session token
+ * - POST /refresh - Refresh session token
+ * - POST /logout - Logout and invalidate session
+ * - POST /change-password - Change user password
+ * 
+ * @module routes/auth.routes
+ * @example
+ * // Routes are automatically registered when imported
+ * import authRoutes from './auth.routes';
+ * app.use('/krapi/k1/auth', authRoutes);
  */
 
 import { Router, IRouter } from "express";
@@ -31,50 +47,84 @@ const loginLimiter = rateLimit({
 // ===== Admin Authentication =====
 /**
  * Admin login with username/password
+ * 
  * POST /krapi/k1/auth/admin/login
- * Body: { username: string, password: string }
- * Returns: { user, token, session_token, expires_at }
+ * 
+ * Authenticates an admin user with username and password.
+ * Rate limited to prevent brute force attacks.
+ * 
+ * @route POST /admin/login
+ * @body {string} username - Admin username
+ * @body {string} password - Admin password
+ * @returns {Object} Authentication result with user, token, session_token, expires_at
  */
 router.post("/admin/login", loginLimiter, controller.adminLogin);
 
 /**
  * Admin login with API key
+ * 
  * POST /krapi/k1/auth/admin/api-login
- * Body: { api_key: string }
- * Returns: { user, token, session_token, expires_at }
+ * 
+ * Authenticates an admin user using an API key.
+ * 
+ * @route POST /admin/api-login
+ * @body {string} api_key - Admin API key
+ * @returns {Object} Authentication result with user, token, session_token, expires_at
  */
 router.post("/admin/api-login", controller.adminApiLogin);
 
 // ===== Session Management =====
 /**
  * Create admin session from API key
+ * 
  * POST /krapi/k1/auth/admin/session
- * Body: { api_key: string }
- * Returns: { session_token, expires_at, scopes }
+ * 
+ * Creates a new admin session from an API key.
+ * 
+ * @route POST /admin/session
+ * @body {string} api_key - Admin API key
+ * @returns {Object} Session data with session_token, expires_at, scopes
  */
 router.post("/admin/session", controller.createAdminSession);
 
 /**
  * Create project-specific session
+ * 
  * POST /krapi/k1/auth/project/:projectId/session
- * Body: { api_key: string }
- * Returns: { session_token, expires_at, scopes }
+ * 
+ * Creates a new project session from an API key.
+ * 
+ * @route POST /project/:projectId/session
+ * @param {string} projectId - Project ID
+ * @body {string} api_key - Project API key
+ * @returns {Object} Session data with session_token, expires_at, scopes
  */
 router.post("/project/:projectId/session", controller.createProjectSession);
 
 /**
  * Validate session token
+ * 
  * POST /krapi/k1/auth/session/validate
- * Body: { token: string }
- * Returns: { valid: boolean, session?: Session }
+ * 
+ * Validates a session token and returns session information if valid.
+ * 
+ * @route POST /session/validate
+ * @body {string} token - Session token to validate
+ * @returns {Object} Validation result with valid flag and optional session data
  */
 router.post("/session/validate", controller.validateSession);
 
 /**
  * Refresh session token
+ * 
  * POST /krapi/k1/auth/refresh
- * Headers: Authorization: Bearer <token>
- * Returns: { session_token: string, expires_at: string, scopes: string[] }
+ * 
+ * Refreshes an existing session token, extending its expiration.
+ * Requires authentication.
+ * 
+ * @route POST /refresh
+ * @header Authorization: Bearer <token>
+ * @returns {Object} New session data with session_token, expires_at, scopes
  */
 router.post("/refresh", authenticate, controller.refreshSession);
 

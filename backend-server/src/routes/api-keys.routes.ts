@@ -1,8 +1,19 @@
 /**
  * API Keys Routes
- *
- * Handles API key management for projects
- * All routes are prefixed with /projects/:projectId/api-keys
+ * 
+ * Handles API key management for projects.
+ * Base path: /krapi/k1/projects/:projectId/api-keys
+ * 
+ * Routes:
+ * - GET / - Get all API keys for a project
+ * - POST / - Create a new API key
+ * - GET /:keyId - Get API key by ID
+ * - PUT /:keyId - Update API key
+ * - DELETE /:keyId - Delete API key
+ * 
+ * All routes require authentication and project access.
+ * 
+ * @module routes/api-keys.routes
  */
 
 import { BackendSDK } from "@krapi/sdk";
@@ -24,7 +35,12 @@ const router: Router = Router();
 // BackendSDK instance - will be initialized from main router
 let backendSDK: BackendSDK;
 
-// Initialize SDK function - called from main router
+/**
+ * Initialize BackendSDK for API keys routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
 export const initializeApiKeysSDK = (sdk: BackendSDK) => {
   backendSDK = sdk;
 };
@@ -34,8 +50,16 @@ router.use(authenticateProject);
 router.use(validateProjectAccess);
 
 /**
- * GET /projects/:projectId/api-keys
  * Get all API keys for a project
+ * 
+ * GET /krapi/k1/projects/:projectId/api-keys
+ * 
+ * Retrieves all API keys for the specified project.
+ * Requires authentication and project access.
+ * 
+ * @route GET /
+ * @param {string} projectId - Project ID (from parent route)
+ * @returns {Object} Array of API keys
  */
 router.get("/", async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -64,8 +88,20 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
 });
 
 /**
- * POST /projects/:projectId/api-keys
  * Create a new API key for a project
+ * 
+ * POST /krapi/k1/projects/:projectId/api-keys
+ * 
+ * Creates a new API key for the project with specified permissions.
+ * Requires authentication and project write access.
+ * 
+ * @route POST /
+ * @param {string} projectId - Project ID (from parent route)
+ * @body {string} name - API key name
+ * @body {string} [description] - API key description
+ * @body {string[]} permissions - API key permissions/scopes
+ * @body {string} [expires_at] - Expiration date (ISO string)
+ * @returns {Object} Created API key with key string (shown only once)
  */
 router.post("/", async (req: AuthenticatedRequest, res: Response) => {
   try {

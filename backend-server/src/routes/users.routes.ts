@@ -1,3 +1,23 @@
+/**
+ * Users Routes
+ * 
+ * Handles project user management endpoints.
+ * Base path: /krapi/k1/projects/:projectId/users
+ * 
+ * Routes:
+ * - GET /:projectId/users - List project users
+ * - GET /:projectId/users/:userId - Get user by ID
+ * - POST /:projectId/users - Create user
+ * - PUT /:projectId/users/:userId - Update user
+ * - DELETE /:projectId/users/:userId - Delete user
+ * - PUT /:projectId/users/:userId/scopes - Update user scopes
+ * - POST /:projectId/users/authenticate - Authenticate user (public)
+ * - POST /:projectId/users/:userId/verify-email - Verify email (public)
+ * - POST /:projectId/users/password-reset - Send password reset (public)
+ * - POST /:projectId/users/password-reset/confirm - Confirm password reset (public)
+ * 
+ * @module routes/users.routes
+ */
 import { Router, IRouter } from "express";
 
 import { UsersController } from "@/controllers/users.controller";

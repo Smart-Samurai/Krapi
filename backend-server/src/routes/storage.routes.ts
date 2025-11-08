@@ -1,3 +1,20 @@
+/**
+ * Storage Routes
+ * 
+ * Handles file storage-related endpoints for projects.
+ * Base path: /krapi/k1/projects/:projectId/storage
+ * 
+ * Routes:
+ * - POST /upload - Upload a file
+ * - GET /download/:fileId - Download a file
+ * - GET /list - List files
+ * - DELETE /:fileId - Delete a file
+ * - GET /stats - Get storage statistics
+ * 
+ * All routes require authentication and storage scopes.
+ * 
+ * @module routes/storage.routes
+ */
 import { Router } from "express";
 import multer from "multer";
 
@@ -12,6 +29,21 @@ const router = Router({ mergeParams: true });
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+/**
+ * Upload a file
+ * 
+ * POST /krapi/k1/projects/:projectId/storage/upload
+ * 
+ * Uploads a file to the project's storage directory.
+ * Requires authentication and storage:write scope.
+ * 
+ * @route POST /upload
+ * @param {string} projectId - Project ID (from parent route)
+ * @body {File} file - File to upload (multipart/form-data)
+ * @body {string} [project_id] - Project ID (alternative to route param)
+ * @body {string} [folder] - Folder path for file organization
+ * @returns {Object} Upload result with file_id, filename, size, mimetype
+ */
 // File upload endpoint - supports both global and project-specific access
 router.post(
   "/upload",
@@ -60,6 +92,19 @@ router.post(
   }
 );
 
+/**
+ * Download a file
+ * 
+ * GET /krapi/k1/projects/:projectId/storage/download/:fileId
+ * 
+ * Downloads a file from the project's storage.
+ * Requires authentication and storage:read scope.
+ * 
+ * @route GET /download/:fileId
+ * @param {string} projectId - Project ID (from parent route)
+ * @param {string} fileId - File ID
+ * @returns {Buffer} File content as binary data
+ */
 // File download endpoint - supports both global and project-specific access
 router.get(
   "/download/:fileId",
