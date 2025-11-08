@@ -1,14 +1,16 @@
 import axios from 'axios';
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 
 import { LlmService, LlmConfig, ChatMessage } from './llm.service';
 import { McpToolsService, ToolContext } from './tools.service';
 
 import { authenticate, requireScopes } from '@/middleware/auth.middleware';
 import { Scope, CollectionField } from '@/types';
+import { DatabaseService } from '@/services/database.service';
 
 const router: ReturnType<typeof Router> = Router();
 const tools = new McpToolsService();
+const db = DatabaseService.getInstance();
 
 function resolveContext(req: Request & { user?: { id: string } }, scope: 'admin' | 'project', projectId?: string): ToolContext {
   return {
@@ -224,7 +226,56 @@ async function dispatchTool(ctx: ToolContext, name: string, args: Record<string,
   }
 }
 
-router.use(authenticate);
+/**
+ * Conditional authentication middleware for MCP routes
+ * Checks project settings for authentication_required flag
+ * If false, allows requests without authentication
+ */
+async function conditionalAuthenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // For admin routes, always require authentication
+  if (req.path.startsWith('/admin/')) {
+    return authenticate(req, res, next);
+  }
+
+  // For project routes, check project settings
+  if (req.path.startsWith('/projects/')) {
+    const projectId = req.params.projectId;
+    if (projectId) {
+      try {
+        const project = await db.getProjectById(projectId);
+        if (project && project.settings && project.settings.authentication_required === false) {
+          // Auth not required, allow request to proceed
+          return next();
+        }
+      } catch (error) {
+        // If we can't check project settings, require auth for safety
+        console.error('Error checking project settings for MCP auth:', error);
+      }
+    }
+  }
+
+  // For other routes (like /models, /model-capabilities), check if they're project-specific
+  // If there's a projectId in body or params, check project settings
+  const projectId = req.params.projectId || req.body?.projectId;
+  if (projectId) {
+    try {
+      const project = await db.getProjectById(projectId);
+      if (project && project.settings && project.settings.authentication_required === false) {
+        // Auth not required, allow request to proceed
+        return next();
+      }
+    } catch (error) {
+      // If we can't check project settings, require auth for safety
+      console.error('Error checking project settings for MCP auth:', error);
+    }
+  }
+
+  // Default: require authentication
+  return authenticate(req, res, next);
+}
+
+// Apply conditional authentication to all routes
+router.use(conditionalAuthenticate);
 
 /**
  * List available models from LLM server

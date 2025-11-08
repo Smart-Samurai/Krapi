@@ -83,7 +83,7 @@ export const authenticate = async (
       if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
           success: false,
-          error: "Invalid or inactive API key",
+          error: "Invalid or inactive API key - please log in again",
         });
         return;
       }
@@ -92,7 +92,7 @@ export const authenticate = async (
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: "API key expired",
+          error: "API key expired - please log in again",
         });
         return;
       }
@@ -161,7 +161,7 @@ export const authenticate = async (
     if (!authHeader) {
       res.status(401).json({
         success: false,
-        error: "Authorization header or X-API-Key header required",
+        error: "Authorization required - please log in again",
       });
       return;
     }
@@ -189,7 +189,7 @@ export const authenticate = async (
       if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
           success: false,
-          error: "Invalid or inactive API key",
+          error: "Invalid or inactive API key - please log in again",
         });
         return;
       }
@@ -198,7 +198,7 @@ export const authenticate = async (
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: "API key expired",
+          error: "API key expired - please log in again",
         });
         return;
       }
@@ -266,7 +266,7 @@ export const authenticate = async (
       if (!result.valid || !result.session) {
         res.status(401).json({
           success: false,
-          error: "Invalid or expired session",
+          error: "Invalid or expired session - please log in again",
         });
         return;
       }

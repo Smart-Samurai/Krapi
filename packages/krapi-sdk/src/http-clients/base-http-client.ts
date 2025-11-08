@@ -73,12 +73,21 @@ export class BaseHttpClient {
             message?: string;
           };
           const { status, data } = axiosError.response;
+          const errorMessage = data?.error || data?.message || axiosError.message;
           const enhancedError = {
             ...error,
-            message: data?.error || data?.message || axiosError.message,
+            message: errorMessage,
             status,
             isApiError: true,
             originalError: error,
+            // Add flag for auth errors to help frontend detect them
+            isAuthError: status === 401 || 
+              (typeof errorMessage === 'string' && (
+                errorMessage.includes('expired') ||
+                errorMessage.includes('Invalid') ||
+                errorMessage.includes('Unauthorized') ||
+                errorMessage.includes('log in again')
+              )),
           };
           return Promise.reject(enhancedError);
         }

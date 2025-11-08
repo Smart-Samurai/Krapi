@@ -171,12 +171,21 @@ export class KrapiClient implements BaseClient {
         // Enhanced error handling
         if (error.response) {
           const { status, data } = error.response;
+          const errorMessage = (data as { error?: string; message?: string })?.error || (data as { message?: string })?.message || error.message;
           const enhancedError = {
             ...error,
-            message: (data as { error?: string; message?: string })?.error || (data as { message?: string })?.message || error.message,
+            message: errorMessage,
             status,
             isApiError: true,
             originalError: error,
+            // Add flag for auth errors to help frontend detect them
+            isAuthError: status === 401 || 
+              (typeof errorMessage === 'string' && (
+                errorMessage.includes('expired') ||
+                errorMessage.includes('Invalid') ||
+                errorMessage.includes('Unauthorized') ||
+                errorMessage.includes('log in again')
+              )),
           };
           return Promise.reject(enhancedError);
         }
