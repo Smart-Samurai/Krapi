@@ -112,8 +112,8 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
-import { DatabaseService } from "./services/database.service";
 import { BackupSchedulerService } from "./services/backup-scheduler.service";
+import { DatabaseService } from "./services/database.service";
 import { ProjectAwareDbAdapter } from "./services/project-aware-db-adapter";
 import { SDKServiceManager } from "./services/sdk-service-manager";
 

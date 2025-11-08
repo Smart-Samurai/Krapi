@@ -5,8 +5,9 @@
  * These collections provide common functionality that all projects need.
  */
 
-import { CollectionField, CollectionIndex } from "@/types";
 import { FieldType } from "@krapi/sdk";
+
+import { CollectionField, CollectionIndex } from "@/types";
 
 /**
  * Default collections schema definitions

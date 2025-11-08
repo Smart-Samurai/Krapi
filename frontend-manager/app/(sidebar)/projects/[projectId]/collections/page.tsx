@@ -14,7 +14,6 @@ import {
   BookOpen,
   Link as LinkIcon,
   ArrowRight,
-  Eye,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";

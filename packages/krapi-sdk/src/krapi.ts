@@ -381,7 +381,7 @@ class KrapiWrapper implements KrapiSocketInterface {
               session_token: loginData.token || loginData.session_token || "",
               expires_at: loginData.expires_at || "",
               user: loginData.user as unknown as AdminUser | ProjectUser,
-              scopes: scopes,
+              scopes,
             },
           };
           
@@ -459,7 +459,7 @@ class KrapiWrapper implements KrapiSocketInterface {
               data: {
                 user: {
                   ...userData,
-                  scopes: scopes,
+                  scopes,
                 } as AdminUser & { scopes: string[] },
                 session_token: response.data.token,
                 expires_at: response.data.expires_at,

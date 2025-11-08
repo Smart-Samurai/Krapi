@@ -54,10 +54,6 @@ interface ChangelogEntry {
 export default function ProjectChangelogPage() {
   const params = useParams();
   const projectId = params?.projectId as string;
-  
-  if (!projectId) {
-    return <div>Project ID is required</div>;
-  }
   const { toast } = useToast();
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +68,10 @@ export default function ProjectChangelogPage() {
     total: 0,
     has_more: false,
   });
+
+  if (!projectId) {
+    return <div>Project ID is required</div>;
+  }
 
   const fetchChangelog = useCallback(async () => {
     try {

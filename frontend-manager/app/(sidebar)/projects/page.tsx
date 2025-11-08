@@ -115,7 +115,7 @@ export default function ProjectsPage() {
         fulfilled: fetchProjects.fulfilled.match(action),
         rejected: fetchProjects.rejected.match(action),
         payload: action.payload,
-        error: fetchProjects.rejected.match(action) ? (action.payload || (action as any).error?.message) : undefined,
+        error: fetchProjects.rejected.match(action) ? (action.payload || (action.error as { message?: string })?.message) : undefined,
       });
       
       if (fetchProjects.fulfilled.match(action)) {

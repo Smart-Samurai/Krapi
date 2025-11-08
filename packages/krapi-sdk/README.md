@@ -1,10 +1,24 @@
-# KRAPI SDK
+# @krapi/sdk
 
 **Easy-to-use TypeScript SDK for connecting to self-hosted KRAPI servers - just like Appwrite!**
 
+[![npm version](https://img.shields.io/npm/v/@krapi/sdk.svg)](https://www.npmjs.com/package/@krapi/sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+
 Connect your React, Vue, Angular, or any frontend/backend app to your self-hosted KRAPI instance with just a few lines of code.
 
-## Installation
+## 📋 Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Examples](#examples)
+- [Publishing to NPM](#publishing-to-npm)
+- [Code Ownership](#code-ownership)
+- [License](#license)
+
+## 📦 Installation
 
 ```bash
 npm install @krapi/sdk
@@ -14,7 +28,7 @@ pnpm add @krapi/sdk
 yarn add @krapi/sdk
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Connect to Your Self-Hosted KRAPI Server
 
@@ -50,29 +64,9 @@ const documents = await krapi.collections.documents.list('project-id', 'collecti
 3. **Connect**: Point the SDK to your KRAPI server endpoint
 4. **Use**: Access all your data and collections from your app!
 
-**It's that simple!** ??
+**It's that simple!** 🎉
 
-### Server-Side Usage (Node.js)
-
-```typescript
-import { BackendSDK } from '@krapi/sdk';
-import { DatabaseService } from './your-database-service';
-
-// Initialize backend SDK with direct database access
-const dbService = DatabaseService.getInstance();
-await dbService.connect();
-
-const backendSDK = new BackendSDK({
-  databaseConnection: dbService,
-  logger: console
-});
-
-// Use services with direct database access
-const projects = await backendSDK.projects.list();
-const documents = await backendSDK.collections.service.getDocuments('project-id', 'collection-id');
-```
-
-## Client SDK API
+## 📚 API Reference
 
 ### Initialization
 
@@ -219,38 +213,12 @@ await krapi.collections.documents.bulkCreate(
   [{ email: 'user1@example.com' }, { email: 'user2@example.com' }]
 );
 
-await krapi.collections.documents.bulkUpdate(
-  'project-id',
-  'collection-name',
-  { status: 'active' },
-  { status: 'inactive' }
-);
-
-await krapi.collections.documents.bulkDelete(
-  'project-id',
-  'collection-name',
-  { status: 'deleted' }
-);
-
 // Search documents
 const results = await krapi.collections.documents.search(
   'project-id',
   'collection-name',
   'search term',
   { fields: ['name', 'description'], limit: 10 }
-);
-
-// Aggregate documents
-const stats = await krapi.collections.documents.aggregate(
-  'project-id',
-  'collection-name',
-  {
-    groupBy: 'category',
-    operations: [
-      { field: 'price', operation: 'sum' },
-      { field: 'quantity', operation: 'avg' }
-    ]
-  }
 );
 ```
 
@@ -292,7 +260,6 @@ const backup = await krapi.backup.createProject('project-id', {
   description: 'Monthly backup',
   password: 'secure-password'
 });
-// Save backup.password securely!
 
 // Restore project backup
 await krapi.backup.restoreProject(
@@ -304,81 +271,17 @@ await krapi.backup.restoreProject(
 
 // List backups
 const backups = await krapi.backup.list('project-id', 'project');
-
-// Delete backup
-await krapi.backup.delete('backup-id');
-
-// Create system backup
-const systemBackup = await krapi.backup.createSystem({
-  description: 'Full system backup',
-  password: 'secure-password'
-});
 ```
 
-### Admin
+## 💻 Examples
 
-```typescript
-// List admin users
-const users = await krapi.admin.getUsers({ limit: 50 });
-
-// Get user
-const user = await krapi.admin.getUser('user-id');
-
-// Create user
-const newUser = await krapi.admin.createUser({
-  username: 'newuser',
-  email: 'user@example.com',
-  password: 'secure-password',
-  role: 'admin'
-});
-
-// Update user
-await krapi.admin.updateUser('user-id', {
-  email: 'newemail@example.com'
-});
-
-// Delete user
-await krapi.admin.deleteUser('user-id');
-```
-
-### Email
-
-```typescript
-// List email templates
-const templates = await krapi.email.listTemplates('project-id');
-
-// Create email template
-await krapi.email.createTemplate('project-id', {
-  name: 'Welcome Email',
-  subject: 'Welcome to {{company_name}}!',
-  body: 'Hello {{user_name}}, welcome!',
-  variables: ['company_name', 'user_name']
-});
-
-// Send test email
-await krapi.email.sendTest({
-  to: 'test@example.com',
-  subject: 'Test Email',
-  body: 'This is a test'
-});
-```
-
-### Health
-
-```typescript
-// Check health
-const health = await krapi.health.check();
-console.log(health.status); // 'healthy' | 'unhealthy'
-```
-
-## React Example
+### React Example
 
 ```tsx
 import { useEffect, useState } from 'react';
 import { KrapiClient } from '@krapi/sdk/client';
 
 function App() {
-  // Initialize once - connect to your self-hosted KRAPI server
   const [krapi] = useState(() => new KrapiClient({
     endpoint: process.env.REACT_APP_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
     apiKey: process.env.REACT_APP_KRAPI_API_KEY
@@ -405,7 +308,7 @@ function App() {
 }
 ```
 
-## Next.js Example
+### Next.js Example
 
 ```tsx
 // app/page.tsx
@@ -415,7 +318,6 @@ import { KrapiClient } from '@krapi/sdk/client';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
-  // Connect to your self-hosted KRAPI server
   const [krapi] = useState(() => new KrapiClient({
     endpoint: process.env.NEXT_PUBLIC_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
     apiKey: process.env.NEXT_PUBLIC_KRAPI_API_KEY
@@ -443,14 +345,13 @@ export default function Home() {
 }
 ```
 
-## Vue Example
+### Vue Example
 
 ```vue
 <script setup>
 import { ref, onMounted } from 'vue';
 import { KrapiClient } from '@krapi/sdk/client';
 
-// Connect to your self-hosted KRAPI server
 const krapi = new KrapiClient({
   endpoint: import.meta.env.VITE_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
   apiKey: import.meta.env.VITE_KRAPI_API_KEY
@@ -476,32 +377,27 @@ onMounted(async () => {
 </template>
 ```
 
-## TypeScript Support
-
-Full TypeScript support with type definitions included. All methods are fully typed.
-
-## Error Handling
+### Server-Side Usage (Node.js)
 
 ```typescript
-try {
-  const response = await krapi.collections.documents.create(
-    'project-id',
-    'collection-name',
-    { email: 'user@example.com' }
-  );
+import { BackendSDK } from '@krapi/sdk';
+import { DatabaseService } from './your-database-service';
 
-  if (!response.success) {
-    console.error('Error:', response.error);
-    return;
-  }
+// Initialize backend SDK with direct database access
+const dbService = DatabaseService.getInstance();
+await dbService.connect();
 
-  console.log('Created:', response.data);
-} catch (error) {
-  console.error('Request failed:', error);
-}
+const backendSDK = new BackendSDK({
+  databaseConnection: dbService,
+  logger: console
+});
+
+// Use services with direct database access
+const projects = await backendSDK.projects.list();
+const documents = await backendSDK.collections.service.getDocuments('project-id', 'collection-id');
 ```
 
-## Configuration
+## 🔧 Configuration
 
 ### Environment Variables
 
@@ -532,78 +428,181 @@ krapi.setSessionToken('session-token');
 krapi.setProjectId('project-id');
 ```
 
-## Publishing the Package to NPM
+## 📦 Publishing to NPM
 
-For KRAPI maintainers - to publish this package to npm for external developers.
+For KRAPI maintainers - instructions for publishing this package to npm for external developers.
 
-### ?? Important: Security Checklist
+### Prerequisites
 
-**Before publishing, always**:
-1. Run security check: `npm run security-check` (must show 0 vulnerabilities)
-2. Update `package.json` with real repository URL (your main KRAPI GitHub repo) and author info
-3. Verify package contents: `npm pack --dry-run`
-4. Test installation in a new project after publishing
+1. **npm Account**: Create an account at [https://www.npmjs.com/signup](https://www.npmjs.com/signup)
+2. **npm Organization**: Create organization `@krapi` at [https://www.npmjs.com/org/create](https://www.npmjs.com/org/create)
+3. **Login**: `npm login` in your terminal
 
-**Note**: The SDK stays in your main KRAPI monorepo! The `directory` field in `package.json` tells npm where it is. No separate repo needed. **Your repo can be private** - the npm package works independently! See `MONOREPO.md` and `PRIVATE_REPO.md` for details.
+### Pre-Publishing Checklist
 
-### Quick Start Publishing
+**⚠️ IMPORTANT**: Before publishing, always:
 
-1. **Prerequisites**:
-   - npm account (create at https://www.npmjs.com/signup)
-   - npm organization `@krapi` (create at https://www.npmjs.com/org/create)
-   - Login: `npm login`
+1. ✅ **Update version** in `package.json`
+2. ✅ **Update repository URL** in `package.json` (if changed)
+3. ✅ **Run security check**: `npm run security-check` (must show 0 vulnerabilities)
+4. ✅ **Run linting**: `npm run lint` (must pass)
+5. ✅ **Run type check**: `npm run type-check` (must pass)
+6. ✅ **Build package**: `npm run build` (auto-runs before publish)
+7. ✅ **Test installation**: Test in a new project after publishing
 
-2. **Security Check**:
+### Publishing Steps
+
+1. **Navigate to SDK directory**:
    ```bash
    cd packages/krapi-sdk
-   npm run security-check  # Must show 0 vulnerabilities!
    ```
 
-3. **Publish**:
+2. **Update version** (if needed):
+   ```bash
+   # Patch version (1.0.0 -> 1.0.1)
+   npm version patch
+   
+   # Minor version (1.0.0 -> 1.1.0)
+   npm version minor
+   
+   # Major version (1.0.0 -> 2.0.0)
+   npm version major
+   ```
+
+3. **Run security check**:
+   ```bash
+   npm run security-check
+   ```
+   **Must show 0 vulnerabilities!** If vulnerabilities are found, update dependencies and test thoroughly.
+
+4. **Verify package contents**:
+   ```bash
+   npm pack --dry-run
+   ```
+   This shows what will be published without actually publishing.
+
+5. **Publish to npm**:
    ```bash
    npm publish --access public
    ```
 
-4. **Verify**:
-   - Visit https://www.npmjs.com/package/@krapi/sdk
-   - Test installation: `npm install @krapi/sdk`
-
-### Detailed Guides
-
-- **Step-by-step instructions**: See `NPM_PUBLISH_STEPS.md` for beginner-friendly guide
-- **Complete publishing guide**: See `NPM_PUBLISHING.md` for detailed documentation
-- **Security guide**: See `SECURITY.md` for security best practices
+6. **Verify publication**:
+   - Visit [https://www.npmjs.com/package/@krapi/sdk](https://www.npmjs.com/package/@krapi/sdk)
+   - Test installation: `npm install @krapi/sdk` in a new project
 
 ### Updating the Package
 
+When making updates:
+
 ```bash
-# Update version (patch/minor/major)
-npm version patch
-npm run security-check  # Always check security before publishing
+cd packages/krapi-sdk
+
+# 1. Make your changes
+# 2. Update version
+npm version patch  # or minor/major
+
+# 3. Security check (CRITICAL!)
+npm run security-check
+
+# 4. Publish
 npm publish --access public
 ```
 
 ### Important Notes
 
-- ? **Security**: Always run `npm run security-check` before publishing
-- ? **Build**: Package auto-builds before publish (via `prepublishOnly` script)
-- ? **Types**: Package includes TypeScript definitions
-- ? **Scoped Package**: `@krapi/sdk` requires npm organization `@krapi`
-- ? **Alternative**: Use `krapi-sdk` (unscoped) if you don't want an organization
+- 🔒 **Security**: Always run `npm run security-check` before publishing
+- 🏗️ **Build**: Package auto-builds before publish (via `prepublishOnly` script)
+- 📝 **Types**: Package includes TypeScript definitions
+- 📦 **Scoped Package**: `@krapi/sdk` requires npm organization `@krapi`
+- 🔄 **Alternative**: Use `krapi-sdk` (unscoped) if you don't want an organization
+
+### Package Configuration
+
+The package is configured in `package.json`:
+
+```json
+{
+  "name": "@krapi/sdk",
+  "version": "2.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GenorTG/Krapi.git",
+    "directory": "packages/krapi-sdk"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
+```
+
+**Note**: The SDK stays in the main KRAPI monorepo. The `directory` field tells npm where it is. No separate repository needed!
 
 ### After Publishing
 
 External developers can install:
+
 ```bash
 npm install @krapi/sdk
 ```
 
-See [Installation](#installation) section above for usage instructions.
+Then use it in their projects:
 
-## More Examples
+```typescript
+import { KrapiClient } from '@krapi/sdk/client';
 
-See `/examples` directory for more examples.
+const krapi = new KrapiClient({
+  endpoint: 'https://their-krapi-server.com/krapi/k1',
+  apiKey: 'their-api-key'
+});
+```
 
-## License
+## 👤 Code Ownership
 
-MIT
+### Repository
+
+- **GitHub Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
+- **Package Location**: `packages/krapi-sdk/` in the main repository
+- **Owner**: GenorTG
+- **License**: MIT
+
+### Code Ownership Rights
+
+All code in this package is owned by **GenorTG** and contributors as specified in the LICENSE file.
+
+### Contributing
+
+When contributing to this package:
+- You retain copyright of your contributions
+- You grant GenorTG and the project maintainers a license to use your contributions
+- All contributions must comply with the MIT License
+
+### Attribution
+
+If you use this package, please:
+- Maintain attribution to the original authors
+- Include the LICENSE file
+- Credit the project in your documentation
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
+
+## 🆘 Support
+
+For issues, questions, or feature requests:
+
+- **GitHub Issues**: [https://github.com/GenorTG/Krapi/issues](https://github.com/GenorTG/Krapi/issues)
+- **Main Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
+
+## 🔗 Links
+
+- **Main Project**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
+- **NPM Package**: [https://www.npmjs.com/package/@krapi/sdk](https://www.npmjs.com/package/@krapi/sdk)
+- **Documentation**: See main project README for full documentation
+
+---
+
+**Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)  
+**Owner**: GenorTG  
+**License**: MIT

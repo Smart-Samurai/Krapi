@@ -30,8 +30,8 @@ import {
   QueryOptions,
   UserRole,
 } from "@/types";
-import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 import { getDefaultCollections } from "@/utils/default-collections";
+import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
 export class DatabaseService {
   private adapter: SQLiteAdapter
@@ -680,7 +680,7 @@ export class DatabaseService {
           await this.dbManager.queryMain(
             `DROP TRIGGER IF EXISTS update_${table}_updated_at`
           );
-        } catch (error) {
+        } catch {
           // Ignore errors if trigger doesn't exist
         }
         
@@ -1863,7 +1863,6 @@ export class DatabaseService {
     );
 
     // Map document to BackendProjectUser format
-    const userDataFromDoc = document.data as Record<string, unknown>;
     return {
       id: document.id,
       project_id: projectId,

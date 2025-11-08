@@ -5,8 +5,8 @@ import { LlmService, LlmConfig, ChatMessage } from './llm.service';
 import { McpToolsService, ToolContext } from './tools.service';
 
 import { authenticate, requireScopes } from '@/middleware/auth.middleware';
-import { Scope, CollectionField } from '@/types';
 import { DatabaseService } from '@/services/database.service';
+import { Scope, CollectionField } from '@/types';
 
 const router: ReturnType<typeof Router> = Router();
 const tools = new McpToolsService();
@@ -983,7 +983,7 @@ router.post('/model-capabilities', async (req: Request, res: Response) => {
         } catch {
           // Ignore
         }
-      } catch (error: unknown) {
+      } catch {
         // For Ollama, assume tool calling is supported for most models
         supportsToolCalling = true;
       }

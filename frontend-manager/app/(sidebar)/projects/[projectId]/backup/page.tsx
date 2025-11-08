@@ -60,10 +60,6 @@ interface Backup {
 export default function ProjectBackupPage() {
   const params = useParams();
   const projectId = params?.projectId as string;
-  
-  if (!projectId) {
-    return <div>Project ID is required</div>;
-  }
   const { toast } = useToast();
   const [backups, setBackups] = useState<Backup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +77,10 @@ export default function ProjectBackupPage() {
     password: "",
     overwrite: false,
   });
+
+  if (!projectId) {
+    return <div>Project ID is required</div>;
+  }
 
   const fetchBackups = useCallback(async () => {
     try {

@@ -155,7 +155,7 @@ export class CollectionsController {
         projectId: sanitizedId,
         name,
         fieldsCount: fields?.length,
-        fields: fields,
+        fields,
         description,
         indexes,
       });

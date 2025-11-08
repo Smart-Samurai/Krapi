@@ -243,7 +243,7 @@ export class HealthService {
               String((countResult.rows[0] as { count: number | string }).count)
             );
             size = `${rowCount} rows`; // SQLite doesn't have pg_size_pretty
-          } catch (error) {
+          } catch {
             // Table doesn't exist or query failed
             exists = false;
             rowCount = 0;

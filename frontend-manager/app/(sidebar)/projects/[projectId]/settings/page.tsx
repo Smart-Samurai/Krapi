@@ -39,7 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import type { Project } from "@/lib/krapi";
+import type { Project, ProjectSettings } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById, updateProject } from "@/store/projectsSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
@@ -78,8 +78,8 @@ export default function ProjectSettingsPage() {
   const isLoading = projectsState.loading;
 
   const [error, setError] = useState<string | null>(null);
-  const [projectSettings, setProjectSettings] = useState<any>(null);
-  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [_projectSettings, setProjectSettings] = useState<ProjectSettings | null>(null);
+  const [_loadingSettings, setLoadingSettings] = useState(false);
 
   const form = useForm<ProjectSettingsFormData>({
     resolver: zodResolver(projectSettingsSchema),

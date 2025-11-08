@@ -3,8 +3,8 @@ import { Request, Response } from "express";
 
 import { DatabaseService } from "@/services/database.service";
 import { AuthenticatedRequest, ApiResponse } from "@/types";
-import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 import { getDefaultCollections } from "@/utils/default-collections";
+import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
 /**
  * Project Controller

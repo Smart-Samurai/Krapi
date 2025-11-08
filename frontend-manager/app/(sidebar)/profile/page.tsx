@@ -39,6 +39,22 @@ export default function ProfilePage() {
   const krapi = useKrapi();
   const extendedUser = user as ExtendedAdminUser;
 
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // API Key state
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
+  const [isCreatingMasterKey, setIsCreatingMasterKey] = useState(false);
+
   // Show loading state if auth is still initializing
   if (!isInitialized || authLoading) {
     return (
@@ -81,22 +97,6 @@ export default function ProfilePage() {
       </PageLayout>
     );
   }
-
-  // Password state
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-  // API Key state
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
-  const [isCreatingMasterKey, setIsCreatingMasterKey] = useState(false);
 
   const getInitials = () => {
     if (!user) return "U";
