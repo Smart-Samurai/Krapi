@@ -1,12 +1,39 @@
+/**
+ * Textarea Component
+ * 
+ * Multi-line text input component with consistent styling.
+ * 
+ * @module components/ui/textarea
+ * @example
+ * <Textarea placeholder="Enter description" />
+ */
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
+/**
+ * Textarea Props Interface
+ * 
+ * @interface TextareaProps
+ * @extends {React.TextareaHTMLAttributes<HTMLTextAreaElement>}
+ * @property {string} [placeholder] - Placeholder text
+ */
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   placeholder?: string;
 }
 
+/**
+ * Textarea Component
+ * 
+ * Multi-line text input with consistent styling and focus states.
+ * 
+ * @param {TextareaProps} props - Component props
+ * @returns {JSX.Element} Textarea component
+ * 
+ * @example
+ * <Textarea placeholder="Enter description" rows={4} />
+ */
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, ...props }, ref) => {
     return (

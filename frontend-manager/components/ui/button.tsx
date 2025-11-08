@@ -1,9 +1,25 @@
+/**
+ * Button Component
+ * 
+ * Button component built on Radix UI Slot with variant and size support.
+ * Supports multiple variants (default, destructive, outline, secondary, ghost, link) and sizes.
+ * 
+ * @module components/ui/button
+ * @example
+ * <Button variant="default" size="md">Click me</Button>
+ * <Button variant="destructive" size="sm">Delete</Button>
+ */
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Button Variants
+ * 
+ * @constant {Function} buttonVariants
+ */
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap  text-base font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
@@ -35,6 +51,21 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Button Component
+ * 
+ * Button with variants and sizes. Can render as a button or as a child element (asChild).
+ * 
+ * @param {Object} props - Component props
+ * @param {string} [props.className] - Additional CSS classes
+ * @param {"default" | "destructive" | "outline" | "secondary" | "ghost" | "link"} [props.variant="default"] - Button variant
+ * @param {"default" | "sm" | "lg" | "icon"} [props.size="default"] - Button size
+ * @param {boolean} [props.asChild=false] - Render as child element
+ * @returns {JSX.Element} Button component
+ * 
+ * @example
+ * <Button variant="default" size="md" onClick={handleClick}>Click me</Button>
+ */
 function Button({
   className,
   variant,

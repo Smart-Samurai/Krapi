@@ -1,3 +1,21 @@
+/**
+ * Dialog Components
+ * 
+ * Dialog/modal components built on Radix UI Dialog primitives.
+ * Includes Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose.
+ * 
+ * @module components/ui/dialog
+ * @example
+ * <Dialog>
+ *   <DialogTrigger>Open</DialogTrigger>
+ *   <DialogContent>
+ *     <DialogHeader>
+ *       <DialogTitle>Title</DialogTitle>
+ *       <DialogDescription>Description</DialogDescription>
+ *     </DialogHeader>
+ *   </DialogContent>
+ * </Dialog>
+ */
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -6,6 +24,11 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Dialog Root Component
+ * 
+ * @constant {typeof DialogPrimitive.Root}
+ */
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;

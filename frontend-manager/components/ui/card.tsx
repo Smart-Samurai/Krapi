@@ -1,7 +1,31 @@
+/**
+ * Card Components
+ * 
+ * Card component and sub-components for displaying content in cards.
+ * Includes Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter.
+ * 
+ * @module components/ui/card
+ * @example
+ * <Card>
+ *   <CardHeader>
+ *     <CardTitle>Title</CardTitle>
+ *     <CardDescription>Description</CardDescription>
+ *   </CardHeader>
+ *   <CardContent>Content</CardContent>
+ * </Card>
+ */
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
+/**
+ * Card Component
+ * 
+ * Main card container component.
+ * 
+ * @param {React.HTMLAttributes<HTMLDivElement>} props - Component props
+ * @returns {JSX.Element} Card component
+ */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>

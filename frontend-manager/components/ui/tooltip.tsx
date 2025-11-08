@@ -1,3 +1,18 @@
+/**
+ * Tooltip Components
+ * 
+ * Tooltip components built on Radix UI Tooltip primitives.
+ * Includes TooltipProvider, Tooltip, TooltipTrigger, TooltipContent.
+ * 
+ * @module components/ui/tooltip
+ * @example
+ * <TooltipProvider>
+ *   <Tooltip>
+ *     <TooltipTrigger>Hover me</TooltipTrigger>
+ *     <TooltipContent>Tooltip text</TooltipContent>
+ *   </Tooltip>
+ * </TooltipProvider>
+ */
 "use client"
 
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
@@ -5,6 +20,15 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Tooltip Provider Component
+ * 
+ * Provides tooltip context to child components.
+ * 
+ * @param {React.ComponentProps<typeof TooltipPrimitive.Provider>} props - Provider props
+ * @param {number} [props.delayDuration=0] - Delay before showing tooltip
+ * @returns {JSX.Element} Tooltip provider
+ */
 function TooltipProvider({
   delayDuration = 0,
   ...props
@@ -18,6 +42,14 @@ function TooltipProvider({
   )
 }
 
+/**
+ * Tooltip Component
+ * 
+ * Tooltip wrapper that includes TooltipProvider.
+ * 
+ * @param {React.ComponentProps<typeof TooltipPrimitive.Root>} props - Tooltip props
+ * @returns {JSX.Element} Tooltip component
+ */
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {

@@ -1,3 +1,12 @@
+/**
+ * Switch Component
+ * 
+ * Toggle switch component built on Radix UI Switch primitive.
+ * 
+ * @module components/ui/switch
+ * @example
+ * <Switch checked={enabled} onCheckedChange={setEnabled} />
+ */
 "use client";
 
 import * as SwitchPrimitives from "@radix-ui/react-switch";
@@ -5,6 +14,19 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Switch Component
+ * 
+ * Toggle switch for boolean values.
+ * 
+ * @param {React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>} props - Switch props
+ * @param {boolean} [props.checked] - Checked state
+ * @param {Function} [props.onCheckedChange] - Change handler
+ * @returns {JSX.Element} Switch component
+ * 
+ * @example
+ * <Switch checked={value} onCheckedChange={setValue} />
+ */
 const Switch = React.forwardRef<
   React.ElementRef<typeof SwitchPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>

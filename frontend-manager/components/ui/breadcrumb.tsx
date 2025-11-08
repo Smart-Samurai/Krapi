@@ -1,9 +1,37 @@
+/**
+ * Breadcrumb Components
+ * 
+ * Breadcrumb navigation components built on Radix UI Slot.
+ * Includes Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage.
+ * 
+ * @module components/ui/breadcrumb
+ * @example
+ * <Breadcrumb>
+ *   <BreadcrumbList>
+ *     <BreadcrumbItem>
+ *       <BreadcrumbLink href="/">Home</BreadcrumbLink>
+ *     </BreadcrumbItem>
+ *     <BreadcrumbSeparator />
+ *     <BreadcrumbItem>
+ *       <BreadcrumbPage>Current</BreadcrumbPage>
+ *     </BreadcrumbItem>
+ *   </BreadcrumbList>
+ * </Breadcrumb>
+ */
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Breadcrumb Component
+ * 
+ * Breadcrumb navigation container.
+ * 
+ * @param {React.ComponentPropsWithoutRef<"nav"> & {separator?: React.ReactNode}} props - Breadcrumb props
+ * @returns {JSX.Element} Breadcrumb component
+ */
 const Breadcrumb = React.forwardRef<
   HTMLElement,
   React.ComponentPropsWithoutRef<"nav"> & {

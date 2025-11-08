@@ -207,6 +207,29 @@ export class AuthService {
     }
   }
 
+  /**
+   * Register a new admin user
+   *
+   * Creates a new admin user account with the provided credentials.
+   *
+   * @param {Object} registerData - Registration data
+   * @param {string} registerData.username - Username (required)
+   * @param {string} registerData.email - Email address (required)
+   * @param {string} registerData.password - Password (required)
+   * @param {string} [registerData.role="user"] - User role
+   * @param {string} [registerData.access_level="read"] - Access level
+   * @param {string[]} [registerData.permissions=[]] - Permission scopes
+   * @returns {Promise<{success: boolean, user: AdminUser}>} Registration result
+   * @throws {Error} If user already exists or registration fails
+   *
+   * @example
+   * const result = await authService.register({
+   *   username: 'newuser',
+   *   email: 'user@example.com',
+   *   password: 'securepassword',
+   *   role: 'admin'
+   * });
+   */
   async register(registerData: {
     username: string;
     email: string;
@@ -262,6 +285,17 @@ export class AuthService {
     }
   }
 
+  /**
+   * Logout and revoke session
+   *
+   * Logs out a user by revoking their session token.
+   *
+   * @param {string} [sessionId] - Optional session ID to revoke (if not provided, revokes current session)
+   * @returns {Promise<{success: boolean}>} Logout result
+   *
+   * @example
+   * await authService.logout('session-id');
+   */
   async logout(sessionId?: string): Promise<{ success: boolean }> {
     try {
       if (sessionId) {
@@ -277,6 +311,21 @@ export class AuthService {
     }
   }
 
+  /**
+   * Authenticate admin user with API key
+   *
+   * Authenticates an admin user using an API key instead of username/password.
+   *
+   * @param {ApiKeyAuthRequest} apiKeyData - API key authentication data
+   * @param {string} apiKeyData.api_key - API key value
+   * @returns {Promise<ApiKeyAuthResponse>} Authentication response with token and user
+   * @throws {Error} If API key is invalid or expired
+   *
+   * @example
+   * const result = await authService.authenticateAdminWithApiKey({
+   *   api_key: 'ak_...'
+   * });
+   */
   async authenticateAdminWithApiKey(
     apiKeyData: ApiKeyAuthRequest
   ): Promise<ApiKeyAuthResponse> {
@@ -323,6 +372,21 @@ export class AuthService {
     }
   }
 
+  /**
+   * Regenerate API key for admin user
+   *
+   * Generates a new API key for the authenticated admin user.
+   * Note: This is a placeholder implementation.
+   *
+   * @param {unknown} _req - Request object (currently unused)
+   * @returns {Promise<{success: boolean, data?: {apiKey: string}, error?: string}>} API key generation result
+   *
+   * @example
+   * const result = await authService.regenerateApiKey(request);
+   * if (result.success) {
+   *   console.log(`New API Key: ${result.data?.apiKey}`);
+   * }
+   */
   async regenerateApiKey(
     _req: unknown
   ): Promise<{ success: boolean; data?: { apiKey: string }; error?: string }> {
@@ -353,7 +417,27 @@ export class AuthService {
     }
   }
 
-  // Project User Authentication
+  /**
+   * Authenticate project user
+   *
+   * Authenticates a project-specific user with username/email and password.
+   *
+   * @param {LoginRequest} loginData - Login credentials
+   * @param {string} loginData.project_id - Project ID (required)
+   * @param {string} [loginData.username] - Username
+   * @param {string} [loginData.email] - Email
+   * @param {string} loginData.password - Password
+   * @param {boolean} [loginData.remember_me] - Whether to remember session
+   * @returns {Promise<LoginResponse>} Login response with token and user
+   * @throws {Error} If credentials are invalid or project ID missing
+   *
+   * @example
+   * const result = await authService.authenticateProjectUser({
+   *   project_id: 'project-id',
+   *   username: 'user',
+   *   password: 'password'
+   * });
+   */
   async authenticateProjectUser(
     loginData: LoginRequest
   ): Promise<LoginResponse> {
@@ -440,7 +524,30 @@ export class AuthService {
     }
   }
 
-  // Session Management
+  /**
+   * Create a new session
+   *
+   * Creates a new authentication session for a user.
+   *
+   * @param {Object} sessionData - Session data
+   * @param {string} sessionData.user_id - User ID
+   * @param {"admin" | "project"} sessionData.user_type - User type
+   * @param {string} [sessionData.project_id] - Project ID (for project users)
+   * @param {string[]} sessionData.scopes - Permission scopes
+   * @param {boolean} [sessionData.remember_me=false] - Whether to extend session (30 days vs 1 hour)
+   * @param {string} [sessionData.ip_address] - Client IP address
+   * @param {string} [sessionData.user_agent] - Client user agent
+   * @returns {Promise<Session>} Created session
+   * @throws {Error} If session creation fails
+   *
+   * @example
+   * const session = await authService.createSession({
+   *   user_id: 'user-id',
+   *   user_type: 'admin',
+   *   scopes: ['admin:read', 'admin:write'],
+   *   remember_me: true
+   * });
+   */
   async createSession(sessionData: {
     user_id: string;
     user_type: "admin" | "project";
@@ -484,6 +591,23 @@ export class AuthService {
     }
   }
 
+  /**
+   * Create session from API key
+   *
+   * Creates a session token from a valid API key.
+   *
+   * @param {string} apiKey - API key value
+   * @returns {Promise<Object>} Session information
+   * @returns {string} returns.session_token - Session token
+   * @returns {string} returns.expires_at - Expiration timestamp
+   * @returns {"admin" | "project"} returns.user_type - User type
+   * @returns {string[]} returns.scopes - Permission scopes
+   * @throws {Error} If API key is invalid or expired
+   *
+   * @example
+   * const session = await authService.createSessionFromApiKey('ak_...');
+   * console.log(`Session token: ${session.session_token}`);
+   */
   async createSessionFromApiKey(apiKey: string): Promise<{
     session_token: string;
     expires_at: string;
@@ -531,6 +655,21 @@ export class AuthService {
     }
   }
 
+  /**
+   * Validate session token
+   *
+   * Validates a session token and returns the session if valid and not expired.
+   * Updates the last_used_at timestamp.
+   *
+   * @param {string} token - Session token
+   * @returns {Promise<Session | null>} Session if valid, null if invalid/expired
+   *
+   * @example
+   * const session = await authService.validateSession('st_...');
+   * if (session) {
+   *   console.log(`User: ${session.user_id}, Scopes: ${session.scopes}`);
+   * }
+   */
   async validateSession(token: string): Promise<Session | null> {
     try {
       const result = await this.db.query(
@@ -558,6 +697,18 @@ export class AuthService {
     }
   }
 
+  /**
+   * Revoke a session
+   *
+   * Invalidates a session by marking it as inactive.
+   *
+   * @param {string} token - Session token to revoke
+   * @returns {Promise<boolean>} True if session was revoked
+   * @throws {Error} If revocation fails
+   *
+   * @example
+   * const revoked = await authService.revokeSession('st_...');
+   */
   async revokeSession(token: string): Promise<boolean> {
     try {
       const result = await this.db.query(
@@ -571,6 +722,20 @@ export class AuthService {
     }
   }
 
+  /**
+   * Revoke all sessions for a user
+   *
+   * Invalidates all active sessions for a specific user.
+   *
+   * @param {string} userId - User ID
+   * @param {"admin" | "project"} userType - User type
+   * @returns {Promise<number>} Number of sessions revoked
+   * @throws {Error} If revocation fails
+   *
+   * @example
+   * const count = await authService.revokeAllUserSessions('user-id', 'admin');
+   * console.log(`Revoked ${count} sessions`);
+   */
   async revokeAllUserSessions(
     userId: string,
     userType: "admin" | "project"
@@ -587,6 +752,18 @@ export class AuthService {
     }
   }
 
+  /**
+   * Cleanup expired sessions
+   *
+   * Marks all expired sessions as inactive.
+   *
+   * @returns {Promise<number>} Number of sessions cleaned up
+   * @throws {Error} If cleanup fails
+   *
+   * @example
+   * const count = await authService.cleanupExpiredSessions();
+   * console.log(`Cleaned up ${count} expired sessions`);
+   */
   async cleanupExpiredSessions(): Promise<number> {
     try {
       const result = await this.db.query(
@@ -599,7 +776,25 @@ export class AuthService {
     }
   }
 
-  // Password Management
+  /**
+   * Change user password
+   *
+   * Changes a user's password after validating the current password.
+   *
+   * @param {string} userId - User ID
+   * @param {"admin" | "project"} userType - User type
+   * @param {PasswordChangeRequest} passwordData - Password change data
+   * @param {string} passwordData.current_password - Current password
+   * @param {string} passwordData.new_password - New password
+   * @returns {Promise<boolean>} True if password changed successfully
+   * @throws {Error} If current password is incorrect or change fails
+   *
+   * @example
+   * const changed = await authService.changePassword('user-id', 'admin', {
+   *   current_password: 'oldpass',
+   *   new_password: 'newpass'
+   * });
+   */
   async changePassword(
     userId: string,
     userType: "admin" | "project",
@@ -647,6 +842,31 @@ export class AuthService {
     }
   }
 
+  /**
+   * Reset user password
+   *
+   * Initiates or completes a password reset process.
+   * If no reset_token provided, generates and stores a reset token.
+   * If reset_token provided, validates it and updates the password.
+   *
+   * @param {PasswordResetRequest} resetData - Password reset data
+   * @param {string} resetData.email - User email
+   * @param {string} [resetData.reset_token] - Reset token (for completing reset)
+   * @param {string} [resetData.new_password] - New password (required when reset_token provided)
+   * @returns {Promise<{success: boolean, reset_token?: string}>} Reset result
+   * @throws {Error} If reset fails or token is invalid/expired
+   *
+   * @example
+   * // Initiate reset
+   * const { reset_token } = await authService.resetPassword({ email: 'user@example.com' });
+   *
+   * // Complete reset
+   * await authService.resetPassword({
+   *   email: 'user@example.com',
+   *   reset_token: 'rt_...',
+   *   new_password: 'newpassword'
+   * });
+   */
   async resetPassword(
     resetData: PasswordResetRequest
   ): Promise<{ success: boolean; reset_token?: string }> {
@@ -755,6 +975,18 @@ export class AuthService {
   }
 
   // Session queries
+  /**
+   * Get session by ID
+   *
+   * Retrieves a session by its ID.
+   *
+   * @param {string} sessionId - Session ID
+   * @returns {Promise<Session | null>} Session or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const session = await authService.getSessionById('session-id');
+   */
   async getSessionById(sessionId: string): Promise<Session | null> {
     try {
       const result = await this.db.query(

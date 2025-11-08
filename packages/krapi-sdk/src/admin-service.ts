@@ -189,6 +189,34 @@ export class AdminService {
     }
   }
 
+  /**
+   * Create a new admin user
+   *
+   * Creates a new admin user account with the provided data.
+   *
+   * @param {Omit<AdminUser, "id" | "created_at" | "updated_at">} userData - User creation data
+   * @param {string} userData.username - Username (required)
+   * @param {string} userData.email - Email address (required)
+   * @param {string} userData.password_hash - Hashed password (required)
+   * @param {string} userData.role - User role
+   * @param {string} userData.access_level - Access level
+   * @param {string[]} userData.permissions - Permission scopes
+   * @param {boolean} userData.active - Whether user is active
+   * @param {string} [userData.api_key] - Optional API key
+   * @returns {Promise<AdminUser>} Created admin user
+   * @throws {Error} If creation fails or user already exists
+   *
+   * @example
+   * const user = await adminService.createUser({
+   *   username: 'newadmin',
+   *   email: 'admin@example.com',
+   *   password_hash: 'hashed_password',
+   *   role: 'admin',
+   *   access_level: 'full',
+   *   permissions: ['admin:read', 'admin:write'],
+   *   active: true
+   * });
+   */
   async createUser(
     userData: Omit<AdminUser, "id" | "created_at" | "updated_at">
   ): Promise<AdminUser> {
@@ -215,6 +243,22 @@ export class AdminService {
     }
   }
 
+  /**
+   * Update an admin user
+   *
+   * Updates admin user information with the provided data.
+   *
+   * @param {string} userId - User ID
+   * @param {Partial<AdminUser>} updates - User update data
+   * @returns {Promise<AdminUser | null>} Updated user or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await adminService.updateUser('user-id', {
+   *   role: 'master_admin',
+   *   permissions: ['master']
+   * });
+   */
   async updateUser(
     userId: string,
     updates: Partial<AdminUser>
@@ -274,6 +318,18 @@ export class AdminService {
     }
   }
 
+  /**
+   * Delete an admin user
+   *
+   * Permanently deletes an admin user from the database.
+   *
+   * @param {string} userId - User ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * const deleted = await adminService.deleteUser('user-id');
+   */
   async deleteUser(userId: string): Promise<boolean> {
     try {
       const result = await this.db.query(
@@ -287,6 +343,18 @@ export class AdminService {
     }
   }
 
+  /**
+   * Toggle user active status
+   *
+   * Toggles a user's active/inactive status.
+   *
+   * @param {string} userId - User ID
+   * @returns {Promise<AdminUser | null>} Updated user or null if not found
+   * @throws {Error} If toggle fails
+   *
+   * @example
+   * const user = await adminService.toggleUserStatus('user-id');
+   */
   async toggleUserStatus(userId: string): Promise<AdminUser | null> {
     try {
       const result = await this.db.query(
@@ -303,7 +371,18 @@ export class AdminService {
     }
   }
 
-  // API Key Management
+  /**
+   * Get all API keys for a user
+   *
+   * Retrieves all API keys owned by a specific admin user.
+   *
+   * @param {string} userId - User ID
+   * @returns {Promise<ApiKey[]>} Array of API keys
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const apiKeys = await adminService.getUserApiKeys('user-id');
+   */
   async getUserApiKeys(userId: string): Promise<ApiKey[]> {
     try {
       const result = await this.db.query(
@@ -317,6 +396,28 @@ export class AdminService {
     }
   }
 
+  /**
+   * Create an API key for a user
+   *
+   * Creates a new admin API key for a specific user.
+   *
+   * @param {string} userId - User ID
+   * @param {Object} apiKeyData - API key data
+   * @param {string} apiKeyData.name - API key name
+   * @param {string} apiKeyData.key - API key value
+   * @param {string[]} apiKeyData.scopes - Permission scopes
+   * @param {string[]} [apiKeyData.project_ids] - Project IDs (for project-scoped keys)
+   * @param {string} [apiKeyData.expires_at] - Expiration date
+   * @returns {Promise<ApiKey>} Created API key
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const apiKey = await adminService.createUserApiKey('user-id', {
+   *   name: 'My API Key',
+   *   key: 'ak_...',
+   *   scopes: ['admin:read', 'admin:write']
+   * });
+   */
   async createUserApiKey(
     userId: string,
     apiKeyData: {
@@ -349,6 +450,26 @@ export class AdminService {
     }
   }
 
+  /**
+   * Create an API key (with auto-generation)
+   *
+   * Creates a new admin API key with auto-generated key value.
+   *
+   * @param {string} userId - User ID
+   * @param {Object} keyData - API key data
+   * @param {string} keyData.name - API key name
+   * @param {string[]} keyData.permissions - Permission scopes
+   * @param {string} [keyData.expires_at] - Expiration date
+   * @returns {Promise<{key: string, data: ApiKey}>} Generated key value and API key data
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const { key, data } = await adminService.createApiKey('user-id', {
+   *   name: 'My API Key',
+   *   permissions: ['admin:read']
+   * });
+   * console.log(`API Key: ${key}`); // Save this securely!
+   */
   async createApiKey(
     userId: string,
     keyData: {
@@ -390,6 +511,18 @@ export class AdminService {
     }
   }
 
+  /**
+   * Create a master API key
+   *
+   * Creates a master API key with full system access.
+   *
+   * @returns {Promise<ApiKey>} Created master API key
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const masterKey = await adminService.createMasterApiKey();
+   * console.log(`Master API Key: ${masterKey.key}`); // Save this securely!
+   */
   async createMasterApiKey(): Promise<ApiKey> {
     try {
       const masterKey = `mak_${Math.random().toString(36).substring(2, 15)}`;
@@ -412,6 +545,18 @@ export class AdminService {
     }
   }
 
+  /**
+   * Delete an API key
+   *
+   * Soft deletes an API key by marking it as inactive.
+   *
+   * @param {string} keyId - API key ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * const deleted = await adminService.deleteApiKey('key-id');
+   */
   async deleteApiKey(keyId: string): Promise<boolean> {
     try {
       const result = await this.db.query(
@@ -425,7 +570,18 @@ export class AdminService {
     }
   }
 
-  // Project-specific API Key Management
+  /**
+   * Get all API keys for a project
+   *
+   * Retrieves all API keys associated with a project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<ApiKey[]>} Array of project API keys
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const apiKeys = await adminService.getProjectApiKeys('project-id');
+   */
   async getProjectApiKeys(projectId: string): Promise<ApiKey[]> {
     try {
       // For SQLite, use JSON functions instead of PostgreSQL array operators
@@ -478,6 +634,28 @@ export class AdminService {
     }
   }
 
+  /**
+   * Create a project API key
+   *
+   * Creates a new API key for a project with auto-generated key value.
+   *
+   * @param {string} projectId - Project ID
+   * @param {Object} keyData - API key data
+   * @param {string} keyData.name - API key name
+   * @param {string} [keyData.description] - API key description
+   * @param {string[]} keyData.scopes - Permission scopes
+   * @param {string} [keyData.expires_at] - Expiration date
+   * @param {string} [keyData.created_by] - User ID who created
+   * @returns {Promise<{key: string, data: ApiKey}>} Generated key value and API key data
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const { key, data } = await adminService.createProjectApiKey('project-id', {
+   *   name: 'Project API Key',
+   *   scopes: ['collections:read', 'documents:write']
+   * });
+   * console.log(`API Key: ${key}`); // Save this securely!
+   */
   async createProjectApiKey(
     projectId: string,
     keyData: {
@@ -545,6 +723,19 @@ export class AdminService {
     }
   }
 
+  /**
+   * Get a project API key by ID
+   *
+   * Retrieves a single project API key by its ID.
+   *
+   * @param {string} keyId - API key ID
+   * @param {string} projectId - Project ID
+   * @returns {Promise<ApiKey | null>} API key or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const apiKey = await adminService.getProjectApiKey('key-id', 'project-id');
+   */
   async getProjectApiKey(
     keyId: string,
     projectId: string
@@ -562,6 +753,27 @@ export class AdminService {
     }
   }
 
+  /**
+   * Update a project API key
+   *
+   * Updates project API key metadata, scopes, or expiration.
+   *
+   * @param {string} keyId - API key ID
+   * @param {string} projectId - Project ID
+   * @param {Object} updates - API key updates
+   * @param {string} [updates.name] - New name
+   * @param {string} [updates.description] - New description
+   * @param {string[]} [updates.scopes] - Updated scopes
+   * @param {string} [updates.expires_at] - Updated expiration
+   * @param {boolean} [updates.is_active] - Active status
+   * @returns {Promise<ApiKey | null>} Updated API key or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await adminService.updateProjectApiKey('key-id', 'project-id', {
+   *   scopes: ['collections:read', 'documents:read']
+   * });
+   */
   async updateProjectApiKey(
     keyId: string,
     projectId: string,
@@ -625,6 +837,19 @@ export class AdminService {
     }
   }
 
+  /**
+   * Delete a project API key
+   *
+   * Soft deletes a project API key by marking it as inactive.
+   *
+   * @param {string} keyId - API key ID
+   * @param {string} projectId - Project ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * const deleted = await adminService.deleteProjectApiKey('key-id', 'project-id');
+   */
   async deleteProjectApiKey(
     keyId: string,
     projectId: string
@@ -643,6 +868,20 @@ export class AdminService {
     }
   }
 
+  /**
+   * Regenerate a project API key
+   *
+   * Generates a new key value for an existing project API key, invalidating the old one.
+   *
+   * @param {string} keyId - API key ID
+   * @param {string} projectId - Project ID
+   * @returns {Promise<{key: string, data: ApiKey}>} New key value and updated API key data
+   * @throws {Error} If regeneration fails or key not found
+   *
+   * @example
+   * const { key, data } = await adminService.regenerateProjectApiKey('key-id', 'project-id');
+   * console.log(`New API Key: ${key}`); // Save this securely!
+   */
   async regenerateProjectApiKey(
     keyId: string,
     projectId: string
@@ -678,7 +917,20 @@ export class AdminService {
     }
   }
 
-  // System Management
+  /**
+   * Get system statistics
+   *
+   * Retrieves comprehensive system statistics including user counts, project counts,
+   * collection/document/file counts, storage usage, and uptime.
+   *
+   * @returns {Promise<SystemStats>} System statistics
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const stats = await adminService.getSystemStats();
+   * console.log(`Total users: ${stats.totalUsers}`);
+   * console.log(`Total projects: ${stats.totalProjects}`);
+   */
   async getSystemStats(): Promise<SystemStats> {
     try {
       const [
@@ -719,6 +971,28 @@ export class AdminService {
     }
   }
 
+  /**
+   * Get activity logs
+   *
+   * Retrieves system activity logs with optional filtering.
+   *
+   * @param {Object} options - Query options
+   * @param {number} options.limit - Maximum number of entries
+   * @param {number} options.offset - Number of entries to skip
+   * @param {Object} [options.filters] - Optional filters
+   * @param {string} [options.filters.entity_type] - Filter by entity type
+   * @param {string} [options.filters.action] - Filter by action
+   * @param {string} [options.filters.performed_by] - Filter by user ID
+   * @returns {Promise<ActivityLog[]>} Array of activity log entries
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const logs = await adminService.getActivityLogs({
+   *   limit: 50,
+   *   offset: 0,
+   *   filters: { action: 'created', entity_type: 'document' }
+   * });
+   */
   async getActivityLogs(options: {
     limit: number;
     offset: number;
@@ -807,6 +1081,20 @@ export class AdminService {
     }
   }
 
+  /**
+   * Get database health status
+   *
+   * Performs comprehensive database health checks including connection,
+   * table existence, and default admin user verification.
+   *
+   * @returns {Promise<DatabaseHealth>} Database health status
+   *
+   * @example
+   * const health = await adminService.getDatabaseHealth();
+   * if (health.status === 'unhealthy') {
+   *   console.log('Database issues detected:', health.checks);
+   * }
+   */
   async getDatabaseHealth(): Promise<DatabaseHealth> {
     try {
       // Check connection
@@ -891,6 +1179,20 @@ export class AdminService {
     }
   }
 
+  /**
+   * Repair database issues
+   *
+   * Automatically repairs common database issues including missing tables
+   * and missing default admin user.
+   *
+   * @returns {Promise<{success: boolean, actions: string[]}>} Repair result with actions taken
+   *
+   * @example
+   * const result = await adminService.repairDatabase();
+   * if (result.success) {
+   *   console.log('Repairs performed:', result.actions);
+   * }
+   */
   async repairDatabase(): Promise<{ success: boolean; actions: string[] }> {
     try {
       const actions: string[] = [];
@@ -924,6 +1226,20 @@ export class AdminService {
     }
   }
 
+  /**
+   * Run system diagnostics
+   *
+   * Performs comprehensive system diagnostics and returns health status
+   * with recommendations for fixing any issues.
+   *
+   * @returns {Promise<DiagnosticResult>} Diagnostic results with recommendations
+   *
+   * @example
+   * const diagnostics = await adminService.runDiagnostics();
+   * if (!diagnostics.success) {
+   *   console.log('Issues found:', diagnostics.recommendations);
+   * }
+   */
   async runDiagnostics(): Promise<DiagnosticResult> {
     try {
       const health = await this.getDatabaseHealth();
@@ -972,6 +1288,18 @@ export class AdminService {
     this.logger.info(`Need to create table: ${tableName}`);
   }
 
+  /**
+   * Create default admin user
+   *
+   * Creates the default admin user (username: admin, password: admin123)
+   * and generates a master API key. Used during system initialization.
+   *
+   * @returns {Promise<void>}
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * await adminService.createDefaultAdmin();
+   */
   public async createDefaultAdmin(): Promise<void> {
     try {
       const hashedPassword = await this.hashPassword("admin123");

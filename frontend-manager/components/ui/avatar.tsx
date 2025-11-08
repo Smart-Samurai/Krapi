@@ -1,3 +1,16 @@
+/**
+ * Avatar Components
+ * 
+ * Avatar components built on Radix UI Avatar primitives.
+ * Includes Avatar, AvatarImage, AvatarFallback.
+ * 
+ * @module components/ui/avatar
+ * @example
+ * <Avatar>
+ *   <AvatarImage src="/user.jpg" alt="User" />
+ *   <AvatarFallback>JD</AvatarFallback>
+ * </Avatar>
+ */
 "use client"
 
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
@@ -5,6 +18,14 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Avatar Component
+ * 
+ * Avatar container component.
+ * 
+ * @param {React.ComponentProps<typeof AvatarPrimitive.Root>} props - Avatar props
+ * @returns {JSX.Element} Avatar component
+ */
 function Avatar({
   className,
   ...props

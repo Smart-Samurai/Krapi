@@ -179,6 +179,18 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Get project by ID
+   *
+   * Retrieves a single project by its ID.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Project | null>} Project or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const project = await projectsService.getProjectById('project-id');
+   */
   async getProjectById(projectId: string): Promise<Project | null> {
     try {
       const result = await this.db.query(
@@ -192,6 +204,28 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Create a new project
+   *
+   * Creates a new project with the specified data and owner.
+   * Automatically generates an API key and applies default settings.
+   *
+   * @param {string} ownerId - Owner user ID
+   * @param {CreateProjectRequest} projectData - Project creation data
+   * @param {string} projectData.name - Project name (required)
+   * @param {string} [projectData.description] - Project description
+   * @param {Partial<ProjectSettings>} [projectData.settings] - Project settings
+   * @param {string[]} [projectData.allowed_origins] - Allowed CORS origins
+   * @returns {Promise<Project>} Created project
+   * @throws {Error} If creation fails or project name already exists
+   *
+   * @example
+   * const project = await projectsService.createProject('owner-id', {
+   *   name: 'My Project',
+   *   description: 'Project description',
+   *   settings: { authentication_required: true }
+   * });
+   */
   async createProject(
     ownerId: string,
     projectData: CreateProjectRequest
@@ -259,6 +293,27 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Update an existing project
+   *
+   * Updates project information with the provided data.
+   *
+   * @param {string} projectId - Project ID
+   * @param {UpdateProjectRequest} updates - Project update data
+   * @param {string} [updates.name] - New project name
+   * @param {string} [updates.description] - New project description
+   * @param {Partial<ProjectSettings>} [updates.settings] - Updated project settings
+   * @param {string[]} [updates.allowed_origins] - Updated allowed CORS origins
+   * @param {boolean} [updates.is_active] - Active status
+   * @returns {Promise<Project | null>} Updated project or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await projectsService.updateProject('project-id', {
+   *   name: 'Updated Name',
+   *   description: 'Updated description'
+   * });
+   */
   async updateProject(
     projectId: string,
     updates: UpdateProjectRequest
@@ -320,6 +375,18 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Soft delete a project
+   *
+   * Marks a project as inactive (soft delete) rather than permanently removing it.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails or project not found
+   *
+   * @example
+   * const deleted = await projectsService.deleteProject('project-id');
+   */
   async deleteProject(projectId: string): Promise<boolean> {
     try {
       // Soft delete by setting is_active to false
@@ -334,6 +401,19 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Permanently delete a project
+   *
+   * Permanently removes a project and all associated data from the database.
+   * This action cannot be undone.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails or project not found
+   *
+   * @example
+   * const deleted = await projectsService.hardDeleteProject('project-id');
+   */
   async hardDeleteProject(projectId: string): Promise<boolean> {
     try {
       // Hard delete - removes all data
@@ -362,6 +442,21 @@ export class ProjectsService {
   }
 
   // Project Statistics
+  /**
+   * Get project statistics
+   *
+   * Retrieves comprehensive statistics for a project including collections,
+   * documents, files, storage usage, API calls, and activity.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<ProjectStatistics>} Project statistics
+   * @throws {Error} If query fails or project not found
+   *
+   * @example
+   * const stats = await projectsService.getProjectStatistics('project-id');
+   * console.log(`Total collections: ${stats.totalCollections}`);
+   * console.log(`Storage used: ${stats.storageUsed} bytes`);
+   */
   async getProjectStatistics(projectId: string): Promise<ProjectStatistics> {
     try {
       const [
@@ -480,6 +575,18 @@ export class ProjectsService {
   }
 
   // API Key Management
+  /**
+   * Get all API keys for a project
+   *
+   * Retrieves all API keys associated with a project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<ProjectApiKey[]>} Array of project API keys
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const apiKeys = await projectsService.getProjectApiKeys('project-id');
+   */
   async getProjectApiKeys(projectId: string): Promise<ProjectApiKey[]> {
     try {
       const result = await this.db.query(
@@ -493,6 +600,27 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Create a new API key for a project
+   *
+   * Creates a new API key with specified scopes and optional expiration.
+   *
+   * @param {string} projectId - Project ID
+   * @param {Object} apiKeyData - API key data
+   * @param {string} apiKeyData.name - API key name/description
+   * @param {string[]} apiKeyData.scopes - Array of permission scopes
+   * @param {string} [apiKeyData.expires_at] - Optional expiration date (ISO string)
+   * @returns {Promise<ProjectApiKey>} Created API key (includes the key value)
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const apiKey = await projectsService.createProjectApiKey('project-id', {
+   *   name: 'My API Key',
+   *   scopes: ['collections:read', 'documents:write'],
+   *   expires_at: '2024-12-31T23:59:59Z'
+   * });
+   * console.log(`API Key: ${apiKey.key}`); // Save this securely!
+   */
   async createProjectApiKey(
     projectId: string,
     apiKeyData: {
@@ -526,6 +654,19 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Regenerate a project's main API key
+   *
+   * Generates a new main API key for a project, invalidating the old one.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<{newApiKey: string}>} New API key value
+   * @throws {Error} If regeneration fails or project not found
+   *
+   * @example
+   * const { newApiKey } = await projectsService.regenerateProjectApiKey('project-id');
+   * console.log(`New API Key: ${newApiKey}`); // Save this securely!
+   */
   async regenerateProjectApiKey(
     projectId: string
   ): Promise<{ newApiKey: string }> {
@@ -546,7 +687,24 @@ export class ProjectsService {
     }
   }
 
-  // Project Activity Methods
+  /**
+   * Get project activity log
+   *
+   * Retrieves activity log entries for a project with optional filtering.
+   *
+   * @param {string} projectId - Project ID
+   * @param {Object} [options={}] - Query options
+   * @param {number} [options.limit=50] - Maximum number of entries
+   * @param {number} [options.days] - Filter by number of days back
+   * @returns {Promise<Array>} Array of activity log entries
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const activity = await projectsService.getProjectActivity('project-id', {
+   *   limit: 50,
+   *   days: 7
+   * });
+   */
   async getProjectActivity(
     projectId: string,
     options: {
@@ -604,6 +762,18 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Delete a project API key
+   *
+   * Permanently deletes an API key, revoking all access.
+   *
+   * @param {string} keyId - API key ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails or key not found
+   *
+   * @example
+   * const deleted = await projectsService.deleteProjectApiKey('key-id');
+   */
   async deleteProjectApiKey(keyId: string): Promise<boolean> {
     try {
       const result = await this.db.query(
@@ -618,6 +788,23 @@ export class ProjectsService {
   }
 
   // Project Settings
+  /**
+   * Update project settings
+   *
+   * Updates project configuration settings, merging with existing settings.
+   *
+   * @param {string} projectId - Project ID
+   * @param {Partial<ProjectSettings>} settings - Settings to update
+   * @returns {Promise<Project | null>} Updated project with new settings or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await projectsService.updateProjectSettings('project-id', {
+   *   authentication_required: true,
+   *   rate_limiting_enabled: true,
+   *   max_file_size: 10485760 // 10MB
+   * });
+   */
   async updateProjectSettings(
     projectId: string,
     settings: Partial<ProjectSettings>
@@ -645,6 +832,18 @@ export class ProjectsService {
   }
 
   // Project Activity Tracking
+  /**
+   * Record an API call for a project
+   *
+   * Records that an API call was made for analytics and rate limiting.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<void>}
+   * @throws {Error} If recording fails
+   *
+   * @example
+   * await projectsService.recordApiCall('project-id');
+   */
   async recordApiCall(projectId: string): Promise<void> {
     try {
       await this.db.query(
@@ -657,6 +856,18 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Get project by API key
+   *
+   * Retrieves the project associated with a given API key.
+   *
+   * @param {string} apiKey - API key value
+   * @returns {Promise<Project | null>} Project or null if key not found/invalid
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const project = await projectsService.getProjectByApiKey('pk_...');
+   */
   async getProjectByApiKey(apiKey: string): Promise<Project | null> {
     try {
       const result = await this.db.query(

@@ -1,3 +1,13 @@
+/**
+ * Progress Component
+ * 
+ * Progress bar component built on Radix UI Progress primitive.
+ * Displays progress as a percentage with animated bar.
+ * 
+ * @module components/ui/progress
+ * @example
+ * <Progress value={50} />
+ */
 "use client"
 
 import * as ProgressPrimitive from "@radix-ui/react-progress"
@@ -5,6 +15,18 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Progress Component
+ * 
+ * Progress bar showing completion percentage.
+ * 
+ * @param {React.ComponentProps<typeof ProgressPrimitive.Root>} props - Progress props
+ * @param {number} [props.value] - Progress value (0-100)
+ * @returns {JSX.Element} Progress component
+ * 
+ * @example
+ * <Progress value={75} />
+ */
 function Progress({
   className,
   value,
