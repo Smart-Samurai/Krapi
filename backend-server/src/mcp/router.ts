@@ -53,6 +53,17 @@ const adminToolSpecs = [
     },
   },
   {
+    name: 'get_project',
+    description: 'Get project details by ID',
+    parameters: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+      },
+      required: ['project_id'],
+    },
+  },
+  {
     name: 'update_project',
     description: 'Update project details',
     parameters: {
@@ -68,9 +79,47 @@ const adminToolSpecs = [
     },
   },
   {
+    name: 'delete_project',
+    description: 'Delete a project',
+    parameters: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+      },
+      required: ['project_id'],
+    },
+  },
+  {
     name: 'list_projects',
     description: 'List projects optionally filtered by name',
-    parameters: { search: { type: 'string' } },
+    parameters: {
+      type: 'object',
+      properties: {
+        search: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'get_project_settings',
+    description: 'Get project settings',
+    parameters: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+      },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'get_project_stats',
+    description: 'Get project statistics',
+    parameters: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+      },
+      required: ['project_id'],
+    },
   },
 ];
 
@@ -89,9 +138,44 @@ const projectToolSpecs = [
     },
   },
   {
+    name: 'get_collection',
+    description: 'Get collection details by name',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+      },
+      required: ['collection_name'],
+    },
+  },
+  {
     name: 'list_collections',
     description: 'List collections (schemas) in this project',
     parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'update_collection',
+    description: 'Update a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        description: { type: 'string' },
+        fields: { type: 'array', items: { type: 'object' } },
+      },
+      required: ['collection_name'],
+    },
+  },
+  {
+    name: 'delete_collection',
+    description: 'Delete a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+      },
+      required: ['collection_name'],
+    },
   },
   {
     name: 'create_document',
@@ -99,24 +183,66 @@ const projectToolSpecs = [
     parameters: {
       type: 'object',
       properties: {
-        collection_id: { type: 'string' },
+        collection_name: { type: 'string' },
         data: { type: 'object' },
       },
-      required: ['collection_id', 'data'],
+      required: ['collection_name', 'data'],
+    },
+  },
+  {
+    name: 'get_document',
+    description: 'Get a document by ID',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        document_id: { type: 'string' },
+      },
+      required: ['collection_name', 'document_id'],
     },
   },
   {
     name: 'list_documents',
-    description: 'List/search documents in a collection',
+    description: 'List documents in a collection with filtering and pagination',
     parameters: {
       type: 'object',
       properties: {
-        collection_id: { type: 'string' },
-        search: { type: 'string' },
+        collection_name: { type: 'string' },
         limit: { type: 'number' },
+        offset: { type: 'number' },
         page: { type: 'number' },
+        order_by: { type: 'string' },
+        order: { type: 'string', enum: ['asc', 'desc'] },
+        where: { type: 'object' },
       },
-      required: ['collection_id'],
+      required: ['collection_name'],
+    },
+  },
+  {
+    name: 'search_documents',
+    description: 'Search documents in a collection by text',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        search_term: { type: 'string' },
+        search_fields: { type: 'array', items: { type: 'string' } },
+        limit: { type: 'number' },
+        offset: { type: 'number' },
+      },
+      required: ['collection_name', 'search_term'],
+    },
+  },
+  {
+    name: 'count_documents',
+    description: 'Count documents in a collection with optional filtering',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        where: { type: 'object' },
+      },
+      required: ['collection_name'],
     },
   },
   {
@@ -125,11 +251,11 @@ const projectToolSpecs = [
     parameters: {
       type: 'object',
       properties: {
-        collection_id: { type: 'string' },
+        collection_name: { type: 'string' },
         document_id: { type: 'string' },
         data: { type: 'object' },
       },
-      required: ['collection_id', 'document_id', 'data'],
+      required: ['collection_name', 'document_id', 'data'],
     },
   },
   {
@@ -138,16 +264,117 @@ const projectToolSpecs = [
     parameters: {
       type: 'object',
       properties: {
-        collection_id: { type: 'string' },
+        collection_name: { type: 'string' },
         document_id: { type: 'string' },
       },
-      required: ['collection_id', 'document_id'],
+      required: ['collection_name', 'document_id'],
+    },
+  },
+  {
+    name: 'bulk_create_documents',
+    description: 'Create multiple documents in a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        documents: { type: 'array', items: { type: 'object' } },
+      },
+      required: ['collection_name', 'documents'],
+    },
+  },
+  {
+    name: 'bulk_update_documents',
+    description: 'Update multiple documents in a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        updates: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              document_id: { type: 'string' },
+              data: { type: 'object' },
+            },
+            required: ['document_id', 'data'],
+          },
+        },
+      },
+      required: ['collection_name', 'updates'],
+    },
+  },
+  {
+    name: 'bulk_delete_documents',
+    description: 'Delete multiple documents in a collection',
+    parameters: {
+      type: 'object',
+      properties: {
+        collection_name: { type: 'string' },
+        document_ids: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['collection_name', 'document_ids'],
+    },
+  },
+  {
+    name: 'create_project_user',
+    description: 'Create a user in this project',
+    parameters: {
+      type: 'object',
+      properties: {
+        username: { type: 'string' },
+        email: { type: 'string' },
+        password: { type: 'string' },
+        metadata: { type: 'object' },
+      },
+      required: ['password'],
+    },
+  },
+  {
+    name: 'get_project_user',
+    description: 'Get a project user by ID',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: { type: 'string' },
+      },
+      required: ['user_id'],
     },
   },
   {
     name: 'list_users',
     description: 'List/search users in this project',
-    parameters: { search: { type: 'string' } },
+    parameters: {
+      type: 'object',
+      properties: {
+        search: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'update_project_user',
+    description: 'Update a project user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: { type: 'string' },
+        username: { type: 'string' },
+        email: { type: 'string' },
+        metadata: { type: 'object' },
+      },
+      required: ['user_id'],
+    },
+  },
+  {
+    name: 'delete_project_user',
+    description: 'Delete a project user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: { type: 'string' },
+      },
+      required: ['user_id'],
+    },
   },
 ];
 
@@ -158,6 +385,10 @@ interface CreateProjectArgs {
   project_url?: string;
 }
 
+interface GetProjectArgs {
+  project_id: string;
+}
+
 interface UpdateProjectArgs {
   project_id: string;
   name?: string;
@@ -166,33 +397,117 @@ interface UpdateProjectArgs {
   active?: boolean;
 }
 
+interface DeleteProjectArgs {
+  project_id: string;
+}
+
+interface GetProjectSettingsArgs {
+  project_id: string;
+}
+
+interface GetProjectStatsArgs {
+  project_id: string;
+}
+
 interface CreateCollectionArgs {
   name: string;
   description?: string;
   fields: CollectionField[];
 }
 
+interface GetCollectionArgs {
+  collection_name: string;
+}
+
+interface UpdateCollectionArgs {
+  collection_name: string;
+  description?: string;
+  fields?: CollectionField[];
+}
+
+interface DeleteCollectionArgs {
+  collection_name: string;
+}
+
 interface CreateDocumentArgs {
-  collection_id: string;
+  collection_name: string;
   data: Record<string, unknown>;
 }
 
+interface GetDocumentArgs {
+  collection_name: string;
+  document_id: string;
+}
+
 interface ListDocumentsArgs {
-  collection_id: string;
-  search?: string;
+  collection_name: string;
   limit?: number;
+  offset?: number;
   page?: number;
+  order_by?: string;
+  order?: "asc" | "desc";
+  where?: Record<string, unknown>;
+}
+
+interface SearchDocumentsArgs {
+  collection_name: string;
+  search_term: string;
+  search_fields?: string[];
+  limit?: number;
+  offset?: number;
+}
+
+interface CountDocumentsArgs {
+  collection_name: string;
+  where?: Record<string, unknown>;
 }
 
 interface UpdateDocumentArgs {
-  collection_id: string;
+  collection_name: string;
   document_id: string;
   data: Record<string, unknown>;
 }
 
 interface DeleteDocumentArgs {
-  collection_id: string;
+  collection_name: string;
   document_id: string;
+}
+
+interface BulkCreateDocumentsArgs {
+  collection_name: string;
+  documents: Record<string, unknown>[];
+}
+
+interface BulkUpdateDocumentsArgs {
+  collection_name: string;
+  updates: Array<{ document_id: string; data: Record<string, unknown> }>;
+}
+
+interface BulkDeleteDocumentsArgs {
+  collection_name: string;
+  document_ids: string[];
+}
+
+interface CreateProjectUserArgs {
+  username?: string;
+  email?: string;
+  password: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface GetProjectUserArgs {
+  user_id: string;
+}
+
+interface UpdateProjectUserArgs {
+  user_id: string;
+  username?: string;
+  email?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface DeleteProjectUserArgs {
+  user_id: string;
 }
 
 interface SearchArgs {
@@ -201,26 +516,68 @@ interface SearchArgs {
 
 async function dispatchTool(ctx: ToolContext, name: string, args: Record<string, unknown>): Promise<string> {
   switch (name) {
+    // Admin tools
     case 'create_project': 
       return JSON.stringify(await tools.createProject(ctx, args as unknown as CreateProjectArgs));
+    case 'get_project':
+      return JSON.stringify(await tools.getProject(ctx, args as unknown as GetProjectArgs));
     case 'update_project': 
       return JSON.stringify(await tools.updateProject(ctx, args as unknown as UpdateProjectArgs));
+    case 'delete_project':
+      return JSON.stringify(await tools.deleteProject(ctx, args as unknown as DeleteProjectArgs));
     case 'list_projects': 
       return JSON.stringify(await tools.listProjects(ctx, args as unknown as SearchArgs));
+    case 'get_project_settings':
+      return JSON.stringify(await tools.getProjectSettings(ctx, args as unknown as GetProjectSettingsArgs));
+    case 'get_project_stats':
+      return JSON.stringify(await tools.getProjectStats(ctx, args as unknown as GetProjectStatsArgs));
+    
+    // Collection tools
     case 'create_collection': 
       return JSON.stringify(await tools.createCollection(ctx, args as unknown as CreateCollectionArgs));
+    case 'get_collection':
+      return JSON.stringify(await tools.getCollection(ctx, args as unknown as GetCollectionArgs));
     case 'list_collections': 
       return JSON.stringify(await tools.listCollections(ctx));
+    case 'update_collection':
+      return JSON.stringify(await tools.updateCollection(ctx, args as unknown as UpdateCollectionArgs));
+    case 'delete_collection':
+      return JSON.stringify(await tools.deleteCollection(ctx, args as unknown as DeleteCollectionArgs));
+    
+    // Document tools
     case 'create_document': 
       return JSON.stringify(await tools.createDocument(ctx, args as unknown as CreateDocumentArgs));
+    case 'get_document':
+      return JSON.stringify(await tools.getDocument(ctx, args as unknown as GetDocumentArgs));
     case 'list_documents': 
       return JSON.stringify(await tools.listDocuments(ctx, args as unknown as ListDocumentsArgs));
+    case 'search_documents':
+      return JSON.stringify(await tools.searchDocuments(ctx, args as unknown as SearchDocumentsArgs));
+    case 'count_documents':
+      return JSON.stringify(await tools.countDocuments(ctx, args as unknown as CountDocumentsArgs));
     case 'update_document': 
       return JSON.stringify(await tools.updateDocument(ctx, args as unknown as UpdateDocumentArgs));
     case 'delete_document': 
       return JSON.stringify(await tools.deleteDocument(ctx, args as unknown as DeleteDocumentArgs));
+    case 'bulk_create_documents':
+      return JSON.stringify(await tools.bulkCreateDocuments(ctx, args as unknown as BulkCreateDocumentsArgs));
+    case 'bulk_update_documents':
+      return JSON.stringify(await tools.bulkUpdateDocuments(ctx, args as unknown as BulkUpdateDocumentsArgs));
+    case 'bulk_delete_documents':
+      return JSON.stringify(await tools.bulkDeleteDocuments(ctx, args as unknown as BulkDeleteDocumentsArgs));
+    
+    // Project user tools
+    case 'create_project_user':
+      return JSON.stringify(await tools.createProjectUser(ctx, args as unknown as CreateProjectUserArgs));
+    case 'get_project_user':
+      return JSON.stringify(await tools.getProjectUser(ctx, args as unknown as GetProjectUserArgs));
     case 'list_users': 
       return JSON.stringify(await tools.listUsers(ctx, args as unknown as SearchArgs));
+    case 'update_project_user':
+      return JSON.stringify(await tools.updateProjectUser(ctx, args as unknown as UpdateProjectUserArgs));
+    case 'delete_project_user':
+      return JSON.stringify(await tools.deleteProjectUser(ctx, args as unknown as DeleteProjectUserArgs));
+    
     default: 
       throw new Error(`Unknown tool: ${name}`);
   }

@@ -42,6 +42,14 @@ export class McpToolsService {
     return project;
   }
 
+  async getProject(
+    ctx: ToolContext,
+    args: { project_id: string }
+  ) {
+    if (ctx.scope !== "admin") throw new Error("Admin scope required");
+    return this.db.getProjectById(args.project_id);
+  }
+
   async updateProject(
     ctx: ToolContext,
     args: {
@@ -61,6 +69,15 @@ export class McpToolsService {
     return updated;
   }
 
+  async deleteProject(
+    ctx: ToolContext,
+    args: { project_id: string }
+  ) {
+    if (ctx.scope !== "admin") throw new Error("Admin scope required");
+    await this.db.deleteProject(args.project_id);
+    return { success: true };
+  }
+
   async listProjects(ctx: ToolContext, args: { search?: string }) {
     if (ctx.scope !== "admin") throw new Error("Admin scope required");
     const projects = await this.db.getAllProjects();
@@ -69,6 +86,22 @@ export class McpToolsService {
           p.name.toLowerCase().includes(args.search!.toLowerCase())
         )
       : projects;
+  }
+
+  async getProjectSettings(
+    ctx: ToolContext,
+    args: { project_id: string }
+  ) {
+    if (ctx.scope !== "admin") throw new Error("Admin scope required");
+    return this.db.getProjectSettings(args.project_id);
+  }
+
+  async getProjectStats(
+    ctx: ToolContext,
+    args: { project_id: string }
+  ) {
+    if (ctx.scope !== "admin") throw new Error("Admin scope required");
+    return this.db.getProjectStats(args.project_id);
   }
 
   // Collections
@@ -90,44 +123,151 @@ export class McpToolsService {
     );
   }
 
+  async getCollection(
+    ctx: ToolContext,
+    args: { collection_name: string }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.getCollection(ctx.projectId, args.collection_name);
+  }
+
   async listCollections(ctx: ToolContext) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     return this.db.getProjectTableSchemas(ctx.projectId);
   }
 
-  // Documents
-  async createDocument(
+  async updateCollection(
     ctx: ToolContext,
-    args: { collection_id: string; data: Record<string, unknown> }
+    args: {
+      collection_name: string;
+      description?: string;
+      fields?: CollectionField[];
+    }
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    return this.db.createDocument(ctx.projectId, args.collection_id, args.data);
+    const collection = await this.db.getCollection(
+      ctx.projectId,
+      args.collection_name
+    );
+    if (!collection) {
+      throw new Error(`Collection '${args.collection_name}' not found`);
+    }
+    return this.db.updateCollection(ctx.projectId, args.collection_name, {
+      description: args.description,
+      fields: args.fields,
+    });
+  }
+
+  async deleteCollection(
+    ctx: ToolContext,
+    args: { collection_name: string }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    await this.db.deleteCollection(ctx.projectId, args.collection_name);
+    return { success: true };
+  }
+
+  // Documents
+  async createDocument(
+    ctx: ToolContext,
+    args: { collection_name: string; data: Record<string, unknown> }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.createDocument(
+      ctx.projectId,
+      args.collection_name,
+      args.data,
+      ctx.userId || "system"
+    );
+  }
+
+  async getDocument(
+    ctx: ToolContext,
+    args: { collection_name: string; document_id: string }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.getDocument(
+      ctx.projectId,
+      args.collection_name,
+      args.document_id
+    );
   }
 
   async listDocuments(
     ctx: ToolContext,
     args: {
-      collection_id: string;
-      search?: string;
+      collection_name: string;
       limit?: number;
+      offset?: number;
       page?: number;
+      order_by?: string;
+      order?: "asc" | "desc";
+      where?: Record<string, unknown>;
     }
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    const offset = ((args.page || 1) - 1) * (args.limit || 50);
-    return this.db.getDocuments(ctx.projectId, args.collection_id, {
+    const offset = args.offset ?? ((args.page || 1) - 1) * (args.limit || 50);
+    return this.db.getDocuments(ctx.projectId, args.collection_name, {
       limit: args.limit || 50,
       offset,
+      orderBy: args.order_by,
+      order: args.order,
+      where: args.where,
     });
+  }
+
+  async searchDocuments(
+    ctx: ToolContext,
+    args: {
+      collection_name: string;
+      search_term: string;
+      search_fields?: string[];
+      limit?: number;
+      offset?: number;
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.searchDocuments(
+      ctx.projectId,
+      args.collection_name,
+      args.search_term,
+      args.search_fields,
+      {
+        limit: args.limit || 50,
+        offset: args.offset || 0,
+      }
+    );
+  }
+
+  async countDocuments(
+    ctx: ToolContext,
+    args: {
+      collection_name: string;
+      where?: Record<string, unknown>;
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    const result = await this.db.getDocuments(ctx.projectId, args.collection_name, {
+      limit: 1,
+      offset: 0,
+      where: args.where,
+    });
+    return { count: result.total };
   }
 
   async updateDocument(
     ctx: ToolContext,
     args: {
-      collection_id: string;
+      collection_name: string;
       document_id: string;
       data: Record<string, unknown>;
     }
@@ -136,27 +276,122 @@ export class McpToolsService {
       throw new Error("Project scope required");
     return this.db.updateDocument(
       ctx.projectId,
-      args.collection_id,
+      args.collection_name,
       args.document_id,
-      args.data
+      args.data,
+      ctx.userId || "system"
     );
   }
 
   async deleteDocument(
     ctx: ToolContext,
-    args: { collection_id: string; document_id: string }
+    args: { collection_name: string; document_id: string }
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     await this.db.deleteDocument(
       ctx.projectId,
-      args.collection_id,
+      args.collection_name,
       args.document_id
     );
     return { success: true };
   }
 
-  // Users
+  async bulkCreateDocuments(
+    ctx: ToolContext,
+    args: {
+      collection_name: string;
+      documents: Record<string, unknown>[];
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    const results = await Promise.all(
+      args.documents.map((doc) =>
+        this.db.createDocument(
+          ctx.projectId,
+          args.collection_name,
+          doc,
+          ctx.userId || "system"
+        )
+      )
+    );
+    return { created: results.length, documents: results };
+  }
+
+  async bulkUpdateDocuments(
+    ctx: ToolContext,
+    args: {
+      collection_name: string;
+      updates: Array<{ document_id: string; data: Record<string, unknown> }>;
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    const results = await Promise.all(
+      args.updates.map((update) =>
+        this.db.updateDocument(
+          ctx.projectId,
+          args.collection_name,
+          update.document_id,
+          update.data,
+          ctx.userId || "system"
+        )
+      )
+    );
+    return { updated: results.length, documents: results };
+  }
+
+  async bulkDeleteDocuments(
+    ctx: ToolContext,
+    args: {
+      collection_name: string;
+      document_ids: string[];
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    const results = await Promise.all(
+      args.document_ids.map((id) =>
+        this.db.deleteDocument(ctx.projectId, args.collection_name, id)
+      )
+    );
+    return {
+      deleted: results.filter((r) => r).length,
+      total: args.document_ids.length,
+    };
+  }
+
+  // Project Users
+  async createProjectUser(
+    ctx: ToolContext,
+    args: {
+      username?: string;
+      email?: string;
+      password: string;
+      metadata?: Record<string, unknown>;
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.createProjectUser({
+      project_id: ctx.projectId,
+      username: args.username,
+      email: args.email,
+      password: args.password,
+      metadata: args.metadata || {},
+    });
+  }
+
+  async getProjectUser(
+    ctx: ToolContext,
+    args: { user_id: string }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.getProjectUser(ctx.projectId, args.user_id);
+  }
+
   async listUsers(ctx: ToolContext, args: { search?: string }) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
@@ -164,5 +399,33 @@ export class McpToolsService {
       search: args.search,
     });
     return result;
+  }
+
+  async updateProjectUser(
+    ctx: ToolContext,
+    args: {
+      user_id: string;
+      username?: string;
+      email?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    return this.db.updateProjectUser(ctx.projectId, args.user_id, {
+      username: args.username,
+      email: args.email,
+      metadata: args.metadata,
+    });
+  }
+
+  async deleteProjectUser(
+    ctx: ToolContext,
+    args: { user_id: string }
+  ) {
+    if (ctx.scope !== "project" || !ctx.projectId)
+      throw new Error("Project scope required");
+    await this.db.deleteProjectUser(ctx.projectId, args.user_id);
+    return { success: true };
   }
 }
