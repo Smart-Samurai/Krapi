@@ -250,8 +250,8 @@ export default function ProjectsPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
           }}
         >
-          {[...Array(3)].map((_, i) => (
-            <Card key={`projects-skeleton-${i}`} className="min-w-0 max-w-full">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Card key={`projects-skeleton-card-${i}`} className="min-w-0 max-w-full">
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />

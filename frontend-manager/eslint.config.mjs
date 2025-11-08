@@ -46,7 +46,7 @@ const eslintConfig = [
       "react/no-unescaped-entities": "warn",
       "react/jsx-no-duplicate-props": "error",
       "react/jsx-no-undef": "error",
-      "react/no-array-index-key": "warn",
+      "react/no-array-index-key": "error",
       "react/self-closing-comp": "error",
       "react/jsx-curly-brace-presence": ["error", { props: "never", children: "never" }],
 

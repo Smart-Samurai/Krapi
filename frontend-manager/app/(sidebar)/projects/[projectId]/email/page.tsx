@@ -730,7 +730,7 @@ export default function EmailPage() {
                     <div className="space-y-2">
                       {templateForm.variables.map((variable, index) => (
                         <div
-                          key={`email-variable-${index}`}
+                          key={`email-variable-${variable || `empty-${index}`}`}
                           className="flex items-center gap-2"
                         >
                           <Input
@@ -1002,7 +1002,7 @@ export default function EmailPage() {
                   <div className="space-y-2">
                     {templateForm.variables.map((variable, index) => (
                       <div
-                        key={`email-edit-variable-${index}`}
+                        key={`email-edit-variable-${variable || `empty-${index}`}`}
                         className="flex items-center gap-2"
                       >
                         <Input

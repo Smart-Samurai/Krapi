@@ -318,8 +318,8 @@ export default function DocumentsPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={`documents-skeleton-${i}`} className="h-32 w-full" />
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={`documents-skeleton-item-${i}`} className="h-32 w-full" />
           ))}
         </div>
       </PageLayout>
@@ -356,8 +356,8 @@ export default function DocumentsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {currentCollection?.fields?.map((field: CollectionField, index: number) => (
-                  <div key={`create-doc-field-${field.name}-${index}`}>
+                {currentCollection?.fields?.map((field: CollectionField) => (
+                  <div key={`create-doc-field-${field.name}`}>
                     <Label htmlFor={field.name}>
                       {field.name}
                       {field.required && (
@@ -816,8 +816,8 @@ search_results = response.json()`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {currentCollection?.fields?.map((field: CollectionField, index: number) => (
-              <div key={`edit-doc-field-${field.name}-${index}`}>
+            {currentCollection?.fields?.map((field: CollectionField) => (
+              <div key={`edit-doc-field-${field.name}`}>
                 <Label htmlFor={`edit-${field.name}`}>
                   {field.name}
                   {field.required && (

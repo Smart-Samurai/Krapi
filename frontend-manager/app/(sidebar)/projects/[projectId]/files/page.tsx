@@ -461,8 +461,8 @@ export default function FilesPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={`files-skeleton-${i}`} className="h-32 w-full" />
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={`files-skeleton-item-${i}`} className="h-32 w-full" />
           ))}
         </div>
       </PageLayout>

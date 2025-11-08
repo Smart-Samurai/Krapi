@@ -78,8 +78,9 @@ export function Breadcrumb({ items, homeHref = "/dashboard" }: BreadcrumbProps) 
         </UIBreadcrumbSeparator>
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
+          const itemKey = item.href || item.label || `breadcrumb-${index}`;
           return (
-            <Fragment key={index}>
+            <Fragment key={itemKey}>
               <UIBreadcrumbItem>
                 {isLast ? (
                   <UIBreadcrumbPage>{item.label}</UIBreadcrumbPage>
@@ -146,8 +147,9 @@ export function Breadcrumb({ items, homeHref = "/dashboard" }: BreadcrumbProps) 
       </UIBreadcrumbSeparator>
       {breadcrumbItems.map((item, index) => {
         const isLast = index === breadcrumbItems.length - 1;
+        const itemKey = item.href || item.label || `breadcrumb-${index}`;
         return (
-          <Fragment key={index}>
+          <Fragment key={itemKey}>
             <UIBreadcrumbItem>
               {isLast ? (
                 <UIBreadcrumbPage>{item.label}</UIBreadcrumbPage>
