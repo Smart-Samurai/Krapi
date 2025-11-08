@@ -81,6 +81,7 @@ import {
   EmailConfig,
   EmailTemplate,
   ApiKey,
+  SystemSettings,
 } from "./types";
 import { UsersService } from "./users-service";
 
@@ -335,11 +336,18 @@ class KrapiWrapper implements KrapiSocketInterface {
               error: "HTTP client not initialized",
             };
           }
-          const response = await this.authHttpClient.adminLogin({
+          const loginRequest: {
+            username: string;
+            password: string;
+            remember_me?: boolean;
+          } = {
             username: credentials.username,
             password: credentials.password,
-            remember_me: credentials.remember_me,
-          });
+          };
+          if (credentials.remember_me !== undefined) {
+            loginRequest.remember_me = credentials.remember_me;
+          }
+          const response = await this.authHttpClient.adminLogin(loginRequest);
           
           // Log raw response for debugging
           
@@ -403,11 +411,18 @@ class KrapiWrapper implements KrapiSocketInterface {
           
           return result;
         } else {
-          const result = await this.authService?.authenticateAdmin({
+          const loginRequest: {
+            username: string;
+            password: string;
+            remember_me?: boolean;
+          } = {
             username: credentials.username,
             password: credentials.password,
-            remember_me: credentials.remember_me,
-          });
+          };
+          if (credentials.remember_me !== undefined) {
+            loginRequest.remember_me = credentials.remember_me;
+          }
+          const result = await this.authService?.authenticateAdmin(loginRequest);
           if (!result) {
             return {
               success: false,
@@ -556,14 +571,14 @@ class KrapiWrapper implements KrapiSocketInterface {
           );
         }
         this.authHttpClient.setSessionToken(token);
-        this.projectsHttpClient.setSessionToken(token);
-        this.collectionsHttpClient.setSessionToken(token);
-        this.storageHttpClient.setSessionToken(token);
-        this.systemHttpClient.setSessionToken(token);
-        this.healthHttpClient.setSessionToken(token);
-        this.emailHttpClient.setSessionToken(token);
-        this.adminHttpClient.setSessionToken(token);
-        this.testingHttpClient.setSessionToken(token);
+        this.projectsHttpClient?.setSessionToken(token);
+        this.collectionsHttpClient?.setSessionToken(token);
+        this.storageHttpClient?.setSessionToken(token);
+        this.systemHttpClient?.setSessionToken(token);
+        this.healthHttpClient?.setSessionToken(token);
+        this.emailHttpClient?.setSessionToken(token);
+        this.adminHttpClient?.setSessionToken(token);
+        this.testingHttpClient?.setSessionToken(token);
       }
     },
 
@@ -586,14 +601,14 @@ class KrapiWrapper implements KrapiSocketInterface {
           );
         }
         this.authHttpClient.setApiKey(apiKey);
-        this.projectsHttpClient.setApiKey(apiKey);
-        this.collectionsHttpClient.setApiKey(apiKey);
-        this.storageHttpClient.setApiKey(apiKey);
-        this.systemHttpClient.setApiKey(apiKey);
-        this.healthHttpClient.setApiKey(apiKey);
-        this.emailHttpClient.setApiKey(apiKey);
-        this.adminHttpClient.setApiKey(apiKey);
-        this.testingHttpClient.setApiKey(apiKey);
+        this.projectsHttpClient?.setApiKey(apiKey);
+        this.collectionsHttpClient?.setApiKey(apiKey);
+        this.storageHttpClient?.setApiKey(apiKey);
+        this.systemHttpClient?.setApiKey(apiKey);
+        this.healthHttpClient?.setApiKey(apiKey);
+        this.emailHttpClient?.setApiKey(apiKey);
+        this.adminHttpClient?.setApiKey(apiKey);
+        this.testingHttpClient?.setApiKey(apiKey);
       }
     },
 
@@ -762,12 +777,16 @@ class KrapiWrapper implements KrapiSocketInterface {
           );
         }
         const response = await this.authHttpClient.validateSession(token);
-        return {
+        const result: {
+          valid: boolean;
+          session?: AdminUser | ProjectUser;
+        } = {
           valid: response.data?.valid || false,
-          session: response.data?.session
-            ? (response.data.session as unknown as AdminUser | ProjectUser)
-            : undefined,
         };
+        if (response.data?.session) {
+          result.session = response.data.session as unknown as AdminUser | ProjectUser;
+        }
+        return result;
       } else {
         // Would use AuthService to validate session
         throw new Error("validateSession not implemented for server mode");
@@ -1677,7 +1696,7 @@ class KrapiWrapper implements KrapiSocketInterface {
         }
         return this.collectionsSchemaManager.updateCollection(
           collection.id,
-          updates as unknown // Type conversion for compatibility
+          updates as Partial<Collection>
         ) as unknown as Collection;
       }
     },
@@ -3713,6 +3732,9 @@ class KrapiWrapper implements KrapiSocketInterface {
         return (response.data as unknown as ApiKey[]) || [];
       } else {
         // Server mode - use admin service
+        if (!this.adminService) {
+          throw new Error("Admin service not initialized");
+        }
         return (await this.adminService.getProjectApiKeys(
           projectId
         )) as unknown as Promise<ApiKey[]>;
@@ -4303,12 +4325,12 @@ class KrapiWrapper implements KrapiSocketInterface {
             "System HTTP client not initialized. Please ensure you're in client mode."
           );
         }
-        const response = await this.systemHttpClient.updateSettings(updates);
+        const response = await this.systemHttpClient.updateSettings(updates as Partial<SystemSettings>);
         return response.data || null;
       } else {
         // Server mode - use system service
         try {
-          return await this.systemService.updateSettings(updates);
+          return await this.systemService.updateSettings(updates as Partial<SystemSettings>);
         } catch (error) {
           this.logger?.error("Failed to update system settings:", error);
           return null;
@@ -4338,6 +4360,9 @@ class KrapiWrapper implements KrapiSocketInterface {
         return response.data || { success: false };
       } else {
         // Server mode - use email service
+        if (!this.emailService) {
+          throw new Error("Email service not initialized");
+        }
         try {
           // Test email configuration by attempting to send a test email
           const testResult = await this.emailService.testConfig("default");
@@ -4365,6 +4390,9 @@ class KrapiWrapper implements KrapiSocketInterface {
         return response.data || null;
       } else {
         // Server mode - use system service
+        if (!this.systemService) {
+          throw new Error("System service not initialized");
+        }
         try {
           return await this.systemService.getSystemInfo();
         } catch (error) {
@@ -4479,13 +4507,21 @@ class KrapiWrapper implements KrapiSocketInterface {
         }
         const response = await this.systemHttpClient.updateSystemUser(
           userId,
-          updates
+          updates as Partial<{
+            username: string;
+            email: string;
+            role: "admin" | "user";
+            is_active: boolean;
+          }>
         );
         return response.data || null;
       } else {
         // Server mode - use admin service
+        if (!this.adminService) {
+          throw new Error("Admin service not initialized");
+        }
         try {
-          return await this.adminService.updateUser(userId, updates);
+          return await this.adminService.updateUser(userId, updates as Partial<AdminUser>);
         } catch {
           return null;
         }
@@ -4517,7 +4553,15 @@ class KrapiWrapper implements KrapiSocketInterface {
             "System HTTP client not initialized. Please ensure you're in client mode."
           );
         }
-        const response = await this.systemHttpClient.getSystemLogs(options);
+        const response = await this.systemHttpClient.getSystemLogs(options as {
+          level?: "info" | "error" | "warn" | "debug";
+          service?: string;
+          limit?: number;
+          offset?: number;
+          start_date?: string;
+          end_date?: string;
+          search?: string;
+        } | undefined);
         return response.data || null;
       } else {
         // Server mode - use system service
@@ -4543,7 +4587,11 @@ class KrapiWrapper implements KrapiSocketInterface {
             "System HTTP client not initialized. Please ensure you're in client mode."
           );
         }
-        const response = await this.systemHttpClient.clearSystemLogs(options);
+        const response = await this.systemHttpClient.clearSystemLogs(options as {
+          level?: "info" | "error" | "warn" | "debug";
+          service?: string;
+          older_than_days?: number;
+        } | undefined);
         return response.data || null;
       } else {
         // Server mode - use system service
@@ -4572,12 +4620,27 @@ class KrapiWrapper implements KrapiSocketInterface {
     // User Management
     getAllUsers: async (options?: unknown): Promise<unknown> => {
       if (this.mode === "client") {
-        const response = await this.adminHttpClient.getAllUsers(options);
+        if (!this.adminHttpClient) {
+          throw new Error("Admin HTTP client not initialized");
+        }
+        const response = await this.adminHttpClient.getAllUsers(options as {
+          limit?: number;
+          offset?: number;
+          search?: string;
+          role?: string;
+          status?: string;
+          project_id?: string;
+        } | undefined);
         return response.data || null;
       } else {
         // Server mode - use admin service
         try {
-          return await this.adminService.getUsers(options);
+          return await this.adminService.getUsers(options as {
+            limit?: number;
+            offset?: number;
+            search?: string;
+            active?: boolean;
+          } | undefined);
         } catch (error) {
           this.logger?.error("Failed to get all users:", error);
           return [];
@@ -4808,12 +4871,27 @@ class KrapiWrapper implements KrapiSocketInterface {
             "Admin HTTP client not initialized. Please ensure you're in client mode."
           );
         }
-        const response = await this.adminHttpClient.getAllProjects(options);
+        const response = await this.adminHttpClient.getAllProjects(options as {
+          limit?: number;
+          offset?: number;
+          search?: string;
+          status?: string;
+          owner_id?: string;
+        } | undefined);
         return response.data || null;
       } else {
         // Server mode - use projects service
+        if (!this.projectsService) {
+          throw new Error("Projects service not initialized");
+        }
         try {
-          return await this.projectsService.getAllProjects(options);
+          return await this.projectsService.getAllProjects(options as {
+            limit?: number;
+            offset?: number;
+            search?: string;
+            active?: boolean;
+            owner_id?: string;
+          } | undefined);
         } catch (error) {
           this.logger?.error("Failed to get all projects:", error);
           return [];
@@ -4831,6 +4909,9 @@ class KrapiWrapper implements KrapiSocketInterface {
         return response.data || null;
       } else {
         // Server mode - use projects service
+        if (!this.projectsService) {
+          throw new Error("Projects service not initialized");
+        }
         try {
           return await this.projectsService.getProjectById(projectId);
         } catch (error) {
@@ -4980,7 +5061,15 @@ class KrapiWrapper implements KrapiSocketInterface {
             "Admin HTTP client not initialized. Please ensure you're in client mode."
           );
         }
-        const response = await this.adminHttpClient.getSecurityLogs(options);
+        const response = await this.adminHttpClient.getSecurityLogs(options as {
+          level?: "info" | "error" | "critical" | "warn";
+          user_id?: string;
+          action_type?: string;
+          limit?: number;
+          offset?: number;
+          start_date?: string;
+          end_date?: string;
+        } | undefined);
         return response.data || null;
       } else {
         throw new Error(
@@ -4996,7 +5085,14 @@ class KrapiWrapper implements KrapiSocketInterface {
           );
         }
         const response = await this.adminHttpClient.getFailedLoginAttempts(
-          options
+          options as {
+            limit?: number;
+            offset?: number;
+            user_id?: string;
+            ip_address?: string;
+            start_date?: string;
+            end_date?: string;
+          } | undefined
         );
         return response.data || null;
       } else {
@@ -5202,17 +5298,34 @@ class KrapiWrapper implements KrapiSocketInterface {
           throw new Error("Activity logger not initialized");
         }
         // Convert string dates to Date objects for the activity logger
-        const queryWithDates: ActivityQuery = {
-          user_id: options.user_id,
-          project_id: options.project_id,
-          action: options.action,
-          resource_type: options.resource_type,
-          severity: options.severity,
-          limit: options.limit,
-          offset: options.offset,
-          start_date: options.start_date ? new Date(options.start_date) : undefined,
-          end_date: options.end_date ? new Date(options.end_date) : undefined,
-        };
+        const queryWithDates: ActivityQuery = {};
+        if (options?.user_id !== undefined) {
+          queryWithDates.user_id = options.user_id;
+        }
+        if (options?.project_id !== undefined) {
+          queryWithDates.project_id = options.project_id;
+        }
+        if (options?.action !== undefined) {
+          queryWithDates.action = options.action;
+        }
+        if (options?.resource_type !== undefined) {
+          queryWithDates.resource_type = options.resource_type;
+        }
+        if (options?.severity !== undefined) {
+          queryWithDates.severity = options.severity;
+        }
+        if (options?.limit !== undefined) {
+          queryWithDates.limit = options.limit;
+        }
+        if (options?.offset !== undefined) {
+          queryWithDates.offset = options.offset;
+        }
+        if (options?.start_date) {
+          queryWithDates.start_date = new Date(options.start_date);
+        }
+        if (options?.end_date) {
+          queryWithDates.end_date = new Date(options.end_date);
+        }
         return await this.activityLogger.query(queryWithDates);
       }
     },
@@ -5325,7 +5438,16 @@ class KrapiWrapper implements KrapiSocketInterface {
         }
         const response = await this.changelogHttpClient.getProjectChangelog(
           projectId,
-          options
+          options as {
+            limit?: number;
+            offset?: number;
+            action_type?: string;
+            user_id?: string;
+            start_date?: string;
+            end_date?: string;
+            collection_name?: string;
+            document_id?: string;
+          } | undefined
         );
         return response.data || null;
       } else {
@@ -5348,7 +5470,15 @@ class KrapiWrapper implements KrapiSocketInterface {
         const response = await this.changelogHttpClient.getCollectionChangelog(
           projectId,
           collectionName,
-          options
+          options as {
+            limit?: number;
+            offset?: number;
+            action_type?: string;
+            user_id?: string;
+            start_date?: string;
+            end_date?: string;
+            document_id?: string;
+          } | undefined
         );
         return response.data || null;
       } else {
@@ -5373,7 +5503,14 @@ class KrapiWrapper implements KrapiSocketInterface {
           projectId,
           collectionName,
           documentId,
-          options
+          options as {
+            limit?: number;
+            offset?: number;
+            action_type?: string;
+            user_id?: string;
+            start_date?: string;
+            end_date?: string;
+          } | undefined
         );
         return response.data || null;
       } else {
@@ -5396,7 +5533,14 @@ class KrapiWrapper implements KrapiSocketInterface {
         const response = await this.changelogHttpClient.getUserActivity(
           projectId,
           userId,
-          options
+          options as {
+            limit?: number;
+            offset?: number;
+            action_type?: string;
+            start_date?: string;
+            end_date?: string;
+            entity_type?: string;
+          } | undefined
         );
         return response.data || null;
       } else {
@@ -5413,7 +5557,16 @@ class KrapiWrapper implements KrapiSocketInterface {
           throw new Error("Changelog HTTP client not initialized");
         }
         const response = await this.changelogHttpClient.getSystemChangelog(
-          options
+          options as {
+            limit?: number;
+            offset?: number;
+            action_type?: string;
+            user_id?: string;
+            project_id?: string;
+            entity_type?: string;
+            start_date?: string;
+            end_date?: string;
+          } | undefined
         );
         return response.data || null;
       } else {
@@ -5767,13 +5920,24 @@ class KrapiWrapper implements KrapiSocketInterface {
     apiKey?: string;
     database?: Record<string, unknown>;
   } {
-    return {
-      ...this.config,
+    const config: {
+      mode: "client" | "server" | null;
+      endpoint?: string;
+      apiKey?: string;
+      database?: Record<string, unknown>;
+    } = {
       mode: this.mode,
-      database: this.config.database
-        ? (this.config.database as unknown as Record<string, unknown>)
-        : undefined,
     };
+    if (this.config.endpoint !== undefined) {
+      config.endpoint = this.config.endpoint;
+    }
+    if (this.config.apiKey !== undefined) {
+      config.apiKey = this.config.apiKey;
+    }
+    if (this.config.database !== undefined) {
+      config.database = this.config.database as unknown as Record<string, unknown>;
+    }
+    return config;
   }
 
   /**

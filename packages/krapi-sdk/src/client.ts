@@ -179,12 +179,24 @@ export class KrapiClient {
     }
 
     // Initialize service clients (BaseHttpClient takes one config object)
-    const httpConfig = {
+    const httpConfig: {
+      baseUrl: string;
+      apiKey?: string;
+      sessionToken?: string;
+      timeout?: number;
+    } = {
       baseUrl: this.baseUrl,
-      apiKey: this.config.apiKey,
-      sessionToken: this.config.sessionToken,
-      timeout: this.config.timeout,
     };
+    
+    if (this.config.apiKey !== undefined) {
+      httpConfig.apiKey = this.config.apiKey;
+    }
+    if (this.config.sessionToken !== undefined) {
+      httpConfig.sessionToken = this.config.sessionToken;
+    }
+    if (this.config.timeout !== undefined) {
+      httpConfig.timeout = this.config.timeout;
+    }
     
     this.auth = new AuthHttpClient(httpConfig);
     this.projects = new ProjectsHttpClient(httpConfig);
@@ -254,11 +266,20 @@ export class KrapiClient {
           return response.data;
         },
         search: async (projectId, collectionName, query, options) => {
-          return collectionsClient.searchDocuments(projectId, collectionName, {
+          const searchOptions: {
+            text: string;
+            fields?: string[];
+            limit?: number;
+          } = {
             text: query,
-            fields: options?.fields,
-            limit: options?.limit,
-          });
+          };
+          if (options?.fields !== undefined) {
+            searchOptions.fields = options.fields;
+          }
+          if (options?.limit !== undefined) {
+            searchOptions.limit = options.limit;
+          }
+          return collectionsClient.searchDocuments(projectId, collectionName, searchOptions);
         },
         aggregate: async (projectId, collectionName, options) => {
           const aggregations: Record<string, { type: 'count' | 'sum' | 'avg' | 'min' | 'max'; field?: string }> = {};
@@ -270,10 +291,16 @@ export class KrapiClient {
               }
             }
           }
-          return collectionsClient.aggregateDocuments(projectId, collectionName, {
-            group_by: options.groupBy ? [options.groupBy] : undefined,
+          const aggregateOptions: {
+            group_by?: string[];
+            aggregations: Record<string, { type: 'count' | 'sum' | 'avg' | 'min' | 'max'; field?: string }>;
+          } = {
             aggregations,
-          });
+          };
+          if (options.groupBy) {
+            aggregateOptions.group_by = [options.groupBy];
+          }
+          return collectionsClient.aggregateDocuments(projectId, collectionName, aggregateOptions);
         },
       },
       list: async (projectId) => {
