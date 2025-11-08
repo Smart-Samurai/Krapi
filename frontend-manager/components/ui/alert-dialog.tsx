@@ -1,3 +1,22 @@
+/**
+ * Alert Dialog Components
+ * 
+ * Alert dialog components built on Radix UI Alert Dialog primitives.
+ * Provides modal dialogs for important confirmations and alerts.
+ * Includes AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogAction, etc.
+ * 
+ * @module components/ui/alert-dialog
+ * @example
+ * <AlertDialog>
+ *   <AlertDialogTrigger>Open</AlertDialogTrigger>
+ *   <AlertDialogContent>
+ *     <AlertDialogHeader>
+ *       <AlertDialogTitle>Confirm</AlertDialogTitle>
+ *     </AlertDialogHeader>
+ *     <AlertDialogAction>Confirm</AlertDialogAction>
+ *   </AlertDialogContent>
+ * </AlertDialog>
+ */
 "use client"
 
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"

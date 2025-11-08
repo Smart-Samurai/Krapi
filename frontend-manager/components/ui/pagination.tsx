@@ -1,3 +1,20 @@
+/**
+ * Pagination Components
+ * 
+ * Pagination components for navigating through paginated content.
+ * Includes Pagination, PaginationContent, PaginationItem, PaginationLink,
+ * PaginationPrevious, PaginationNext, PaginationEllipsis.
+ * 
+ * @module components/ui/pagination
+ * @example
+ * <Pagination>
+ *   <PaginationContent>
+ *     <PaginationItem><PaginationPrevious /></PaginationItem>
+ *     <PaginationItem><PaginationLink>1</PaginationLink></PaginationItem>
+ *     <PaginationItem><PaginationNext /></PaginationItem>
+ *   </PaginationContent>
+ * </Pagination>
+ */
 import {
   ChevronLeftIcon,
   ChevronRightIcon,

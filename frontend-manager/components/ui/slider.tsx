@@ -1,3 +1,20 @@
+/**
+ * Slider Component
+ * 
+ * Slider component built on Radix UI Slider primitives.
+ * Provides range input with a draggable thumb.
+ * Supports single and range values.
+ * 
+ * @module components/ui/slider
+ * @example
+ * <Slider
+ *   value={[50]}
+ *   onValueChange={setValue}
+ *   min={0}
+ *   max={100}
+ *   step={1}
+ * />
+ */
 "use client"
 
 import * as SliderPrimitive from "@radix-ui/react-slider"

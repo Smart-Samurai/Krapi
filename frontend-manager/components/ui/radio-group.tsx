@@ -1,3 +1,19 @@
+/**
+ * Radio Group Components
+ * 
+ * Radio group components built on Radix UI Radio Group primitives.
+ * Provides single-selection radio button groups.
+ * Includes RadioGroup and RadioGroupItem.
+ * 
+ * @module components/ui/radio-group
+ * @example
+ * <RadioGroup value={value} onValueChange={setValue}>
+ *   <RadioGroupItem value="option1" id="r1" />
+ *   <Label htmlFor="r1">Option 1</Label>
+ *   <RadioGroupItem value="option2" id="r2" />
+ *   <Label htmlFor="r2">Option 2</Label>
+ * </RadioGroup>
+ */
 "use client"
 
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group"

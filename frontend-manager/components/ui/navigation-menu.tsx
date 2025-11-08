@@ -1,3 +1,20 @@
+/**
+ * Navigation Menu Components
+ * 
+ * Navigation menu components built on Radix UI Navigation Menu primitives.
+ * Provides accessible navigation menus with keyboard navigation and submenus.
+ * Includes NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink, etc.
+ * 
+ * @module components/ui/navigation-menu
+ * @example
+ * <NavigationMenu>
+ *   <NavigationMenuList>
+ *     <NavigationMenuItem>
+ *       <NavigationMenuLink>Home</NavigationMenuLink>
+ *     </NavigationMenuItem>
+ *   </NavigationMenuList>
+ * </NavigationMenu>
+ */
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu"
 import { cva } from "class-variance-authority"
 import { ChevronDownIcon } from "lucide-react"

@@ -345,12 +345,37 @@ export class BackendSDK {
     );
   }
 
-  // Database health management methods
+  /**
+   * Perform database health check
+   * 
+   * Runs comprehensive health checks on the database including schema validation,
+   * connection status, and data integrity checks.
+   * 
+   * @returns {Promise<Record<string, unknown>>} Health check results
+   * 
+   * @example
+   * const health = await sdk.performHealthCheck();
+   * console.log(health.status); // 'healthy' | 'degraded' | 'unhealthy'
+   */
   async performHealthCheck() {
     return this.database.healthCheck();
   }
 
-  // Project activity methods
+  /**
+   * Get project activity logs
+   * 
+   * Retrieves activity logs for a specific project including changes to collections,
+   * documents, and other project entities.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of logs to return
+   * @param {number} [options.days] - Number of days to look back
+   * @returns {Promise<unknown[]>} Array of activity log entries
+   * 
+   * @example
+   * const activity = await sdk.getProjectActivity('project-id', { limit: 50, days: 7 });
+   */
   async getProjectActivity(
     projectId: string,
     options?: { limit?: number; days?: number }
@@ -358,19 +383,87 @@ export class BackendSDK {
     return await this.changelog.getByEntity("project", projectId, options);
   }
 
+  /**
+   * Automatically fix database schema issues
+   * 
+   * Runs auto-fixer to detect and fix schema misalignments, missing fields,
+   * type mismatches, and other database health issues.
+   * 
+   * @returns {Promise<Record<string, unknown>>} Auto-fix results
+   * 
+   * @example
+   * const results = await sdk.autoFixDatabase();
+   * console.log(results.fixed); // Number of issues fixed
+   */
   async autoFixDatabase() {
     return this.autoFixer.autoFixAll([]);
   }
 
+  /**
+   * Validate database schema
+   * 
+   * Validates the current database schema against expected schema definitions.
+   * 
+   * @returns {Promise<Record<string, unknown>>} Validation results
+   * 
+   * @example
+   * const validation = await sdk.validateSchema();
+   * if (!validation.valid) {
+   *   console.log(validation.errors);
+   * }
+   */
   async validateSchema() {
     return this.database.validateSchema();
   }
 
+  /**
+   * Run database migrations
+   * 
+   * Executes pending database migrations to update schema to latest version.
+   * 
+   * @returns {Promise<Record<string, unknown>>} Migration results
+   * 
+   * @example
+   * const results = await sdk.migrate();
+   * console.log(results.applied); // Number of migrations applied
+   */
   async migrate() {
     return this.database.migrate();
   }
 
-  // Collections management methods
+  /**
+   * Create a new collection
+   * 
+   * Creates a new collection with the specified schema, fields, and indexes.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} name - Collection name
+   * @param {Object} schema - Collection schema definition
+   * @param {string} [schema.description] - Collection description
+   * @param {Array} schema.fields - Collection fields
+   * @param {string} schema.fields[].name - Field name
+   * @param {string} schema.fields[].type - Field type
+   * @param {boolean} [schema.fields[].required] - Whether field is required
+   * @param {boolean} [schema.fields[].unique] - Whether field is unique
+   * @param {unknown} [schema.fields[].default] - Default value
+   * @param {Record<string, unknown>} [schema.fields[].validation] - Validation rules
+   * @param {Array} [schema.indexes] - Collection indexes
+   * @param {string} schema.indexes[].name - Index name
+   * @param {string[]} schema.indexes[].fields - Index fields
+   * @param {boolean} [schema.indexes[].unique] - Whether index is unique
+   * @param {string} [createdBy] - User ID who created the collection
+   * @returns {Promise<Collection>} Created collection
+   * 
+   * @example
+   * const collection = await sdk.createCollection('project-id', 'tasks', {
+   *   description: 'Task management',
+   *   fields: [
+   *     { name: 'title', type: 'string', required: true },
+   *     { name: 'status', type: 'string', default: 'pending' }
+   *   ],
+   *   indexes: [{ name: 'idx_title', fields: ['title'] }]
+   * });
+   */
   async createCollection(
     projectId: string,
     name: string,
@@ -414,6 +507,18 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Get a collection by name
+   * 
+   * Retrieves a collection by project ID and collection name.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} name - Collection name
+   * @returns {Promise<Collection | null>} Collection or null if not found
+   * 
+   * @example
+   * const collection = await sdk.getCollection('project-id', 'tasks');
+   */
   async getCollection(projectId: string, name: string) {
     const collections = await this.collections.schemaManager.getCollections();
     return (
@@ -422,6 +527,26 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Update a collection schema
+   * 
+   * Updates collection description, fields, or indexes.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} name - Collection name
+   * @param {Object} updates - Update data
+   * @param {string} [updates.description] - New description
+   * @param {Array} [updates.fields] - Updated fields
+   * @param {Array} [updates.indexes] - Updated indexes
+   * @returns {Promise<Collection>} Updated collection
+   * @throws {Error} If collection not found
+   * 
+   * @example
+   * const updated = await sdk.updateCollection('project-id', 'tasks', {
+   *   description: 'Updated description',
+   *   fields: [{ name: 'priority', type: 'string' }]
+   * });
+   */
   async updateCollection(
     projectId: string,
     name: string,
@@ -466,6 +591,18 @@ export class BackendSDK {
     });
   }
 
+  /**
+   * Delete a collection
+   * 
+   * Deletes a collection and all its documents. This operation is irreversible.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} name - Collection name
+   * @returns {Promise<boolean>} True if deleted, false if not found
+   * 
+   * @example
+   * const deleted = await sdk.deleteCollection('project-id', 'tasks');
+   */
   async deleteCollection(projectId: string, name: string) {
     const collection = await this.getCollection(projectId, name);
     if (!collection) {
@@ -475,16 +612,55 @@ export class BackendSDK {
     return this.collections.schemaManager.deleteCollection(collection.id);
   }
 
+  /**
+   * Get all collections for a project
+   * 
+   * Retrieves all collections belonging to a specific project.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Collection[]>} Array of collections
+   * 
+   * @example
+   * const collections = await sdk.getProjectCollections('project-id');
+   */
   async getProjectCollections(projectId: string) {
     const collections = await this.collections.schemaManager.getCollections();
     return collections.filter((c) => c.project_id === projectId);
   }
 
+  /**
+   * Get project statistics
+   * 
+   * Retrieves comprehensive statistics for a project including collection counts,
+   * document counts, storage usage, and activity metrics.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<ProjectStats>} Project statistics
+   * 
+   * @example
+   * const stats = await sdk.getProjectStatistics('project-id');
+   * console.log(stats.collection_count, stats.document_count);
+   */
   async getProjectStatistics(projectId: string) {
     return this.projects.getProjectStatistics(projectId);
   }
 
-  // Document management methods - these will need to be implemented in CollectionsService
+  /**
+   * Create a document in a collection
+   * 
+   * Creates a new document with the provided data in the specified collection.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Record<string, unknown>} data - Document data
+   * @returns {Promise<Document>} Created document
+   * 
+   * @example
+   * const doc = await sdk.createDocument('project-id', 'tasks', {
+   *   title: 'New Task',
+   *   status: 'pending'
+   * });
+   */
   async createDocument(
     projectId: string,
     collectionName: string,
@@ -497,6 +673,22 @@ export class BackendSDK {
     });
   }
 
+  /**
+   * Create multiple documents in a collection
+   * 
+   * Creates multiple documents in a single operation for better performance.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {CreateDocumentRequest[]} documents - Array of document data
+   * @returns {Promise<Document[]>} Array of created documents
+   * 
+   * @example
+   * const docs = await sdk.createDocuments('project-id', 'tasks', [
+   *   { data: { title: 'Task 1' } },
+   *   { data: { title: 'Task 2' } }
+   * ]);
+   */
   async createDocuments(
     projectId: string,
     collectionName: string,
@@ -511,6 +703,19 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Get a document by ID
+   * 
+   * Retrieves a specific document from a collection by its ID.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string} documentId - Document ID
+   * @returns {Promise<Document | null>} Document or null if not found
+   * 
+   * @example
+   * const doc = await sdk.getDocument('project-id', 'tasks', 'doc-id');
+   */
   async getDocument(
     projectId: string,
     collectionName: string,
@@ -524,6 +729,22 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Update a document
+   * 
+   * Updates an existing document with new data.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string} documentId - Document ID
+   * @param {Record<string, unknown>} data - Updated data
+   * @returns {Promise<Document>} Updated document
+   * 
+   * @example
+   * const updated = await sdk.updateDocument('project-id', 'tasks', 'doc-id', {
+   *   status: 'completed'
+   * });
+   */
   async updateDocument(
     projectId: string,
     collectionName: string,
@@ -542,6 +763,19 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Delete a document
+   * 
+   * Deletes a document from a collection. This operation is irreversible.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string} documentId - Document ID
+   * @returns {Promise<boolean>} True if deleted, false if not found
+   * 
+   * @example
+   * const deleted = await sdk.deleteDocument('project-id', 'tasks', 'doc-id');
+   */
   async deleteDocument(
     projectId: string,
     collectionName: string,
@@ -555,6 +789,28 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Get documents from a collection
+   * 
+   * Retrieves documents from a collection with optional filtering, pagination, and sorting.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Object} [filter] - Filter options
+   * @param {Record<string, unknown>} [filter.field_filters] - Field-based filters
+   * @param {string} [filter.search] - Search query
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of documents to return
+   * @param {number} [options.offset] - Number of documents to skip
+   * @param {string} [options.orderBy] - Field to sort by
+   * @param {string} [options.order] - Sort order ('asc' | 'desc')
+   * @returns {Promise<Document[]>} Array of documents
+   * 
+   * @example
+   * const docs = await sdk.getDocuments('project-id', 'tasks', {
+   *   field_filters: { status: 'pending' }
+   * }, { limit: 10, offset: 0, orderBy: 'created_at', order: 'desc' });
+   */
   async getDocuments(
     projectId: string,
     collectionName: string,
@@ -586,6 +842,23 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Count documents in a collection
+   * 
+   * Returns the total count of documents matching the specified filter.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Object} [filter] - Filter options
+   * @param {Record<string, unknown>} [filter.where] - Field-based filters
+   * @param {string} [filter.search] - Search query
+   * @returns {Promise<number>} Document count
+   * 
+   * @example
+   * const count = await sdk.countDocuments('project-id', 'tasks', {
+   *   where: { status: 'pending' }
+   * });
+   */
   async countDocuments(
     projectId: string,
     collectionName: string,
@@ -609,6 +882,24 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Update multiple documents
+   * 
+   * Updates multiple documents in a single operation for better performance.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Array} updates - Array of document updates
+   * @param {string} updates[].id - Document ID
+   * @param {Record<string, unknown>} updates[].data - Updated data
+   * @returns {Promise<Document[]>} Array of updated documents
+   * 
+   * @example
+   * const updated = await sdk.updateDocuments('project-id', 'tasks', [
+   *   { id: 'doc-1', data: { status: 'completed' } },
+   *   { id: 'doc-2', data: { status: 'in-progress' } }
+   * ]);
+   */
   async updateDocuments(
     projectId: string,
     collectionName: string,
@@ -625,6 +916,25 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Delete multiple documents
+   * 
+   * Deletes multiple documents in a single operation. Returns detailed results
+   * including which documents were successfully deleted and any errors.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string[]} documentIds - Array of document IDs to delete
+   * @returns {Promise<Object>} Deletion results
+   * @returns {boolean} returns.success - True if at least one document was deleted
+   * @returns {boolean[]} returns.results - Array of deletion results per document
+   * @returns {number} returns.deleted_count - Number of successfully deleted documents
+   * @returns {string[]} returns.errors - Array of document IDs that failed to delete
+   * 
+   * @example
+   * const result = await sdk.deleteDocuments('project-id', 'tasks', ['doc-1', 'doc-2']);
+   * console.log(`Deleted ${result.deleted_count} documents`);
+   */
   async deleteDocuments(
     projectId: string,
     collectionName: string,
@@ -654,6 +964,28 @@ export class BackendSDK {
     };
   }
 
+  /**
+   * Search documents in a collection
+   * 
+   * Performs full-text search on documents in a collection with optional field filtering.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Object} query - Search query
+   * @param {string} [query.text] - Search text
+   * @param {string[]} [query.fields] - Fields to search in
+   * @param {Record<string, unknown>} [query.filters] - Additional filters
+   * @param {number} [query.limit] - Maximum number of results
+   * @param {number} [query.offset] - Number of results to skip
+   * @returns {Promise<Document[]>} Array of matching documents
+   * 
+   * @example
+   * const results = await sdk.searchDocuments('project-id', 'tasks', {
+   *   text: 'urgent',
+   *   fields: ['title', 'description'],
+   *   limit: 20
+   * });
+   */
   async searchDocuments(
     projectId: string,
     collectionName: string,
@@ -676,6 +1008,21 @@ export class BackendSDK {
     );
   }
 
+  /**
+   * Aggregate documents using a pipeline
+   * 
+   * Performs aggregation operations on documents using a pipeline of operations.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Array<Record<string, unknown>>} pipeline - Aggregation pipeline
+   * @returns {Promise<Array<Record<string, unknown>>>} Aggregated results
+   * 
+   * @example
+   * const results = await sdk.aggregateDocuments('project-id', 'tasks', [
+   *   { $group: { _id: '$status', count: { $sum: 1 } } }
+   * ]);
+   */
   async aggregateDocuments(
     projectId: string,
     collectionName: string,
@@ -688,7 +1035,20 @@ export class BackendSDK {
     );
   }
 
-  // Type management methods
+  /**
+   * Generate TypeScript types for project collections
+   * 
+   * Generates comprehensive TypeScript type definitions for all collections
+   * in a project based on their schemas.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Array>} Array of type definitions for each collection
+   * @throws {Error} If no collections found for project
+   * 
+   * @example
+   * const types = await sdk.generateTypes('project-id');
+   * types.forEach(t => console.log(t.typescriptTypes));
+   */
   async generateTypes(projectId: string) {
     // Get project collections and generate types
     const collections = await this.getProjectCollections(projectId);
@@ -732,6 +1092,22 @@ export class BackendSDK {
     return typeDefinitions;
   }
 
+  /**
+   * Validate TypeScript types for project collections
+   * 
+   * Validates that all collections in a project have correct and consistent
+   * type definitions, checking for type mismatches and inconsistencies.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Array>} Array of validation results for each collection
+   * @throws {Error} If no collections found for project
+   * 
+   * @example
+   * const results = await sdk.validateTypes('project-id');
+   * results.forEach(r => {
+   *   if (!r.isValid) console.log(r.issues);
+   * });
+   */
   async validateTypes(projectId: string) {
     // Get project collections and validate types
     const collections = await this.getProjectCollections(projectId);
@@ -779,7 +1155,20 @@ export class BackendSDK {
     return validationResults;
   }
 
-  // Schema inspection methods
+  /**
+   * Inspect database schema for a project
+   * 
+   * Inspects and returns the actual database schema for all collections
+   * in a project, showing the real structure as stored in the database.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Array>} Array of schema inspections for each collection
+   * @throws {Error} If no collections found for project
+   * 
+   * @example
+   * const schemas = await sdk.inspectSchema('project-id');
+   * schemas.forEach(s => console.log(s.table_name, s.columns));
+   */
   async inspectSchema(projectId: string) {
     // Get project collections and inspect their schemas
     const collections = await this.getProjectCollections(projectId);
@@ -797,22 +1186,67 @@ export class BackendSDK {
     return inspections;
   }
 
+  /**
+   * Get table information
+   * 
+   * Retrieves detailed schema information for a specific table/collection.
+   * 
+   * @param {string} projectId - Project ID (unused, kept for API consistency)
+   * @param {string} tableName - Table/collection name
+   * @returns {Promise<Record<string, unknown>>} Table schema information
+   * 
+   * @example
+   * const info = await sdk.getTableInfo('project-id', 'tasks');
+   * console.log(info.columns, info.indexes);
+   */
   async getTableInfo(projectId: string, tableName: string) {
     // Get table info using the schema inspector
     return this.collections.schemaInspector.getTableSchema(tableName);
   }
 
-  // System methods
+  /**
+   * Get system information
+   * 
+   * Retrieves general system information including version, capabilities, and configuration.
+   * 
+   * @returns {Promise<Record<string, unknown>>} System information
+   * 
+   * @example
+   * const info = await sdk.getSystemInfo();
+   * console.log(info.version, info.features);
+   */
   async getSystemInfo() {
     return this.system.getSystemInfo();
   }
 
+  /**
+   * Get system status
+   * 
+   * Retrieves current system status including health, uptime, and operational state.
+   * 
+   * @returns {Promise<Record<string, unknown>>} System status
+   * @throws {Error} If not yet implemented
+   * 
+   * @example
+   * const status = await sdk.getSystemStatus();
+   * console.log(status.health, status.uptime);
+   */
   async getSystemStatus() {
     // This would need to be implemented in SystemService
     throw new Error("System status not yet implemented in SystemService");
   }
 
-  // Close the SDK and clean up resources
+  /**
+   * Close the SDK and clean up resources
+   * 
+   * Closes database connections and cleans up all resources.
+   * Should be called when the SDK is no longer needed.
+   * 
+   * @returns {Promise<void>}
+   * 
+   * @example
+   * await sdk.close();
+   */
   async close() {
     try {
       if (this.config.databaseConnection.end) {

@@ -1,3 +1,19 @@
+/**
+ * Calendar Component
+ * 
+ * Calendar component built on react-day-picker.
+ * Provides date selection with month/year navigation, range selection, and customization.
+ * Includes Calendar and CalendarDayButton.
+ * 
+ * @module components/ui/calendar
+ * @example
+ * <Calendar
+ *   mode="single"
+ *   selected={date}
+ *   onSelect={setDate}
+ *   className="rounded-md border"
+ * />
+ */
 "use client"
 
 import {

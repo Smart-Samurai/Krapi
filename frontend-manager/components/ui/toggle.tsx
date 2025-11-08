@@ -1,3 +1,15 @@
+/**
+ * Toggle Component
+ * 
+ * Toggle button component built on Radix UI Toggle primitives.
+ * Supports multiple variants (default, outline) and sizes (default, sm, lg).
+ * 
+ * @module components/ui/toggle
+ * @example
+ * <Toggle variant="default" size="default" pressed={isPressed} onPressedChange={setIsPressed}>
+ *   Toggle
+ * </Toggle>
+ */
 "use client"
 
 import * as TogglePrimitive from "@radix-ui/react-toggle"

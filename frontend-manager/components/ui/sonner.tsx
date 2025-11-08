@@ -1,3 +1,14 @@
+/**
+ * Sonner Toaster Component
+ * 
+ * Toast notification component built on sonner library.
+ * Provides toast notifications with theme support and customizable styling.
+ * 
+ * @module components/ui/sonner
+ * @example
+ * <Toaster position="top-right" />
+ * // Use with: toast.success("Success message")
+ */
 "use client"
 
 import { useTheme } from "next-themes"

@@ -1,3 +1,21 @@
+/**
+ * Carousel Components
+ * 
+ * Carousel components built on embla-carousel-react.
+ * Provides image/content carousels with navigation, pagination, and autoplay.
+ * Includes Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext.
+ * 
+ * @module components/ui/carousel
+ * @example
+ * <Carousel>
+ *   <CarouselContent>
+ *     <CarouselItem>Slide 1</CarouselItem>
+ *     <CarouselItem>Slide 2</CarouselItem>
+ *   </CarouselContent>
+ *   <CarouselPrevious />
+ *   <CarouselNext />
+ * </Carousel>
+ */
 "use client"
 
 import useEmblaCarousel, {

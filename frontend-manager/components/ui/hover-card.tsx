@@ -1,3 +1,17 @@
+/**
+ * Hover Card Components
+ * 
+ * Hover card components built on Radix UI Hover Card primitives.
+ * Displays additional information in a card when hovering over a trigger element.
+ * Includes HoverCard, HoverCardTrigger, and HoverCardContent.
+ * 
+ * @module components/ui/hover-card
+ * @example
+ * <HoverCard>
+ *   <HoverCardTrigger>Hover me</HoverCardTrigger>
+ *   <HoverCardContent>Additional information</HoverCardContent>
+ * </HoverCard>
+ */
 "use client"
 
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card"

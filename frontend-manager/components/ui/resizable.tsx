@@ -1,3 +1,18 @@
+/**
+ * Resizable Components
+ * 
+ * Resizable panel components for creating resizable layouts.
+ * Includes ResizablePanelGroup, ResizablePanel, and ResizableHandle.
+ * Built on react-resizable-panels.
+ * 
+ * @module components/ui/resizable
+ * @example
+ * <ResizablePanelGroup direction="horizontal">
+ *   <ResizablePanel defaultSize={50}>Left Panel</ResizablePanel>
+ *   <ResizableHandle withHandle />
+ *   <ResizablePanel defaultSize={50}>Right Panel</ResizablePanel>
+ * </ResizablePanelGroup>
+ */
 "use client"
 
 import { GripVerticalIcon } from "lucide-react"

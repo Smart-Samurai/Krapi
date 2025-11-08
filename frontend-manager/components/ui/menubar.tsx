@@ -1,3 +1,21 @@
+/**
+ * Menubar Components
+ * 
+ * Menubar components built on Radix UI Menubar primitives.
+ * Provides application-style menu bars with nested menus and keyboard navigation.
+ * Includes Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem, etc.
+ * 
+ * @module components/ui/menubar
+ * @example
+ * <Menubar>
+ *   <MenubarMenu>
+ *     <MenubarTrigger>File</MenubarTrigger>
+ *     <MenubarContent>
+ *       <MenubarItem>New</MenubarItem>
+ *     </MenubarContent>
+ *   </MenubarMenu>
+ * </Menubar>
+ */
 "use client"
 
 import * as MenubarPrimitive from "@radix-ui/react-menubar"

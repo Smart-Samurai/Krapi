@@ -1,3 +1,21 @@
+/**
+ * Command Components
+ * 
+ * Command palette components built on cmdk (Command Menu).
+ * Provides a searchable command interface with keyboard navigation.
+ * Includes Command, CommandDialog, CommandInput, CommandList, CommandItem, etc.
+ * 
+ * @module components/ui/command
+ * @example
+ * <Command>
+ *   <CommandInput placeholder="Search..." />
+ *   <CommandList>
+ *     <CommandGroup heading="Suggestions">
+ *       <CommandItem>Item 1</CommandItem>
+ *     </CommandGroup>
+ *   </CommandList>
+ * </Command>
+ */
 "use client";
 
 import { Command as CommandPrimitive } from "cmdk";

@@ -357,6 +357,15 @@ export class KrapiClient {
 
   /**
    * Set API key for authentication
+   * 
+   * Updates the API key used for authenticating requests.
+   * This will override any existing session token.
+   * 
+   * @param {string} apiKey - API key to use for authentication
+   * @returns {void}
+   * 
+   * @example
+   * client.setApiKey('pk_live_...');
    */
   setApiKey(apiKey: string): void {
     this.config.apiKey = apiKey;
@@ -365,6 +374,15 @@ export class KrapiClient {
 
   /**
    * Set session token for authentication
+   * 
+   * Updates the session token used for authenticating requests.
+   * This will override any existing API key.
+   * 
+   * @param {string} token - Session token to use for authentication
+   * @returns {void}
+   * 
+   * @example
+   * client.setSessionToken('session_token_...');
    */
   setSessionToken(token: string): void {
     this.config.sessionToken = token;
@@ -373,6 +391,14 @@ export class KrapiClient {
 
   /**
    * Set project ID for project-specific operations
+   * 
+   * Sets the default project ID that will be included in all requests.
+   * 
+   * @param {string} projectId - Project ID to use as default
+   * @returns {void}
+   * 
+   * @example
+   * client.setProjectId('project-id');
    */
   setProjectId(projectId: string): void {
     this.config.projectId = projectId;
@@ -381,6 +407,14 @@ export class KrapiClient {
 
   /**
    * Get current configuration
+   * 
+   * Returns a copy of the current client configuration.
+   * 
+   * @returns {KrapiClientConfig} Current configuration
+   * 
+   * @example
+   * const config = client.getConfig();
+   * console.log(config.endpoint, config.projectId);
    */
   getConfig(): KrapiClientConfig {
     return { ...this.config };

@@ -1,3 +1,20 @@
+/**
+ * Context Menu Components
+ * 
+ * Context menu components built on Radix UI Context Menu primitives.
+ * Provides right-click context menus with items, submenus, checkboxes, and radio groups.
+ * Includes ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, etc.
+ * 
+ * @module components/ui/context-menu
+ * @example
+ * <ContextMenu>
+ *   <ContextMenuTrigger>Right-click me</ContextMenuTrigger>
+ *   <ContextMenuContent>
+ *     <ContextMenuItem>Item 1</ContextMenuItem>
+ *     <ContextMenuItem>Item 2</ContextMenuItem>
+ *   </ContextMenuContent>
+ * </ContextMenu>
+ */
 "use client"
 
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu"

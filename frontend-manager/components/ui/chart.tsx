@@ -1,3 +1,18 @@
+/**
+ * Chart Components
+ * 
+ * Chart components built on recharts library.
+ * Provides various chart types (line, bar, pie, area, etc.) with theme support.
+ * Includes ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, etc.
+ * 
+ * @module components/ui/chart
+ * @example
+ * <ChartContainer config={chartConfig}>
+ *   <LineChart data={data}>
+ *     <Line dataKey="value" />
+ *   </LineChart>
+ * </ChartContainer>
+ */
 "use client"
 
 import * as React from "react"
