@@ -39,7 +39,7 @@ export async function DELETE(
 
     const deleteData = await response.json();
     return NextResponse.json(deleteData);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       { error: "Failed to delete file" },

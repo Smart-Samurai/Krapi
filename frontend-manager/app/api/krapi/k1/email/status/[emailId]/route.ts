@@ -39,7 +39,7 @@ export async function GET(
 
     const statusData = await response.json();
     return NextResponse.json(statusData);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       { error: "Failed to get email status" },

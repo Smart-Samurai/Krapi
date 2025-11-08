@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const bouncesData = await response.json();
     return NextResponse.json(bouncesData);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       { error: "Failed to get email bounces" },

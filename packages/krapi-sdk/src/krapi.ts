@@ -260,8 +260,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * @example
      * ```typescript
      * const session = await krapi.auth.login('user@example.com', 'password123');
-     * console.log(session.user); // User information
-     * console.log(session.scopes); // User's access scopes
      * ```
      */
     login: async (
@@ -344,7 +342,6 @@ class KrapiWrapper implements KrapiSocketInterface {
           });
           
           // Log raw response for debugging
-          console.log("🔍 Raw HTTP client response:", JSON.stringify(response, null, 2));
           
           // Response is already unwrapped by axios interceptor, so it's ApiResponse<LoginResponse>
           // Backend returns: { success: true, data: { user: {...}, token: "...", session_token: "...", expires_at: "..." } }
@@ -370,13 +367,10 @@ class KrapiWrapper implements KrapiSocketInterface {
           if ("data" in response && response.data) {
             // It's ApiResponse<LoginResponse>, extract the data
             loginData = response.data as typeof loginData;
-            console.log("🔍 Extracted loginData from response.data:", JSON.stringify(loginData, null, 2));
           } else if ("token" in response || "user" in response) {
             // It's LoginResponse directly (shouldn't happen with axios interceptor, but handle it)
             loginData = response as typeof loginData;
-            console.log("🔍 Using response directly as loginData:", JSON.stringify(loginData, null, 2));
           } else {
-            console.error("❌ Login response structure unexpected:", JSON.stringify(response, null, 2));
             return {
               success: false,
               error: "Invalid login response format - unexpected structure",
@@ -385,14 +379,6 @@ class KrapiWrapper implements KrapiSocketInterface {
           
           // Check if loginData has the required fields
           if (!loginData || (!loginData.token && !loginData.session_token) || !loginData.user) {
-            console.error("❌ Login response missing fields:", {
-              hasLoginData: !!loginData,
-              hasToken: !!loginData?.token,
-              hasSessionToken: !!loginData?.session_token,
-              hasUser: !!loginData?.user,
-              loginData: JSON.stringify(loginData, null, 2),
-              response: JSON.stringify(response, null, 2)
-            });
             return {
               success: false,
               error: `Invalid login response format. Missing: ${!loginData?.token && !loginData?.session_token ? 'token ' : ''}${!loginData?.user ? 'user' : ''}`,
@@ -415,7 +401,6 @@ class KrapiWrapper implements KrapiSocketInterface {
             },
           };
           
-          console.log("✅ Login successful, returning:", JSON.stringify(result, null, 2));
           return result;
         } else {
           const result = await this.authService?.authenticateAdmin({
@@ -873,7 +858,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   description: 'A project for managing user data',
      *   settings: { maxUsers: 1000, enableAnalytics: true }
      * });
-     * console.log(project.id); // New project ID
      * ```
      */
     create: async (projectData: {
@@ -914,8 +898,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const project = await krapi.projects.get('proj_12345');
      * if (project) {
-     *   console.log(project.name); // Project name
-     *   console.log(project.description); // Project description
      * }
      * ```
      */
@@ -953,7 +935,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   description: 'Updated project description',
      *   settings: { maxUsers: 2000, enableAnalytics: false }
      * });
-     * console.log(updatedProject.description); // Updated description
      * ```
      */
     update: async (
@@ -994,7 +975,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const result = await krapi.projects.delete('proj_12345');
      * if (result.success) {
-     *   console.log('Project deleted successfully');
      * }
      * ```
      *
@@ -1035,7 +1015,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *
      * // Get projects with pagination
      * const projects = await krapi.projects.getAll({ limit: 10, offset: 20 });
-     * console.log(projects.length); // Maximum 10 projects
      * ```
      */
     getAll: async (options?: {
@@ -1071,9 +1050,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * @example
      * ```typescript
      * const stats = await krapi.projects.getStatistics('proj_12345');
-     * console.log(`Total collections: ${stats.total_collections}`);
-     * console.log(`Total documents: ${stats.total_documents}`);
-     * console.log(`Storage used: ${stats.storage_used} bytes`);
      * ```
      */
     getStatistics: async (projectId: string): Promise<ProjectStats> => {
@@ -1110,9 +1086,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * @example
      * ```typescript
      * const settings = await krapi.projects.getSettings('proj_12345');
-     * console.log('CORS origins:', settings.cors_origins);
-     * console.log('Rate limit:', settings.rate_limit);
-     * console.log('Storage config:', settings.storage);
      * ```
      */
     getSettings: async (projectId: string): Promise<ProjectSettings> => {
@@ -1157,7 +1130,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   rate_limit: { requests_per_minute: 1000 },
      *   storage: { max_file_size: 10485760 } // 10MB
      * });
-     * console.log('Settings updated successfully');
      * ```
      */
     updateSettings: async (
@@ -1284,7 +1256,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *     { name: 'idx_username_email', fields: ['username', 'email'], unique: true }
      *   ]
      * });
-     * console.log(`Collection created: ${collection.name}`);
      * ```
      */
     create: async (
@@ -1366,9 +1337,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const collection = await krapi.collections.get('proj_12345', 'users');
      * if (collection) {
-     *   console.log(`Collection: ${collection.name}`);
-     *   console.log(`Fields: ${collection.fields.length}`);
-     *   console.log(`Indexes: ${collection.indexes?.length || 0}`);
      * }
      * ```
      */
@@ -1412,9 +1380,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * @example
      * ```typescript
      * const collections = await krapi.collections.getAll('proj_12345');
-     * console.log(`Collection: ${collection.name}`);
-     * console.log(`Fields: ${collection.fields.length}`);
-     * console.log(`Indexes: ${collection.indexes?.length || 0}`);
      * }
      * ```
      */
@@ -1660,7 +1625,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *     { name: 'profile', type: 'json', required: false }
      *   ]
      * });
-     * console.log('Collection updated successfully');
      * ```
      *
      * @warning Updating fields will replace the entire field schema. Use with caution.
@@ -1729,9 +1693,7 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const result = await krapi.collections.delete('proj_12345', 'old_users');
      * if (result.success) {
-     *   console.log('Collection deleted successfully');
      * } else {
-     *   console.log('Collection not found or deletion failed');
      * }
      * ```
      *
@@ -1783,14 +1745,10 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const schema = await krapi.collections.getSchema('proj_12345', 'users');
      * if (schema) {
-     *   console.log('Collection fields:');
      *   schema.fields.forEach(field => {
-     *     console.log(`- ${field.name}: ${field.type}${field.required ? ' (required)' : ''}`);
      *   });
      *
-     *   console.log('Collection indexes:');
      *   schema.indexes?.forEach(index => {
-     *     console.log(`- ${index.name}: [${index.fields.join(', ')}]${index.unique ? ' (unique)' : ''}`);
      *   });
      * }
      * ```
@@ -1826,13 +1784,10 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const validation = await krapi.collections.validateSchema('proj_12345', 'users');
      * if (validation.valid) {
-     *   console.log('Schema is valid!');
      * } else {
-     *   console.log('Schema validation issues found:');
      *   validation.issues.forEach(issue => {
      *     const severity = issue.severity.toUpperCase();
      *     const field = issue.field ? ` (${issue.field})` : '';
-     *     console.log(`[${severity}]${field}: ${issue.message}`);
      *   });
      * }
      * ```
@@ -1877,10 +1832,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * @example
      * ```typescript
      * const stats = await krapi.collections.getStatistics('proj_12345', 'users');
-     * console.log(`Total documents: ${stats.total_documents}`);
-     * console.log(`Storage used: ${stats.storage_used} bytes`);
-     * console.log(`Last updated: ${stats.last_updated}`);
-     * console.log(`Field count: ${stats.field_count}`);
      * ```
      */
     getStatistics: async (
@@ -2053,8 +2004,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   },
      *   created_by: 'admin_user_123'
      * });
-     * console.log(`Document created with ID: ${newUser.id}`);
-     * console.log(`Email: ${newUser.data.email}`);
      * ```
      */
     create: async (
@@ -2102,12 +2051,7 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const user = await krapi.documents.get('proj_12345', 'users', 'doc_67890');
      * if (user) {
-     *   console.log(`User: ${user.data.full_name}`);
-     *   console.log(`Email: ${user.data.email}`);
-     *   console.log(`Created: ${user.created_at}`);
-     *   console.log(`Created by: ${user.created_by}`);
      * } else {
-     *   console.log('Document not found');
      * }
      * ```
      */
@@ -2163,8 +2107,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   },
      *   updated_by: 'admin_user_123'
      * });
-     * console.log(`Document updated at: ${updatedUser.updated_at}`);
-     * console.log(`Updated by: ${updatedUser.updated_by}`);
      * ```
      */
     update: async (
@@ -2217,9 +2159,7 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const result = await krapi.documents.delete('proj_12345', 'users', 'doc_67890', 'admin_user_123');
      * if (result.success) {
-     *   console.log('Document deleted successfully');
      * } else {
-     *   console.log('Document not found or deletion failed');
      * }
      * ```
      *
@@ -2287,7 +2227,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   order: 'desc'
      * });
      *
-     * console.log(`Found ${activeUsers.length} active users`);
      * ```
      */
     getAll: async (
@@ -2368,7 +2307,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   limit: 50
      * });
      *
-     * console.log(`Found ${results.length} matching documents`);
      * ```
      */
     search: async (
@@ -3104,9 +3042,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   is_public: true
      * });
      *
-     * console.log(`File uploaded: ${uploadedFile.filename}`);
-     * console.log(`File ID: ${uploadedFile.id}`);
-     * console.log(`Storage path: ${uploadedFile.storage_path}`);
      * ```
      */
     uploadFile: async (
@@ -3183,12 +3118,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      * @example
      * ```typescript
      * const fileInfo = await krapi.storage.getFile('proj_12345', 'file_67890');
-     * console.log(`File: ${fileInfo.filename}`);
-     * console.log(`Size: ${fileInfo.size} bytes`);
-     * console.log(`Type: ${fileInfo.mime_type}`);
-     * console.log(`Uploaded: ${fileInfo.created_at}`);
-     * console.log(`Tags: ${fileInfo.tags?.join(', ') || 'None'}`);
-     * console.log(`Public: ${fileInfo.is_public ? 'Yes' : 'No'}`);
      * ```
      */
     getFile: async (projectId: string, fileId: string): Promise<FileInfo> => {
@@ -3218,9 +3147,7 @@ class KrapiWrapper implements KrapiSocketInterface {
      * ```typescript
      * const result = await krapi.storage.deleteFile('proj_12345', 'file_67890');
      * if (result.success) {
-     *   console.log('File deleted successfully');
      * } else {
-     *   console.log('File deletion failed');
      * }
      * ```
      *
@@ -3275,7 +3202,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   type: 'application/pdf'
      * });
      *
-     * console.log(`Found ${images.length} image files`);
      * ```
      */
     getFiles: async (
@@ -3328,8 +3254,6 @@ class KrapiWrapper implements KrapiSocketInterface {
      *   metadata: { description: 'User profile pictures' }
      * });
      *
-     * console.log(`Created folder: ${imagesFolder.name}`);
-     * console.log(`Nested folder: ${avatarsFolder.name}`);
      * ```
      */
     createFolder: async (
@@ -5836,7 +5760,6 @@ class KrapiWrapper implements KrapiSocketInterface {
    * 
    * @example
    * const config = krapi.getConfig();
-   * console.log(`Mode: ${config.mode}, Endpoint: ${config.endpoint}`);
    */
   getConfig(): {
     mode: "client" | "server" | null;

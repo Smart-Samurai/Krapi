@@ -47,7 +47,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const uploadData = await response.json();
     return NextResponse.json({ success: true, data: uploadData });
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {

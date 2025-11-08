@@ -10,7 +10,7 @@ export default async function handler(
   }
 
   try {
-    const { operation, collection_name, metadata } = req.body;
+    const { operation, collection_name: _collection_name, metadata } = req.body;
 
     if (!operation) {
       return res.status(400).json({ error: "Operation is required" });

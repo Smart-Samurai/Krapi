@@ -71,7 +71,7 @@ export async function GET(
 
     const user = await response.json();
     return NextResponse.json(user);
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
@@ -151,7 +151,7 @@ export async function PUT(
 
     const user = await response.json();
     return NextResponse.json(user);
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
@@ -228,7 +228,7 @@ export async function DELETE(
 
     const result = await response.json();
     return NextResponse.json(result);
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

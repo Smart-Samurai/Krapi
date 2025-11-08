@@ -25,7 +25,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     const storageInfo = await serverSdk.storage.getStorageInfo(projectId);
 
     return NextResponse.json({ success: true, data: storageInfo });
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       { success: true, data: fileInfo },
       { status: 201 }
     );
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

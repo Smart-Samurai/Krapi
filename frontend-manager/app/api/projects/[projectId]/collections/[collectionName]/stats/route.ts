@@ -73,7 +73,7 @@ export async function GET(
     
     // Backend returns { success: true, data: {...} }, pass it through
     return NextResponse.json(backendResponse);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {

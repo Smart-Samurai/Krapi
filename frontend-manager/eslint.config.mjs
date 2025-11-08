@@ -32,6 +32,7 @@ const eslintConfig = [
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
           destructuredArrayIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
         },
       ],
       "@typescript-eslint/no-explicit-any": "error", // Strict no-any rule
@@ -45,12 +46,17 @@ const eslintConfig = [
       "react/no-unescaped-entities": "warn",
       "react/jsx-no-duplicate-props": "error",
       "react/jsx-no-undef": "error",
-      "react/no-array-index-key": "warn",
+      "react/no-array-index-key": "error",
       "react/self-closing-comp": "error",
       "react/jsx-curly-brace-presence": ["error", { props: "never", children: "never" }],
 
       // Import rules
-      "import/no-unresolved": "error",
+      "import/no-unresolved": [
+        "error",
+        {
+          ignore: ["^@krapi/"], // Allow workspace packages
+        },
+      ],
       "import/no-cycle": "warn",
       "import/no-unused-modules": "off",
       "import/order": [

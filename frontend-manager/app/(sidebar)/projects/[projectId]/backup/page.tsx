@@ -88,10 +88,6 @@ export default function ProjectBackupPage() {
     overwrite: false,
   });
 
-  if (!projectId) {
-    return <div>Project ID is required</div>;
-  }
-
   const fetchBackups = useCallback(async () => {
     try {
       setLoading(true);
@@ -116,6 +112,10 @@ export default function ProjectBackupPage() {
   useEffect(() => {
     fetchBackups();
   }, [fetchBackups]);
+
+  if (!projectId) {
+    return <div>Project ID is required</div>;
+  }
 
   const handleCreateBackup = async () => {
     try {

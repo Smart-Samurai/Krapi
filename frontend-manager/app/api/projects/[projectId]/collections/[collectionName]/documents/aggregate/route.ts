@@ -77,7 +77,7 @@ export async function POST(
     // Backend returns { success: true, groups: [...], ... }
     // Return it directly
     return NextResponse.json(backendResponse);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {

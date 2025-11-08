@@ -103,8 +103,8 @@ async function proxyRequest(
     if (method !== "GET" && method !== "DELETE") {
       try {
         body = await request.text();
-      } catch (error: unknown) {
-        
+      } catch {
+        // Failed to read request body, continue without body
       }
     }
 
@@ -121,7 +121,7 @@ async function proxyRequest(
 
     try {
       responseData = JSON.parse(responseText);
-    } catch (error: unknown) {
+    } catch {
       responseData = responseText;
     }
 
@@ -137,13 +137,11 @@ async function proxyRequest(
         "Content-Type": "application/json",
       },
     });
-  } catch (error: unknown) {
-
+  } catch {
     return NextResponse.json(
       {
         error: "Proxy Error",
         message: "Failed to proxy request to backend",
-        details: error instanceof Error ? error.message : "Unknown error",
       },
       {
         status: 500,

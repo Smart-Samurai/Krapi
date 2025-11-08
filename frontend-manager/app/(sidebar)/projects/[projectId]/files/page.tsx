@@ -461,8 +461,8 @@ export default function FilesPage() {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={`files-skeleton-${i}`} className="h-32 w-full" />
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={`files-skeleton-item-${i}`} className="h-32 w-full" />
           ))}
         </div>
       </PageLayout>
@@ -622,7 +622,6 @@ const fileInfo = await krapi.storage.getFileInfo(projectId, fileId);
 // Upload a file
 const file = new File(['file content'], 'filename.txt', { type: 'text/plain' });
 const uploadedFile = await krapi.storage.uploadFile(projectId, file, (progress) => {
-  console.log('Upload progress:', progress);
 });
 
 // Download a file

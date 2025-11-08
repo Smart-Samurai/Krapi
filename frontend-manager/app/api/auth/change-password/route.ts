@@ -59,7 +59,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const changeResult = await response.json();
     return NextResponse.json(changeResult);
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

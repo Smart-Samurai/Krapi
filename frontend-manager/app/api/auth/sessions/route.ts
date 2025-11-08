@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const session = await krapi.auth.createSession(api_key);
 
     return NextResponse.json(session);
-  } catch (error: unknown) {
+  } catch {
     // Error creating session from API key
 
     if (error instanceof Error) {

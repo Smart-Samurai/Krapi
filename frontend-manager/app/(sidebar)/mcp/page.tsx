@@ -168,8 +168,7 @@ export default function AdminMcpPage() {
       if (json.success) {
         setModelCapabilities(json.capabilities);
       }
-    } catch (err) {
-      console.error("Failed to check model capabilities:", err);
+    } catch (_err: unknown) {
     } finally {
       setCheckingCapabilities(false);
     }
@@ -218,10 +217,11 @@ export default function AdminMcpPage() {
   };
 
   const renderMessage = (msg: ChatMessage, index: number) => {
+    const messageKey = msg.tool_call_id || `${msg.role}-${msg.content.substring(0, 20)}-${index}`;
     if (msg.role === "tool") {
       return (
         <div
-          key={`msg-${index}`}
+          key={messageKey}
           className="mb-4 p-3 bg-muted rounded-lg border-l-4 border-blue-500"
         >
           <div className="flex items-center gap-2 mb-1">
@@ -240,7 +240,7 @@ export default function AdminMcpPage() {
 
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       return (
-        <div key={`msg-${index}`} className="mb-4">
+        <div key={messageKey} className="mb-4">
           <div className="flex items-center gap-2 mb-2">
             <Bot className="h-4 w-4 text-purple-500" />
             <span className="font-semibold text-purple-600">Assistant</span>
@@ -252,9 +252,9 @@ export default function AdminMcpPage() {
               </p>
             )}
             <div className="space-y-2">
-              {msg.tool_calls.map((tc, tcIndex) => (
+              {msg.tool_calls.map((tc) => (
                 <div
-                  key={tcIndex}
+                  key={tc.id}
                   className="p-2 bg-background rounded border border-purple-200"
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -276,7 +276,7 @@ export default function AdminMcpPage() {
 
     return (
       <div
-        key={`msg-${index}`}
+        key={messageKey}
         className={`mb-4 flex items-start gap-3 ${
           msg.role === "user" ? "justify-end" : ""
         }`}

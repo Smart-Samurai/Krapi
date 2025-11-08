@@ -118,15 +118,6 @@ export default function ProjectsPage() {
   const projects = projectsState.items;
   const loading = projectsState.loading;
   
-  // Debug logging
-  useEffect(() => {
-    console.log("🔍 [PROJECTS DEBUG] Current projects state:", {
-      items: projects,
-      itemsCount: projects.length,
-      loading,
-      error: projectsState.error,
-    });
-  }, [projects, loading, projectsState.error]);
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -148,36 +139,19 @@ export default function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     if (!krapi || !hasScope(Scope.PROJECTS_READ)) {
-      console.log("🔍 [PROJECTS DEBUG] Cannot load projects:", {
-        hasKrapi: !!krapi,
-        hasScope: hasScope(Scope.PROJECTS_READ),
-      });
       return;
     }
 
-    console.log("🔍 [PROJECTS DEBUG] Loading projects...");
     dispatch(beginBusy());
     try {
       // Use Redux thunk with krapi instance
       const action = await dispatch(fetchProjects({ krapi }));
-      console.log("🔍 [PROJECTS DEBUG] Fetch action result:", {
-        fulfilled: fetchProjects.fulfilled.match(action),
-        rejected: fetchProjects.rejected.match(action),
-        payload: action.payload,
-        error: fetchProjects.rejected.match(action) ? (action.payload || (action.error as { message?: string })?.message) : undefined,
-      });
       
-      if (fetchProjects.fulfilled.match(action)) {
-        console.log("✅ [PROJECTS DEBUG] Projects loaded successfully:", action.payload);
-        // Projects are now stored in Redux store
-        // No need to set local state
-      } else if (fetchProjects.rejected.match(action)) {
+      if (fetchProjects.rejected.match(action)) {
         const errorMessage = action.payload || action.error?.message || "Unknown error";
-        console.error("❌ [PROJECTS DEBUG] Failed to load projects:", errorMessage);
         toast.error(`Failed to load projects: ${errorMessage}`);
       }
-    } catch (error) {
-      console.error("❌ [PROJECTS DEBUG] Exception loading projects:", error);
+    } catch (_error: unknown) {
       toast.error("Failed to load projects");
     } finally {
       dispatch(endBusy());
@@ -240,8 +214,6 @@ export default function ProjectsPage() {
       };
       delete sdkData.active;
 
-      console.log("🔍 [PROJECTS DEBUG] Updating project with data:", sdkData);
-
       // Use Redux thunk with krapi instance
       const action = await dispatch(
         updateProjectThunk({
@@ -257,11 +229,9 @@ export default function ProjectsPage() {
         // Projects are automatically updated in Redux store
       } else if (updateProjectThunk.rejected.match(action)) {
         const errorMessage = action.payload || "Unknown error";
-        console.error("❌ [PROJECTS DEBUG] Failed to update project:", errorMessage);
         toast.error(`Failed to update project: ${errorMessage}`);
       }
     } catch (error) {
-      console.error("❌ [PROJECTS DEBUG] Exception updating project:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to update project: ${errorMessage}`);
     } finally {
@@ -280,8 +250,8 @@ export default function ProjectsPage() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
           }}
         >
-          {[...Array(3)].map((_, i) => (
-            <Card key={`projects-skeleton-${i}`} className="min-w-0 max-w-full">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Card key={`projects-skeleton-card-${i}`} className="min-w-0 max-w-full">
               <CardHeader>
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-4 w-48" />

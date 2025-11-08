@@ -118,7 +118,7 @@ export function ActionButton({
   
   if (asChild && Icon && isValidElement(children)) {
     // Clone the children and prepend the icon to its children
-    const childElement = children as React.ReactElement<any>;
+    const childElement = children as React.ReactElement<Record<string, unknown>>;
     const existingChildren = childElement.props?.children ?? null;
     buttonContent = cloneElement(childElement, {
       children: (

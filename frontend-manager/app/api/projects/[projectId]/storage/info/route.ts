@@ -66,7 +66,7 @@ export async function GET(
     // Backend returns { success: true, data: {...} }
     // Return it directly
     return NextResponse.json(backendResponse);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {

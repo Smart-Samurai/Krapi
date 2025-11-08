@@ -90,8 +90,8 @@ export default function DashboardPage() {
       <PageLayout>
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={`dashboard-skeleton-${i}`}>
+          {Array.from({ length: 4 }, (_, i) => (
+            <Card key={`dashboard-skeleton-card-${i}`}>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-8 w-16" />
@@ -259,8 +259,8 @@ export default function DashboardPage() {
       {projects.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {isLoadingProjects
-            ? [...Array(6)].map((_, i) => (
-                <Card key={`dashboard-project-skeleton-${i}`}>
+            ? Array.from({ length: 6 }, (_, i) => (
+                <Card key={`dashboard-project-skeleton-card-${i}`}>
                   <CardHeader>
                     <Skeleton className="h-6 w-40" />
                   </CardHeader>

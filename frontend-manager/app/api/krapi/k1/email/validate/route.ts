@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const validationData = await response.json();
     return NextResponse.json(validationData);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       { error: "Failed to validate email" },
