@@ -113,6 +113,7 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
 import { DatabaseService } from "./services/database.service";
+import { BackupSchedulerService } from "./services/backup-scheduler.service";
 import { ProjectAwareDbAdapter } from "./services/project-aware-db-adapter";
 import { SDKServiceManager } from "./services/sdk-service-manager";
 
@@ -482,6 +483,13 @@ async function startServer() {
       console.error("⚠️  Session cleanup on startup failed:", error);
     }
 
+    // Initialize backup scheduler
+    const backupScheduler = new BackupSchedulerService(
+      databaseService,
+      backendSDK,
+      logger
+    );
+
     const server = app.listen(PORT, () => {
       logger.info("system", `KRAPI Backend Server started`, {
         host: HOST,
@@ -492,6 +500,10 @@ async function startServer() {
 
       // Start built-in monitoring
       monitor.start();
+
+      // Start backup scheduler
+      backupScheduler.start();
+      console.log(`💾 Backup scheduler started`);
 
       console.log(`?? KRAPI Backend v2.0.0 running on http://${HOST}:${PORT}`);
       console.log(`?? API Base URL: http://${HOST}:${PORT}/krapi/k1`);
@@ -521,6 +533,7 @@ async function startServer() {
     process.on("SIGTERM", () => {
       console.log("SIGTERM received, shutting down gracefully...");
       monitor.stop();
+      backupScheduler.stop();
       server.close(() => {
         console.log("Server closed");
         process.exit(0);
@@ -530,6 +543,7 @@ async function startServer() {
     process.on("SIGINT", () => {
       console.log("SIGINT received, shutting down gracefully...");
       monitor.stop();
+      backupScheduler.stop();
       server.close(() => {
         console.log("Server closed");
         process.exit(0);

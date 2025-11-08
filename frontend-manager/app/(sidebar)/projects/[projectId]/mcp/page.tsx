@@ -1,8 +1,8 @@
 "use client";
 
-import { MessageSquare, Send, Bot, User, Wrench } from "lucide-react";
+import { MessageSquare, Send, Bot, User, Wrench, Plug, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import {
   PageLayout,
@@ -46,6 +46,14 @@ export default function ProjectMcpPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name?: string }>>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelCapabilities, setModelCapabilities] = useState<{
+    supportsToolCalling: boolean;
+    supportsFunctionCalling: boolean;
+  } | null>(null);
+  const [checkingCapabilities, setCheckingCapabilities] = useState(false);
+  const [connected, setConnected] = useState(false);
 
   // Preset configurations
   const presets = {
@@ -72,7 +80,85 @@ export default function ProjectMcpPage() {
     } else {
       setApiKey(""); // LM Studio and Ollama typically don't need API keys
     }
+    setConnected(false);
+    setAvailableModels([]);
+    setModelCapabilities(null);
   };
+
+  const initializeConnection = async () => {
+    if (!endpoint) {
+      setError("Please enter an endpoint URL");
+      return;
+    }
+
+    setLoadingModels(true);
+    setError(null);
+    setConnected(false);
+
+    try {
+      const response = await fetch("/api/krapi/k1/mcp/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          endpoint,
+          apiKey: apiKey || undefined,
+        }),
+      });
+
+      const json = await response.json();
+      if (json.success) {
+        setAvailableModels(json.models || []);
+        setConnected(true);
+        if (json.models && json.models.length > 0 && !model) {
+          // Auto-select first model
+          setModel(json.models[0].id);
+        }
+      } else {
+        setError(json.error || "Failed to connect to LLM server");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const checkModelCapabilities = useCallback(async () => {
+    if (!model || !endpoint) {
+      return;
+    }
+
+    setCheckingCapabilities(true);
+    try {
+      const response = await fetch("/api/krapi/k1/mcp/model-capabilities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          endpoint,
+          apiKey: apiKey || undefined,
+          model,
+        }),
+      });
+
+      const json = await response.json();
+      if (json.success) {
+        setModelCapabilities(json.capabilities);
+      }
+    } catch (err) {
+      console.error("Failed to check model capabilities:", err);
+    } finally {
+      setCheckingCapabilities(false);
+    }
+  }, [model, endpoint, provider, apiKey]);
+
+  // Check capabilities when model changes
+  useEffect(() => {
+    if (model && connected) {
+      checkModelCapabilities();
+    }
+  }, [model, connected, checkModelCapabilities]);
 
   const send = async () => {
     if (!input || !endpoint || !model) return;
@@ -284,20 +370,81 @@ export default function ProjectMcpPage() {
                 />
               </div>
             )}
-            <div>
-              <Label htmlFor="model">Model</Label>
-              <Input
-                id="model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={
-                  provider === "openai"
-                    ? "gpt-4o-mini"
-                    : provider === "lmstudio"
-                    ? "local-model"
-                    : "llama3.1:8b"
-                }
-              />
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Label htmlFor="model">Model</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={initializeConnection}
+                  disabled={loadingModels || !endpoint}
+                  className="ml-auto"
+                >
+                  {loadingModels ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Plug className="mr-2 h-4 w-4" />
+                      {connected ? "Refresh Models" : "Connect & Load Models"}
+                    </>
+                  )}
+                </Button>
+              </div>
+              {availableModels.length > 0 ? (
+                <Select
+                  value={model}
+                  onValueChange={(value) => {
+                    setModel(value);
+                    checkModelCapabilities();
+                  }}
+                >
+                  <SelectTrigger id="model">
+                    <SelectValue placeholder="Select a model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name || m.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="model"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder={
+                    provider === "openai"
+                      ? "gpt-4o-mini"
+                      : provider === "lmstudio"
+                      ? "local-model"
+                      : "llama3.1:8b"
+                  }
+                />
+              )}
+              {modelCapabilities && (
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  {modelCapabilities.supportsToolCalling ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span className="text-green-600">Tool calling supported</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4 text-yellow-500" />
+                      <span className="text-yellow-600">Tool calling may not be supported</span>
+                    </>
+                  )}
+                  {checkingCapabilities && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

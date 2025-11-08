@@ -86,6 +86,9 @@ class ComprehensiveTestSuite {
       // API Key Tests
       await this.runApiKeyTests();
 
+      // User Management Tests
+      await this.runUserTests();
+
       // Activity Logging Tests
       await this.runActivityLoggingTests();
 
@@ -953,6 +956,205 @@ class ComprehensiveTestSuite {
       this.assert(response.status === 201, "Should return 201");
       this.assert(response.data.success === true, "Should succeed");
       this.assert(response.data.key, "Should return API key");
+    });
+  }
+
+  async runUserTests() {
+    console.log("\n👥 User Management Tests");
+    console.log("-".repeat(30));
+
+    let testUserId = null;
+
+    await this.test("List project users (empty initially)", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for user tests");
+      }
+
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        Array.isArray(response.data.data),
+        "Should return users array"
+      );
+    });
+
+    await this.test("Create project user", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for user tests");
+      }
+
+      const uniqueEmail = `testuser.${Date.now()}@example.com`;
+      const response = await axios.post(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
+        {
+          username: `testuser_${Date.now()}`,
+          email: uniqueEmail,
+          password: "TestPassword123!",
+          scopes: ["documents:read", "documents:write"],
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 201, "Should return 201");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.data, "Should return user data");
+      this.assert(response.data.data.id, "User should have an ID");
+      testUserId = response.data.data.id;
+    });
+
+    await this.test("Get project user by ID", async () => {
+      if (!this.testProject || !testUserId) {
+        throw new Error("No test project or user ID available");
+      }
+
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.data.id === testUserId, "Should return correct user");
+    });
+
+    await this.test("List project users (after creation)", async () => {
+      if (!this.testProject) {
+        throw new Error("No test project available for user tests");
+      }
+
+      const response = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(
+        Array.isArray(response.data.data),
+        "Should return users array"
+      );
+      this.assert(
+        response.data.data.length > 0,
+        "Should have at least one user"
+      );
+    });
+
+    await this.test("Update project user", async () => {
+      if (!this.testProject || !testUserId) {
+        throw new Error("No test project or user ID available");
+      }
+
+      const response = await axios.put(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
+        {
+          email: `updated.${Date.now()}@example.com`,
+          scopes: ["documents:read"],
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+      this.assert(response.data.data.id === testUserId, "Should return same user");
+    });
+
+    await this.test("Update project user scopes", async () => {
+      if (!this.testProject || !testUserId) {
+        throw new Error("No test project or user ID available");
+      }
+
+      const response = await axios.put(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}/scopes`,
+        {
+          scopes: ["documents:read", "documents:write", "collections:read"],
+        },
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+    });
+
+    await this.test("Create duplicate user (should fail)", async () => {
+      if (!this.testProject || !testUserId) {
+        throw new Error("No test project or user ID available");
+      }
+
+      // First, get the existing user's email
+      const getUserResponse = await axios.get(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      const existingEmail = getUserResponse.data.data.email;
+
+      try {
+        await axios.post(
+          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
+          {
+            username: `duplicate_${Date.now()}`,
+            email: existingEmail,
+            password: "TestPassword123!",
+          },
+          {
+            headers: { Authorization: `Bearer ${this.sessionToken}` },
+          }
+        );
+        throw new Error("Should have failed with duplicate email");
+      } catch (error) {
+        this.assert(
+          error.response && error.response.status === 409,
+          "Should return 409 for duplicate email"
+        );
+      }
+    });
+
+    await this.test("Delete project user", async () => {
+      if (!this.testProject || !testUserId) {
+        throw new Error("No test project or user ID available");
+      }
+
+      const response = await axios.delete(
+        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
+        {
+          headers: { Authorization: `Bearer ${this.sessionToken}` },
+        }
+      );
+      this.assert(response.status === 200, "Should return 200");
+      this.assert(response.data.success === true, "Should succeed");
+    });
+
+    await this.test("Get deleted user (should fail)", async () => {
+      if (!this.testProject || !testUserId) {
+        throw new Error("No test project or user ID available");
+      }
+
+      try {
+        await axios.get(
+          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
+          {
+            headers: { Authorization: `Bearer ${this.sessionToken}` },
+          }
+        );
+        throw new Error("Should have failed with 404");
+      } catch (error) {
+        this.assert(
+          error.response.status === 404,
+          "Should return 404 for deleted user"
+        );
+      }
     });
   }
 

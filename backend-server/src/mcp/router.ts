@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { Router, Request, Response } from 'express';
 
 import { LlmService, LlmConfig, ChatMessage } from './llm.service';
@@ -224,6 +225,294 @@ async function dispatchTool(ctx: ToolContext, name: string, args: Record<string,
 }
 
 router.use(authenticate);
+
+/**
+ * List available models from LLM server
+ * POST /krapi/k1/mcp/models
+ * Body: { provider, endpoint, apiKey? }
+ */
+router.post('/models', async (req: Request, res: Response) => {
+  try {
+    const { provider, endpoint, apiKey } = req.body as {
+      provider: string;
+      endpoint: string;
+      apiKey?: string;
+    };
+
+    if (!provider || !endpoint) {
+      return res.status(400).json({
+        success: false,
+        error: 'provider and endpoint are required',
+      });
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if ((provider === 'openai' || provider === 'lmstudio') && apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    let models: Array<{ id: string; name?: string; [key: string]: unknown }> = [];
+
+    // OpenAI-compatible (OpenAI, LM Studio)
+    if (provider === 'openai' || provider === 'lmstudio') {
+      try {
+        const response = await axios.get(`${endpoint}/models`, {
+          headers,
+          timeout: 10000,
+        });
+        models = (response.data.data || []).map((m: { id: string; [key: string]: unknown }) => ({
+          id: m.id,
+          name: m.id,
+          ...m,
+        }));
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return res.status(500).json({
+          success: false,
+          error: `Failed to fetch models: ${errorMessage}`,
+        });
+      }
+    }
+    // Ollama
+    else if (provider === 'ollama') {
+      try {
+        // Try OpenAI-compatible endpoint first
+        try {
+          const response = await axios.get(`${endpoint}/v1/models`, {
+            headers,
+            timeout: 10000,
+          });
+          models = (response.data.data || []).map((m: { id: string; [key: string]: unknown }) => ({
+            id: m.id,
+            name: m.id,
+            ...m,
+          }));
+        } catch {
+          // Fall back to Ollama native API
+          const response = await axios.get(`${endpoint}/api/tags`, {
+            timeout: 10000,
+          });
+          models = (response.data.models || []).map((m: { name: string; [key: string]: unknown }) => ({
+            id: m.name,
+            name: m.name,
+            ...m,
+          }));
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return res.status(500).json({
+          success: false,
+          error: `Failed to fetch models: ${errorMessage}`,
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported provider: ${provider}`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      models,
+    });
+  } catch (e: unknown) {
+    const error = e instanceof Error ? e : new Error('Unknown error');
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to list models',
+    });
+  }
+});
+
+/**
+ * Check model capabilities (tool calling support)
+ * POST /krapi/k1/mcp/model-capabilities
+ * Body: { provider, endpoint, apiKey?, model }
+ */
+router.post('/model-capabilities', async (req: Request, res: Response) => {
+  try {
+    const { provider, endpoint, apiKey, model } = req.body as {
+      provider: string;
+      endpoint: string;
+      apiKey?: string;
+      model: string;
+    };
+
+    if (!provider || !endpoint || !model) {
+      return res.status(400).json({
+        success: false,
+        error: 'provider, endpoint, and model are required',
+      });
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if ((provider === 'openai' || provider === 'lmstudio') && apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    let supportsToolCalling = false;
+    let supportsFunctionCalling = false;
+    let details: Record<string, unknown> = {};
+
+    // OpenAI-compatible (OpenAI, LM Studio)
+    if (provider === 'openai' || provider === 'lmstudio') {
+      try {
+        // Test with a simple chat completion request with tools
+        const testResponse = await axios.post(
+          `${endpoint}/chat/completions`,
+          {
+            model,
+            messages: [{ role: 'user', content: 'test' }],
+            tools: [
+              {
+                type: 'function',
+                function: {
+                  name: 'test_tool',
+                  description: 'Test tool',
+                  parameters: {
+                    type: 'object',
+                    properties: {},
+                  },
+                },
+              },
+            ],
+            max_tokens: 10,
+          },
+          {
+            headers,
+            timeout: 10000,
+            validateStatus: (status: number) => status < 500, // Don't throw on 4xx
+          }
+        );
+
+        // If we get a 200 response, the model supports tool calling
+        if (testResponse.status === 200) {
+          supportsToolCalling = true;
+          supportsFunctionCalling = true;
+        }
+
+        // Try to get model details from models endpoint
+        try {
+          const modelsResponse = await axios.get(`${endpoint}/models`, {
+            headers,
+            timeout: 10000,
+          });
+          const modelInfo = (modelsResponse.data.data || []).find(
+            (m: { id: string }) => m.id === model
+          );
+          if (modelInfo) {
+            details = modelInfo;
+          }
+        } catch {
+          // Ignore errors fetching model details
+        }
+      } catch (error: unknown) {
+        // If the error is not about tool calling, we can still check model info
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (!errorMessage.includes('tool') && !errorMessage.includes('function')) {
+          // Try to get model info anyway
+          try {
+            const modelsResponse = await axios.get(`${endpoint}/models`, {
+              headers,
+              timeout: 10000,
+            });
+            const modelInfo = (modelsResponse.data.data || []).find(
+              (m: { id: string }) => m.id === model
+            );
+            if (modelInfo) {
+              details = modelInfo;
+            }
+          } catch {
+            // Ignore
+          }
+        }
+      }
+    }
+    // Ollama
+    else if (provider === 'ollama') {
+      try {
+        // Try OpenAI-compatible endpoint first
+        try {
+          const testResponse = await axios.post(
+            `${endpoint}/v1/chat/completions`,
+            {
+              model,
+              messages: [{ role: 'user', content: 'test' }],
+              tools: [
+                {
+                  type: 'function',
+                  function: {
+                    name: 'test_tool',
+                    description: 'Test tool',
+                    parameters: {
+                      type: 'object',
+                      properties: {},
+                    },
+                  },
+                },
+              ],
+              max_tokens: 10,
+            },
+            {
+              headers,
+              timeout: 10000,
+              validateStatus: (status: number) => status < 500,
+            }
+          );
+
+          if (testResponse.status === 200) {
+            supportsToolCalling = true;
+            supportsFunctionCalling = true;
+          }
+        } catch {
+          // Ollama models typically support tool calling if they're newer models
+          // We'll mark as potentially supported
+          supportsToolCalling = true;
+        }
+
+        // Try to get model info
+        try {
+          const response = await axios.get(`${endpoint}/api/show`, {
+            params: { name: model },
+            timeout: 10000,
+          });
+          if (response.data) {
+            details = response.data;
+          }
+        } catch {
+          // Ignore
+        }
+      } catch (error: unknown) {
+        // For Ollama, assume tool calling is supported for most models
+        supportsToolCalling = true;
+      }
+    }
+
+    return res.json({
+      success: true,
+      capabilities: {
+        supportsToolCalling,
+        supportsFunctionCalling,
+        provider,
+        model,
+        details,
+      },
+    });
+  } catch (e: unknown) {
+    const error = e instanceof Error ? e : new Error('Unknown error');
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to check model capabilities',
+    });
+  }
+});
 
 // Admin-scoped MCP chat
 router.post('/admin/chat', requireScopes({ scopes: [Scope.ADMIN_READ], requireAll: false }), async (req: Request, res: Response) => {

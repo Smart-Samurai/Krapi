@@ -457,6 +457,17 @@ export interface ProjectSettings {
   logging_enabled?: boolean;
   encryption_enabled?: boolean;
   backup_enabled?: boolean;
+  backup_automation?: {
+    enabled: boolean;
+    frequency: "hourly" | "daily" | "weekly" | "monthly";
+    time?: string; // Time of day for daily/weekly/monthly backups (HH:mm format)
+    day_of_week?: number; // 0-6 for weekly backups (0 = Sunday)
+    day_of_month?: number; // 1-31 for monthly backups
+    retention_days?: number; // How many days to keep backups (default: 30)
+    max_backups?: number; // Maximum number of backups to keep (default: 10)
+    include_files?: boolean; // Whether to include files in backup
+    description_template?: string; // Template for backup description (e.g., "Automated backup - {date}")
+  };
   custom_headers?: Record<string, string>;
   environment?: "development" | "staging" | "production";
 }
