@@ -1,6 +1,26 @@
+/**
+ * Utility Functions
+ * 
+ * Common utility functions for the frontend application.
+ * Includes class name merging, error handling, and API call helpers.
+ * 
+ * @module lib/utils
+ */
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/**
+ * Merge class names with Tailwind CSS conflict resolution
+ * 
+ * Combines class names using clsx and resolves Tailwind CSS conflicts using twMerge.
+ * 
+ * @param {...ClassValue} inputs - Class name inputs (strings, objects, arrays)
+ * @returns {string} Merged class names
+ * 
+ * @example
+ * cn('text-base', 'text-lg') // Returns: 'text-lg' (conflict resolved)
+ * cn('px-4', { 'py-2': true, 'py-4': false }) // Returns: 'px-4 py-2'
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

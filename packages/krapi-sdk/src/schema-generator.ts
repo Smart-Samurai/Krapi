@@ -10,8 +10,17 @@ import {
 
 /**
  * Schema Generator
- * Automatically generates PostgreSQL schema definitions from TypeScript interfaces
- * This ensures the database schema always matches the current code structure
+ * 
+ * Automatically generates PostgreSQL schema definitions from TypeScript interfaces.
+ * This ensures the database schema always matches the current code structure.
+ * 
+ * @class SchemaGenerator
+ * @example
+ * const generator = new SchemaGenerator(interfaces, {
+ *   defaultStringLength: 255,
+ *   generateIndexes: true
+ * });
+ * const schema = generator.generateSchema();
  */
 export class SchemaGenerator {
   private typeMapping: Record<string, string> = {

@@ -1,18 +1,33 @@
 /**
  * KRAPI Plug and Socket Example
- *
+ * 
  * This example demonstrates the perfect fit between client (plug) and server (socket).
  * The EXACT same methods work in both environments with identical interfaces.
+ * 
+ * @module plug-socket-example
+ * @example
+ * // Client usage
+ * await clientExample(console);
+ * 
+ * @example
+ * // Server usage (identical code!)
+ * await serverExample(dbConnection, console);
  */
-
 import { DatabaseConnection, Logger } from "./core";
 import { krapi } from "./krapi";
 
 /**
  * Business Logic Class - Works Identically in Both Environments
- *
+ * 
  * This class can be used in both client and server applications
  * without any changes, demonstrating perfect plug/socket compatibility.
+ * 
+ * @class TaskManager
+ * @example
+ * // Works in both client and server!
+ * const manager = new TaskManager('project-id');
+ * await manager.setup();
+ * const task = await manager.createTask({ title: 'My Task' });
  */
 export class TaskManager {
   private projectId: string;
@@ -128,8 +143,14 @@ export class TaskManager {
 
 /**
  * CLIENT USAGE EXAMPLE (The Plug)
- *
- * This shows how to use the TaskManager in a client application
+ * 
+ * This shows how to use the TaskManager in a client application.
+ * 
+ * @param {Logger} [logger] - Optional logger instance
+ * @returns {Promise<void>}
+ * 
+ * @example
+ * await clientExample(console);
  */
 export async function clientExample(logger?: Logger) {
   if (logger) {

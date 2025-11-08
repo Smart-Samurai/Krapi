@@ -1,9 +1,14 @@
 /**
  * Projects HTTP Client for KRAPI SDK
- *
- * HTTP-based project management methods for frontend apps
+ * 
+ * HTTP-based project management methods for frontend applications.
+ * Provides project CRUD operations, settings management, statistics, and API key management.
+ * 
+ * @module http-clients/projects-http-client
+ * @example
+ * const client = new ProjectsHttpClient({ baseUrl: 'https://api.example.com' });
+ * const projects = await client.getAllProjects({ limit: 10 });
  */
-
 import { ApiResponse, PaginatedResponse, QueryOptions } from "../core";
 import {
   Project,
@@ -16,6 +21,17 @@ import {
 
 import { BaseHttpClient } from "./base-http-client";
 
+/**
+ * Projects HTTP Client
+ * 
+ * HTTP client for project management operations.
+ * 
+ * @class ProjectsHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new ProjectsHttpClient({ baseUrl: 'https://api.example.com', apiKey: 'key' });
+ * const project = await client.createProject({ name: 'My Project' });
+ */
 export class ProjectsHttpClient extends BaseHttpClient {
   // Constructor inherited from BaseHttpClient
 

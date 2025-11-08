@@ -1,3 +1,23 @@
+/**
+ * API Keys Page
+ * 
+ * Page for managing API keys for a project.
+ * Provides API key creation, editing, deletion, and scope management.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/api-keys/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/api-keys route
+ */
+/**
+ * API Keys Page
+ * 
+ * Page for managing project API keys with scope configuration.
+ * Provides API key creation, editing, deletion, and scope management.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/api-keys/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/api-keys route
+ */
 "use client";
 
 import { type ApiKey } from "@krapi/sdk";
@@ -71,6 +91,14 @@ import {
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import { ProjectScope } from "@/lib/krapi";
 
+/**
+ * Scope Labels Mapping
+ * 
+ * Maps project scopes to human-readable labels.
+ * Project-specific scopes only - global scopes like "projects:read" are reserved for admin users.
+ * 
+ * @constant {Record<string, string>}
+ */
 // Project-specific scopes only - these are for managing THIS project only
 // Note: Global scopes like "projects:read" are NOT included here as they are
 // reserved for the main KRAPI app admin users, not project users.
@@ -91,6 +119,13 @@ const scopeLabels: Record<string, string> = {
   [ProjectScope.EMAIL_SEND]: "Send Emails",
 };
 
+/**
+ * API Keys Page Component
+ * 
+ * Displays and manages API keys for a project.
+ * 
+ * @returns {JSX.Element} API keys page
+ */
 export default function ApiKeysPage() {
   const params = useParams();
   if (!params || !params.projectId) {

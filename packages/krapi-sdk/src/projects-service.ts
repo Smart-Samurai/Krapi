@@ -1,11 +1,16 @@
 /**
  * Projects Service for BackendSDK
- *
+ * 
  * Provides comprehensive project management functionality including:
  * - Project CRUD operations
  * - Project statistics and analytics
  * - API key management for projects
  * - Project settings and configuration
+ * 
+ * @class ProjectsService
+ * @example
+ * const projectsService = new ProjectsService(dbConnection, logger);
+ * const projects = await projectsService.getAllProjects({ limit: 10 });
  */
 
 import { DatabaseConnection, Logger } from "./core";
@@ -96,12 +101,32 @@ export class ProjectsService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new ProjectsService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // Project CRUD Operations
+  /**
+   * Get all projects
+   * 
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of projects
+   * @param {number} [options.offset] - Number of projects to skip
+   * @param {string} [options.search] - Search term for project name/description
+   * @param {boolean} [options.active] - Filter by active status
+   * @param {string} [options.owner_id] - Filter by owner ID
+   * @returns {Promise<Project[]>} Array of projects
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const projects = await projectsService.getAllProjects({ limit: 10, active: true });
+   */
   async getAllProjects(options?: {
     limit?: number;
     offset?: number;

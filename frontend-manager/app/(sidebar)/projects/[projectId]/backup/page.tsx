@@ -1,3 +1,13 @@
+/**
+ * Project Backup Page
+ * 
+ * Page for managing project backups including backup creation, restoration,
+ * and backup history management.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/backup/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/backup route
+ */
 "use client";
 
 import {

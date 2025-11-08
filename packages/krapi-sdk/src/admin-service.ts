@@ -1,8 +1,13 @@
 /**
  * Admin Service for BackendSDK
- *
+ * 
  * Provides admin user management, API key management, system stats,
  * activity logs, and database health management functionality.
+ * 
+ * @class AdminService
+ * @example
+ * const adminService = new AdminService(dbConnection, logger);
+ * const users = await adminService.getUsers({ limit: 10 });
  */
 
 import { ActivityLog } from "./activity-logger";
@@ -81,17 +86,41 @@ export class AdminService {
   private logger: Logger;
   private backupService?: BackupService;
 
+  /**
+   * Create a new AdminService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // Set backup service (called from BackendSDK constructor)
+  /**
+   * Set backup service (called from BackendSDK constructor)
+   * 
+   * @param {BackupService} backupService - Backup service instance
+   * @returns {void}
+   */
   setBackupService(backupService: BackupService): void {
     this.backupService = backupService;
   }
 
-  // Admin User Management
+  /**
+   * Get all admin users
+   * 
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of users
+   * @param {number} [options.offset] - Number of users to skip
+   * @param {string} [options.search] - Search term for username/email
+   * @param {boolean} [options.active] - Filter by active status
+   * @returns {Promise<AdminUser[]>} Array of admin users
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const users = await adminService.getUsers({ limit: 10, active: true });
+   */
   async getUsers(options?: {
     limit?: number;
     offset?: number;
@@ -137,6 +166,16 @@ export class AdminService {
     }
   }
 
+  /**
+   * Get admin user by ID
+   * 
+   * @param {string} userId - User ID
+   * @returns {Promise<AdminUser | null>} Admin user or null if not found
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const user = await adminService.getUserById('user-id');
+   */
   async getUserById(userId: string): Promise<AdminUser | null> {
     try {
       const result = await this.db.query(

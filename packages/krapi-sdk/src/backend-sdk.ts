@@ -1,9 +1,20 @@
 /**
  * KRAPI Backend SDK
- *
+ * 
  * Backend SDK for direct database access and backend operations.
  * This provides real functionality for database health, schema management,
  * collections operations, and auto-fixing capabilities.
+ * 
+ * Designed for server-side use with direct database connections.
+ * All operations use the provided database connection for maximum performance.
+ * 
+ * @class BackendSDK
+ * @example
+ * const sdk = new BackendSDK({
+ *   databaseConnection: dbConnection,
+ *   logger: console
+ * });
+ * const projects = await sdk.projects.getAllProjects();
  */
 
 import { ActivityLogger } from "./activity-logger";
@@ -106,11 +117,42 @@ export class BackendSDK {
 
   /**
    * Set the current user ID for operations that require user context
+   * 
+   * Sets the user ID that will be used for operations requiring user context
+   * (e.g., created_by, updated_by fields).
+   * 
+   * @param {string} userId - User ID to set as current user
+   * @returns {void}
+   * 
+   * @example
+   * sdk.setCurrentUserId('user-id');
+   * // All subsequent operations will use this user ID for user context
    */
   setCurrentUserId(userId: string): void {
     this.config.currentUserId = userId;
   }
 
+  /**
+   * Create a new BackendSDK instance
+   * 
+   * Initializes all services with the provided database connection.
+   * 
+   * @param {BackendSDKConfig} config - SDK configuration
+   * @param {DatabaseConnection} config.databaseConnection - Database connection (required)
+   * @param {Logger} [config.logger] - Logger instance (default: console)
+   * @param {boolean} [config.enableAutoFix] - Enable automatic schema fixes
+   * @param {boolean} [config.enableHealthChecks] - Enable health checks
+   * @param {number} [config.maxRetries] - Maximum retry attempts
+   * @param {string} [config.currentUserId] - Current user ID for operations
+   * @throws {Error} If database connection is invalid
+   * 
+   * @example
+   * const sdk = new BackendSDK({
+   *   databaseConnection: dbConnection,
+   *   logger: console,
+   *   enableAutoFix: true
+   * });
+   */
   constructor(config: BackendSDKConfig) {
     this.config = config;
     this.logger = config.logger || console;

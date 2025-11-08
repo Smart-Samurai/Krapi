@@ -1,7 +1,7 @@
 import crypto from "crypto";
 /**
  * Storage Service for BackendSDK
- *
+ * 
  * Provides comprehensive file and storage management functionality including:
  * - File upload and download
  * - File metadata management
@@ -10,6 +10,11 @@ import crypto from "crypto";
  * - File organization (folders, tags)
  * - File transformations and thumbnails
  * - Storage quotas and analytics
+ * 
+ * @class StorageService
+ * @example
+ * const storageService = new StorageService(dbConnection, logger);
+ * const fileInfo = await storageService.uploadFile(projectId, uploadRequest, fileBuffer);
  */
 
 import { DatabaseConnection, Logger } from "./core";
@@ -184,12 +189,35 @@ export class StorageService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new StorageService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // File CRUD Operations
+  /**
+   * Get all files for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of files
+   * @param {number} [options.offset] - Number of files to skip
+   * @param {FileFilter} [options.filter] - File filters
+   * @param {boolean} [options.include_deleted] - Include deleted files
+   * @returns {Promise<StoredFile[]>} Array of stored files
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const files = await storageService.getAllFiles('project-id', {
+   *   limit: 10,
+   *   filter: { mime_type: 'image/jpeg' }
+   * });
+   */
   async getAllFiles(
     projectId: string,
     options?: {

@@ -1,3 +1,13 @@
+/**
+ * Theme Toggle Component
+ * 
+ * Button component for toggling between light and dark themes.
+ * Uses next-themes for theme management.
+ * 
+ * @module components/ThemeToggle
+ * @example
+ * <ThemeToggle />
+ */
 "use client";
 
 import { Moon, Sun } from "lucide-react";
@@ -5,6 +15,16 @@ import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
+/**
+ * Theme Toggle Component
+ * 
+ * Toggles between light and dark themes.
+ * 
+ * @returns {JSX.Element} Theme toggle button
+ * 
+ * @example
+ * <ThemeToggle />
+ */
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 

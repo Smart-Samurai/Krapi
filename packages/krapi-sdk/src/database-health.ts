@@ -10,8 +10,17 @@ import {
 
 /**
  * Database Health Management System
- * Provides auto-fixers and auto-migration capabilities for PostgreSQL
- * Ensures database consistency during development without manual intervention
+ * 
+ * Provides auto-fixers and auto-migration capabilities for PostgreSQL.
+ * Ensures database consistency during development without manual intervention.
+ * 
+ * @class DatabaseHealthManager
+ * @example
+ * const manager = new DatabaseHealthManager(dbConnection, console);
+ * const health = await manager.healthCheck();
+ * if (!health.isHealthy) {
+ *   await manager.autoFix();
+ * }
  */
 export class DatabaseHealthManager {
   private schemaVersion = "1.0.0";

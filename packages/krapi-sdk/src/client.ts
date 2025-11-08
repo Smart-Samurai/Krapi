@@ -4,6 +4,10 @@
  * Easy-to-import client SDK for React, Vue, Angular, and other frontend frameworks.
  * Similar to Appwrite SDK - just import and use!
  * 
+ * Provides a simple, unified interface for interacting with KRAPI backend from client applications.
+ * All methods return promises with ApiResponse<T> format.
+ * 
+ * @module client
  * @example
  * ```typescript
  * import { KrapiClient } from '@krapi/sdk/client';
@@ -50,6 +54,14 @@ export interface ApiResponse<T = unknown> {
  * 
  * Simple, unified client for interacting with KRAPI backend.
  * Works exactly like Appwrite SDK - import and use!
+ * 
+ * @class KrapiClient
+ * @example
+ * const client = new KrapiClient({
+ *   endpoint: 'https://api.example.com/krapi/k1',
+ *   apiKey: 'your-api-key'
+ * });
+ * const projects = await client.projects.list();
  */
 export class KrapiClient {
   private config: KrapiClientConfig;
@@ -123,6 +135,24 @@ export class KrapiClient {
     }) => Promise<ApiResponse<{ backup_id: string; password: string; created_at: string; size: number }>>;
   };
 
+  /**
+   * Create a new KrapiClient instance
+   * 
+   * @param {KrapiClientConfig} config - Client configuration
+   * @param {string} config.endpoint - API endpoint URL
+   * @param {string} [config.apiKey] - API key for authentication
+   * @param {string} [config.sessionToken] - Session token for authentication
+   * @param {string} [config.projectId] - Default project ID
+   * @param {number} [config.timeout] - Request timeout in milliseconds (default: 30000)
+   * @param {Record<string, string>} [config.headers] - Additional HTTP headers
+   * 
+   * @example
+   * const client = new KrapiClient({
+   *   endpoint: 'https://api.example.com/krapi/k1',
+   *   apiKey: 'pk_...',
+   *   timeout: 60000
+   * });
+   */
   constructor(config: KrapiClientConfig) {
     this.config = config;
     this.baseUrl = config.endpoint.replace(/\/$/, ""); // Remove trailing slash

@@ -1,12 +1,27 @@
 /**
  * System HTTP Client for KRAPI SDK
- *
- * HTTP-based system methods for frontend apps
+ * 
+ * HTTP-based system methods for frontend applications.
+ * Provides system settings management, email testing, and system information.
+ * 
+ * @module http-clients/system-http-client
+ * @example
+ * const client = new SystemHttpClient({ baseUrl: 'https://api.example.com' });
+ * const settings = await client.getSettings();
  */
-
 import { ApiResponse } from "../core";
 
 import { BaseHttpClient } from "./base-http-client";
+
+/**
+ * System Settings Interface
+ * 
+ * @interface SystemSettings
+ * @property {Object} general - General system settings
+ * @property {Object} security - Security settings
+ * @property {Object} email - Email configuration
+ * @property {Object} database - Database settings
+ */
 export interface SystemSettings {
   general: {
     siteName: string;
@@ -42,6 +57,17 @@ export interface SystemSettings {
   };
 }
 
+/**
+ * System HTTP Client
+ * 
+ * HTTP client for system operations.
+ * 
+ * @class SystemHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new SystemHttpClient({ baseUrl: 'https://api.example.com' });
+ * const settings = await client.getSettings();
+ */
 export class SystemHttpClient extends BaseHttpClient {
   // System Settings
   async getSettings(): Promise<ApiResponse<SystemSettings>> {

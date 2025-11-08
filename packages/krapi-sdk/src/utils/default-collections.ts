@@ -3,12 +3,23 @@
  * 
  * Defines default collections that should be created for every new project.
  * These collections provide common functionality that all projects need.
+ * 
+ * @module utils/default-collections
+ * @example
+ * import { getDefaultUsersCollection } from './utils/default-collections';
+ * const usersCollection = getDefaultUsersCollection();
+ * await collectionsService.createCollection(projectId, usersCollection);
  */
-
-import { FieldType } from "./core";
+import { FieldType } from "../core";
 
 /**
- * Default collections schema definitions
+ * Default Collection Interface
+ * 
+ * @interface DefaultCollection
+ * @property {string} name - Collection name
+ * @property {string} description - Collection description
+ * @property {Array} fields - Collection field definitions
+ * @property {Array} [indexes] - Collection index definitions
  */
 export interface DefaultCollection {
   name: string;
@@ -38,6 +49,12 @@ export interface DefaultCollection {
  * - Optional contact information (email, phone)
  * - Confirmation state tracking
  * - Personal information fields
+ * 
+ * @returns {DefaultCollection} Default users collection schema
+ * 
+ * @example
+ * const usersCollection = getDefaultUsersCollection();
+ * await collectionsService.createCollection(projectId, usersCollection);
  */
 export function getDefaultUsersCollection(): DefaultCollection {
   return {

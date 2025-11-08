@@ -1,3 +1,13 @@
+/**
+ * App Sidebar Component
+ * 
+ * Main navigation sidebar for the KRAPI admin dashboard.
+ * Provides navigation for admin dashboard and project-specific navigation when in project context.
+ * 
+ * @module components/app-sidebar
+ * @example
+ * <AppSidebar />
+ */
 "use client";
 
 import {
@@ -29,6 +39,18 @@ import {
 } from "@/components/ui/sidebar";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 
+/**
+ * App Sidebar Component
+ * 
+ * Main navigation sidebar that adapts based on route context:
+ * - Admin dashboard navigation (default)
+ * - Project-specific navigation (when in project routes)
+ * 
+ * @returns {JSX.Element} Sidebar navigation component
+ * 
+ * @example
+ * <AppSidebar />
+ */
 export function AppSidebar() {
   const pathname = usePathname();
   const { logout } = useReduxAuth();

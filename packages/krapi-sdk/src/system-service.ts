@@ -6,7 +6,24 @@ import {
   EmailConfig,
 } from "./types";
 
+/**
+ * System Service
+ * 
+ * Provides system settings and information management.
+ * 
+ * @class SystemService
+ * @implements {ISystemService}
+ * @example
+ * const systemService = new SystemService(baseURL, sessionToken);
+ * const settings = await systemService.getSettings();
+ */
 export class SystemService implements ISystemService {
+  /**
+   * Create a new SystemService instance
+   * 
+   * @param {string} baseURL - Base URL for API requests
+   * @param {string} [sessionToken] - Session token for authentication
+   */
   constructor(private baseURL: string, private sessionToken?: string) {}
 
   private async request<T>(
@@ -64,10 +81,41 @@ export class SystemService implements ISystemService {
     }
   }
 
+  /**
+   * Get system settings
+   * 
+   * @returns {Promise<ApiResponse<SystemSettings>>} System settings
+   * 
+   * @example
+   * const result = await systemService.getSettings();
+   * if (result.success) {
+   *   console.log('Settings:', result.data);
+   * }
+   */
+  /**
+   * Get system settings
+   * 
+   * @returns {Promise<ApiResponse<SystemSettings>>} System settings
+   * 
+   * @example
+   * const result = await systemService.getSettings();
+   * if (result.success) {
+   *   console.log('Settings:', result.data);
+   * }
+   */
   async getSettings(): Promise<ApiResponse<SystemSettings>> {
     return this.request<SystemSettings>("/krapi/k1/system/settings");
   }
 
+  /**
+   * Update system settings
+   * 
+   * @param {Partial<SystemSettings>} updates - Settings updates
+   * @returns {Promise<ApiResponse<SystemSettings>>} Updated settings
+   * 
+   * @example
+   * const result = await systemService.updateSettings({ debug_mode: true });
+   */
   async updateSettings(
     updates: Partial<SystemSettings>
   ): Promise<ApiResponse<SystemSettings>> {
@@ -77,6 +125,15 @@ export class SystemService implements ISystemService {
     });
   }
 
+  /**
+   * Test email configuration
+   * 
+   * @param {EmailConfig} config - Email configuration to test
+   * @returns {Promise<ApiResponse<{ success: boolean }>>} Test result
+   * 
+   * @example
+   * const result = await systemService.testEmailConfig(emailConfig);
+   */
   async testEmailConfig(
     config: EmailConfig
   ): Promise<ApiResponse<{ success: boolean }>> {
@@ -86,10 +143,26 @@ export class SystemService implements ISystemService {
     });
   }
 
+  /**
+   * Get system information
+   * 
+   * @returns {Promise<ApiResponse<SystemInfo>>} System information
+   * 
+   * @example
+   * const result = await systemService.getSystemInfo();
+   */
   async getSystemInfo(): Promise<ApiResponse<SystemInfo>> {
     return this.request<SystemInfo>("/krapi/k1/system/info");
   }
 
+  /**
+   * Get database health status
+   * 
+   * @returns {Promise<ApiResponse<DatabaseHealth>>} Database health status
+   * 
+   * @example
+   * const result = await systemService.getDatabaseHealth();
+   */
   async getDatabaseHealth(): Promise<ApiResponse<DatabaseHealth>> {
     return this.request<DatabaseHealth>("/krapi/k1/system/database-health");
   }

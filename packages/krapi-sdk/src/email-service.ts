@@ -76,16 +76,47 @@ export interface EmailProvider {
   updated_at: string;
 }
 
+/**
+ * Email Service for BackendSDK
+ * 
+ * Provides email configuration management, template management,
+ * and email sending functionality.
+ * 
+ * @class EmailService
+ * @example
+ * const emailService = new EmailService(dbConnection, logger);
+ * await emailService.sendEmail({
+ *   project_id: 'project-id',
+ *   to: 'user@example.com',
+ *   subject: 'Hello',
+ *   body: 'World'
+ * });
+ */
 export class EmailService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new EmailService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // Email Configuration Management
+  /**
+   * Get email configuration for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<EmailConfig | null>} Email configuration or null if not found
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const config = await emailService.getConfig('project-id');
+   */
   async getConfig(projectId: string): Promise<EmailConfig | null> {
     try {
       const result = await this.db.query(
@@ -107,6 +138,25 @@ export class EmailService {
     }
   }
 
+  /**
+   * Update email configuration for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @param {EmailConfig} config - Email configuration
+   * @returns {Promise<EmailConfig | null>} Updated configuration or null if project not found
+   * @throws {Error} If update fails
+   * 
+   * @example
+   * const config = await emailService.updateConfig('project-id', {
+   *   smtp_host: 'smtp.example.com',
+   *   smtp_port: 587,
+   *   smtp_secure: false,
+   *   smtp_username: 'user',
+   *   smtp_password: 'pass',
+   *   from_email: 'noreply@example.com',
+   *   from_name: 'KRAPI'
+   * });
+   */
   async updateConfig(
     projectId: string,
     config: EmailConfig
@@ -137,6 +187,21 @@ export class EmailService {
     }
   }
 
+  /**
+   * Test email configuration
+   * 
+   * Tests the email configuration by attempting to create a test transporter.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<EmailResult>} Test result
+   * @throws {Error} If configuration not found or test fails
+   * 
+   * @example
+   * const result = await emailService.testConfig('project-id');
+   * if (result.success) {
+   *   console.log('Email configuration is valid');
+   * }
+   */
   async testConfig(projectId: string): Promise<EmailResult> {
     try {
       const config = await this.getConfig(projectId);

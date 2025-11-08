@@ -1,5 +1,11 @@
-// Shared interfaces for Krapi application
-// These interfaces define the contract that both frontend SDK and backend SDK must implement
+/**
+ * Shared Interfaces
+ * 
+ * These interfaces define the contract that both frontend SDK and backend SDK must implement.
+ * Ensures perfect client/server parity - same methods, same signatures, same behavior.
+ * 
+ * @module interfaces
+ */
 
 import {
   ApiResponse,

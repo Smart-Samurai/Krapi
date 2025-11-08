@@ -1,9 +1,14 @@
 /**
  * Storage HTTP Client for KRAPI SDK
- *
- * HTTP-based storage methods for frontend apps
+ * 
+ * HTTP-based storage methods for frontend applications.
+ * Provides file upload, download, management, and folder operations.
+ * 
+ * @module http-clients/storage-http-client
+ * @example
+ * const client = new StorageHttpClient({ baseUrl: 'https://api.example.com' });
+ * const file = await client.uploadFile('project-id', fileObject);
  */
-
 import { ApiResponse, PaginatedResponse } from "../core";
 import {
   StoredFile,
@@ -16,6 +21,18 @@ import {
 } from "../storage-service";
 
 import { BaseHttpClient } from "./base-http-client";
+
+/**
+ * Storage HTTP Client
+ * 
+ * HTTP client for file storage operations.
+ * 
+ * @class StorageHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new StorageHttpClient({ baseUrl: 'https://api.example.com' });
+ * const file = await client.uploadFile('project-id', fileObject);
+ */
 export class StorageHttpClient extends BaseHttpClient {
   async getStorageInfo(projectId: string): Promise<{
     total_files: number;

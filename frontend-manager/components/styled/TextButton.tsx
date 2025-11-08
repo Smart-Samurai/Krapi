@@ -1,9 +1,30 @@
+/**
+ * Text Button Component
+ * 
+ * Text-only button component with variants.
+ * 
+ * @module components/styled/TextButton
+ * @example
+ * <TextButton variant="link" onClick={handleClick}>Click me</TextButton>
+ */
 "use client";
 
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Text Button Props
+ * 
+ * @interface TextButtonProps
+ * @property {ReactNode} children - Button text/content
+ * @property {Function} [onClick] - Click handler
+ * @property {"neutral" | "ghost" | "link"} [variant="neutral"] - Button variant
+ * @property {"sm" | "md" | "lg"} [size="md"] - Button size
+ * @property {boolean} [disabled=false] - Whether button is disabled
+ * @property {string} [className] - Additional CSS classes
+ * @property {"button" | "submit" | "reset"} [type="button"] - Button type
+ */
 interface TextButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
@@ -26,6 +47,28 @@ const variantClasses = {
   link: "text-accent hover:text-accent/80 underline-offset-4 hover:underline",
 };
 
+/**
+ * Text Button Component
+ * 
+ * Text-only button with minimal styling.
+ * 
+ * @param {TextButtonProps} props - Component props
+ * @returns {JSX.Element} Text button
+ * 
+ * @example
+ * <TextButton variant="link" onClick={handleClick}>Click me</TextButton>
+ */
+/**
+ * Text Button Component
+ * 
+ * Text-only button with minimal styling.
+ * 
+ * @param {TextButtonProps} props - Component props
+ * @returns {JSX.Element} Text button
+ * 
+ * @example
+ * <TextButton variant="link" onClick={handleClick}>Click me</TextButton>
+ */
 export const TextButton: React.FC<TextButtonProps> = ({
   children,
   onClick,

@@ -1,15 +1,17 @@
 /**
  * KRAPI Universal Type Definitions
- *
+ * 
  * This file is the SINGLE SOURCE OF TRUTH for all types across:
  * - SDK (client and server modes)
  * - Frontend API routes
  * - Backend implementations
  * - Database schemas
  * - Test suites
- *
+ * 
  * ALL other files must import types from here.
  * NO types should be defined elsewhere.
+ * 
+ * @module types
  */
 
 import { FieldType } from "./core";

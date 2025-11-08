@@ -1,3 +1,21 @@
+/**
+ * Project Detail Page
+ * 
+ * Overview page for a specific project showing statistics and quick navigation.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/page
+ * @example
+ * // Automatically rendered at /projects/[projectId] route
+ */
+/**
+ * Project Detail Page
+ * 
+ * Displays project overview with statistics and quick navigation.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/page
+ * @example
+ * // Automatically rendered at /projects/[projectId] route
+ */
 "use client";
 
 import {
@@ -32,6 +50,20 @@ import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
 
+/**
+ * Project Detail Page Component
+ * 
+ * Displays project overview with statistics and navigation cards.
+ * 
+ * @returns {JSX.Element} Project detail page
+ */
+/**
+ * Project Detail Page Component
+ * 
+ * Displays project overview with statistics, collections count, and navigation cards.
+ * 
+ * @returns {JSX.Element} Project detail page
+ */
 export default function ProjectDetailPage() {
   const params = useParams();
   if (!params || !params.projectId) {

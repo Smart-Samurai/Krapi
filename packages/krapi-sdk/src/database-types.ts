@@ -3,9 +3,20 @@
  * 
  * This file contains TypeScript interfaces for database query results
  * to eliminate 'any' types and provide robust type safety.
+ * 
+ * @module database-types
+ * @example
+ * import { AdminUserRow, ProjectRow } from './database-types';
+ * const user = result.rows[0] as AdminUserRow;
  */
-
 // Base database row interface
+
+/**
+ * Base Database Row Interface
+ * 
+ * @interface DatabaseRow
+ * @property {unknown} [key: string] - Dynamic row properties
+ */
 export interface DatabaseRow {
   [key: string]: unknown;
 }

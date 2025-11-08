@@ -18,10 +18,25 @@ import {
 
 /**
  * Type Mapper Utility
- *
- * Converts between backend types and SDK types to ensure compatibility
+ * 
+ * Converts between backend types and SDK types to ensure compatibility.
+ * Provides mapping functions for users, projects, settings, email, and storage types.
+ * 
+ * @class TypeMapper
+ * @example
+ * const backendUser = { id: '1', username: 'user', ... };
+ * const sdkUser = TypeMapper.mapProjectUser(backendUser);
  */
 export class TypeMapper {
+  /**
+   * Map backend project user to SDK project user
+   * 
+   * @param {BackendProjectUser} backendUser - Backend project user
+   * @returns {ProjectUser} SDK project user
+   * 
+   * @example
+   * const sdkUser = TypeMapper.mapProjectUser(backendUser);
+   */
   static mapProjectUser(backendUser: BackendProjectUser): ProjectUser {
     return {
       id: backendUser.id,
@@ -45,6 +60,15 @@ export class TypeMapper {
     };
   }
 
+  /**
+   * Map backend admin user to SDK admin user
+   * 
+   * @param {BackendAdminUser} backendUser - Backend admin user
+   * @returns {AdminUser} SDK admin user
+   * 
+   * @example
+   * const sdkUser = TypeMapper.mapAdminUser(backendUser);
+   */
   static mapAdminUser(backendUser: BackendAdminUser): AdminUser {
     // Map backend AdminRole to SDK AdminRole
     let sdkRole: AdminRole;
@@ -93,6 +117,15 @@ export class TypeMapper {
     };
   }
 
+  /**
+   * Map backend project settings to SDK project settings
+   * 
+   * @param {Record<string, unknown>} _backendSettings - Backend project settings
+   * @returns {ProjectSettings} SDK project settings
+   * 
+   * @example
+   * const sdkSettings = TypeMapper.mapProjectSettings(backendSettings);
+   */
   static mapProjectSettings(
     _backendSettings: Record<string, unknown>
   ): ProjectSettings {
@@ -117,6 +150,15 @@ export class TypeMapper {
     };
   }
 
+  /**
+   * Map backend email config to SDK email config
+   * 
+   * @param {Record<string, unknown>} backendConfig - Backend email configuration
+   * @returns {EmailConfig} SDK email configuration
+   * 
+   * @example
+   * const sdkConfig = TypeMapper.mapEmailConfig(backendConfig);
+   */
   static mapEmailConfig(backendConfig: Record<string, unknown>): EmailConfig {
     return {
       smtp_host: backendConfig.smtp_host as string,
@@ -129,6 +171,23 @@ export class TypeMapper {
     };
   }
 
+  /**
+   * Map backend email template to SDK email template
+   * 
+   * @param {Object} backendTemplate - Backend email template
+   * @param {string} backendTemplate.id - Template ID
+   * @param {string} backendTemplate.project_id - Project ID
+   * @param {string} backendTemplate.name - Template name
+   * @param {string} backendTemplate.subject - Email subject
+   * @param {string} backendTemplate.body - Email body
+   * @param {string[]} [backendTemplate.variables] - Template variables
+   * @param {string} backendTemplate.created_at - Creation timestamp
+   * @param {string} backendTemplate.updated_at - Update timestamp
+   * @returns {EmailTemplate} SDK email template
+   * 
+   * @example
+   * const sdkTemplate = TypeMapper.mapEmailTemplate(backendTemplate);
+   */
   static mapEmailTemplate(backendTemplate: {
     id: string;
     project_id: string;

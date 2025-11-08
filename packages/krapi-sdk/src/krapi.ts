@@ -1,35 +1,38 @@
 /**
  * KRAPI SDK - Main Wrapper
- *
+ * 
  * A simple, unified interface that works seamlessly for both client and server applications.
  * This wrapper automatically detects the environment and provides the appropriate methods.
- *
+ * 
+ * Implements the KrapiSocketInterface for perfect client/server parity.
+ * 
+ * @module krapi
  * @example Client App Usage:
  * ```typescript
  * import { krapi } from '@krapi/sdk';
- *
+ * 
  * // Setup for client app
  * await krapi.connect({
  *   endpoint: 'https://api.myapp.com/krapi/k1',
  *   apiKey: 'your-api-key'
  * });
- *
+ * 
  * // Use seamlessly
  * const project = await krapi.projects.create({ name: 'My Project' });
  * const collection = await krapi.collections.create(project.id, { name: 'tasks', fields: [...] });
  * const document = await krapi.documents.create(project.id, 'tasks', { data: {...} });
  * ```
- *
+ * 
  * @example Server App Usage:
  * ```typescript
  * import { krapi } from '@krapi/sdk';
- *
+ * 
  * // Setup for server app
  * await krapi.connect({
  *   database: databaseConnection,
  *   logger: console
  * });
- *
+ * 
  * // Use the exact same methods
  * const project = await krapi.projects.create({ name: 'My Project' });
  * const collection = await krapi.collections.create(project.id, { name: 'tasks', fields: [...] });
@@ -97,7 +100,12 @@ type Mode = "client" | "server" | null;
 
 /**
  * Main KRAPI wrapper class that provides a unified interface
- * Implements the complete socket interface for perfect client/server parity
+ * 
+ * Implements the complete socket interface for perfect client/server parity.
+ * Automatically switches between HTTP client mode and database mode based on configuration.
+ * 
+ * @class KrapiWrapper
+ * @implements {KrapiSocketInterface}
  */
 class KrapiWrapper implements KrapiSocketInterface {
   private mode: Mode = null;
@@ -134,6 +142,28 @@ class KrapiWrapper implements KrapiSocketInterface {
 
   /**
    * Connect to KRAPI backend (client mode) or initialize with database (server mode)
+   * 
+   * Determines the connection mode based on the provided configuration:
+   * - If `endpoint` is provided: Client mode (HTTP)
+   * - If `database` is provided: Server mode (Database)
+   * 
+   * @param {KrapiConfig} config - Connection configuration
+   * @param {string} [config.endpoint] - API endpoint URL (for client mode)
+   * @param {string} [config.apiKey] - API key (for client mode)
+   * @param {string} [config.sessionToken] - Session token (for client mode)
+   * @param {number} [config.timeout] - Request timeout in milliseconds
+   * @param {DatabaseConnection} [config.database] - Database connection (for server mode)
+   * @param {Logger} [config.logger] - Logger instance (for server mode)
+   * @returns {Promise<void>}
+   * @throws {Error} If neither endpoint nor database is provided
+   * 
+   * @example
+   * // Client mode
+   * await krapi.connect({ endpoint: 'https://api.example.com/krapi/k1', apiKey: 'key' });
+   * 
+   * @example
+   * // Server mode
+   * await krapi.connect({ database: dbConnection, logger: console });
    */
   async connect(config: KrapiConfig): Promise<void> {
     this.config = config;

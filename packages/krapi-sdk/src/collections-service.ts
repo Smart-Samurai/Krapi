@@ -87,15 +87,29 @@ export interface DatabaseConnection {
 
 /**
  * Collections Service
- *
+ * 
  * High-level service for managing dynamic collections with schema validation,
  * auto-fixing, and TypeScript interface generation.
+ * 
+ * @class CollectionsService
+ * @example
+ * const collectionsService = new CollectionsService(dbConnection, logger);
+ * const collection = await collectionsService.createCollection({
+ *   name: 'users',
+ *   fields: [{ name: 'email', type: FieldType.string, required: true }]
+ * });
  */
 export class CollectionsService {
   private schemaManager: CollectionsSchemaManager;
   private schemaInspector: SQLiteSchemaInspector;
   private db: DatabaseConnection;
 
+  /**
+   * Create a new CollectionsService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Console} [logger=console] - Logger instance
+   */
   constructor(
     databaseConnection: DatabaseConnection,
     private logger: Console = console

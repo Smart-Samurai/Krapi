@@ -445,7 +445,26 @@ export class ProjectController {
     }
   };
 
-  // Update project
+  /**
+   * Update an existing project
+   * 
+   * PUT /krapi/k1/projects/:projectId
+   * 
+   * Updates project information. Requires authentication and projects:write scope.
+   * 
+   * @param {Request} req - Express request with projectId in params and updates in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If project is not found
+   * @throws {500} If update fails
+   * 
+   * @example
+   * // Request: PUT /krapi/k1/projects/project-id
+   * // Body: { name: 'Updated Name', description: 'Updated description' }
+   * // Response: { success: true, data: {...} }
+   */
   updateProject = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -547,7 +566,25 @@ export class ProjectController {
     }
   };
 
-  // Delete project
+  /**
+   * Delete a project
+   * 
+   * DELETE /krapi/k1/projects/:projectId
+   * 
+   * Deletes a project. Requires authentication and projects:delete scope.
+   * 
+   * @param {Request} req - Express request with projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If project is not found
+   * @throws {500} If deletion fails
+   * 
+   * @example
+   * // Request: DELETE /krapi/k1/projects/project-id
+   * // Response: { success: true, message: 'Project deleted successfully' }
+   */
   deleteProject = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -644,7 +681,26 @@ export class ProjectController {
     }
   };
 
-  // Get project statistics
+  /**
+   * Get project statistics
+   * 
+   * GET /krapi/k1/projects/:projectId/stats
+   * 
+   * Retrieves statistics for a project including collections, documents, users, storage, etc.
+   * Requires authentication and projects:read scope.
+   * 
+   * @param {Request} req - Express request with projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If project is not found
+   * @throws {500} If retrieval fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-id/stats
+   * // Response: { success: true, data: { totalCollections: 5, totalDocuments: 100, ... } }
+   */
   getProjectStats = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -763,7 +819,25 @@ export class ProjectController {
     }
   };
 
-  // Get project activity logs
+  /**
+   * Get project activity logs
+   * 
+   * GET /krapi/k1/projects/:projectId/activity
+   * 
+   * Retrieves activity logs for a project with optional filtering by days.
+   * Requires authentication and projects:read scope.
+   * 
+   * @param {Request} req - Express request with projectId in params and optional query params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {500} If retrieval fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-id/activity?limit=50&days=7
+   * // Response: { success: true, data: { activities: [...], total: 10, limit: 50, days: 7 } }
+   */
   getProjectActivity = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -865,6 +939,26 @@ export class ProjectController {
     }
   };
 
+  /**
+   * Regenerate project API key
+   * 
+   * POST /krapi/k1/projects/:projectId/api-keys/regenerate
+   * 
+   * Regenerates the main API key for a project. Requires authentication and projects:write scope.
+   * 
+   * @param {Request} req - Express request with projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {401} If user is not authenticated
+   * @throws {404} If project is not found
+   * @throws {500} If regeneration fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/projects/project-id/api-keys/regenerate
+   * // Response: { success: true, data: { apiKey: 'pk_...' }, message: 'API key regenerated successfully' }
+   */
   regenerateApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;
@@ -964,7 +1058,25 @@ export class ProjectController {
     }
   };
 
-  // Get project settings
+  /**
+   * Get project settings
+   * 
+   * GET /krapi/k1/projects/:projectId/settings
+   * 
+   * Retrieves current settings for a project. Requires authentication and projects:read scope.
+   * 
+   * @param {Request} req - Express request with projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If project is not found
+   * @throws {500} If retrieval fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-id/settings
+   * // Response: { success: true, data: { authentication_required: true, ... } }
+   */
   getProjectSettings = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -1072,13 +1184,23 @@ export class ProjectController {
 
   /**
    * Update project settings
-   * PUT /krapi/k1/projects/:id/settings
-   *
-   * Requires: projects:write scope
-   * Body: { settings }
-   *
-   * @param req - Request with project ID in params and settings data
-   * @param res - Response with updated project
+   * 
+   * PUT /krapi/k1/projects/:projectId/settings
+   * 
+   * Updates settings for a project. Requires authentication and projects:write scope.
+   * 
+   * @param {Request} req - Express request with projectId in params and settings/allowed_origins in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If project is not found
+   * @throws {500} If update fails
+   * 
+   * @example
+   * // Request: PUT /krapi/k1/projects/project-id/settings
+   * // Body: { settings: { authentication_required: true }, allowed_origins: ['https://example.com'] }
+   * // Response: { success: true, data: { authentication_required: true, ... } }
    */
   updateProjectSettings = async (
     req: Request,
@@ -1202,16 +1324,24 @@ export class ProjectController {
     }
   };
 
-  // Create project API key
   /**
    * Create project API key
-   * POST /krapi/k1/projects/:id/api-keys
-   *
-   * Requires: projects:write scope
-   * Body: { name, scopes? }
-   *
-   * @param req - Request with project ID in params and API key data
-   * @param res - Response with created API key
+   * 
+   * POST /krapi/k1/projects/:projectId/api-keys
+   * 
+   * Creates a new API key for a project. Requires authentication and projects:write scope.
+   * 
+   * @param {Request} req - Express request with projectId in params and API key data in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {500} If API key creation fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/projects/project-id/api-keys
+   * // Body: { name: 'My API Key', scopes: ['documents:read'], expires_at: '2024-12-31' }
+   * // Response: { success: true, data: { id: '...', key: 'pk_...', ... } }
    */
   createProjectApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1327,7 +1457,25 @@ export class ProjectController {
     }
   };
 
-  // Get project API keys
+  /**
+   * Get project API keys
+   * 
+   * GET /krapi/k1/projects/:projectId/api-keys
+   * 
+   * Retrieves all API keys for a project. Requires authentication and projects:read scope.
+   * 
+   * @param {Request} req - Express request with projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If project is not found
+   * @throws {500} If retrieval fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-id/api-keys
+   * // Response: { success: true, data: [{ id: '...', name: '...', ... }, ...] }
+   */
   getProjectApiKeys = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -1426,12 +1574,22 @@ export class ProjectController {
 
   /**
    * Delete project API key
-   * DELETE /krapi/k1/projects/:id/api-keys/:keyId
-   *
-   * Requires: projects:write scope
-   *
-   * @param req - Request with project ID and key ID in params
-   * @param res - Response with deletion result
+   * 
+   * DELETE /krapi/k1/projects/:projectId/api-keys/:keyId
+   * 
+   * Deletes an API key for a project. Requires authentication and projects:write scope.
+   * 
+   * @param {Request} req - Express request with projectId and keyId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If project ID is invalid
+   * @throws {404} If API key is not found
+   * @throws {500} If deletion fails
+   * 
+   * @example
+   * // Request: DELETE /krapi/k1/projects/project-id/api-keys/key-id
+   * // Response: { success: true, message: 'API key deleted successfully' }
    */
   deleteProjectApiKey = async (req: Request, res: Response): Promise<void> => {
     try {

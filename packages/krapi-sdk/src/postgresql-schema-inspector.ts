@@ -1,8 +1,13 @@
 /**
  * PostgreSQL Schema Inspector
- *
+ * 
  * Queries PostgreSQL system tables to get actual database schema information
  * for comparison with expected collection schemas.
+ * 
+ * @class PostgreSQLSchemaInspector
+ * @example
+ * const inspector = new PostgreSQLSchemaInspector(dbConnection, console);
+ * const schema = await inspector.getTableSchema('users');
  */
 export class PostgreSQLSchemaInspector {
   constructor(

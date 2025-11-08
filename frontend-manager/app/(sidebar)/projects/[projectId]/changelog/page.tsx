@@ -1,3 +1,13 @@
+/**
+ * Project Changelog Page
+ * 
+ * Page for viewing project changelog and activity history.
+ * Displays changes to projects, collections, documents, and other entities.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/changelog/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/changelog route
+ */
 "use client";
 
 import {

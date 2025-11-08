@@ -1,8 +1,23 @@
+/**
+ * Styled Button Component
+ * 
+ * Styled button component with variants and sizes.
+ * Uses class-variance-authority for variant management.
+ * 
+ * @module components/styled/Button
+ * @example
+ * <Button variant="add" size="md">Create</Button>
+ */
 import { cva, type VariantProps } from "class-variance-authority";
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Button Variants
+ * 
+ * @constant {Function} buttonVariants
+ */
 const buttonVariants = cva(
   "inline-flex items-center justify-center  font-bold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed",
   {
@@ -34,12 +49,32 @@ const buttonVariants = cva(
   }
 );
 
+/**
+ * Button Props Interface
+ * 
+ * @interface ButtonProps
+ * @extends {React.ButtonHTMLAttributes<HTMLButtonElement>}
+ * @extends {VariantProps<typeof buttonVariants>}
+ * @property {boolean} [asChild] - Render as child element
+ */
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
+/**
+ * Button Component
+ * 
+ * Styled button with variants (default, secondary, accent, destructive, outline, ghost, link, confirm, cancel)
+ * and sizes (sm, md, lg).
+ * 
+ * @param {ButtonProps} props - Component props
+ * @returns {JSX.Element} Button component
+ * 
+ * @example
+ * <Button variant="add" size="md" onClick={handleClick}>Create</Button>
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => {
     return (

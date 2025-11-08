@@ -1,8 +1,16 @@
 /**
  * KRAPI Frontend Integration
- *
+ * 
  * This module provides a clean interface to the KRAPI SDK for frontend use.
  * All types and methods come directly from the SDK - no custom implementations.
+ * 
+ * Re-exports all SDK types and the krapi singleton for frontend use.
+ * 
+ * @module lib/krapi
+ * @example
+ * import { krapi, Project } from '@/lib/krapi';
+ * await krapi.connect({ endpoint: '...', apiKey: '...' });
+ * const projects = await krapi.projects.list();
  */
 
 import {

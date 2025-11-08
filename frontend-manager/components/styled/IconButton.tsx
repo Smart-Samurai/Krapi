@@ -1,3 +1,12 @@
+/**
+ * Icon Button Component
+ * 
+ * Button component that displays only an icon.
+ * 
+ * @module components/styled/IconButton
+ * @example
+ * <IconButton icon={Edit} onClick={handleEdit} size="md" variant="primary" />
+ */
 "use client";
 
 import React from "react";
@@ -5,6 +14,19 @@ import { IconType } from "react-icons";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Icon Button Props
+ * 
+ * @interface IconButtonProps
+ * @property {IconType} icon - Icon component from react-icons
+ * @property {Function} [onClick] - Click handler
+ * @property {"sm" | "md" | "lg"} [size="md"] - Button size
+ * @property {"primary" | "secondary" | "accent" | "ghost"} [variant="primary"] - Button variant
+ * @property {boolean} [disabled=false] - Whether button is disabled
+ * @property {string} [className] - Additional CSS classes
+ * @property {string} [title] - Button title/tooltip
+ * @property {"button" | "submit" | "reset"} [type="button"] - Button type
+ */
 interface IconButtonProps {
   icon: IconType;
   onClick?: () => void;
@@ -35,6 +57,28 @@ const variantClasses = {
   ghost: "hover:bg-accent hover:text-accent-foreground",
 };
 
+/**
+ * Icon Button Component
+ * 
+ * Button that displays only an icon with size and variant options.
+ * 
+ * @param {IconButtonProps} props - Component props
+ * @returns {JSX.Element} Icon button
+ * 
+ * @example
+ * <IconButton icon={Edit} onClick={handleEdit} size="md" />
+ */
+/**
+ * Icon Button Component
+ * 
+ * Button that displays only an icon.
+ * 
+ * @param {IconButtonProps} props - Component props
+ * @returns {JSX.Element} Icon button
+ * 
+ * @example
+ * <IconButton icon={EditIcon} onClick={handleEdit} />
+ */
 export const IconButton: React.FC<IconButtonProps> = ({
   icon: Icon,
   onClick,

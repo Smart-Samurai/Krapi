@@ -1,22 +1,36 @@
 /**
  * KRAPI Socket Verification
- *
+ * 
  * This file systematically verifies that every method in the KrapiSocketInterface
  * has perfect plug (client) and socket (server) implementations.
- *
+ * 
  * Every method MUST:
  * 1. Have identical signatures in both client and server modes
  * 2. Return identical data structures
  * 3. Handle errors consistently
  * 4. Work seamlessly regardless of connection mode
+ * 
+ * @module socket-verification
+ * @example
+ * const verification = new SocketVerification(console);
+ * const results = await verification.runCompleteVerification();
  */
-
 import { Logger } from "./core";
 
 // Socket verification utilities
 
 /**
- * Socket Verification Results
+ * Socket Verification Result Interface
+ * 
+ * @interface SocketVerificationResult
+ * @property {string} method - Method name
+ * @property {string} category - Method category
+ * @property {boolean} clientImplemented - Whether client implementation exists
+ * @property {boolean} serverImplemented - Whether server implementation exists
+ * @property {boolean} signatureMatch - Whether signatures match
+ * @property {boolean} returnTypeMatch - Whether return types match
+ * @property {"perfect" | "partial" | "missing" | "mismatch"} status - Verification status
+ * @property {string} [notes] - Additional notes
  */
 export interface SocketVerificationResult {
   method: string;
@@ -31,8 +45,14 @@ export interface SocketVerificationResult {
 
 /**
  * Comprehensive Socket Verification
- *
- * This systematically checks every method in the socket interface
+ * 
+ * Systematically checks every method in the socket interface to ensure
+ * perfect plug/socket compatibility.
+ * 
+ * @class SocketVerification
+ * @example
+ * const verification = new SocketVerification(console);
+ * const results = await verification.runCompleteVerification();
  */
 export class SocketVerification {
   private results: SocketVerificationResult[] = [];

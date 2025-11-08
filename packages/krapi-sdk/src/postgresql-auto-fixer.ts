@@ -10,7 +10,14 @@ import {
 
 /**
  * PostgreSQL-specific auto-fixer implementation
- * Handles all database schema misalignments and automatically corrects them
+ * 
+ * Handles all database schema misalignments and automatically corrects them.
+ * Provides non-destructive fixes that preserve existing data.
+ * 
+ * @class PostgreSQLAutoFixer
+ * @example
+ * const fixer = new PostgreSQLAutoFixer(dbConnection, console);
+ * await fixer.fixMissingFields(missingFields);
  */
 export class PostgreSQLAutoFixer {
   constructor(

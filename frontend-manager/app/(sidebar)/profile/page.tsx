@@ -1,3 +1,13 @@
+/**
+ * User Profile Page
+ * 
+ * Page for managing user profile information and settings.
+ * Provides profile editing and password management.
+ * 
+ * @module app/(sidebar)/profile/page
+ * @example
+ * // Automatically rendered at /profile route
+ */
 "use client";
 
 import React, { useState } from "react";

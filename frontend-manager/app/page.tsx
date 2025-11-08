@@ -1,8 +1,25 @@
+/**
+ * Home Page Component
+ * 
+ * Redirects users to the dashboard on load.
+ * Shows a loading state during redirect.
+ * 
+ * @module app/page
+ * @example
+ * // Automatically redirects to /dashboard
+ */
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+/**
+ * Home Page Component
+ * 
+ * Redirects users to the dashboard on initial load.
+ * 
+ * @returns {JSX.Element} Loading state during redirect
+ */
 export default function HomePage() {
   const router = useRouter();
 

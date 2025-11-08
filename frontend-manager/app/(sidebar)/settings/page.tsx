@@ -1,3 +1,13 @@
+/**
+ * System Settings Page
+ * 
+ * Page for managing system-wide settings including general, security, email, and database configuration.
+ * Provides settings management and email testing functionality.
+ * 
+ * @module app/(sidebar)/settings/page
+ * @example
+ * // Automatically rendered at /settings route
+ */
 "use client";
 
 import {

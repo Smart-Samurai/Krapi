@@ -5,14 +5,20 @@
 
 /**
  * Admin Controller
- *
+ * 
  * Handles all admin-related operations including:
  * - Admin user management
  * - System statistics
  * - Database health checks
  * - Activity logs
- *
- * TEMPORARILY DISABLED - Will be reimplemented using direct services
+ * 
+ * **STATUS: TEMPORARILY DISABLED**
+ * 
+ * This controller is currently commented out and will be reimplemented using direct services.
+ * All admin functionality is currently handled through the admin routes using SDK services.
+ * 
+ * @module controllers/admin.controller
+ * @deprecated This controller is disabled - use admin routes with SDK services instead
  */
 /*
 export class AdminController {

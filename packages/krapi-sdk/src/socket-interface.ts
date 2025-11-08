@@ -1,13 +1,25 @@
 /**
  * KRAPI Socket Interface
- *
+ * 
  * This defines the complete interface that must be implemented by both:
  * - Client (Plug): HTTP-based methods for frontend apps
  * - Server (Socket): Database-based methods for backend apps
- *
+ * 
  * Every method here MUST work identically in both environments.
+ * This ensures perfect "plug and socket" compatibility - the same code works
+ * in both client and server environments without modification.
+ * 
+ * @module socket-interface
+ * @example
+ * // Client usage
+ * await krapi.connect({ endpoint: 'https://api.example.com', apiKey: 'key' });
+ * const projects = await krapi.projects.list();
+ * 
+ * @example
+ * // Server usage (identical code!)
+ * await krapi.connect({ database: dbConnection });
+ * const projects = await krapi.projects.list();
  */
-
 // Import all required types
 import type {
   AdminUser,
@@ -24,6 +36,22 @@ import type {
   ApiKey,
 } from "./types";
 
+/**
+ * KRAPI Socket Interface
+ * 
+ * Complete interface that must be implemented by both client and server SDK implementations.
+ * Ensures perfect plug/socket compatibility - same methods, same signatures, same behavior.
+ * 
+ * @interface KrapiSocketInterface
+ * @example
+ * // Both client and server implement this interface identically
+ * class MySDK implements KrapiSocketInterface {
+ *   auth: { ... };
+ *   projects: { ... };
+ *   collections: { ... };
+ *   // ... all methods from interface
+ * }
+ */
 export interface KrapiSocketInterface {
   // Authentication methods
   auth: {

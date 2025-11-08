@@ -123,15 +123,45 @@ export interface MigrationResult {
   message: string;
 }
 
+/**
+ * Health Service for BackendSDK
+ * 
+ * Provides comprehensive health diagnostics and system health monitoring.
+ * 
+ * @class HealthService
+ * @example
+ * const healthService = new HealthService(dbConnection, logger);
+ * const diagnostics = await healthService.runDiagnostics();
+ */
 export class HealthService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new HealthService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
+  /**
+   * Run comprehensive health diagnostics
+   * 
+   * Performs health checks on database, system resources, and services.
+   * 
+   * @returns {Promise<HealthDiagnostics>} Comprehensive health diagnostics
+   * @throws {Error} If diagnostics fail
+   * 
+   * @example
+   * const diagnostics = await healthService.runDiagnostics();
+   * if (diagnostics.success) {
+   *   console.log('System is healthy');
+   * }
+   */
   async runDiagnostics(): Promise<HealthDiagnostics> {
     try {
       this.logger.info("Starting comprehensive health diagnostics...");

@@ -1,8 +1,24 @@
+/**
+ * Styled Input Components
+ * 
+ * Styled input components with variants and specialized input types.
+ * Provides Input, TextInput, NumberInput, EmailInput, PasswordInput, and Textarea.
+ * 
+ * @module components/styled/Input
+ * @example
+ * <Input variant="default" inputSize="md" placeholder="Enter text" />
+ * <EmailInput placeholder="Enter email" />
+ */
 import { cva, type VariantProps } from "class-variance-authority";
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Input Variants
+ * 
+ * @constant {Function} inputVariants
+ */
 // Base Input Component
 const inputVariants = cva(
   "flex w-full  border border-primary bg-background px-3 py-2 text-base text-text ring-offset-background file:border-0 file:bg-transparent file:text-base file:font-medium placeholder:text-text/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
@@ -26,10 +42,28 @@ const inputVariants = cva(
   }
 );
 
+/**
+ * Input Props Interface
+ * 
+ * @interface InputProps
+ * @extends {Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">}
+ * @extends {VariantProps<typeof inputVariants>}
+ */
 export interface InputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size">,
     VariantProps<typeof inputVariants> {}
 
+/**
+ * Base Input Component
+ * 
+ * Base input component with variants and sizes.
+ * 
+ * @param {InputProps} props - Component props
+ * @returns {JSX.Element} Input component
+ * 
+ * @example
+ * <Input variant="default" inputSize="md" type="text" />
+ */
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, variant, inputSize, type, ...props }, ref) => {
     return (
@@ -44,18 +78,42 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 );
 Input.displayName = "Input";
 
+/**
+ * Text Input Component
+ * 
+ * Specialized text input component.
+ * 
+ * @param {InputProps} props - Component props
+ * @returns {JSX.Element} Text input
+ */
 // Text Input
 export const TextInput = React.forwardRef<HTMLInputElement, InputProps>(
   (props, ref) => <Input ref={ref} type="text" {...props} />
 );
 TextInput.displayName = "TextInput";
 
+/**
+ * Number Input Component
+ * 
+ * Specialized number input component.
+ * 
+ * @param {InputProps} props - Component props
+ * @returns {JSX.Element} Number input
+ */
 // Number Input
 export const NumberInput = React.forwardRef<HTMLInputElement, InputProps>(
   (props, ref) => <Input ref={ref} type="number" {...props} />
 );
 NumberInput.displayName = "NumberInput";
 
+/**
+ * Email Input Component
+ * 
+ * Specialized email input component with email-specific attributes.
+ * 
+ * @param {InputProps} props - Component props
+ * @returns {JSX.Element} Email input
+ */
 // Email Input
 export const EmailInput = React.forwardRef<HTMLInputElement, InputProps>(
   (props, ref) => (
@@ -70,6 +128,14 @@ export const EmailInput = React.forwardRef<HTMLInputElement, InputProps>(
 );
 EmailInput.displayName = "EmailInput";
 
+/**
+ * Password Input Component
+ * 
+ * Specialized password input component.
+ * 
+ * @param {InputProps} props - Component props
+ * @returns {JSX.Element} Password input
+ */
 // Password Input
 export const PasswordInput = React.forwardRef<HTMLInputElement, InputProps>(
   (props, ref) => (
@@ -83,11 +149,26 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, InputProps>(
 );
 PasswordInput.displayName = "PasswordInput";
 
+/**
+ * Textarea Props Interface
+ * 
+ * @interface TextareaProps
+ * @extends {Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "size">}
+ * @extends {VariantProps<typeof inputVariants>}
+ */
 // Textarea Component
 export interface TextareaProps
   extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "size">,
     VariantProps<typeof inputVariants> {}
 
+/**
+ * Textarea Component
+ * 
+ * Multi-line text input component.
+ * 
+ * @param {TextareaProps} props - Component props
+ * @returns {JSX.Element} Textarea component
+ */
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, variant, inputSize, ...props }, ref) => {
     return (

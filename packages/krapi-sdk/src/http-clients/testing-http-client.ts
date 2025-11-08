@@ -1,12 +1,29 @@
 /**
  * Testing HTTP Client for KRAPI SDK
- *
- * HTTP-based testing methods for frontend apps
+ * 
+ * HTTP-based testing methods for frontend applications.
+ * Provides test project management, test execution, and data seeding.
+ * 
+ * @module http-clients/testing-http-client
+ * @example
+ * const client = new TestingHttpClient({ baseUrl: 'https://api.example.com' });
+ * const testProject = await client.createTestProject({ name: 'test-project' });
  */
-
 import { ApiResponse } from "../core";
 
 import { BaseHttpClient } from "./base-http-client";
+
+/**
+ * Testing HTTP Client
+ * 
+ * HTTP client for testing operations.
+ * 
+ * @class TestingHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new TestingHttpClient({ baseUrl: 'https://api.example.com' });
+ * const results = await client.runTests();
+ */
 export class TestingHttpClient extends BaseHttpClient {
   // Test Project Management
   async createTestProject(options?: {

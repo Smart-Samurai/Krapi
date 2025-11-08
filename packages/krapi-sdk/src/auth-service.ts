@@ -1,12 +1,17 @@
 /**
  * Auth Service for BackendSDK
- *
+ * 
  * Provides comprehensive authentication and session management functionality including:
  * - Admin and project user authentication
  * - Session creation and management
  * - Password hashing and validation
  * - API key authentication
  * - Token generation and validation
+ * 
+ * @class AuthService
+ * @example
+ * const authService = new AuthService(dbConnection, logger);
+ * const result = await authService.authenticateAdmin({ username: 'admin', password: 'pass' });
  */
 
 import bcrypt from "bcryptjs";
@@ -103,12 +108,39 @@ export class AuthService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new AuthService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // Admin Authentication
+  /**
+   * Authenticate admin user
+   * 
+   * Authenticates an admin user with username/email and password.
+   * Creates a session and returns login response with token and user data.
+   * 
+   * @param {LoginRequest} loginData - Login credentials
+   * @param {string} [loginData.username] - Admin username
+   * @param {string} [loginData.email] - Admin email
+   * @param {string} loginData.password - Admin password
+   * @param {string} [loginData.project_id] - Project ID (for project users)
+   * @param {boolean} [loginData.remember_me] - Whether to remember session
+   * @returns {Promise<LoginResponse>} Login response with token, user, and session info
+   * @throws {Error} If username/email or password is missing
+   * @throws {Error} If credentials are invalid
+   * 
+   * @example
+   * const result = await authService.authenticateAdmin({
+   *   username: 'admin',
+   *   password: 'password'
+   * });
+   */
   async authenticateAdmin(loginData: LoginRequest): Promise<LoginResponse> {
     try {
       const { username, email, password } = loginData;

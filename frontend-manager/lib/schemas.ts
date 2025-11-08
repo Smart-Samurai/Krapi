@@ -1,5 +1,25 @@
+/**
+ * Form Schemas
+ * 
+ * Zod validation schemas for various forms in the application.
+ * Includes file upload, content creation, route management, and other form schemas.
+ * 
+ * @module lib/schemas
+ * @example
+ * import { fileUploadSchema } from '@/lib/schemas';
+ * const result = fileUploadSchema.parse(formData);
+ */
 import { z } from "zod";
 
+/**
+ * File Upload Schema
+ * 
+ * Validation schema for file uploads with size and type restrictions.
+ * 
+ * @constant {z.ZodObject}
+ * @example
+ * const result = fileUploadSchema.parse({ file: fileObject, access_level: 'public' });
+ */
 // File upload schema
 export const fileUploadSchema = z.object({
   file: z

@@ -1,3 +1,15 @@
+/**
+ * Auth Error Boundary
+ * 
+ * Error boundary component that handles authentication errors.
+ * When an authentication error occurs, it automatically redirects to login.
+ * 
+ * @module components/auth-error-boundary
+ * @example
+ * <AuthErrorBoundaryWrapper>
+ *   <App />
+ * </AuthErrorBoundaryWrapper>
+ */
 "use client";
 
 import React, { Component, ReactNode } from "react";
@@ -5,19 +17,41 @@ import React, { Component, ReactNode } from "react";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { isAuthError } from "@/lib/utils";
 
+/**
+ * Auth Error Boundary Props
+ * 
+ * @interface Props
+ * @property {ReactNode} children - Child components
+ * @property {ReactNode} [fallback] - Fallback UI for non-auth errors
+ */
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
 }
 
+/**
+ * Auth Error Boundary State
+ * 
+ * @interface State
+ * @property {boolean} hasError - Whether an error occurred
+ * @property {Error} [error] - Error object
+ */
 interface State {
   hasError: boolean;
   error?: Error;
 }
 
 /**
- * Error boundary component that handles authentication errors
- * When an authentication error occurs, it automatically redirects to login
+ * Auth Error Boundary Class
+ * 
+ * Error boundary that catches authentication errors and redirects to login.
+ * 
+ * @class AuthErrorBoundary
+ * @extends {Component}
+ * @example
+ * <AuthErrorBoundary handleAuthError={handleAuthError}>
+ *   <App />
+ * </AuthErrorBoundary>
  */
 export class AuthErrorBoundary extends Component<
   Props & { handleAuthError: (error: Error) => void },
@@ -80,7 +114,19 @@ export class AuthErrorBoundary extends Component<
 
 /**
  * Hook-based wrapper component for AuthErrorBoundary
- * This is the preferred way to use the AuthErrorBoundary
+ * 
+ * This is the preferred way to use the AuthErrorBoundary.
+ * Automatically provides handleAuthError from Redux auth context.
+ * 
+ * @param {Props} props - Component props
+ * @param {ReactNode} props.children - Child components
+ * @param {ReactNode} [props.fallback] - Fallback UI for non-auth errors
+ * @returns {JSX.Element} Auth error boundary wrapper
+ * 
+ * @example
+ * <AuthErrorBoundaryWrapper>
+ *   <App />
+ * </AuthErrorBoundaryWrapper>
  */
 export function AuthErrorBoundaryWrapper({ children, fallback }: Props) {
   const { handleAuthError } = useReduxAuth();

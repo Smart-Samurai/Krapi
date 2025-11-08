@@ -1,10 +1,26 @@
+/**
+ * Styled Toast Components
+ * 
+ * Toast notification components built on Radix UI primitives.
+ * Provides Toast, ToastProvider, ToastViewport, ToastTitle, ToastDescription, etc.
+ * 
+ * @module components/styled/Toast
+ * @example
+ * <ToastProvider>
+ *   <Toast variant="success" title="Success" description="Operation completed" />
+ * </ToastProvider>
+ */
 import * as ToastPrimitives from "@radix-ui/react-toast";
 import { X } from "lucide-react";
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
-
+/**
+ * Toast Provider Component
+ * 
+ * @constant {typeof ToastPrimitives.Provider}
+ */
 const ToastProvider = ToastPrimitives.Provider;
 
 const ToastViewport = React.forwardRef<

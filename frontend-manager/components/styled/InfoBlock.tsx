@@ -1,7 +1,28 @@
+/**
+ * Info Block Component
+ * 
+ * Styled information block component with variants for different message types.
+ * 
+ * @module components/styled/InfoBlock
+ * @example
+ * <InfoBlock variant="info" title="Information" icon={<InfoIcon />}>
+ *   This is an informational message.
+ * </InfoBlock>
+ */
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Info Block Props
+ * 
+ * @interface InfoBlockProps
+ * @property {ReactNode} children - Block content
+ * @property {"default" | "info" | "warning" | "success" | "error"} [variant="default"] - Block variant
+ * @property {string} [title] - Optional block title
+ * @property {string} [className] - Additional CSS classes
+ * @property {ReactNode} [icon] - Optional icon
+ */
 interface InfoBlockProps {
   children: React.ReactNode;
   variant?: "default" | "info" | "warning" | "success" | "error";
@@ -28,6 +49,32 @@ const variantTextClasses = {
   error: "text-red-800 dark:text-red-200",
 };
 
+/**
+ * Info Block Component
+ * 
+ * Displays an information block with variant styling.
+ * 
+ * @param {InfoBlockProps} props - Component props
+ * @returns {JSX.Element} Info block component
+ * 
+ * @example
+ * <InfoBlock variant="warning" title="Warning">
+ *   Please review this information.
+ * </InfoBlock>
+ */
+/**
+ * Info Block Component
+ * 
+ * Displays an information block with variant styling.
+ * 
+ * @param {InfoBlockProps} props - Component props
+ * @returns {JSX.Element} Info block component
+ * 
+ * @example
+ * <InfoBlock variant="warning" title="Warning">
+ *   Please review this information.
+ * </InfoBlock>
+ */
 export const InfoBlock: React.FC<InfoBlockProps> = ({
   children,
   variant = "default",

@@ -1,11 +1,27 @@
 /**
  * Unified KRAPI Client
- *
+ * 
  * A unified client that can operate in two modes:
  * 1. Database Mode: Direct database access (for backend/server-side)
  * 2. HTTP Mode: API client for remote access (for frontend/external)
+ * 
+ * This client automatically switches between modes based on configuration.
+ * 
+ * @module krapi-client
+ * @example
+ * // Database mode
+ * const client = new KrapiClient({
+ *   mode: 'database',
+ *   database: { databaseConnection: dbConnection }
+ * });
+ * 
+ * @example
+ * // HTTP mode
+ * const client = new KrapiClient({
+ *   mode: 'http',
+ *   http: { baseUrl: 'https://api.example.com', apiKey: 'key' }
+ * });
  */
-
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from "axios";
 
 import { AdminService } from "./admin-service";
@@ -28,9 +44,22 @@ import { TestingService } from "./testing-service";
 import { FieldType } from "./types";
 import { UsersService } from "./users-service";
 
+/**
+ * Client Mode Type
+ * 
+ * @typedef {"database" | "http"} ClientMode
+ */
 // Client mode type
 export type ClientMode = "database" | "http";
 
+/**
+ * KRAPI Client Configuration
+ * 
+ * @interface KrapiClientConfig
+ * @property {ClientMode} mode - Client mode ('database' or 'http')
+ * @property {DatabaseSDKConfig} [database] - Database configuration (required for database mode)
+ * @property {HttpSDKConfig} [http] - HTTP configuration (required for http mode)
+ */
 export interface KrapiClientConfig {
   mode: ClientMode;
   database?: DatabaseSDKConfig;
@@ -44,6 +73,28 @@ export interface KrapiClientConfig {
 //   logger: Logger;
 // }
 
+/**
+ * Unified KRAPI Client
+ * 
+ * Unified client that supports both database and HTTP modes.
+ * Automatically initializes appropriate services based on mode.
+ * 
+ * @class KrapiClient
+ * @implements {BaseClient}
+ * @example
+ * // Database mode
+ * const client = new KrapiClient({
+ *   mode: 'database',
+ *   database: { databaseConnection: dbConnection, logger: console }
+ * });
+ * 
+ * @example
+ * // HTTP mode
+ * const client = new KrapiClient({
+ *   mode: 'http',
+ *   http: { baseUrl: 'https://api.example.com', apiKey: 'key' }
+ * });
+ */
 export class KrapiClient implements BaseClient {
   public readonly mode: ClientMode;
 
@@ -76,6 +127,18 @@ export class KrapiClient implements BaseClient {
   private logger: Logger;
   private httpClient?: AxiosInstance; // Axios instance for HTTP mode
 
+  /**
+   * Create a new KrapiClient instance
+   * 
+   * @param {KrapiClientConfig} config - Client configuration
+   * @throws {Error} If configuration is invalid
+   * 
+   * @example
+   * const client = new KrapiClient({
+   *   mode: 'database',
+   *   database: { databaseConnection: dbConnection }
+   * });
+   */
   constructor(config: KrapiClientConfig) {
     this.config = config;
     this.mode = config.mode;

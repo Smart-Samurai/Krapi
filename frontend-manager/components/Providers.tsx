@@ -1,3 +1,15 @@
+/**
+ * Providers Component
+ * 
+ * Root provider component that wraps the application with all necessary context providers.
+ * Includes Redux store, theme provider, authentication provider, and error boundary.
+ * 
+ * @module components/Providers
+ * @example
+ * <Providers>
+ *   <App />
+ * </Providers>
+ */
 "use client";
 
 import { ThemeProvider } from "next-themes";
@@ -8,6 +20,26 @@ import { AuthErrorBoundaryWrapper } from "@/components/auth-error-boundary";
 import { ReduxAuthProvider } from "@/contexts/redux-auth-context";
 import { store } from "@/store";
 
+/**
+ * Providers Component
+ * 
+ * Wraps the application with all necessary providers:
+ * - Redux store provider
+ * - Theme provider (next-themes)
+ * - Authentication provider (Redux-based)
+ * - Error boundary wrapper
+ * 
+ * Also suppresses hydration warnings in development.
+ * 
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ * @returns {JSX.Element} Provider-wrapped application
+ * 
+ * @example
+ * <Providers>
+ *   <App />
+ * </Providers>
+ */
 export function Providers({ children }: { children: React.ReactNode }) {
   const hasSetupErrorHandling = useRef(false);
 

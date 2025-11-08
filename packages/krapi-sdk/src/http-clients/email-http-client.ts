@@ -1,9 +1,14 @@
 /**
  * Email HTTP Client for KRAPI SDK
- *
- * HTTP-based email methods for frontend apps
+ * 
+ * HTTP-based email methods for frontend applications.
+ * Provides email configuration, template management, and email sending.
+ * 
+ * @module http-clients/email-http-client
+ * @example
+ * const client = new EmailHttpClient({ baseUrl: 'https://api.example.com' });
+ * await client.sendEmail('project-id', { to: 'user@example.com', subject: 'Hello', body: 'World' });
  */
-
 import { ApiResponse, PaginatedResponse } from "../core";
 import {
   EmailConfig,
@@ -14,6 +19,18 @@ import {
 } from "../email-service";
 
 import { BaseHttpClient } from "./base-http-client";
+
+/**
+ * Email HTTP Client
+ * 
+ * HTTP client for email operations.
+ * 
+ * @class EmailHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new EmailHttpClient({ baseUrl: 'https://api.example.com' });
+ * const config = await client.getConfig('project-id');
+ */
 export class EmailHttpClient extends BaseHttpClient {
   // Email Configuration
   async getConfig(projectId: string): Promise<ApiResponse<EmailConfig>> {

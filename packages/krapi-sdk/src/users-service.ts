@@ -126,16 +126,53 @@ export interface UserStatistics {
   }>;
 }
 
+/**
+ * Users Service for BackendSDK
+ * 
+ * Provides comprehensive user management functionality including:
+ * - Project-specific user management
+ * - User authentication and authorization
+ * - User profile management
+ * - User roles and permissions within projects
+ * - User activity tracking
+ * 
+ * @class UsersService
+ * @example
+ * const usersService = new UsersService(dbConnection, logger);
+ * const users = await usersService.getAllUsers('project-id', { limit: 10 });
+ */
 export class UsersService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new UsersService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // User CRUD Operations
+  /**
+   * Get all users for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of users
+   * @param {number} [options.offset] - Number of users to skip
+   * @param {UserFilter} [options.filter] - User filters
+   * @returns {Promise<ProjectUser[]>} Array of project users
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const users = await usersService.getAllUsers('project-id', {
+   *   limit: 10,
+   *   filter: { role: 'admin', is_active: true }
+   * });
+   */
   async getAllUsers(
     projectId: string,
     options?: {

@@ -1,9 +1,14 @@
 /**
  * Auth HTTP Client for KRAPI SDK
- *
- * HTTP-based authentication methods for frontend apps
+ * 
+ * HTTP-based authentication methods for frontend applications.
+ * Provides admin and project user authentication, session management, and password operations.
+ * 
+ * @module http-clients/auth-http-client
+ * @example
+ * const client = new AuthHttpClient({ baseUrl: 'https://api.example.com' });
+ * const response = await client.adminLogin({ username: 'admin', password: 'pass' });
  */
-
 import {
   Session,
   LoginResponse,
@@ -16,6 +21,17 @@ import { ApiResponse } from "../core";
 
 import { BaseHttpClient } from "./base-http-client";
 
+/**
+ * Auth HTTP Client
+ * 
+ * HTTP client for authentication operations.
+ * 
+ * @class AuthHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new AuthHttpClient({ baseUrl: 'https://api.example.com' });
+ * const session = await client.adminLogin({ username: 'admin', password: 'pass' });
+ */
 export class AuthHttpClient extends BaseHttpClient {
   // Constructor inherited from BaseHttpClient
 

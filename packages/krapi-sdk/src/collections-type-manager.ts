@@ -14,9 +14,17 @@ import {
 
 /**
  * Collections Type Manager
- *
+ * 
  * Manages collection type definitions, provides type validation,
  * auto-fixing capabilities, and ensures database schema consistency.
+ * 
+ * @class CollectionsTypeManager
+ * @example
+ * const manager = new CollectionsTypeManager(dbConnection, console);
+ * const typeDef = await manager.registerCollectionType({
+ *   name: 'User',
+ *   fields: [{ name: 'email', type: FieldType.string }]
+ * });
  */
 export class CollectionsTypeManager {
   private typeRegistry: CollectionTypeRegistry;

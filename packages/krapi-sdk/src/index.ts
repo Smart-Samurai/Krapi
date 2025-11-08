@@ -1,31 +1,44 @@
 /**
  * KRAPI TypeScript SDK
- *
- * A type-safe SDK for building KRAPI applications with perfect client/server parity
- *
+ * 
+ * A type-safe SDK for building KRAPI applications with perfect client/server parity.
+ * 
  * MAIN INTERFACE (Recommended):
  * - krapi: Global singleton that works seamlessly in both client and server environments
  * - Perfect "plug and socket" design - client methods fit server methods exactly
- *
+ * 
  * USAGE EXAMPLES:
- *
+ * 
  * Client App:
  * ```typescript
  * import { krapi } from '@krapi/sdk';
  * await krapi.connect({ endpoint: 'https://api.example.com/krapi/k1', apiKey: 'key' });
  * const project = await krapi.projects.create({ name: 'My Project' });
  * ```
- *
+ * 
  * Server App:
  * ```typescript
  * import { krapi } from '@krapi/sdk';
  * await krapi.connect({ database: dbConnection });
  * const project = await krapi.projects.create({ name: 'My Project' }); // Same method!
  * ```
- *
+ * 
  * ALTERNATIVE INTERFACES (For advanced use cases):
  * - Individual services can be imported directly for fine-grained control
  * - Legacy SDKs are deprecated but still supported
+ * 
+ * @module @krapi/sdk
+ * @example
+ * // Client usage
+ * import { krapi } from '@krapi/sdk';
+ * await krapi.connect({ endpoint: 'https://api.example.com/krapi/k1', apiKey: 'key' });
+ * const projects = await krapi.projects.list();
+ * 
+ * @example
+ * // Server usage
+ * import { krapi } from '@krapi/sdk';
+ * await krapi.connect({ database: dbConnection });
+ * const projects = await krapi.projects.list();
  */
 
 // MAIN INTERFACE - PERFECT PLUG AND SOCKET DESIGN

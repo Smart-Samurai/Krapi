@@ -1,6 +1,13 @@
 /**
  * Comprehensive Error Handling System
- * Provides clear, single error messages with proper context and debugging information
+ * 
+ * Provides clear, single error messages with proper context and debugging information.
+ * Handles API errors, network errors, and provides helpful suggestions.
+ * 
+ * @module lib/error-handler
+ * @example
+ * const errorHandler = ErrorHandler.getInstance();
+ * const apiError = errorHandler.handleApiError(error, { component: 'ProjectList', function: 'loadProjects' });
  */
 
 export interface ErrorContext {
@@ -25,11 +32,29 @@ export interface ApiError {
   suggestions: string[];
 }
 
+/**
+ * Error Handler Class
+ * 
+ * Singleton class for handling and formatting errors with context.
+ * 
+ * @class ErrorHandler
+ * @example
+ * const errorHandler = ErrorHandler.getInstance();
+ * const apiError = errorHandler.handleApiError(error, { component: 'MyComponent', function: 'myFunction' });
+ */
 export class ErrorHandler {
   private static instance: ErrorHandler;
 
   private constructor() {}
 
+  /**
+   * Get singleton instance of ErrorHandler
+   * 
+   * @returns {ErrorHandler} ErrorHandler instance
+   * 
+   * @example
+   * const errorHandler = ErrorHandler.getInstance();
+   */
   static getInstance(): ErrorHandler {
     if (!ErrorHandler.instance) {
       ErrorHandler.instance = new ErrorHandler();

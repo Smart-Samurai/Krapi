@@ -1,12 +1,29 @@
 /**
  * Admin HTTP Client for KRAPI SDK
- *
- * HTTP-based admin methods for frontend apps
+ * 
+ * HTTP-based admin methods for frontend applications.
+ * Provides admin user management, API key management, and system administration.
+ * 
+ * @module http-clients/admin-http-client
+ * @example
+ * const client = new AdminHttpClient({ baseUrl: 'https://api.example.com' });
+ * const users = await client.getAllUsers({ limit: 10 });
  */
-
 import { ApiResponse, PaginatedResponse } from "../core";
 
 import { BaseHttpClient } from "./base-http-client";
+
+/**
+ * Admin HTTP Client
+ * 
+ * HTTP client for admin operations.
+ * 
+ * @class AdminHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new AdminHttpClient({ baseUrl: 'https://api.example.com' });
+ * const users = await client.getAllUsers();
+ */
 export class AdminHttpClient extends BaseHttpClient {
   // User Management
   async getAllUsers(options?: {

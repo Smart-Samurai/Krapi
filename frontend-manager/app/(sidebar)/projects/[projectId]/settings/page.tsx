@@ -1,3 +1,13 @@
+/**
+ * Project Settings Page
+ * 
+ * Page for managing project-specific settings including general configuration,
+ * API keys, and project metadata.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/settings/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/settings route
+ */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";

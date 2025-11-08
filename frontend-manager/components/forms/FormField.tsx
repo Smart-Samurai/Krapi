@@ -1,3 +1,18 @@
+/**
+ * Form Field Component
+ * 
+ * Reusable form field component that works with react-hook-form.
+ * Supports multiple input types: text, email, password, number, textarea, select, checkbox, radio, date.
+ * 
+ * @module components/forms/FormField
+ * @example
+ * <FormField
+ *   name="email"
+ *   label="Email"
+ *   type="email"
+ *   required
+ * />
+ */
 import React from "react";
 import { useFormContext } from "react-hook-form";
 
@@ -9,6 +24,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+/**
+ * Form Field Props
+ * 
+ * @interface FormFieldProps
+ * @property {string} name - Field name (must match form schema)
+ * @property {string} [label] - Field label
+ * @property {string} [description] - Field description/help text
+ * @property {"text" | "email" | "password" | "number" | "textarea" | "select" | "checkbox" | "radio" | "date"} [type="text"] - Input type
+ * @property {string} [placeholder] - Placeholder text
+ * @property {boolean} [required=false] - Whether field is required
+ * @property {React.ComponentType} [icon] - Optional icon component
+ * @property {boolean} [disabled=false] - Whether field is disabled
+ * @property {Array<{value: string, label: string}>} [options] - Options for select/radio
+ * @property {string} [className] - Additional CSS classes
+ * @property {string} [autoComplete] - Autocomplete attribute
+ */
 interface FormFieldProps {
   name: string;
   label?: string;
@@ -32,6 +63,17 @@ interface FormFieldProps {
   autoComplete?: string;
 }
 
+/**
+ * Form Field Component
+ * 
+ * Reusable form field that integrates with react-hook-form.
+ * 
+ * @param {FormFieldProps} props - Component props
+ * @returns {JSX.Element} Form field component
+ * 
+ * @example
+ * <FormField name="email" label="Email" type="email" required />
+ */
 export const FormField: React.FC<FormFieldProps> = ({
   name,
   label,

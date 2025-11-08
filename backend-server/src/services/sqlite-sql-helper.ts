@@ -1,13 +1,27 @@
 /**
  * SQLite SQL Helper
  * 
- * Helper functions for generating SQLite-compatible SQL
+ * Helper functions for generating SQLite-compatible SQL and converting PostgreSQL SQL to SQLite.
+ * Provides utilities for UUID generation and SQL conversion for SQLite compatibility.
+ * 
+ * @module services/sqlite-sql-helper
+ * @example
+ * import { generateUUID, convertToSQLite } from './sqlite-sql-helper';
+ * const uuid = generateUUID();
+ * const sqliteSQL = convertToSQLite(postgresSQL);
  */
 
 /**
  * Generate a UUID in SQLite-compatible format
- * SQLite doesn't have UUID type or gen_random_uuid() function
- * We'll generate UUIDs in JavaScript instead
+ * 
+ * SQLite doesn't have UUID type or gen_random_uuid() function.
+ * This generates UUIDs in JavaScript using RFC4122 format.
+ * 
+ * @returns {string} Generated UUID string
+ * 
+ * @example
+ * const uuid = generateUUID();
+ * // Returns: "550e8400-e29b-41d4-a716-446655440000"
  */
 export function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -19,6 +33,17 @@ export function generateUUID(): string {
 
 /**
  * Convert PostgreSQL SQL to SQLite-compatible SQL
+ * 
+ * Converts PostgreSQL-specific SQL syntax to SQLite-compatible syntax.
+ * Handles type conversions, function replacements, and syntax differences.
+ * 
+ * @param {string} sql - PostgreSQL SQL query
+ * @returns {string} SQLite-compatible SQL query
+ * 
+ * @example
+ * const postgresSQL = "CREATE TABLE users (id UUID PRIMARY KEY, data JSONB)";
+ * const sqliteSQL = convertToSQLite(postgresSQL);
+ * // Returns: "CREATE TABLE users (id TEXT PRIMARY KEY, data TEXT)"
  */
 export function convertToSQLite(sql: string): string {
   // Replace UUID type with TEXT
@@ -56,8 +81,16 @@ export function convertToSQLite(sql: string): string {
 }
 
 /**
- * Generate SQLite-compatible UUID default value
- * Since SQLite doesn't support functions in DEFAULT, we'll handle this in application code
+ * Get SQLite-compatible UUID default value SQL
+ * 
+ * Since SQLite doesn't support functions in DEFAULT clauses, this returns the type
+ * that should be used for UUID columns. UUIDs are generated in application code.
+ * 
+ * @returns {string} SQLite type for UUID columns (TEXT)
+ * 
+ * @example
+ * const uuidType = getUUIDDefaultSQL();
+ * // Returns: "TEXT"
  */
 export function getUUIDDefaultSQL(): string {
   // SQLite doesn't support functions in DEFAULT, so we'll use NULL and generate in code

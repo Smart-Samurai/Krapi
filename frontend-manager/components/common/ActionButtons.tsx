@@ -1,14 +1,47 @@
+/**
+ * Action Buttons Components
+ * 
+ * Reusable action button components for consistent UI actions.
+ * Provides ActionButtons container and ActionButton with variants.
+ * 
+ * @module components/common/ActionButtons
+ * @example
+ * <ActionButtons>
+ *   <ActionButton variant="add" icon={Plus}>Create</ActionButton>
+ *   <ActionButton variant="edit" icon={Edit}>Edit</ActionButton>
+ * </ActionButtons>
+ */
 "use client";
 
 import React, { ReactNode, cloneElement, isValidElement } from "react";
 
 import { Button } from "@/components/ui/button";
 
+/**
+ * Action Buttons Props
+ * 
+ * @interface ActionButtonsProps
+ * @property {ReactNode} children - Action button children
+ * @property {string} [className] - Additional CSS classes
+ */
 interface ActionButtonsProps {
   children: ReactNode;
   className?: string;
 }
 
+/**
+ * Action Buttons Container Component
+ * 
+ * Container component for grouping action buttons.
+ * 
+ * @param {ActionButtonsProps} props - Component props
+ * @returns {JSX.Element} Action buttons container
+ * 
+ * @example
+ * <ActionButtons>
+ *   <ActionButton variant="add">Create</ActionButton>
+ * </ActionButtons>
+ */
 export function ActionButtons({ 
   children, 
   className = "" 
@@ -20,6 +53,19 @@ export function ActionButtons({
   );
 }
 
+/**
+ * Action Button Props
+ * 
+ * @interface ActionButtonProps
+ * @property {ReactNode} children - Button content
+ * @property {"add" | "edit" | "delete" | "default" | "outline"} [variant="default"] - Button variant
+ * @property {React.ComponentType} [icon] - Optional icon component
+ * @property {Function} [onClick] - Click handler
+ * @property {boolean} [disabled=false] - Whether button is disabled
+ * @property {boolean} [asChild=false] - Render as child element
+ * @property {string} [className] - Additional CSS classes
+ * @property {"default" | "sm" | "lg" | "icon"} [size="default"] - Button size
+ */
 interface ActionButtonProps {
   children: ReactNode;
   variant?: "add" | "edit" | "delete" | "default" | "outline";
@@ -31,6 +77,19 @@ interface ActionButtonProps {
   size?: "default" | "sm" | "lg" | "icon";
 }
 
+/**
+ * Action Button Component
+ * 
+ * Styled action button with variants for add, edit, delete actions.
+ * 
+ * @param {ActionButtonProps} props - Component props
+ * @returns {JSX.Element} Action button
+ * 
+ * @example
+ * <ActionButton variant="add" icon={Plus} onClick={handleCreate}>
+ *   Create Project
+ * </ActionButton>
+ */
 export function ActionButton({
   children,
   variant = "default",

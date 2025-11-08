@@ -1,11 +1,47 @@
+/**
+ * Page Header Component
+ * 
+ * Reusable page header component with title, description, and optional action button.
+ * 
+ * @module components/common/PageHeader
+ * @example
+ * <PageHeader
+ *   title="Projects"
+ *   description="Manage your projects"
+ *   action={<Button>Create Project</Button>}
+ * />
+ */
 "use client";
 
+/**
+ * Page Header Props
+ * 
+ * @interface PageHeaderProps
+ * @property {string} title - Page title
+ * @property {string} [description] - Optional page description
+ * @property {React.ReactNode} [action] - Optional action button/content
+ */
 interface PageHeaderProps {
   title: string;
   description?: string;
   action?: React.ReactNode;
 }
 
+/**
+ * Page Header Component
+ * 
+ * Displays a page header with title, optional description, and optional action area.
+ * 
+ * @param {PageHeaderProps} props - Component props
+ * @returns {JSX.Element} Page header component
+ * 
+ * @example
+ * <PageHeader
+ *   title="Projects"
+ *   description="Manage your projects"
+ *   action={<Button>Create</Button>}
+ * />
+ */
 export function PageHeader({
   title,
   description,

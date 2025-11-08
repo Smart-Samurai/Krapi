@@ -1,3 +1,13 @@
+/**
+ * Test Access Page
+ * 
+ * Page for testing system access, health checks, and diagnostics.
+ * Provides test suite execution and diagnostic information.
+ * 
+ * @module app/(sidebar)/test-access/page
+ * @example
+ * // Automatically rendered at /test-access route
+ */
 "use client";
 
 import { type Project } from "@krapi/sdk";
@@ -47,6 +57,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Scope } from "@/lib/krapi";
 
+/**
+ * Test Result Interface
+ * 
+ * @interface TestResult
+ * @property {string} name - Test name
+ * @property {boolean} passed - Whether test passed
+ * @property {string} [message] - Test message
+ * @property {number} duration - Test duration in milliseconds
+ * @property {string} [error] - Error message if failed
+ */
 interface TestResult {
   name: string;
   passed: boolean;
@@ -55,11 +75,27 @@ interface TestResult {
   error?: string;
 }
 
+/**
+ * Test Suite Interface
+ * 
+ * @interface TestSuite
+ * @property {string} suite - Suite name
+ * @property {TestResult[]} tests - Test results
+ */
 interface TestSuite {
   suite: string;
   tests: TestResult[];
 }
 
+/**
+ * Health Check Interface
+ * 
+ * @interface HealthCheck
+ * @property {boolean} healthy - Whether system is healthy
+ * @property {string} message - Health message
+ * @property {unknown} [details] - Additional details
+ * @property {string} [version] - System version
+ */
 interface HealthCheck {
   healthy: boolean;
   message: string;
@@ -67,6 +103,16 @@ interface HealthCheck {
   version?: string;
 }
 
+/**
+ * Diagnostic Result Interface
+ * 
+ * @interface DiagnosticResult
+ * @property {TestResult[]} tests - Test results
+ * @property {Object} summary - Test summary
+ * @property {number} summary.total - Total tests
+ * @property {number} summary.passed - Passed tests
+ * @property {number} summary.failed - Failed tests
+ */
 interface DiagnosticResult {
   tests: TestResult[];
   summary: {
@@ -76,6 +122,13 @@ interface DiagnosticResult {
   };
 }
 
+/**
+ * Test Access Page Component
+ * 
+ * Provides testing utilities and health checks for system diagnostics.
+ * 
+ * @returns {JSX.Element} Test access page
+ */
 export default function TestAccessPage() {
   const { krapi, user: _user, hasScope } = useReduxAuth();
 

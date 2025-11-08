@@ -1,3 +1,16 @@
+/**
+ * KRAPI Hook
+ * 
+ * Enhanced hook for using KRAPI SDK with automatic authentication error handling.
+ * Wraps the SDK and automatically handles authentication errors by redirecting to login.
+ * 
+ * @module lib/hooks/useKrapi
+ * @example
+ * const krapi = useKrapi();
+ * if (krapi) {
+ *   const projects = await krapi.withAuthErrorHandling(() => krapi.projects.list());
+ * }
+ */
 "use client";
 
 import { useCallback, useMemo } from "react";
@@ -5,14 +18,32 @@ import { useCallback, useMemo } from "react";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 /**
- * Enhanced hook for using KRAPI SDK with automatic authentication error handling
- * This hook wraps the SDK and automatically handles authentication errors by
- * redirecting to the login page when tokens expire or become invalid
+ * Use Krapi Hook
+ * 
+ * Enhanced hook for using KRAPI SDK with automatic authentication error handling.
+ * 
+ * @returns {Object | null} KRAPI SDK instance with withAuthErrorHandling helper, or null if not initialized
+ * @returns {Function} returns.withAuthErrorHandling - Helper function to wrap API calls with auth error handling
+ * 
+ * @example
+ * const krapi = useKrapi();
+ * if (krapi) {
+ *   const projects = await krapi.withAuthErrorHandling(() => krapi.projects.list());
+ * }
  */
 export function useKrapi() {
   const { krapi, handleAuthError } = useReduxAuth();
 
-  // Wrapper function that handles auth errors automatically
+  /**
+   * Wrapper function that handles auth errors automatically
+   * 
+   * Wraps API calls and automatically redirects to login on authentication errors.
+   * 
+   * @template T
+   * @param {Function} apiCall - API call function
+   * @returns {Promise<T>} API call result
+   * @throws {Error} If KRAPI client not initialized
+   */
   const withAuthErrorHandling = useCallback(
     async <T>(apiCall: () => Promise<T>): Promise<T> => {
       if (!krapi) {
