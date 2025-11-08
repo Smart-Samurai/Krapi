@@ -161,7 +161,7 @@ export default function DocumentsPage() {
   }, [loadCollections]);
 
   useEffect(() => {
-    if (collections.length > 0 && !selectedCollection) {
+    if (collections.length > 0 && !selectedCollection && collections[0]) {
       setSelectedCollection(collections[0].id);
     }
   }, [collections, selectedCollection]);

@@ -81,7 +81,7 @@ export async function PUT(
 
     const result = await response.json();
     return NextResponse.json(result);
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,

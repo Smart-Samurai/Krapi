@@ -50,6 +50,8 @@
     "type-check:frontend": "cd frontend-manager && npm run type-check",
     "type-check:backend": "cd backend-server && npm run type-check",
     "type-check:sdk": "cd packages/krapi-sdk && npm run type-check",
+    "check": "npm run lint:all && npm run type-check:all",
+    "check:all": "npm run lint:all && npm run type-check:all",
     "health": "npm run install:all && npm run lint:all && npm run type-check:all && npm run build:all",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",

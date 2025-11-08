@@ -40,7 +40,7 @@ export async function GET(_request: NextRequest): Promise<Response> {
     };
 
     return NextResponse.json(frontendHealth);
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         status: "unhealthy",

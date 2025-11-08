@@ -378,9 +378,9 @@ export class ProjectController {
             sdkError
           );
           console.error("🔍 [PROJECT DEBUG] Error details:", {
-            message: sdkError.message,
-            stack: sdkError.stack,
-            name: sdkError.name,
+            message: sdkError instanceof Error ? sdkError.message : String(sdkError),
+            stack: sdkError instanceof Error ? sdkError.stack : undefined,
+            name: sdkError instanceof Error ? sdkError.name : "Unknown",
           });
           // Fall back to database method if SDK fails
           const project = await this.db.createProject({
@@ -516,7 +516,7 @@ export class ProjectController {
         } catch (sdkError) {
           console.error("❌ [PROJECT DEBUG] SDK updateProject error:", sdkError);
           // Fall back to database method if SDK fails
-          const project = await this.db.updateProject(projectId, updates);
+          const project = await this.db.updateProject(sanitizedId, updates);
 
           if (project) {
             res.status(200).json({
@@ -532,7 +532,7 @@ export class ProjectController {
         }
       } else {
         // Fall back to database method if SDK not available
-        const project = await this.db.updateProject(projectId, updates);
+        const project = await this.db.updateProject(sanitizedId, updates);
 
         if (project) {
           res.status(200).json({
@@ -631,7 +631,7 @@ export class ProjectController {
         } catch (sdkError) {
           console.error("SDK deleteProject error:", sdkError);
           // Fall back to database method if SDK fails
-          const success = await this.db.deleteProject(projectId);
+          const success = await this.db.deleteProject(sanitizedId);
 
           if (success) {
             res.status(200).json({
@@ -647,7 +647,7 @@ export class ProjectController {
         }
       } else {
         // Fall back to database method if SDK not available
-        const success = await this.db.deleteProject(projectId);
+        const success = await this.db.deleteProject(sanitizedId);
 
         if (success) {
           res.status(200).json({
@@ -736,13 +736,13 @@ export class ProjectController {
           if (stats) {
             // Transform stats to match test expectations
             const transformedStats = {
+              ...stats, // Include any additional stats first
               totalCollections: stats.totalCollections || 0,
               totalDocuments: stats.totalDocuments || 0,
               totalUsers: 0, // Not available in SDK stats, default to 0
               storageUsed: stats.storageUsed || 0,
               apiCalls: stats.apiCallsToday || 0,
               lastActivity: stats.lastActivity || null,
-              ...stats, // Include any additional stats
             };
 
             res.status(200).json({
@@ -761,14 +761,15 @@ export class ProjectController {
           const stats = await this.db.getProjectStats(sanitizedId);
 
           if (stats) {
+            const { totalCollections, totalDocuments, totalUsers, storageUsed, ...restStats } = stats;
             const transformedStats = {
-              totalCollections: stats.totalCollections || 0,
-              totalDocuments: stats.totalDocuments || 0,
-              totalUsers: stats.totalUsers || 0,
-              storageUsed: stats.storageUsed || 0,
+              totalCollections: totalCollections || 0,
+              totalDocuments: totalDocuments || 0,
+              totalUsers: totalUsers || 0,
+              storageUsed: storageUsed || 0,
               apiCalls: stats.apiCallsCount || 0,
               lastActivity: stats.lastApiCall || null,
-              ...stats, // Include any additional stats
+              ...restStats, // Include any additional stats
             };
 
             res.status(200).json({
@@ -787,14 +788,15 @@ export class ProjectController {
         const stats = await this.db.getProjectStats(sanitizedId);
 
         if (stats) {
+          const { totalCollections, totalDocuments, totalUsers, storageUsed, ...restStats } = stats;
           const transformedStats = {
-            totalCollections: stats.totalCollections || 0,
-            totalDocuments: stats.totalDocuments || 0,
-            totalUsers: stats.totalUsers || 0,
-            storageUsed: stats.storageUsed || 0,
+            totalCollections: totalCollections || 0,
+            totalDocuments: totalDocuments || 0,
+            totalUsers: totalUsers || 0,
+            storageUsed: storageUsed || 0,
             apiCalls: stats.apiCallsCount || 0,
             lastActivity: stats.lastApiCall || null,
-            ...stats, // Include any additional stats
+            ...restStats, // Include any additional stats
           };
 
           res.status(200).json({
@@ -877,7 +879,7 @@ export class ProjectController {
             sanitizedId,
             {
               limit: parseInt(limit as string) || 100,
-              days: days ? parseInt(days as string) : undefined,
+              ...(days ? { days: parseInt(days as string) } : {}),
             }
           );
 
@@ -1594,6 +1596,13 @@ export class ProjectController {
   deleteProjectApiKey = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, keyId } = req.params;
+      if (!keyId) {
+        res.status(400).json({
+          success: false,
+          error: "Key ID is required",
+        } as ApiResponse);
+        return;
+      }
 
       // Use validation utilities
       const sanitizedId = sanitizeProjectId(projectId);
@@ -1620,7 +1629,7 @@ export class ProjectController {
       if (this.backendSDK) {
         try {
           const success = await this.backendSDK.projects.deleteProjectApiKey(
-            keyId
+            keyId!
           );
 
           if (success) {
@@ -1637,7 +1646,7 @@ export class ProjectController {
         } catch (sdkError) {
           console.error("SDK deleteProjectApiKey error:", sdkError);
           // Fall back to database method if SDK fails
-          const result = await this.db.deleteProjectApiKey(keyId);
+          const result = await this.db.deleteProjectApiKey(keyId!);
 
           if (result) {
             res.status(200).json({

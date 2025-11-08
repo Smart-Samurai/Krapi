@@ -65,7 +65,7 @@ export async function GET(
     const stats = await response.json();
     // Extract the data from the backend response and return it directly
     return NextResponse.json(stats.data);
-  } catch {
+  } catch (error) {
     
     return NextResponse.json(
       {

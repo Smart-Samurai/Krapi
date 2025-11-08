@@ -67,7 +67,7 @@ export function isValidProjectId(id: string): boolean {
  * sanitizeProjectId('  project-id  '); // 'project-id'
  * sanitizeProjectId(''); // null
  */
-export function sanitizeProjectId(id: string): string | null {
+export function sanitizeProjectId(id: string | undefined): string | null {
   if (!id || typeof id !== "string") {
     return null;
   }

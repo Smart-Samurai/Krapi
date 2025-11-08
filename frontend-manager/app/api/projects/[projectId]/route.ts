@@ -88,7 +88,7 @@ export async function GET(
       success: true,
       project: project.data,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,
@@ -139,7 +139,7 @@ export async function PUT(
       success: true,
       project,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,
@@ -188,7 +188,7 @@ export async function DELETE(
       success: true,
       message: "Project deleted successfully",
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,

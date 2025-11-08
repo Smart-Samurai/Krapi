@@ -56,9 +56,9 @@ router.get(
       }
 
       const users = await backendSDK.admin.getUsers();
-      res.json({ success: true, data: users });
+      return res.json({ success: true, data: users });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to get admin users",
@@ -81,6 +81,11 @@ router.get(
       }
 
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const user = await backendSDK.admin.getUserById(userId);
 
       if (!user) {
@@ -89,7 +94,7 @@ router.get(
           .json({ success: false, error: "Admin user not found" });
       }
 
-      res.json({ success: true, data: user });
+      return res.json({ success: true, data: user });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -115,7 +120,7 @@ router.post(
 
       const userData = req.body;
       const user = await backendSDK.admin.createUser(userData);
-      res.status(201).json({ success: true, data: user });
+      return res.status(201).json({ success: true, data: user });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -142,6 +147,11 @@ router.put(
       }
 
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const updates = req.body;
       const user = await backendSDK.admin.updateUser(userId, updates);
 
@@ -151,7 +161,7 @@ router.put(
           .json({ success: false, error: "Admin user not found" });
       }
 
-      res.json({ success: true, data: user });
+      return res.json({ success: true, data: user });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -178,6 +188,11 @@ router.delete(
       }
 
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const success = await backendSDK.admin.deleteUser(userId);
 
       if (!success) {
@@ -186,7 +201,7 @@ router.delete(
           .json({ success: false, error: "Admin user not found" });
       }
 
-      res.json({ success: true, message: "Admin user deleted successfully" });
+      return res.json({ success: true, message: "Admin user deleted successfully" });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -214,8 +229,13 @@ router.get(
       }
 
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const apiKeys = await backendSDK.admin.getUserApiKeys(userId);
-      res.json({ success: true, data: apiKeys });
+      return res.json({ success: true, data: apiKeys });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -242,12 +262,17 @@ router.post(
       }
 
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const apiKeyData = req.body;
       const apiKey = await backendSDK.admin.createUserApiKey(
         userId,
         apiKeyData
       );
-      res.status(201).json({ success: true, data: apiKey });
+      return res.status(201).json({ success: true, data: apiKey });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -346,6 +371,11 @@ router.delete(
       }
 
       const { keyId } = req.params;
+      if (!keyId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "API key ID is required" });
+      }
       const success = await backendSDK.admin.deleteApiKey(keyId);
 
       if (!success) {
@@ -354,7 +384,7 @@ router.delete(
           .json({ success: false, error: "API key not found" });
       }
 
-      res.json({ success: true, message: "API key deleted successfully" });
+      return res.json({ success: true, message: "API key deleted successfully" });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -380,7 +410,7 @@ router.get(
       }
 
       const stats = await backendSDK.admin.getSystemStats();
-      res.json({ success: true, data: stats });
+      return res.json({ success: true, data: stats });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -406,7 +436,7 @@ router.get(
       }
 
       const health = await backendSDK.performHealthCheck();
-      res.json({ success: true, data: health });
+      return res.json({ success: true, data: health });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -434,7 +464,7 @@ router.post(
       }
 
       const repairResult = await backendSDK.autoFixDatabase();
-      res.json({
+      return res.json({
         success: repairResult.success,
         message:
           "message" in repairResult
@@ -467,7 +497,7 @@ router.post(
       }
 
       const diagnostics = await backendSDK.health.runDiagnostics();
-      res.json({ success: true, data: diagnostics });
+      return res.json({ success: true, data: diagnostics });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -487,16 +517,21 @@ router.put(
   async (req, res) => {
     try {
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const db = DatabaseService.getInstance();
 
       const success = await db.enableAdminAccount(userId);
       if (success) {
-        res.json({
+        return res.json({
           success: true,
           message: "Admin account enabled successfully",
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Admin account not found",
         });
@@ -521,16 +556,21 @@ router.put(
   async (req, res) => {
     try {
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const db = DatabaseService.getInstance();
 
       const success = await db.disableAdminAccount(userId);
       if (success) {
-        res.json({
+        return res.json({
           success: true,
           message: "Admin account disabled successfully",
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Admin account not found",
         });
@@ -555,16 +595,21 @@ router.get(
   async (req, res) => {
     try {
       const { userId } = req.params;
+      if (!userId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "User ID is required" });
+      }
       const db = DatabaseService.getInstance();
 
       const status = await db.getAdminAccountStatus(userId);
       if (status) {
-        res.json({
+        return res.json({
           success: true,
           data: status,
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Admin account not found",
         });
@@ -601,7 +646,7 @@ router.get(
         offset: parseInt(offset as string),
       });
 
-      res.json({ success: true, data: logs });
+      return res.json({ success: true, data: logs });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -631,7 +676,7 @@ router.post(
       const activityData = req.body;
       const loggedActivity = await backendSDK.activity.log(activityData);
 
-      res.json({ success: true, data: loggedActivity });
+      return res.json({ success: true, data: loggedActivity });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -659,7 +704,7 @@ router.get(
       const queryOptions = req.query;
       const result = await backendSDK.activity.query(queryOptions);
 
-      res.json({ success: true, data: result });
+      return res.json({ success: true, data: result });
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -692,7 +737,7 @@ router.get(
         days ? parseInt(days as string) : 30
       );
 
-      res.json({ success: true, ...stats });
+      return res.json({ success: true, ...stats });
     } catch (error) {
       res.status(500).json({
         success: false,

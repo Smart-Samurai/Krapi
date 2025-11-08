@@ -150,6 +150,13 @@ export class AuthController {
       const authService = AuthService.getInstance();
 
       // Authenticate project user
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        } as ApiResponse);
+        return;
+      }
       const projectUser = await dbService.authenticateProjectUser(
         projectId,
         username,
@@ -166,12 +173,12 @@ export class AuthController {
 
       // Create project session with scopes
       const session = await authService.createProjectSessionWithScopes(
-        projectId,
+        projectId!,
         projectUser.permissions?.map((permission) => permission as Scope) || [] // Convert string to Scope enum
       );
 
       // Update login info
-      await dbService.updateProjectUser(projectId, projectUser.id, {
+      await dbService.updateProjectUser(projectId!, projectUser.id, {
         last_login: new Date().toISOString(),
       });
 
@@ -345,7 +352,7 @@ export class AuthController {
         sessionResult.session.type === SessionType.ADMIN &&
         sessionResult.session.user_id
       ) {
-        user = await dbService.getAdminUserById(sessionResult.session.user_id);
+        user = await dbService.getAdminUserById(sessionResult.session.user_id) || undefined;
         if (user) {
           scopes = authService
             .getScopesForRole(user.role as AdminRole)
@@ -359,7 +366,7 @@ export class AuthController {
         // For project sessions, we need to get the project user
         user = await dbService.getProjectUserById(
           sessionResult.session.user_id
-        );
+        ) || undefined;
         if (user) {
           scopes = sessionResult.session.scopes.map((s) => s.toString());
         }
@@ -836,7 +843,8 @@ export class AuthController {
     }
   };
 
-  private mapAdminPermissionsToScopes(permissions: string[]): string[] {
+   
+  private _mapAdminPermissionsToScopes(_permissions: string[]): string[] {
     const permissionToScopeMap: Record<string, string> = {
       "users.create": "ADMIN_WRITE",
       "users.read": "ADMIN_READ",
@@ -857,8 +865,8 @@ export class AuthController {
       "settings.update": "ADMIN_WRITE",
     };
 
-    return permissions.map(
-      (permission) => permissionToScopeMap[permission] || "ADMIN_READ"
+    return _permissions.map(
+      (permission: string) => permissionToScopeMap[permission] || "ADMIN_READ"
     );
   }
 }

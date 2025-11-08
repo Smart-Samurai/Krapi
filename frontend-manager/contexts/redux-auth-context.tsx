@@ -126,32 +126,6 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [sessionToken, apiKey, sdkInitialized]);
 
-  // Global error handler for unhandled promise rejections (catches SDK errors)
-  useEffect(() => {
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      const error = event.reason;
-      if (error && (
-        error.isAuthError === true ||
-        error.status === 401 ||
-        error.response?.status === 401 ||
-        (typeof error.message === 'string' && (
-          error.message.includes('expired') ||
-          error.message.includes('Invalid') ||
-          error.message.includes('Unauthorized') ||
-          error.message.includes('log in again')
-        ))
-      )) {
-        event.preventDefault(); // Prevent default error logging
-        handleAuthError(error);
-      }
-    };
-
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    return () => {
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-    };
-  }, [handleAuthError]);
-
   // Handle auth errors and redirect
   const handleAuthError = useCallback(
     (error: any) => {
@@ -187,6 +161,32 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     },
     [dispatch, router]
   );
+
+  // Global error handler for unhandled promise rejections (catches SDK errors)
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      if (error && (
+        error.isAuthError === true ||
+        error.status === 401 ||
+        error.response?.status === 401 ||
+        (typeof error.message === 'string' && (
+          error.message.includes('expired') ||
+          error.message.includes('Invalid') ||
+          error.message.includes('Unauthorized') ||
+          error.message.includes('log in again')
+        ))
+      )) {
+        event.preventDefault(); // Prevent default error logging
+        handleAuthError(error);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [handleAuthError]);
 
   // Login function
   const login = useCallback(

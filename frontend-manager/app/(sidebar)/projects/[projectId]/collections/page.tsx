@@ -35,7 +35,7 @@ import {
   Link as LinkIcon,
   ArrowRight,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -44,8 +44,6 @@ import {
   PageHeader,
   ActionButton,
   EmptyState,
-  LoadingState,
-  FormDialog,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -141,215 +139,6 @@ const fieldTypeIcons: Partial<
  * 
  * @constant {Record<FieldType, string>}
  */
-/**
- * Collections Page Component
- * 
- * Manages collections for a project with full CRUD operations.
- * 
- * @returns {JSX.Element} Collections management page
- */
-export default function CollectionsPage() {
-  const params = useParams();
-  if (!params || !params.projectId) {
-    throw new Error("Project ID is required");
-  }
-  const projectId = params.projectId as string;
-  const krapi = useKrapi();
-  const dispatch = useAppDispatch();
-  const collectionsBucket = useAppSelector(
-    (s) => s.collections.byProjectId[projectId]
-  );
-  const collections = useMemo(
-    () => collectionsBucket?.items || [],
-    [collectionsBucket?.items]
-  );
-  const isLoading = collectionsBucket?.loading || false;
-
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const loadCollections = useCallback(() => {
-    dispatch(fetchCollections({ projectId, krapi }));
-  }, [dispatch, projectId, krapi]);
-
-  useEffect(() => {
-    loadCollections();
-  }, [loadCollections]);
-
-
-  const handleDelete = async (collectionName: string) => {
-    if (!krapi) return;
-
-    if (!confirm(`Are you sure you want to delete collection "${collectionName}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      dispatch(beginBusy());
-      await dispatch(deleteCollection({ projectId, collectionName, krapi })).unwrap();
-      toast.success("Collection deleted successfully");
-      loadCollections();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete collection");
-    } finally {
-      setIsDeleting(false);
-      dispatch(endBusy());
-    }
-  };
-
-  return (
-    <PageLayout>
-      <PageHeader
-        title="Collections"
-        description="Manage your project collections and schemas"
-        action={
-          <ActionButton variant="add" icon={Plus} onClick={() => setIsCreateDialogOpen(true)}>
-            Create Collection
-          </ActionButton>
-        }
-      />
-
-      {isLoading ? (
-        <LoadingState count={3} />
-      ) : collections.length === 0 ? (
-        <EmptyState
-          icon={Database}
-          title="No collections"
-          description="Create your first collection to start managing data"
-          action={{
-            label: "Create Collection",
-            onClick: () => setIsCreateDialogOpen(true),
-            icon: Plus,
-          }}
-        />
-      ) : (
-        <div className="space-y-4">
-          {collections.map((collection) => (
-            <Card key={collection.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{collection.name}</CardTitle>
-                    {collection.description && (
-                      <CardDescription>{collection.description}</CardDescription>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ActionButton
-                      variant="edit"
-                      icon={Edit}
-                      onClick={() => {
-                        setSelectedCollection(collection);
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      Edit
-                    </ActionButton>
-                    <ActionButton
-                      variant="delete"
-                      icon={Trash2}
-                      onClick={() => handleDelete(collection.name)}
-                      disabled={isDeleting}
-                    >
-                      Delete
-                    </ActionButton>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Fields:</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {collection.fields?.map((field) => {
-                      const Icon = fieldTypeIcons[field.type] || Type;
-                      return (
-                        <div key={field.name} className="flex items-center gap-2 p-2 border rounded">
-                          <Icon className="h-4 w-4" />
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">{field.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {fieldTypeLabels[field.type]}
-                              {field.required && " • Required"}
-                              {field.unique && " • Unique"}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Create Dialog */}
-      <FormDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        title="Create Collection"
-        description="Create a new collection with custom fields"
-        submitLabel="Create"
-        onSubmit={async (data: { name: string; description?: string; fields: CollectionField[] }) => {
-          if (!krapi) return;
-
-          setIsCreating(true);
-          try {
-            dispatch(beginBusy());
-            await dispatch(createCollection({ projectId, collection: data, krapi })).unwrap();
-            toast.success("Collection created successfully");
-            setIsCreateDialogOpen(false);
-            loadCollections();
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to create collection");
-          } finally {
-            setIsCreating(false);
-            dispatch(endBusy());
-          }
-        }}
-        isSubmitting={isCreating}
-      >
-        {/* Form content would go here */}
-      </FormDialog>
-
-      {/* Edit Dialog */}
-      <FormDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        title="Edit Collection"
-        description="Update collection fields and settings"
-        submitLabel="Update"
-        onSubmit={async (data: { description?: string; fields?: CollectionField[] }) => {
-          if (!krapi || !selectedCollection) return;
-
-          setIsUpdating(true);
-          try {
-            dispatch(beginBusy());
-            await dispatch(updateCollection({ projectId, collectionName: selectedCollection.name, updates: data, krapi })).unwrap();
-            toast.success("Collection updated successfully");
-            setIsEditDialogOpen(false);
-            setSelectedCollection(null);
-            loadCollections();
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to update collection");
-          } finally {
-            setIsUpdating(false);
-            dispatch(endBusy());
-          }
-        }}
-        isSubmitting={isUpdating}
-      >
-        {/* Form content would go here */}
-      </FormDialog>
-    </PageLayout>
-  );
-}
 
 /**
  * Field Type Labels Mapping
@@ -570,9 +359,10 @@ export default function CollectionsPage() {
           "Failed to delete collection";
         setError(String(msg));
       }
-    } catch {
+    } catch (error) {
       // Error logged for debugging
-      setError("Failed to delete collection");
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete collection";
+      setError(errorMessage);
     } finally {
       dispatch(endBusy());
     }
@@ -1100,7 +890,7 @@ response = requests.delete(
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {collection.fields?.map((field: CollectionField, _index: number) => {
+                    {collection.fields?.map((field: CollectionField) => {
                       const Icon = fieldTypeIcons[field.type] || Type;
                       return (
                         <TableRow

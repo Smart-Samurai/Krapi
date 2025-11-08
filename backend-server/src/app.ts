@@ -270,7 +270,7 @@ const backendSDK = new BackendSDK({
 });
 
 // Health check endpoint (no auth required)
-app.get("/health", async (req: Request, res: Response) => {
+app.get("/health", async (_req: Request, res: Response) => {
   try {
     const sdkHealth = await backendSDK.performHealthCheck();
 
@@ -296,7 +296,7 @@ app.get("/health", async (req: Request, res: Response) => {
 initializeBackendSDK(backendSDK);
 
 // System status and logging routes
-app.get("/system/status", (req, res) => {
+app.get("/system/status", (_req, res) => {
   try {
     const status = {
       timestamp: new Date().toISOString(),
@@ -324,7 +324,7 @@ app.get("/system/status", (req, res) => {
     });
   } catch (error) {
     logger.error("system", "Failed to get system status", {
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     });
     res.status(500).json({
       success: false,
@@ -352,7 +352,7 @@ app.get("/system/logs", (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("system", "Failed to get logs", { error: error.message });
+    logger.error("system", "Failed to get logs", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: "Failed to get logs",
@@ -360,7 +360,7 @@ app.get("/system/logs", (req, res) => {
   }
 });
 
-app.get("/system/metrics", (req, res) => {
+app.get("/system/metrics", (_req, res) => {
   try {
     const metrics = logger.getMetrics();
 
@@ -372,7 +372,7 @@ app.get("/system/metrics", (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("system", "Failed to get metrics", { error: error.message });
+    logger.error("system", "Failed to get metrics", { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({
       success: false,
       error: "Failed to get metrics",
@@ -426,7 +426,7 @@ app.use(
 app.use(
   (
     err: Error,
-    req: express.Request,
+    _req: express.Request,
     res: express.Response,
     _next: express.NextFunction
   ) => {

@@ -53,7 +53,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       expires_at: session.data.expires_at,
       scopes: session.data.user.scopes,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,

@@ -377,6 +377,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {systemStatus?.monitor.recentMetrics &&
                   systemStatus.monitor.recentMetrics.length > 0 &&
+                  systemStatus.monitor.recentMetrics[0] &&
                   Object.entries(systemStatus.monitor.recentMetrics[0]).map(
                     ([key, value]: [string, unknown]) => (
                       <div key={key} className="p-4 border rounded">

@@ -484,7 +484,10 @@ export default function FilesPage() {
                 const files = e.target.files;
                 if (files && files.length > 0) {
                   for (let i = 0; i < files.length; i++) {
-                    handleUpload(files[i]);
+                    const file = files[i];
+                    if (file) {
+                      handleUpload(file);
+                    }
                   }
                 }
               }}

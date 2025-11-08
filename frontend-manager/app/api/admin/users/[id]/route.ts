@@ -26,7 +26,7 @@ export async function GET(
     } else {
       return NextResponse.json(result, { status: 404 });
     }
-  } catch {
+  } catch (error) {
     // Error logged for debugging
     return NextResponse.json(
       {
@@ -63,7 +63,7 @@ export async function PUT(
     } else {
       return NextResponse.json(result, { status: 400 });
     }
-  } catch {
+  } catch (error) {
     // Error logged for debugging
     return NextResponse.json(
       {
@@ -98,7 +98,7 @@ export async function DELETE(
     } else {
       return NextResponse.json(response, { status: 400 });
     }
-  } catch {
+  } catch (error) {
     // Error logged for debugging
     return NextResponse.json(
       {

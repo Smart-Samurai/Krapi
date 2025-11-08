@@ -62,7 +62,7 @@ export class SQLiteAdapter {
     let match;
     
     while ((match = pgParamRegex.exec(sql)) !== null) {
-      const paramIndex = parseInt(match[1], 10);
+      const paramIndex = parseInt(match[1] || "0", 10);
       if (!matches.includes(paramIndex)) {
         matches.push(paramIndex);
       }

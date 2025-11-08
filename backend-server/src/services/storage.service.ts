@@ -249,9 +249,9 @@ export class StorageService {
     const total_size = files.reduce((sum, file) => sum + file.size, 0);
     const file_count = files.length;
 
-    // Mock storage limit and usage percentage for now
-    const storage_limit = 1024 * 1024 * 1024; // 1GB
-    const _usage_percentage = (total_size / storage_limit) * 100;
+    // Storage limit and usage percentage calculation (unused for now)
+    // const storage_limit = 1024 * 1024 * 1024; // 1GB
+    // const usage_percentage = (total_size / storage_limit) * 100;
 
     // Get collections count from database
     let collections_count = 0;

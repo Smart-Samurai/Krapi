@@ -93,7 +93,7 @@ export class SDKUsersService {
       email: userData.email,
       password: userData.password,
       role: userData.role as string,
-      metadata: userData.metadata,
+      ...(userData.metadata && { metadata: userData.metadata }),
     });
   }
 

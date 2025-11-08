@@ -50,6 +50,13 @@ export class UsersController {
   getUsers = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { page = 1, limit = 50, search } = req.query;
 
       // Use the database service directly
@@ -100,6 +107,13 @@ export class UsersController {
   getUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, userId } = req.params;
+      if (!projectId || !userId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and user ID are required",
+        });
+        return;
+      }
 
       // Use the database service directly
       const user = await this.db.getProjectUser(projectId, userId);
@@ -149,6 +163,13 @@ export class UsersController {
   createUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { username, email, password, phone, scopes } = req.body;
 
       // Validate required fields
@@ -162,7 +183,7 @@ export class UsersController {
 
       // Check if user already exists
       const existingByEmail = await this.db.getProjectUserByEmail(
-        projectId,
+        projectId!,
         email
       );
       if (existingByEmail) {
@@ -174,7 +195,7 @@ export class UsersController {
       }
 
       const existingByUsername = await this.db.getProjectUserByUsername(
-        projectId,
+        projectId!,
         username
       );
       if (existingByUsername) {
@@ -192,7 +213,7 @@ export class UsersController {
         Scope.FUNCTIONS_EXECUTE,
       ];
 
-      const user = await this.db.createProjectUser(projectId, {
+      const user = await this.db.createProjectUser(projectId!, {
         username,
         email,
         password,
@@ -217,6 +238,13 @@ export class UsersController {
   updateUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, userId } = req.params;
+      if (!projectId || !userId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and user ID are required",
+        });
+        return;
+      }
       const updates = req.body;
 
       // Prevent updating certain fields
@@ -228,7 +256,7 @@ export class UsersController {
       // Check if updating email/username to existing values
       if (updates.email) {
         const existing = await this.db.getProjectUserByEmail(
-          projectId,
+          projectId!,
           updates.email
         );
         if (existing && existing.id !== userId) {
@@ -242,7 +270,7 @@ export class UsersController {
 
       if (updates.username) {
         const existing = await this.db.getProjectUserByUsername(
-          projectId,
+          projectId!,
           updates.username
         );
         if (existing && existing.id !== userId) {
@@ -254,7 +282,7 @@ export class UsersController {
         }
       }
 
-      const user = await this.db.updateProjectUser(projectId, userId, updates);
+      const user = await this.db.updateProjectUser(projectId!, userId!, updates);
 
       if (!user) {
         res.status(404).json({
@@ -282,6 +310,13 @@ export class UsersController {
     try {
       const { projectId, userId } = req.params;
 
+      if (!projectId || !userId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and user ID are required",
+        });
+        return;
+      }
       const deleted = await this.db.deleteProjectUser(projectId, userId);
 
       if (!deleted) {
@@ -309,6 +344,13 @@ export class UsersController {
   authenticateUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { username, password } = req.body;
 
       if (!username || !password) {
@@ -338,7 +380,7 @@ export class UsersController {
       const session = await this.db.createSession({
         token: sessionToken,
         user_id: user.id,
-        project_id: projectId,
+        ...(projectId && { project_id: projectId }),
         scopes:
           user.permissions?.map((permission) => permission as Scope) || [],
         type: "project" as SessionType,
@@ -379,7 +421,7 @@ export class UsersController {
         return;
       }
 
-      const user = await this.db.updateProjectUser(projectId, userId, {
+      const user = await this.db.updateProjectUser(projectId!, userId!, {
         permissions: scopes,
       });
 
@@ -408,6 +450,13 @@ export class UsersController {
   verifyEmail = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, userId } = req.params;
+      if (!projectId || !userId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and user ID are required",
+        });
+        return;
+      }
       const { token } = req.body;
 
       if (!token) {
@@ -422,7 +471,7 @@ export class UsersController {
       // In a production system, this would validate the verification token
       // For now, we'll just mark the user as verified
 
-      const user = await this.db.updateProjectUser(projectId, userId, {
+      const user = await this.db.updateProjectUser(projectId!, userId!, {
         metadata: {
           is_verified: true,
           email_verified_at: new Date().toISOString(),
@@ -455,6 +504,13 @@ export class UsersController {
   sendPasswordReset = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { email } = req.body as { email?: string };
 
       if (!email) {

@@ -50,7 +50,7 @@ export class StorageController {
   // Files are now stored in: data/projects/{projectId}/files/
   private getMulterConfig(projectId: string) {
     // Get project-specific files folder: data/projects/{projectId}/files/
-    const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
+    const projectFilesPath = this.dbManager.getProjectFilesPath(projectId!);
 
     // Ensure project files directory exists
     if (!fs.existsSync(projectFilesPath)) {
@@ -58,10 +58,10 @@ export class StorageController {
     }
 
     const storage = multer.diskStorage({
-      destination: (req, file, cb) => {
+      destination: (_req, _file, cb) => {
         cb(null, projectFilesPath);
       },
-      filename: (req, file, cb) => {
+      filename: (_req, file, cb) => {
         const uniqueId = uuidv4();
         const ext = path.extname(file.originalname);
         cb(null, `${uniqueId}${ext}`);
@@ -73,7 +73,7 @@ export class StorageController {
       limits: {
         fileSize: this.maxFileSize,
       },
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         // Basic file type restrictions - can be enhanced with project-specific rules
         const allowedMimeTypes = [
           "image/jpeg",
@@ -123,9 +123,16 @@ export class StorageController {
     try {
       const authReq = req as AuthenticatedRequest;
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
 
       // Verify project exists
-      const project = this.db.getProjectById(projectId);
+      const project = await this.db.getProjectById(projectId);
       if (!project) {
         res.status(404).json({
           success: false,
@@ -182,14 +189,14 @@ export class StorageController {
 
         // Log the action
         await this.db.createChangelogEntry({
-          project_id: projectId,
+          project_id: projectId!,
           entity_type: "file",
           entity_id: fileRecord.id,
           action: "created",
           changes: { filename: req.file.originalname, size: req.file.size },
           performed_by:
             authReq.user?.id || authReq.session?.user_id || "system",
-          session_id: authReq.session?.id,
+          ...(authReq.session?.id && { session_id: authReq.session.id }),
           user_id: authReq.user?.id || authReq.session?.user_id || "system",
           resource_type: "file",
           resource_id: fileRecord.id,
@@ -221,9 +228,16 @@ export class StorageController {
   getFiles = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
 
       // Verify project exists
-      const project = this.db.getProjectById(projectId);
+      const project = await this.db.getProjectById(projectId);
       if (!project) {
         res.status(404).json({
           success: false,
@@ -263,6 +277,13 @@ export class StorageController {
   getFileInfo = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
 
       const file = await this.db.getFile(fileId);
 
@@ -296,6 +317,13 @@ export class StorageController {
   downloadFile = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
 
       const file = await this.db.getFile(fileId);
 
@@ -309,7 +337,7 @@ export class StorageController {
 
       // Construct full file path: data/projects/{projectId}/files/{filename}
       // file.path is stored as relative: files/{filename}
-      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
+      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId!);
       const filePath = path.join(projectFilesPath, file.filename);
 
       if (!fs.existsSync(filePath)) {
@@ -346,6 +374,13 @@ export class StorageController {
     try {
       const authReq = req as AuthenticatedRequest;
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
 
       const file = await this.db.getFile(fileId);
 
@@ -359,7 +394,7 @@ export class StorageController {
 
       // Construct full file path: data/projects/{projectId}/files/{filename}
       // file.path is stored as relative: files/{filename}
-      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
+      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId!);
       const filePath = path.join(projectFilesPath, file.filename);
 
       // Delete file from disk
@@ -368,7 +403,7 @@ export class StorageController {
       }
 
       // Delete file record
-      const deleted = this.db.deleteFile(fileId);
+      const deleted = await this.db.deleteFile(fileId);
 
       if (!deleted) {
         res.status(500).json({
@@ -386,7 +421,7 @@ export class StorageController {
         action: "deleted",
         changes: { filename: file.original_name },
         performed_by: authReq.user?.id || authReq.session?.user_id || "system",
-        session_id: authReq.session?.id,
+        ...(authReq.session?.id && { session_id: authReq.session.id }),
         user_id: authReq.user?.id || authReq.session?.user_id || "system",
         resource_type: "file",
         resource_id: fileId,
@@ -413,6 +448,13 @@ export class StorageController {
   getStorageStats = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -445,6 +487,13 @@ export class StorageController {
   createFolder = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { name, parent_folder_id, metadata } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -466,7 +515,7 @@ export class StorageController {
       }
 
       const folder = await this.db.createFolder({
-        project_id: projectId,
+        project_id: projectId!,
         name,
         parent_folder_id,
         metadata,
@@ -493,6 +542,13 @@ export class StorageController {
   getFolders = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { parent_folder_id, include_files } = req.query;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -505,7 +561,7 @@ export class StorageController {
         return;
       }
 
-      const folders = await this.db.getFolders(projectId, {
+      const folders = await this.db.getFolders(projectId!, {
         parent_folder_id: parent_folder_id as string,
         include_files: include_files === "true",
       });
@@ -529,6 +585,13 @@ export class StorageController {
   deleteFolder = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, folderId } = req.params;
+      if (!projectId || !folderId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and folder ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -540,7 +603,7 @@ export class StorageController {
         return;
       }
 
-      await this.db.deleteFolder(projectId, folderId);
+      await this.db.deleteFolder(projectId!, folderId!);
 
       res.json({
         success: true,
@@ -573,7 +636,7 @@ export class StorageController {
         return;
       }
 
-      const file = await this.db.getFileById(projectId, fileId);
+      const file = await this.db.getFileById(projectId!, fileId!);
       if (!file) {
         res.status(404).json({
           success: false,
@@ -606,6 +669,13 @@ export class StorageController {
   bulkDeleteFiles = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { file_ids } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -626,7 +696,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.bulkDeleteFiles(projectId, file_ids);
+      const result = await this.db.bulkDeleteFiles(projectId!, file_ids);
 
       res.json({
         success: true,
@@ -647,6 +717,13 @@ export class StorageController {
   bulkMoveFiles = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { file_ids, destination_folder_id } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -668,7 +745,7 @@ export class StorageController {
       }
 
       const result = await this.db.bulkMoveFiles(
-        projectId,
+        projectId!,
         file_ids,
         destination_folder_id
       );
@@ -692,6 +769,13 @@ export class StorageController {
   bulkUpdateMetadata = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const { file_ids, metadata } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -713,7 +797,7 @@ export class StorageController {
       }
 
       const result = await this.db.bulkUpdateFileMetadata(
-        projectId,
+        projectId!,
         file_ids,
         metadata
       );
@@ -737,6 +821,13 @@ export class StorageController {
   copyFile = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { destination_folder_id, new_name } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -749,7 +840,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.copyFile(projectId, fileId, {
+      const result = await this.db.copyFile(projectId!, fileId!, {
         destination_folder_id,
         new_name,
       });
@@ -773,6 +864,13 @@ export class StorageController {
   moveFile = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { destination_folder_id, new_name } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -785,7 +883,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.moveFile(projectId, fileId, {
+      const result = await this.db.moveFile(projectId!, fileId!, {
         destination_folder_id,
         new_name,
       });
@@ -809,6 +907,13 @@ export class StorageController {
   renameFile = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { new_name } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -829,7 +934,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.renameFile(projectId, fileId, new_name);
+      const result = await this.db.renameFile(projectId!, fileId!, new_name);
 
       res.json({
         success: true,
@@ -850,6 +955,13 @@ export class StorageController {
   updateFileMetadata = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { metadata } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -863,8 +975,8 @@ export class StorageController {
       }
 
       const result = await this.db.updateFileMetadata(
-        projectId,
-        fileId,
+        projectId!,
+        fileId!,
         metadata
       );
 
@@ -887,6 +999,13 @@ export class StorageController {
   addFileTags = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { tags } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -907,7 +1026,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.addFileTags(projectId, fileId, tags);
+      const result = await this.db.addFileTags(projectId!, fileId!, tags);
 
       res.json({
         success: true,
@@ -928,6 +1047,13 @@ export class StorageController {
   removeFileTags = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { tags } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -948,7 +1074,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.removeFileTags(projectId, fileId, tags);
+      const result = await this.db.removeFileTags(projectId!, fileId!, tags);
 
       res.json({
         success: true,
@@ -969,6 +1095,13 @@ export class StorageController {
   getFilePermissions = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -980,7 +1113,7 @@ export class StorageController {
         return;
       }
 
-      const permissions = await this.db.getFilePermissions(projectId, fileId);
+      const permissions = await this.db.getFilePermissions(projectId!, fileId!);
 
       res.json({
         success: true,
@@ -1001,6 +1134,13 @@ export class StorageController {
   grantFilePermission = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const { user_id, permission } = req.body;
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
@@ -1014,8 +1154,8 @@ export class StorageController {
       }
 
       const result = await this.db.grantFilePermission(
-        projectId,
-        fileId,
+        projectId!,
+        fileId!,
         user_id,
         permission
       );
@@ -1039,6 +1179,13 @@ export class StorageController {
   revokeFilePermission = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId, userId } = req.params;
+      if (!projectId || !fileId || !userId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID, file ID, and user ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -1050,7 +1197,7 @@ export class StorageController {
         return;
       }
 
-      await this.db.revokeFilePermission(projectId, fileId, userId);
+      await this.db.revokeFilePermission(projectId!, fileId!, userId!);
 
       res.json({
         success: true,
@@ -1071,6 +1218,13 @@ export class StorageController {
   getFileVersions = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -1082,7 +1236,7 @@ export class StorageController {
         return;
       }
 
-      const versions = await this.db.getFileVersions(projectId, fileId);
+      const versions = await this.db.getFileVersions(projectId!, fileId!);
 
       res.json({
         success: true,
@@ -1103,6 +1257,13 @@ export class StorageController {
   uploadFileVersion = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -1123,8 +1284,8 @@ export class StorageController {
       }
 
       const version = await this.db.uploadFileVersion(
-        projectId,
-        fileId,
+        projectId!,
+        fileId!,
         req.file,
         currentUser.id
       );
@@ -1148,6 +1309,13 @@ export class StorageController {
   restoreFileVersion = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId, versionId } = req.params;
+      if (!projectId || !fileId || !versionId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID, file ID, and version ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -1184,6 +1352,13 @@ export class StorageController {
   makeFilePublic = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -1195,7 +1370,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.makeFilePublic(projectId, fileId);
+      const result = await this.db.makeFilePublic(projectId!, fileId!);
 
       res.json({
         success: true,
@@ -1216,6 +1391,13 @@ export class StorageController {
   makeFilePrivate = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, fileId } = req.params;
+      if (!projectId || !fileId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and file ID are required",
+        });
+        return;
+      }
       const authReq = req as AuthenticatedRequest;
       const currentUser = authReq.user;
 
@@ -1227,7 +1409,7 @@ export class StorageController {
         return;
       }
 
-      const result = await this.db.makeFilePrivate(projectId, fileId);
+      const result = await this.db.makeFilePrivate(projectId!, fileId!);
 
       res.json({
         success: true,

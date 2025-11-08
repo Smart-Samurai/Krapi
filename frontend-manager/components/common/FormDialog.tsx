@@ -55,7 +55,7 @@ interface FormDialogProps {
   children: ReactNode;
   submitLabel: string;
   cancelLabel?: string;
-  onSubmit: () => void;
+  onSubmit: (e?: React.FormEvent<HTMLFormElement>) => void;
   onCancel?: () => void;
   isSubmitting?: boolean;
   submitClassName?: string;
@@ -125,7 +125,7 @@ export function FormDialog({
             <DialogDescription>{description}</DialogDescription>
           )}
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit(e); }} className="space-y-4">
           {children}
           <DialogFooter>
             <Button

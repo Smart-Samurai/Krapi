@@ -49,7 +49,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const apiKeyData = await response.json();
     return NextResponse.json(apiKeyData);
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,

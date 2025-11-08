@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     } else {
       return NextResponse.json(refreshResult);
     }
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,

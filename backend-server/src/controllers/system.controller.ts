@@ -48,7 +48,7 @@ export class SystemController {
    * // Request: GET /krapi/k1/system/settings
    * // Response: { success: true, data: {...} }
    */
-  getSettings = async (req: Request, res: Response): Promise<void> => {
+  getSettings = async (_req: Request, res: Response): Promise<void> => {
     try {
       // Get system settings from database or return defaults
       const settings: SystemSettings = {
@@ -386,7 +386,7 @@ export class SystemController {
    * Get system information
    * GET /krapi/k1/system/info
    */
-  getSystemInfo = async (req: Request, res: Response): Promise<void> => {
+  getSystemInfo = async (_req: Request, res: Response): Promise<void> => {
     try {
       const systemInfo = {
         version: "2.0.0",
@@ -415,7 +415,7 @@ export class SystemController {
    * Get database health status
    * GET /krapi/k1/system/database-health
    */
-  getDatabaseHealth = async (req: Request, res: Response): Promise<void> => {
+  getDatabaseHealth = async (_req: Request, res: Response): Promise<void> => {
     try {
       // Check database connection
       const health = await this.db.checkHealth();

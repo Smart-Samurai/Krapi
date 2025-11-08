@@ -129,7 +129,7 @@ export class SDKServiceManager {
             "❌ Both direct table creation and SDK auto-fix failed"
           );
           throw new Error(
-            `Database initialization failed: Direct error: ${directError.message}, SDK error: ${sdkError.message}`
+            `Database initialization failed: Direct error: ${directError instanceof Error ? directError.message : String(directError)}, SDK error: ${sdkError instanceof Error ? sdkError.message : String(sdkError)}`
           );
         }
       }
@@ -175,13 +175,13 @@ export class SDKServiceManager {
       const emailHealth = await this.checkEmailHealth();
 
       return {
-        database: healthCheck.isHealthy,
-        storage: storageHealth.isHealthy,
-        email: emailHealth.isHealthy,
+        database: healthCheck.isHealthy ?? false,
+        storage: storageHealth.isHealthy ?? false,
+        email: emailHealth.isHealthy ?? false,
         overall:
-          healthCheck.isHealthy &&
-          storageHealth.isHealthy &&
-          emailHealth.isHealthy,
+          (healthCheck.isHealthy ?? false) &&
+          (storageHealth.isHealthy ?? false) &&
+          (emailHealth.isHealthy ?? false),
         details: {
           database: healthCheck,
           storage: storageHealth,

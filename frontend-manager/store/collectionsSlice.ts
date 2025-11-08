@@ -266,8 +266,11 @@ const collectionsSlice = createSlice({
               error: null,
             };
           } else {
-            state.byProjectId[action.meta.arg.projectId].loading = true;
-            state.byProjectId[action.meta.arg.projectId].error = null;
+            const bucket = state.byProjectId[action.meta.arg.projectId];
+            if (bucket) {
+              bucket.loading = true;
+              bucket.error = null;
+            }
           }
         }
       )

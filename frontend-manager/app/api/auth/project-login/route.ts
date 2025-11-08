@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       user: response.user,
       scopes: response.scopes,
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,

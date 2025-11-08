@@ -95,17 +95,25 @@ export class CollectionsController {
    * // Request: GET /krapi/k1/projects/project-uuid/collections
    * // Response: { success: true, collections: [...] }
    */
-  async getAllCollections(req: ExtendedRequest, res: Response) {
+  async getAllCollections(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to get collections
@@ -133,30 +141,39 @@ export class CollectionsController {
   /**
    * Get a specific collection by name
    */
-  async getCollectionByName(req: ExtendedRequest, res: Response) {
+  async getCollectionByName(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to get collection
       const collection = await this.backendSDK.getCollection(
         sanitizedId,
-        collectionName
+        collectionName!
       );
 
       if (!collection) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Collection not found",
         });
+        return;
       }
 
       res.status(200).json({
@@ -179,7 +196,7 @@ export class CollectionsController {
   /**
    * Create a new collection
    */
-  async createCollection(req: ExtendedRequest, res: Response) {
+  async createCollection(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       let projectId = req.params.projectId;
 
@@ -193,10 +210,11 @@ export class CollectionsController {
       }
 
       if (!projectId) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Project ID is required",
         });
+        return;
       }
 
       const sanitizedId = this.sanitizeProjectId(projectId);
@@ -244,14 +262,22 @@ export class CollectionsController {
       // If there are validation errors, return them
       if (validationErrors.length > 0) {
         console.error("❌ [COLLECTIONS DEBUG] Validation errors:", validationErrors);
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Validation failed",
           issues: validationErrors,
         });
+        return;
       }
 
       // Check if collection with same name already exists in this project
+      if (!this.backendSDK) {
+        res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+        return;
+      }
       const existingCollections = await this.backendSDK.getProjectCollections(
         sanitizedId
       );
@@ -260,19 +286,21 @@ export class CollectionsController {
       );
 
       if (duplicateCollection) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Collection with this name already exists",
           issues: [`Collection "${name}" already exists in this project`],
         });
+        return;
       }
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to create collection
@@ -307,24 +335,32 @@ export class CollectionsController {
   /**
    * Update an existing collection
    */
-  async updateCollection(req: ExtendedRequest, res: Response) {
+  async updateCollection(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const { description, fields, indexes } = req.body;
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to update collection
       const updatedCollection = await this.backendSDK.updateCollection(
         sanitizedId,
-        collectionName,
+        collectionName!,
         {
           description,
           fields,
@@ -352,27 +388,35 @@ export class CollectionsController {
   /**
    * Delete a collection
    */
-  async deleteCollection(req: ExtendedRequest, res: Response) {
+  async deleteCollection(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to delete collection
       const success = await this.backendSDK.deleteCollection(
         sanitizedId,
-        collectionName
+        collectionName!
       );
 
       if (!success) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Collection not found",
         });
@@ -398,30 +442,39 @@ export class CollectionsController {
   /**
    * Get collection statistics
    */
-  async getCollectionStatistics(req: ExtendedRequest, res: Response) {
+  async getCollectionStatistics(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Get collection info from SDK
       const collection = await this.backendSDK.getCollection(
         sanitizedId,
-        collectionName
+        collectionName!
       );
 
       if (!collection) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Collection not found",
         });
+        return;
       }
 
       // Return the structure the frontend expects
@@ -453,17 +506,25 @@ export class CollectionsController {
   /**
    * Validate a collection schema
    */
-  async validateCollectionSchema(req: ExtendedRequest, res: Response) {
+  async validateCollectionSchema(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Get collection from SDK to validate it exists
@@ -473,10 +534,11 @@ export class CollectionsController {
       );
 
       if (!collection) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Collection not found",
         });
+        return;
       }
 
       // Implement proper schema validation
@@ -549,14 +611,21 @@ export class CollectionsController {
   /**
    * Create a new document in a collection
    */
-  async createDocument(req: ExtendedRequest, res: Response) {
+  async createDocument(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { data } = req.body;
 
       console.log(
-        `🔍 [DOCUMENT DEBUG] Creating document in project ${sanitizedId}, collection ${collectionName}`
+        `🔍 [DOCUMENT DEBUG] Creating document in project ${sanitizedId}, collection ${collectionName!}`
       );
       console.log(`🔍 [DOCUMENT DEBUG] Request body:`, req.body);
       console.log(`🔍 [DOCUMENT DEBUG] Document data:`, data);
@@ -565,7 +634,7 @@ export class CollectionsController {
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
         console.log(`❌ [DOCUMENT DEBUG] Backend SDK not initialized`);
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
@@ -574,13 +643,20 @@ export class CollectionsController {
       console.log(`✅ [DOCUMENT DEBUG] Backend SDK is available`);
 
       // Set current user ID for the SDK
+      if (!this.backendSDK) {
+        res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+        return;
+      }
       this.backendSDK.setCurrentUserId(req.user?.id || "system");
 
       // Use SDK method to create document
       console.log(`🔍 [DOCUMENT DEBUG] Calling SDK createDocument method...`);
       const document = await this.backendSDK.createDocument(
         sanitizedId,
-        collectionName,
+        collectionName!,
         {
           data,
           created_by: req.user?.id,
@@ -595,7 +671,7 @@ export class CollectionsController {
       // Ensure document is not undefined before returning
       if (!document) {
         console.error("❌ [DOCUMENT DEBUG] Document is undefined");
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Document creation failed: document is undefined",
         });
@@ -675,16 +751,18 @@ export class CollectionsController {
         res.status(400).json({
           success: false,
           error: "Validation failed",
-          details: originalErrorMessage || error.message,
+          details: originalErrorMessage || (error instanceof Error ? error.message : String(error)),
         });
+        return;
       } else {
         console.log("Returning 500 server error");
         res.status(500).json({
           success: false,
           error: "Failed to create document",
           details:
-            process.env.NODE_ENV === "development" ? error.message : undefined,
+            process.env.NODE_ENV === "development" ? (error instanceof Error ? error.message : String(error)) : undefined,
         });
+        return;
       }
     }
   }
@@ -692,9 +770,16 @@ export class CollectionsController {
   /**
    * Get documents from a collection
    */
-  async getDocuments(req: ExtendedRequest, res: Response) {
+  async getDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const {
         limit = 100,
@@ -708,10 +793,11 @@ export class CollectionsController {
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Parse filter parameters
@@ -770,7 +856,7 @@ export class CollectionsController {
 
       const documents = await this.backendSDK.getDocuments(
         sanitizedId,
-        collectionName,
+        collectionName!,
         documentFilter,
         {
           limit: Number(limit),
@@ -803,18 +889,26 @@ export class CollectionsController {
   /**
    * Count documents in a collection
    */
-  async countDocuments(req: ExtendedRequest, res: Response) {
+  async countDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { filter } = req.query;
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Parse filter parameters
@@ -828,14 +922,14 @@ export class CollectionsController {
             if (!documentFilter.field_filters) {
               documentFilter.field_filters = {};
             }
-            documentFilter.field_filters[key] = value;
+            (documentFilter.field_filters as Record<string, unknown>)[key] = value;
           }
         }
       }
 
       const count = await this.backendSDK.countDocuments(
         sanitizedId,
-        collectionName,
+        collectionName!,
         documentFilter
       );
 
@@ -877,28 +971,36 @@ export class CollectionsController {
   /**
    * Get a document by ID
    */
-  async getDocumentById(req: ExtendedRequest, res: Response) {
+  async getDocumentById(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName, documentId } = req.params;
+      if (!projectId || !collectionName || !documentId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID, collection name, and document ID are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to get document
       const document = await this.backendSDK.getDocument(
         sanitizedId,
-        collectionName,
-        documentId
+        collectionName!,
+        documentId!
       );
 
       if (!document) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Document not found",
         });
@@ -921,25 +1023,33 @@ export class CollectionsController {
   /**
    * Update a document
    */
-  async updateDocument(req: ExtendedRequest, res: Response) {
+  async updateDocument(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName, documentId } = req.params;
+      if (!projectId || !collectionName || !documentId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID, collection name, and document ID are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { data } = req.body;
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to update document
       const document = await this.backendSDK.updateDocument(
         sanitizedId,
-        collectionName,
-        documentId,
+        collectionName!,
+        documentId!,
         data
       );
 
@@ -960,28 +1070,36 @@ export class CollectionsController {
   /**
    * Delete a document
    */
-  async deleteDocument(req: ExtendedRequest, res: Response) {
+  async deleteDocument(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName, documentId } = req.params;
+      if (!projectId || !collectionName || !documentId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID, collection name, and document ID are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to delete document
       const success = await this.backendSDK.deleteDocument(
         sanitizedId,
-        collectionName,
-        documentId
+        collectionName!,
+        documentId!
       );
 
       if (!success) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Document not found",
         });
@@ -1007,18 +1125,26 @@ export class CollectionsController {
   /**
    * Search documents in a collection
    */
-  async searchDocuments(req: ExtendedRequest, res: Response) {
+  async searchDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { query: searchQuery, limit = 100, offset = 0 } = req.body;
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Implement document search functionality
@@ -1027,7 +1153,7 @@ export class CollectionsController {
         typeof searchQuery !== "string" ||
         searchQuery.trim() === ""
       ) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Search query is required",
         });
@@ -1036,7 +1162,7 @@ export class CollectionsController {
       // Use SDK method to search documents
       const documents = await this.backendSDK.searchDocuments(
         sanitizedId,
-        collectionName,
+        collectionName!,
         {
           text: searchQuery,
           limit: Number(limit),
@@ -1068,16 +1194,23 @@ export class CollectionsController {
   /**
    * Bulk create documents
    */
-  async bulkCreateDocuments(req: ExtendedRequest, res: Response) {
+  async bulkCreateDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { documents } = req.body;
 
       console.log(
         `🔍 [BULK CREATE DEBUG] Creating ${
           documents?.length || 0
-        } documents in project ${sanitizedId}, collection ${collectionName}`
+        } documents in project ${sanitizedId}, collection ${collectionName!}`
       );
       console.log(`🔍 [BULK CREATE DEBUG] Request body:`, req.body);
       console.log(`🔍 [BULK CREATE DEBUG] User ID:`, req.user?.id);
@@ -1086,10 +1219,11 @@ export class CollectionsController {
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
         console.log(`❌ [BULK CREATE DEBUG] Backend SDK not initialized`);
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       console.log(`✅ [BULK CREATE DEBUG] Backend SDK is available`);
@@ -1114,9 +1248,16 @@ export class CollectionsController {
       console.log(
         `🔍 [BULK CREATE DEBUG] Calling SDK createDocuments method...`
       );
+      if (!this.backendSDK) {
+        res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+        return;
+      }
       const createdDocuments = await this.backendSDK.createDocuments(
         sanitizedId,
-        collectionName,
+        collectionName!,
         documentRequests
       );
 
@@ -1150,24 +1291,32 @@ export class CollectionsController {
   /**
    * Bulk update documents
    */
-  async bulkUpdateDocuments(req: ExtendedRequest, res: Response) {
+  async bulkUpdateDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { updates } = req.body;
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Use SDK method to update documents
       const updatedDocuments = await this.backendSDK.updateDocuments(
         sanitizedId,
-        collectionName,
+        collectionName!,
         updates
       );
 
@@ -1193,10 +1342,17 @@ export class CollectionsController {
   /**
    * Bulk delete documents
    */
-  async bulkDeleteDocuments(req: ExtendedRequest, res: Response) {
+  async bulkDeleteDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     console.log("[BULK DELETE] Controller called");
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { document_ids: documentIds } = req.body;
 
@@ -1208,17 +1364,25 @@ export class CollectionsController {
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
         console.log("[BULK DELETE] SDK not initialized");
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       console.log("[BULK DELETE] Calling SDK deleteDocuments");
       // Use SDK method to delete documents
+      if (!this.backendSDK) {
+        res.status(500).json({
+          success: false,
+          error: "Backend SDK not initialized",
+        });
+        return;
+      }
       const deleteResults = await this.backendSDK.deleteDocuments(
         sanitizedId,
-        collectionName,
+        collectionName!,
         documentIds
       );
       console.log("[BULK DELETE] SDK returned:", deleteResults);
@@ -1249,23 +1413,31 @@ export class CollectionsController {
   /**
    * Aggregate documents in a collection
    */
-  async aggregateDocuments(req: ExtendedRequest, res: Response) {
+  async aggregateDocuments(req: ExtendedRequest, res: Response): Promise<void> {
     try {
       const { projectId, collectionName } = req.params;
+      if (!projectId || !collectionName) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID and collection name are required",
+        });
+        return;
+      }
       const sanitizedId = this.sanitizeProjectId(projectId);
       const { group_by, aggregations } = req.body;
 
       // Get the backendSDK from the instance
       if (!this.backendSDK) {
-        return res.status(500).json({
+        res.status(500).json({
           success: false,
           error: "Backend SDK not initialized",
         });
+        return;
       }
 
       // Validate input parameters
       if (!group_by || !Array.isArray(group_by) || group_by.length === 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "group_by array is required and must not be empty",
         });
