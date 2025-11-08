@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const analyticsData = await response.json();
     return NextResponse.json(analyticsData);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       { error: "Failed to get email analytics" },

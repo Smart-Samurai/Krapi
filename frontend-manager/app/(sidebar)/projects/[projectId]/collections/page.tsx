@@ -35,7 +35,7 @@ import {
   Link as LinkIcon,
   ArrowRight,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -44,6 +44,8 @@ import {
   PageHeader,
   ActionButton,
   EmptyState,
+  LoadingState,
+  FormDialog,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -148,7 +150,6 @@ const fieldTypeIcons: Partial<
  */
 export default function CollectionsPage() {
   const params = useParams();
-  const router = useRouter();
   if (!params || !params.projectId) {
     throw new Error("Project ID is required");
   }
@@ -179,42 +180,6 @@ export default function CollectionsPage() {
     loadCollections();
   }, [loadCollections]);
 
-  const handleCreate = async (data: { name: string; description?: string; fields: CollectionField[] }) => {
-    if (!krapi) return;
-
-    setIsCreating(true);
-    try {
-      dispatch(beginBusy());
-      await dispatch(createCollection({ projectId, collection: data, krapi })).unwrap();
-      toast.success("Collection created successfully");
-      setIsCreateDialogOpen(false);
-      loadCollections();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create collection");
-    } finally {
-      setIsCreating(false);
-      dispatch(endBusy());
-    }
-  };
-
-  const handleEdit = async (data: { description?: string; fields?: CollectionField[] }) => {
-    if (!krapi || !selectedCollection) return;
-
-    setIsUpdating(true);
-    try {
-      dispatch(beginBusy());
-      await dispatch(updateCollection({ projectId, collectionName: selectedCollection.name, updates: data, krapi })).unwrap();
-      toast.success("Collection updated successfully");
-      setIsEditDialogOpen(false);
-      setSelectedCollection(null);
-      loadCollections();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update collection");
-    } finally {
-      setIsUpdating(false);
-      dispatch(endBusy());
-    }
-  };
 
   const handleDelete = async (collectionName: string) => {
     if (!krapi) return;
@@ -331,7 +296,23 @@ export default function CollectionsPage() {
         title="Create Collection"
         description="Create a new collection with custom fields"
         submitLabel="Create"
-        onSubmit={() => {}}
+        onSubmit={async (data: { name: string; description?: string; fields: CollectionField[] }) => {
+          if (!krapi) return;
+
+          setIsCreating(true);
+          try {
+            dispatch(beginBusy());
+            await dispatch(createCollection({ projectId, collection: data, krapi })).unwrap();
+            toast.success("Collection created successfully");
+            setIsCreateDialogOpen(false);
+            loadCollections();
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to create collection");
+          } finally {
+            setIsCreating(false);
+            dispatch(endBusy());
+          }
+        }}
         isSubmitting={isCreating}
       >
         {/* Form content would go here */}
@@ -344,7 +325,24 @@ export default function CollectionsPage() {
         title="Edit Collection"
         description="Update collection fields and settings"
         submitLabel="Update"
-        onSubmit={() => {}}
+        onSubmit={async (data: { description?: string; fields?: CollectionField[] }) => {
+          if (!krapi || !selectedCollection) return;
+
+          setIsUpdating(true);
+          try {
+            dispatch(beginBusy());
+            await dispatch(updateCollection({ projectId, collectionName: selectedCollection.name, updates: data, krapi })).unwrap();
+            toast.success("Collection updated successfully");
+            setIsEditDialogOpen(false);
+            setSelectedCollection(null);
+            loadCollections();
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to update collection");
+          } finally {
+            setIsUpdating(false);
+            dispatch(endBusy());
+          }
+        }}
         isSubmitting={isUpdating}
       >
         {/* Form content would go here */}
@@ -469,7 +467,6 @@ export default function CollectionsPage() {
         
         // Ensure type is set (should always be FieldType enum)
         if (!cleanField.type) {
-          console.error("⚠️ [COLLECTIONS DEBUG] Field missing type:", cleanField);
           throw new Error(`Field "${cleanField.name}" is missing a type`);
         }
         
@@ -480,12 +477,6 @@ export default function CollectionsPage() {
           unique: cleanField.unique ?? false,
           indexed: cleanField.indexed ?? false,
         };
-      });
-
-      console.log("🔍 [COLLECTIONS DEBUG] Creating collection with data:", {
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
-        fields: cleanedFields,
       });
 
       const action = await dispatch(
@@ -508,7 +499,6 @@ export default function CollectionsPage() {
         const msg =
           (action as { payload?: string }).payload ||
           "Failed to create collection";
-        console.error("❌ [COLLECTIONS DEBUG] Create collection failed:", msg);
         setError(String(msg));
         toast.error(`Failed to create collection: ${msg}`);
       }

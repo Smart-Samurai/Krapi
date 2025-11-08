@@ -75,7 +75,7 @@ export async function GET(
     const activity = await response.json();
     // Return the activities array directly as expected by the test
     return NextResponse.json(activity.data.activities);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {

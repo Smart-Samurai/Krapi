@@ -622,7 +622,6 @@ const fileInfo = await krapi.storage.getFileInfo(projectId, fileId);
 // Upload a file
 const file = new File(['file content'], 'filename.txt', { type: 'text/plain' });
 const uploadedFile = await krapi.storage.uploadFile(projectId, file, (progress) => {
-  console.log('Upload progress:', progress);
 });
 
 // Download a file

@@ -79,10 +79,6 @@ export default function ProjectChangelogPage() {
     has_more: false,
   });
 
-  if (!projectId) {
-    return <div>Project ID is required</div>;
-  }
-
   const fetchChangelog = useCallback(async () => {
     try {
       setLoading(true);
@@ -115,6 +111,10 @@ export default function ProjectChangelogPage() {
   useEffect(() => {
     fetchChangelog();
   }, [fetchChangelog]);
+
+  if (!projectId) {
+    return <div>Project ID is required</div>;
+  }
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleString();

@@ -150,8 +150,7 @@ export default function ProjectSettingsPage() {
           });
         }
       }
-    } catch (error) {
-      console.error("Failed to fetch project settings:", error);
+    } catch (_error: unknown) {
     } finally {
       setLoadingSettings(false);
     }
@@ -236,7 +235,7 @@ export default function ProjectSettingsPage() {
         setError(errorData.error || "Failed to update backup automation settings");
         toast.error("Failed to update backup automation settings");
       }
-    } catch (error) {
+    } catch (_error: unknown) {
       setError("An error occurred while updating backup automation settings");
       toast.error("Failed to update backup automation settings");
     } finally {

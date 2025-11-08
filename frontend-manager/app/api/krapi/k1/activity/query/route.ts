@@ -63,7 +63,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const result = await response.json();
     return NextResponse.json(result);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {

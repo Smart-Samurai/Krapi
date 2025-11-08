@@ -1,4 +1,4 @@
-import { krapi } from "@krapi/sdk";
+// import { krapi } from "@krapi/sdk"; // Not yet used - method not implemented
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(

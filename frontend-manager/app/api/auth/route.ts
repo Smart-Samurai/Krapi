@@ -113,7 +113,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           { status: 400 }
         );
     }
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         success: false,

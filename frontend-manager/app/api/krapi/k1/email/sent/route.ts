@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const emailsData = await response.json();
     return NextResponse.json(emailsData);
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       { error: "Failed to list sent emails" },

@@ -293,28 +293,22 @@ export default function TestAccessPage() {
 
   const createTestProject = async () => {
     if (!krapi) {
-      console.error("❌ [TESTING DEBUG] krapi instance not available");
       toast.error("KRAPI instance not initialized");
       return;
     }
 
     try {
-      console.log("🔍 [TESTING DEBUG] Starting test project creation");
       setRunning((prev) => ({ ...prev, testProject: true }));
       const response = await krapi.testing.createTestProject();
-      console.log("🔍 [TESTING DEBUG] Response received:", response);
 
       if (response) {
-        console.log("✅ [TESTING DEBUG] Test project created successfully");
         toast.success("Test project created successfully");
         // Refresh projects list
         await checkProjectAccess();
       } else {
-        console.error("❌ [TESTING DEBUG] Response was null/undefined");
         toast.error("Failed to create test project: No response received");
       }
     } catch (error) {
-      console.error("❌ [TESTING DEBUG] Error creating test project:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to create test project: ${errorMessage}`);
     } finally {
@@ -332,7 +326,6 @@ export default function TestAccessPage() {
       // Refresh test projects list
       await loadTestProjects();
     } catch (error) {
-      console.error("❌ [TESTING DEBUG] Error deleting test project:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast.error(`Failed to delete test project: ${errorMessage}`);
     } finally {
@@ -356,8 +349,7 @@ export default function TestAccessPage() {
       } else {
         toast.error("Failed to cleanup test data");
       }
-    } catch (error) {
-      console.error("❌ [TESTING DEBUG] Error cleaning up test data:", error);
+    } catch (_error: unknown) {
       toast.error("Test data cleanup failed");
     } finally {
       setRunning((prev) => ({ ...prev, cleanup: false }));
@@ -397,8 +389,8 @@ export default function TestAccessPage() {
           setTestProjects(testProjects);
         }
       }
-    } catch (error) {
-      console.error("❌ [TESTING DEBUG] Error loading test projects:", error);
+    } catch (_error: unknown) {
+      // Failed to load test projects
     }
   }, [krapi]);
 

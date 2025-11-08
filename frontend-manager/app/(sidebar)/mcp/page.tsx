@@ -168,8 +168,7 @@ export default function AdminMcpPage() {
       if (json.success) {
         setModelCapabilities(json.capabilities);
       }
-    } catch (err) {
-      console.error("Failed to check model capabilities:", err);
+    } catch (_err: unknown) {
     } finally {
       setCheckingCapabilities(false);
     }

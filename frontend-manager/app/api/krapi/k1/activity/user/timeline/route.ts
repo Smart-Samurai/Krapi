@@ -44,8 +44,7 @@ export async function GET(request: NextRequest) {
 
     const activityData = await response.json();
     return NextResponse.json(activityData.logs || []);
-  } catch (error: unknown) {
-    
+  } catch {
     return NextResponse.json(
       { error: "Failed to get user timeline" },
       { status: 500 }

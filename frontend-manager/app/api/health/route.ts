@@ -21,9 +21,8 @@ export async function GET(_request: NextRequest): Promise<Response> {
       } else {
         backendConnected = false;
       }
-    } catch (error: unknown) {
+    } catch {
       backendConnected = false;
-      
     }
 
     const frontendHealth = {
@@ -41,7 +40,7 @@ export async function GET(_request: NextRequest): Promise<Response> {
     };
 
     return NextResponse.json(frontendHealth);
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json(
       {
         status: "unhealthy",

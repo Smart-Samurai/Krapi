@@ -103,7 +103,7 @@ export async function GET(
     const count = typeof countValue === "number" ? countValue : parseInt(String(countValue || 0), 10);
     
     return NextResponse.json({ success: true, count });
-  } catch (error: unknown) {
+  } catch {
     
     return NextResponse.json(
       {
