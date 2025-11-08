@@ -2,7 +2,18 @@
  * Backup Routes
  * 
  * Provides encrypted backup and restore functionality for KRAPI projects.
+ * Base path: /krapi/k1/projects/:projectId/backup
+ * 
+ * Routes:
+ * - POST /backup - Create encrypted project backup
+ * - POST /restore - Restore project from backup
+ * - GET /backups - List project backups
+ * - DELETE /backups/:backupId - Delete a backup
+ * - POST /backup/system - Create system backup
+ * 
  * All routes require authentication and appropriate scopes.
+ * 
+ * @module routes/backup.routes
  */
 
 import { BackendSDK } from "@krapi/sdk";
@@ -19,15 +30,30 @@ router.use(authenticate);
 
 // Initialize SDK function - called from app.ts
 let backendSDK: BackendSDK;
+
+/**
+ * Initialize BackendSDK for backup routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
 export const initializeBackupSDK = (sdk: BackendSDK) => {
   backendSDK = sdk;
 };
 
 /**
  * Create encrypted project backup
+ * 
  * POST /krapi/k1/projects/:projectId/backup
- * Body: { description?: string, password?: string }
- * Returns: { backup_id, password, created_at }
+ * 
+ * Creates an encrypted backup of the project database.
+ * Requires authentication and projects:write scope.
+ * 
+ * @route POST /backup
+ * @param {string} projectId - Project ID (from parent route)
+ * @body {string} [description] - Backup description
+ * @body {string} [password] - Encryption password (if not provided, one is generated)
+ * @returns {Object} Backup result with backup_id, password, created_at, size, description
  */
 router.post(
   "/backup",
@@ -72,9 +98,18 @@ router.post(
 
 /**
  * Restore project from encrypted backup
+ * 
  * POST /krapi/k1/projects/:projectId/restore
- * Body: { backup_id: string, password: string, overwrite?: boolean }
- * Returns: { success: true }
+ * 
+ * Restores a project from an encrypted backup.
+ * Requires authentication and projects:write scope.
+ * 
+ * @route POST /restore
+ * @param {string} projectId - Project ID (from parent route)
+ * @body {string} backup_id - Backup ID to restore
+ * @body {string} password - Backup encryption password
+ * @body {boolean} [overwrite] - Whether to overwrite existing data
+ * @returns {Object} Restore result with success status
  */
 router.post(
   "/restore",

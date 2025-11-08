@@ -1,3 +1,20 @@
+/**
+ * Form Dialog Component
+ * 
+ * Reusable dialog component for forms with submit and cancel actions.
+ * 
+ * @module components/common/FormDialog
+ * @example
+ * <FormDialog
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   title="Create Project"
+ *   submitLabel="Create"
+ *   onSubmit={handleSubmit}
+ * >
+ *   <FormFields />
+ * </FormDialog>
+ */
 "use client";
 
 import { ReactNode } from "react";
@@ -12,6 +29,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+/**
+ * Form Dialog Props
+ * 
+ * @interface FormDialogProps
+ * @property {boolean} open - Whether dialog is open
+ * @property {Function} onOpenChange - Open/close change handler
+ * @property {string} title - Dialog title
+ * @property {string} [description] - Optional dialog description
+ * @property {ReactNode} children - Form content
+ * @property {string} submitLabel - Submit button label
+ * @property {string} [cancelLabel="Cancel"] - Cancel button label
+ * @property {Function} onSubmit - Submit handler
+ * @property {Function} [onCancel] - Cancel handler (optional)
+ * @property {boolean} [isSubmitting=false] - Whether form is submitting
+ * @property {string} [submitClassName="btn-add"] - Submit button CSS class
+ * @property {"sm" | "md" | "lg" | "xl" | "2xl" | "4xl"} [maxWidth="md"] - Maximum dialog width
+ * @property {boolean} [disabled=false] - Whether submit is disabled
+ */
 interface FormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,6 +63,25 @@ interface FormDialogProps {
   disabled?: boolean;
 }
 
+/**
+ * Form Dialog Component
+ * 
+ * Dialog wrapper for forms with submit and cancel buttons.
+ * 
+ * @param {FormDialogProps} props - Component props
+ * @returns {JSX.Element} Form dialog
+ * 
+ * @example
+ * <FormDialog
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   title="Create Project"
+ *   submitLabel="Create"
+ *   onSubmit={handleSubmit}
+ * >
+ *   <FormFields />
+ * </FormDialog>
+ */
 export function FormDialog({
   open,
   onOpenChange,

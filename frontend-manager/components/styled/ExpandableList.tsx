@@ -1,3 +1,14 @@
+/**
+ * Expandable List Component
+ * 
+ * Collapsible list component with expand/collapse functionality.
+ * 
+ * @module components/styled/ExpandableList
+ * @example
+ * <ExpandableList title="Settings" defaultExpanded={false}>
+ *   <SettingsContent />
+ * </ExpandableList>
+ */
 "use client";
 
 import React, { useState } from "react";
@@ -5,6 +16,17 @@ import { FiChevronDown, FiChevronRight } from "react-icons/fi";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Expandable List Props
+ * 
+ * @interface ExpandableListProps
+ * @property {string} title - List title/header
+ * @property {ReactNode} children - List content
+ * @property {boolean} [defaultExpanded=false] - Whether list is expanded by default
+ * @property {string} [className] - Additional CSS classes for container
+ * @property {string} [titleClassName] - Additional CSS classes for title
+ * @property {string} [contentClassName] - Additional CSS classes for content
+ */
 interface ExpandableListProps {
   title: string;
   children: React.ReactNode;
@@ -14,6 +36,19 @@ interface ExpandableListProps {
   contentClassName?: string;
 }
 
+/**
+ * Expandable List Component
+ * 
+ * Collapsible list with expand/collapse toggle.
+ * 
+ * @param {ExpandableListProps} props - Component props
+ * @returns {JSX.Element} Expandable list component
+ * 
+ * @example
+ * <ExpandableList title="Advanced Settings">
+ *   <SettingsForm />
+ * </ExpandableList>
+ */
 export const ExpandableList: React.FC<ExpandableListProps> = ({
   title,
   children,

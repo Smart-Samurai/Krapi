@@ -1,9 +1,14 @@
 /**
  * Collections HTTP Client for KRAPI SDK
- *
- * HTTP-based collections and documents management for frontend apps
+ * 
+ * HTTP-based collections and documents management for frontend applications.
+ * Provides collection CRUD operations and document management.
+ * 
+ * @module http-clients/collections-http-client
+ * @example
+ * const client = new CollectionsHttpClient({ baseUrl: 'https://api.example.com' });
+ * const collections = await client.getCollectionsByProject('project-id');
  */
-
 import {
   Document,
   DocumentFilter,
@@ -14,6 +19,19 @@ import { ApiResponse, PaginatedResponse, QueryOptions } from "../core";
 
 import { BaseHttpClient } from "./base-http-client";
 
+/**
+ * Collection Interface
+ * 
+ * @interface Collection
+ * @property {string} id - Collection ID
+ * @property {string} project_id - Project ID
+ * @property {string} name - Collection name
+ * @property {string} [description] - Collection description
+ * @property {Array} fields - Collection field definitions
+ * @property {Array} indexes - Collection index definitions
+ * @property {string} created_at - Creation timestamp
+ * @property {string} updated_at - Update timestamp
+ */
 export interface Collection {
   id: string;
   project_id: string;
@@ -37,9 +55,29 @@ export interface Collection {
   updated_at: string;
 }
 
+/**
+ * Collections HTTP Client
+ * 
+ * HTTP client for collections and documents management.
+ * 
+ * @class CollectionsHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new CollectionsHttpClient({ baseUrl: 'https://api.example.com' });
+ * const collection = await client.createCollection('project-id', { name: 'users', fields: [...] });
+ */
 export class CollectionsHttpClient extends BaseHttpClient {
   // Constructor inherited from BaseHttpClient
 
+  /**
+   * Get all collections for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Collection[]>} Array of collections
+   * 
+   * @example
+   * const collections = await client.getCollectionsByProject('project-id');
+   */
   async getCollectionsByProject(projectId: string): Promise<Collection[]> {
     const response = await this.get<Collection[]>(
       `/projects/${projectId}/collections`

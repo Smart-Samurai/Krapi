@@ -1,3 +1,13 @@
+/**
+ * Email Page
+ * 
+ * Page for managing email configuration and templates for a project.
+ * Provides email config management, template CRUD, and email testing.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/email/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/email route
+ */
 "use client";
 
 import {
@@ -88,6 +98,14 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
+/**
+ * Email Page Component
+ * 
+ * Manages email configuration and templates for a project.
+ * Provides email config management, template CRUD, and email testing.
+ * 
+ * @returns {JSX.Element} Email page
+ */
 export default function EmailPage() {
   const params = useParams();
   if (!params || !params.projectId) {

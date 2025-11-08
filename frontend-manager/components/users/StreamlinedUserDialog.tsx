@@ -1,3 +1,18 @@
+/**
+ * Streamlined User Dialog Component
+ * 
+ * Comprehensive dialog for creating and editing admin users with role-based permissions.
+ * Supports master admin, project admin, and limited admin account types.
+ * 
+ * @module components/users/StreamlinedUserDialog
+ * @example
+ * <StreamlinedUserDialog
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   onSuccess={handleSuccess}
+ *   editUser={user}
+ * />
+ */
 "use client";
 
 import { type Project } from "@krapi/sdk";
@@ -28,6 +43,15 @@ import { useKrapi } from "@/lib/hooks/useKrapi";
 import { Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
+/**
+ * Streamlined User Dialog Props
+ * 
+ * @interface StreamlinedUserDialogProps
+ * @property {boolean} open - Whether dialog is open
+ * @property {Function} onOpenChange - Open/close change handler
+ * @property {Function} [onSuccess] - Success callback
+ * @property {AdminUser | ExtendedAdminUser} [editUser] - User to edit (for edit mode)
+ */
 interface StreamlinedUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,8 +59,21 @@ interface StreamlinedUserDialogProps {
   editUser?: AdminUser | ExtendedAdminUser;
 }
 
+/**
+ * Account Type
+ * 
+ * @typedef {"master_admin" | "project_admin" | "limited_admin"} AccountType
+ */
 type AccountType = "master_admin" | "project_admin" | "limited_admin";
 
+/**
+ * Account Type Info Interface
+ * 
+ * @interface AccountTypeInfo
+ * @property {string} title - Account type title
+ * @property {string} description - Account type description
+ * @property {Scope[]} scopes - Default scopes for account type
+ */
 interface AccountTypeInfo {
   title: string;
   description: string;

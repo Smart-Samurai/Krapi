@@ -1,3 +1,13 @@
+/**
+ * Example Form Component
+ * 
+ * Example form component demonstrating form usage with different types.
+ * Supports registration, login, and project creation forms.
+ * 
+ * @module components/forms/ExampleForm
+ * @example
+ * <ExampleForm type="registration" onSubmit={handleSubmit} />
+ */
 import React from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,12 +23,31 @@ import {
 import { Form } from "./Form";
 import { FormField } from "./FormField";
 
+/**
+ * Example Form Props
+ * 
+ * @interface ExampleFormProps
+ * @property {"registration" | "login" | "project"} type - Form type
+ * @property {Function} onSubmit - Submit handler
+ * @property {Record<string, unknown>} [defaultValues] - Default form values
+ */
 interface ExampleFormProps {
   type: "registration" | "login" | "project";
   onSubmit: (data: Record<string, unknown>) => void;
   defaultValues?: Record<string, unknown>;
 }
 
+/**
+ * Example Form Component
+ * 
+ * Demonstrates form usage with different types (registration, login, project).
+ * 
+ * @param {ExampleFormProps} props - Component props
+ * @returns {JSX.Element} Example form component
+ * 
+ * @example
+ * <ExampleForm type="registration" onSubmit={handleSubmit} />
+ */
 export const ExampleForm: React.FC<ExampleFormProps> = ({
   type,
   onSubmit,

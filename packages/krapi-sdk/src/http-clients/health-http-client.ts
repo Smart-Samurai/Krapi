@@ -1,9 +1,14 @@
 /**
  * Health HTTP Client for KRAPI SDK
- *
- * HTTP-based health and diagnostics methods for frontend apps
+ * 
+ * HTTP-based health and diagnostics methods for frontend applications.
+ * Provides system health checks, database diagnostics, and auto-fixing capabilities.
+ * 
+ * @module http-clients/health-http-client
+ * @example
+ * const client = new HealthHttpClient({ baseUrl: 'https://api.example.com' });
+ * const health = await client.check();
  */
-
 import { ApiResponse } from "../core";
 import {
   DatabaseHealth,
@@ -16,6 +21,17 @@ import {
 
 import { BaseHttpClient } from "./base-http-client";
 
+/**
+ * Health HTTP Client
+ * 
+ * HTTP client for health and diagnostics operations.
+ * 
+ * @class HealthHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new HealthHttpClient({ baseUrl: 'https://api.example.com' });
+ * const diagnostics = await client.runDiagnostics();
+ */
 export class HealthHttpClient extends BaseHttpClient {
   // System Health
   async check(): Promise<ApiResponse<SystemHealth>> {

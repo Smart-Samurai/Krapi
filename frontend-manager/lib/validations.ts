@@ -1,5 +1,25 @@
+/**
+ * Validation Schemas
+ * 
+ * Zod validation schemas for form validation across the application.
+ * Includes schemas for users, content, routes, and other entities.
+ * 
+ * @module lib/validations
+ * @example
+ * import { createUserSchema } from '@/lib/validations';
+ * const result = createUserSchema.parse(userData);
+ */
 import { z } from "zod";
 
+/**
+ * Create User Schema
+ * 
+ * Validation schema for creating a new user.
+ * 
+ * @constant {z.ZodObject}
+ * @example
+ * const result = createUserSchema.parse({ username: 'user', password: 'pass123', role: 'admin' });
+ */
 // User validation schemas
 export const createUserSchema = z.object({
   username: z

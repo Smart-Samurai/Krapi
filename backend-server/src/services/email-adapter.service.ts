@@ -33,6 +33,18 @@ interface IEmailServiceBackend {
   ): Promise<ApiResponse<EmailConfig>>;
 }
 
+/**
+ * Email Adapter Service
+ * 
+ * Wraps the existing EmailService to provide a consistent interface for the BackendSDK.
+ * Implements the IEmailServiceBackend interface for SDK compatibility.
+ * 
+ * @class EmailAdapterService
+ * @implements {IEmailServiceBackend}
+ * @example
+ * const adapter = EmailAdapterService.getInstance();
+ * await adapter.sendEmail({ project_id: 'project-id', to: 'user@example.com', subject: 'Hello', body: 'World' });
+ */
 export class EmailAdapterService implements IEmailServiceBackend {
   private static instance: EmailAdapterService;
   private emailService: EmailService;
@@ -43,6 +55,14 @@ export class EmailAdapterService implements IEmailServiceBackend {
     this.db = DatabaseService.getInstance();
   }
 
+  /**
+   * Get singleton instance of EmailAdapterService
+   * 
+   * @returns {EmailAdapterService} The singleton instance
+   * 
+   * @example
+   * const adapter = EmailAdapterService.getInstance();
+   */
   static getInstance(): EmailAdapterService {
     if (!EmailAdapterService.instance) {
       EmailAdapterService.instance = new EmailAdapterService();
@@ -50,6 +70,20 @@ export class EmailAdapterService implements IEmailServiceBackend {
     return EmailAdapterService.instance;
   }
 
+  /**
+   * Send an email
+   * 
+   * @param {EmailSendRequest} request - Email send request
+   * @returns {Promise<ApiResponse<void>>} Send result
+   * 
+   * @example
+   * const result = await adapter.sendEmail({
+   *   project_id: 'project-id',
+   *   to: 'user@example.com',
+   *   subject: 'Hello',
+   *   body: 'World'
+   * });
+   */
   async sendEmail(request: EmailSendRequest): Promise<ApiResponse<void>> {
     try {
       // Extract data from EmailSendRequest and call EmailService.sendEmail with correct arguments
@@ -100,6 +134,18 @@ export class EmailAdapterService implements IEmailServiceBackend {
     }
   }
 
+  /**
+   * Get all email templates for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<ApiResponse<EmailTemplate[]>>} Templates result
+   * 
+   * @example
+   * const result = await adapter.getTemplates('project-id');
+   * if (result.success) {
+   *   console.log('Templates:', result.data);
+   * }
+   */
   async getTemplates(projectId: string): Promise<ApiResponse<EmailTemplate[]>> {
     try {
       const templates = await this.db.getEmailTemplates(projectId);
@@ -128,6 +174,16 @@ export class EmailAdapterService implements IEmailServiceBackend {
     }
   }
 
+  /**
+   * Get email template by ID
+   * 
+   * @param {string} _id - Template ID
+   * @returns {Promise<ApiResponse<EmailTemplate>>} Template result
+   * @throws {Error} Requires projectId which is not available in current interface
+   * 
+   * @example
+   * const result = await adapter.getTemplate('template-id');
+   */
   async getTemplate(_id: string): Promise<ApiResponse<EmailTemplate>> {
     // We need projectId to get the template, but the interface doesn't provide it
     // For now, we'll need to find a way to get projectId from the template ID
@@ -139,6 +195,26 @@ export class EmailAdapterService implements IEmailServiceBackend {
     };
   }
 
+  /**
+   * Create an email template
+   * 
+   * @param {Partial<EmailTemplate>} template - Template data
+   * @param {string} template.project_id - Project ID (required)
+   * @param {string} template.name - Template name
+   * @param {string} template.subject - Email subject
+   * @param {string} template.body - Email body
+   * @param {string[]} template.variables - Template variables
+   * @returns {Promise<ApiResponse<EmailTemplate>>} Created template result
+   * 
+   * @example
+   * const result = await adapter.createTemplate({
+   *   project_id: 'project-id',
+   *   name: 'Welcome',
+   *   subject: 'Welcome!',
+   *   body: 'Hello {{name}}!',
+   *   variables: ['name']
+   * });
+   */
   async createTemplate(
     template: Partial<EmailTemplate>
   ): Promise<ApiResponse<EmailTemplate>> {
@@ -183,6 +259,20 @@ export class EmailAdapterService implements IEmailServiceBackend {
     }
   }
 
+  /**
+   * Update an email template
+   * 
+   * @param {string} id - Template ID
+   * @param {Partial<EmailTemplate>} updates - Template updates
+   * @param {string} updates.project_id - Project ID (required)
+   * @returns {Promise<ApiResponse<EmailTemplate>>} Updated template result
+   * 
+   * @example
+   * const result = await adapter.updateTemplate('template-id', {
+   *   project_id: 'project-id',
+   *   subject: 'Updated Subject'
+   * });
+   */
   async updateTemplate(
     id: string,
     updates: Partial<EmailTemplate>

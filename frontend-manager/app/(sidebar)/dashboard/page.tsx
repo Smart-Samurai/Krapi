@@ -1,3 +1,12 @@
+/**
+ * Dashboard Page
+ * 
+ * Main admin dashboard showing system overview, project statistics, and quick actions.
+ * 
+ * @module app/(sidebar)/dashboard/page
+ * @example
+ * // Automatically rendered at /dashboard route
+ */
 "use client";
 
 import {
@@ -30,6 +39,19 @@ import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
 
+/**
+ * Dashboard Page Component
+ * 
+ * Displays admin dashboard with:
+ * - Welcome message
+ * - System statistics (projects, collections, documents)
+ * - Quick action buttons
+ * - Recent projects list
+ * 
+ * Requires authentication and appropriate scopes.
+ * 
+ * @returns {JSX.Element} Dashboard page
+ */
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope } = useReduxAuth();
   const krapi = useKrapi();

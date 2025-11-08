@@ -1,20 +1,35 @@
 /**
  * KRAPI SDK Usage Examples
- *
+ * 
  * This file contains comprehensive examples of how to use the KRAPI SDK
  * in both frontend and backend environments.
+ * 
+ * @module examples
+ * @example
+ * import { frontendExample1, backendExample1 } from './examples';
+ * await frontendExample1(console);
  */
-
 import { DatabaseConnection, Logger } from "./core";
 import { krapi, KrapiWrapper } from "./krapi";
 
 /**
  * FRONTEND USAGE EXAMPLES
- *
+ * 
  * These examples show how to use the SDK in a frontend application
  * to connect to a KRAPI backend via HTTP API.
  */
 
+/**
+ * Frontend Example 1: Basic setup and authentication
+ * 
+ * Demonstrates basic frontend setup, authentication, and project creation.
+ * 
+ * @param {Logger} [logger] - Optional logger instance
+ * @returns {Promise<string>} Created project ID
+ * 
+ * @example
+ * const projectId = await frontendExample1(console);
+ */
 // Example 1: Basic frontend setup and authentication
 export async function frontendExample1(logger?: Logger) {
   // Connect to KRAPI for frontend use
@@ -53,6 +68,18 @@ export async function frontendExample1(logger?: Logger) {
   }
 }
 
+/**
+ * Frontend Example 2: Creating collections and managing documents
+ * 
+ * Demonstrates collection creation, document management, and querying.
+ * 
+ * @param {string} projectId - Project ID
+ * @param {Logger} [logger] - Optional logger instance
+ * @returns {Promise<Object>} Created collection and documents
+ * 
+ * @example
+ * const result = await frontendExample2('project-id', console);
+ */
 // Example 2: Creating collections and managing documents
 export async function frontendExample2(projectId: string, logger?: Logger) {
   // Connect to KRAPI for frontend use with API key

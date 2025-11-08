@@ -1,5 +1,15 @@
 /**
- * Type guards and type validation utilities for the frontend
+ * Type Guards and Type Validation Utilities
+ * 
+ * Utility functions for type checking and validation in the frontend.
+ * Includes type guards for API responses, paginated responses, and common types.
+ * 
+ * @module lib/type-guards
+ * @example
+ * import { isApiResponse, isPaginatedResponse } from '@/lib/type-guards';
+ * if (isApiResponse(data)) {
+ *   console.log('Valid API response');
+ * }
  */
 
 /**

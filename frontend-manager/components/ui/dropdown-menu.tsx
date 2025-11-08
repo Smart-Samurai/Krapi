@@ -1,3 +1,20 @@
+/**
+ * Dropdown Menu Components
+ * 
+ * Dropdown menu components built on Radix UI Dropdown Menu primitives.
+ * Provides dropdown menus with items, submenus, checkboxes, and radio groups.
+ * Includes DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, etc.
+ * 
+ * @module components/ui/dropdown-menu
+ * @example
+ * <DropdownMenu>
+ *   <DropdownMenuTrigger>Open Menu</DropdownMenuTrigger>
+ *   <DropdownMenuContent>
+ *     <DropdownMenuItem>Item 1</DropdownMenuItem>
+ *     <DropdownMenuItem>Item 2</DropdownMenuItem>
+ *   </DropdownMenuContent>
+ * </DropdownMenu>
+ */
 "use client";
 
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";

@@ -29,6 +29,30 @@ interface EmailSendRequest {
   }>;
 }
 
+/**
+ * Email Service
+ * 
+ * Singleton service that handles email sending functionality using nodemailer.
+ * Supports project-specific SMTP configurations and email templates with
+ * variable substitution.
+ * 
+ * Features:
+ * - Project-specific SMTP configuration
+ * - Email template management
+ * - Variable substitution in templates
+ * - Attachment support
+ * - Transporter caching for performance
+ * 
+ * @class EmailService
+ * @example
+ * const emailService = EmailService.getInstance();
+ * 
+ * // Send email using template
+ * await emailService.sendTemplateEmail('project-id', 'welcome', {
+ *   to: 'user@example.com',
+ *   variables: { name: 'John' }
+ * });
+ */
 export class EmailService {
   private static instance: EmailService;
   private db: DatabaseService;
@@ -39,6 +63,17 @@ export class EmailService {
     this.transporters = new Map();
   }
 
+  /**
+   * Get singleton instance of EmailService
+   * 
+   * Creates a new instance if one doesn't exist, otherwise returns
+   * the existing singleton instance.
+   * 
+   * @returns {EmailService} The singleton EmailService instance
+   * 
+   * @example
+   * const emailService = EmailService.getInstance();
+   */
   static getInstance(): EmailService {
     if (!EmailService.instance) {
       EmailService.instance = new EmailService();
@@ -105,6 +140,36 @@ export class EmailService {
     };
   }
 
+  /**
+   * Send an email
+   * 
+   * Sends an email using the project's SMTP configuration.
+   * Supports HTML content, plain text, attachments, and multiple recipients.
+   * 
+   * @param {string} projectId - Project ID for SMTP configuration
+   * @param {string | string[]} to - Recipient email address(es)
+   * @param {string} subject - Email subject
+   * @param {string} html - HTML email content
+   * @param {Object} [options] - Additional email options
+   * @param {string} [options.text] - Plain text version of email
+   * @param {Array} [options.attachments] - Email attachments
+   * @param {string | string[]} [options.cc] - CC recipients
+   * @param {string | string[]} [options.bcc] - BCC recipients
+   * @param {string} [options.replyTo] - Reply-to address
+   * @returns {Promise<Object>} Send result with success status and message ID or error
+   * @returns {boolean} returns.success - Whether email was sent successfully
+   * @returns {string} [returns.messageId] - Message ID from email server
+   * @returns {string} [returns.error] - Error message if sending failed
+   * 
+   * @example
+   * const result = await emailService.sendEmail(
+   *   'project-id',
+   *   'user@example.com',
+   *   'Welcome!',
+   *   '<h1>Welcome to our service</h1>',
+   *   { text: 'Welcome to our service' }
+   * );
+   */
   async sendEmail(
     projectId: string,
     to: string | string[],

@@ -1,3 +1,20 @@
+/**
+ * Sidebar Components
+ * 
+ * Sidebar navigation components with responsive behavior and mobile support.
+ * Provides collapsible sidebar with state persistence, mobile sheet integration,
+ * and keyboard navigation.
+ * Includes Sidebar, SidebarProvider, SidebarTrigger, SidebarContent, etc.
+ * 
+ * @module components/ui/sidebar
+ * @example
+ * <SidebarProvider>
+ *   <Sidebar>
+ *     <SidebarContent>Navigation items</SidebarContent>
+ *   </Sidebar>
+ *   <SidebarTrigger />
+ * </SidebarProvider>
+ */
 "use client"
 
 import { Slot } from "@radix-ui/react-slot"

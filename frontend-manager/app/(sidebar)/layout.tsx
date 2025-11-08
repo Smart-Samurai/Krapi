@@ -1,3 +1,23 @@
+/**
+ * Sidebar Layout
+ * 
+ * Layout component for pages with sidebar navigation.
+ * Provides sidebar, header, and main content area.
+ * 
+ * @module app/(sidebar)/layout
+ * @example
+ * // Automatically wraps all pages in (sidebar) route group
+ */
+/**
+ * Sidebar Layout
+ * 
+ * Layout component for sidebar pages with navigation and header.
+ * Provides consistent layout structure for all sidebar pages.
+ * 
+ * @module app/(sidebar)/layout
+ * @example
+ * // Automatically wraps all pages in (sidebar) route group
+ */
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -10,6 +30,14 @@ import {
 } from "@/components/ui/sidebar";
 import { navigationItems } from "@/lib/navigation-config";
 
+/**
+ * Get Page Title from Pathname
+ * 
+ * Determines page title based on current pathname.
+ * 
+ * @param {string} pathname - Current pathname
+ * @returns {string} Page title
+ */
 function getPageTitle(pathname: string): string {
   // Find matching navigation item
   const navItem = Object.values(navigationItems).find(item => 
@@ -28,6 +56,15 @@ function getPageTitle(pathname: string): string {
   return "Dashboard";
 }
 
+/**
+ * Sidebar Group Layout Component
+ * 
+ * Layout wrapper for sidebar pages with navigation and header.
+ * 
+ * @param {Object} props - Component props
+ * @param {ReactNode} props.children - Page content
+ * @returns {JSX.Element} Layout with sidebar
+ */
 export default function SidebarGroupLayout({
   children,
 }: {

@@ -1,3 +1,22 @@
+/**
+ * Storage Page
+ * 
+ * Page displaying storage statistics and usage for a project.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/storage/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/storage route
+ */
+/**
+ * Storage Page
+ * 
+ * Page for managing project storage with statistics and quota management.
+ * Displays storage usage, file statistics, and quota information.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/storage/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/storage route
+ */
 "use client";
 
 import {
@@ -24,6 +43,18 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 
+/**
+ * Storage Statistics Interface
+ * 
+ * @interface StorageStats
+ * @property {number} total_files - Total number of files
+ * @property {number} total_size_bytes - Total storage size in bytes
+ * @property {Record<string, number>} files_by_type - File count by MIME type
+ * @property {Object} storage_quota - Storage quota information
+ * @property {number} storage_quota.used - Used storage in bytes
+ * @property {number} storage_quota.limit - Storage limit in bytes
+ * @property {number} storage_quota.percentage - Storage usage percentage
+ */
 interface StorageStats {
   total_files: number;
   total_size_bytes: number;
@@ -35,6 +66,12 @@ interface StorageStats {
   };
 }
 
+/**
+ * Format file size in bytes to human-readable string
+ * 
+ * @param {number} bytes - File size in bytes
+ * @returns {string} Formatted file size (e.g., "1.5 MB")
+ */
 const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -43,6 +80,13 @@ const formatFileSize = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
+/**
+ * Storage Page Component
+ * 
+ * Displays storage statistics and usage information for a project.
+ * 
+ * @returns {JSX.Element} Storage page
+ */
 export default function StoragePage() {
   const params = useParams();
   if (!params || !params.projectId) {

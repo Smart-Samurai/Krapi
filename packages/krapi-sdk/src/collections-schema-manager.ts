@@ -11,9 +11,17 @@ import {
 
 /**
  * Collections Schema Manager
- *
+ * 
  * Manages dynamic collection schemas that can be created at runtime by admin users.
  * Provides schema validation, type inference, and auto-fix capabilities.
+ * 
+ * @class CollectionsSchemaManager
+ * @example
+ * const manager = new CollectionsSchemaManager(dbConnection, console);
+ * const collection = await manager.createCollection({
+ *   name: 'users',
+ *   fields: [{ name: 'email', type: FieldType.string, required: true }]
+ * });
  */
 export class CollectionsSchemaManager {
   private collections: Map<string, Collection> = new Map();

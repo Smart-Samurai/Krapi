@@ -3,12 +3,36 @@
  * 
  * Manages automated backups for projects based on their backup_automation settings.
  * Runs scheduled backups according to project configuration.
+ * 
+ * Features:
+ * - Scheduled backups (hourly, daily, weekly, monthly)
+ * - Automatic backup execution
+ * - Schedule management
+ * - Backup history tracking
+ * 
+ * @class BackupSchedulerService
+ * @example
+ * const scheduler = new BackupSchedulerService(db, backendSDK, logger);
+ * scheduler.start();
+ * // Backups will run automatically based on project settings
  */
-
 import KrapiLogger from "@krapi/logger";
 import type { BackendSDK } from "@krapi/sdk";
+
 import type { DatabaseService } from "./database.service";
 
+/**
+ * Backup schedule configuration
+ * 
+ * @typedef {Object} BackupSchedule
+ * @property {string} projectId - Project ID for the backup schedule
+ * @property {"hourly" | "daily" | "weekly" | "monthly"} frequency - Backup frequency
+ * @property {string} [time] - Time of day for backup (HH:mm format)
+ * @property {number} [day_of_week] - Day of week (0-6, Sunday = 0) for weekly backups
+ * @property {number} [day_of_month] - Day of month (1-31) for monthly backups
+ * @property {Date} [lastBackup] - Timestamp of last backup
+ * @property {Date} [nextBackup] - Timestamp of next scheduled backup
+ */
 export interface BackupSchedule {
   projectId: string;
   frequency: "hourly" | "daily" | "weekly" | "monthly";
@@ -60,6 +84,15 @@ export class BackupSchedulerService {
 
   /**
    * Start the backup scheduler
+   * 
+   * Loads all project backup schedules and begins checking for
+   * scheduled backups. Checks every minute for backups that need to run.
+   * 
+   * @returns {void}
+   * 
+   * @example
+   * scheduler.start();
+   * // Scheduler is now running and will execute backups automatically
    */
   start(): void {
     if (this.isRunning) {

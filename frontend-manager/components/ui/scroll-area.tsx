@@ -1,3 +1,16 @@
+/**
+ * Scroll Area Components
+ * 
+ * Scroll area components built on Radix UI Scroll Area primitives.
+ * Provides custom scrollable areas with styled scrollbars.
+ * Includes ScrollArea and ScrollBar.
+ * 
+ * @module components/ui/scroll-area
+ * @example
+ * <ScrollArea className="h-[200px] w-[350px]">
+ *   <div>Scrollable content</div>
+ * </ScrollArea>
+ */
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 import * as React from "react";
 

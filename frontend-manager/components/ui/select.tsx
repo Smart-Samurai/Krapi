@@ -1,3 +1,20 @@
+/**
+ * Select Components
+ * 
+ * Select/dropdown components built on Radix UI Select primitives.
+ * Includes Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup, etc.
+ * 
+ * @module components/ui/select
+ * @example
+ * <Select>
+ *   <SelectTrigger>
+ *     <SelectValue placeholder="Select option" />
+ *   </SelectTrigger>
+ *   <SelectContent>
+ *     <SelectItem value="option1">Option 1</SelectItem>
+ *   </SelectContent>
+ * </Select>
+ */
 "use client";
 
 import * as SelectPrimitive from "@radix-ui/react-select";
@@ -6,6 +23,11 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Select Root Component
+ * 
+ * @constant {typeof SelectPrimitive.Root}
+ */
 const Select = SelectPrimitive.Root;
 
 const SelectGroup = SelectPrimitive.Group;

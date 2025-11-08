@@ -1,7 +1,36 @@
+/**
+ * Table Components
+ * 
+ * Table components for displaying tabular data.
+ * Includes Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption.
+ * 
+ * @module components/ui/table
+ * @example
+ * <Table>
+ *   <TableHeader>
+ *     <TableRow>
+ *       <TableHead>Name</TableHead>
+ *     </TableRow>
+ *   </TableHeader>
+ *   <TableBody>
+ *     <TableRow>
+ *       <TableCell>Value</TableCell>
+ *     </TableRow>
+ *   </TableBody>
+ * </Table>
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Table Component
+ * 
+ * Main table container component.
+ * 
+ * @param {React.HTMLAttributes<HTMLTableElement>} props - Component props
+ * @returns {JSX.Element} Table component
+ */
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>

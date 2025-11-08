@@ -1,3 +1,30 @@
+/**
+ * Project Routes
+ * 
+ * Handles project-related endpoints including CRUD operations, settings, API keys, and collections.
+ * Base path: /krapi/k1/projects
+ * 
+ * Routes:
+ * - GET / - Get all projects
+ * - GET /:projectId - Get project by ID
+ * - POST / - Create project
+ * - PUT /:projectId - Update project
+ * - DELETE /:projectId - Delete project
+ * - GET /:projectId/settings - Get project settings
+ * - PUT /:projectId/settings - Update project settings
+ * - POST /:projectId/api-keys - Create project API key
+ * - GET /:projectId/api-keys - Get project API keys
+ * - DELETE /:projectId/api-keys/:keyId - Delete project API key
+ * - GET /:projectId/stats - Get project statistics
+ * - GET /:projectId/activity - Get project activity
+ * - Collections routes (nested under /:projectId/collections)
+ * - Documents routes (nested under /:projectId/collections/:collectionName/documents)
+ * 
+ * All routes require authentication and appropriate scopes.
+ * SDK-driven implementation using BackendSDK for all functionality.
+ * 
+ * @module routes/project.routes
+ */
 import { BackendSDK } from "@krapi/sdk";
 import { Router, IRouter } from "express";
 
@@ -19,6 +46,14 @@ const collectionsController = new CollectionsController();
 // Initialize the BackendSDK - will be set from app.ts
 let _backendSDK: BackendSDK;
 
+/**
+ * Initialize BackendSDK for project routes
+ * 
+ * Called from app.ts to set up the BackendSDK instance for project and collections controllers.
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
 export const initializeProjectSDK = (sdk: BackendSDK) => {
   _backendSDK = sdk;
   // Initialize the controller with the SDK instance for SDK-first architecture

@@ -1,3 +1,13 @@
+/**
+ * Project Users Page
+ * 
+ * Page for managing project users with role and scope configuration.
+ * Provides user CRUD operations and permission management.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/users/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/users route
+ */
 "use client";
 
 import {
@@ -81,6 +91,14 @@ const scopeLabels: Record<string, string> = {
   [ProjectScope.EMAIL_SEND]: "Send Emails",
 };
 
+/**
+ * Users Page Component
+ * 
+ * Manages project users with role and scope configuration.
+ * Provides user CRUD operations and permission management.
+ * 
+ * @returns {JSX.Element} Users page
+ */
 export default function UsersPage() {
   const params = useParams();
   if (!params || !params.projectId) {

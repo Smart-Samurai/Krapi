@@ -12,9 +12,14 @@ import {
 
 /**
  * Auth Adapter Service
- *
- * This service wraps the existing AuthService to provide
- * a consistent interface for the BackendSDK.
+ * 
+ * Wraps the existing AuthService to provide a consistent interface for the BackendSDK.
+ * Acts as an adapter layer between SDK and the core AuthService.
+ * 
+ * @class AuthAdapterService
+ * @example
+ * const adapter = AuthAdapterService.getInstance();
+ * const result = await adapter.validateSession('session-token');
  */
 export class AuthAdapterService {
   private static instance: AuthAdapterService;
@@ -26,6 +31,14 @@ export class AuthAdapterService {
     this.db = DatabaseService.getInstance();
   }
 
+  /**
+   * Get singleton instance of AuthAdapterService
+   * 
+   * @returns {AuthAdapterService} The singleton instance
+   * 
+   * @example
+   * const adapter = AuthAdapterService.getInstance();
+   */
   static getInstance(): AuthAdapterService {
     if (!AuthAdapterService.instance) {
       AuthAdapterService.instance = new AuthAdapterService();
@@ -33,6 +46,21 @@ export class AuthAdapterService {
     return AuthAdapterService.instance;
   }
 
+  /**
+   * Validate a session token
+   * 
+   * @param {string} token - Session token
+   * @returns {Promise<Object>} Validation result
+   * @returns {boolean} returns.valid - Whether session is valid
+   * @returns {AdminUser | ProjectUser} [returns.user] - User if valid
+   * @returns {string[]} [returns.scopes] - User scopes if valid
+   * 
+   * @example
+   * const result = await adapter.validateSession('session-token');
+   * if (result.valid) {
+   *   console.log('User:', result.user);
+   * }
+   */
   async validateSession(token: string): Promise<{
     valid: boolean;
     user?: AdminUser | ProjectUser;
@@ -76,6 +104,22 @@ export class AuthAdapterService {
     return { valid: false };
   }
 
+  /**
+   * Authenticate a user with username and password
+   * 
+   * Tries admin authentication first, then project user authentication.
+   * 
+   * @param {Object} credentials - Login credentials
+   * @param {string} credentials.username - Username
+   * @param {string} credentials.password - Password
+   * @returns {Promise<AdminUser | ProjectUser | null>} Authenticated user or null
+   * 
+   * @example
+   * const user = await adapter.authenticateUser({
+   *   username: 'admin',
+   *   password: 'password'
+   * });
+   */
   async authenticateUser(credentials: {
     username: string;
     password: string;
@@ -96,6 +140,15 @@ export class AuthAdapterService {
     return null;
   }
 
+  /**
+   * Hash a password
+   * 
+   * @param {string} password - Plain text password
+   * @returns {Promise<string>} Hashed password
+   * 
+   * @example
+   * const hash = await adapter.hashPassword('plain-password');
+   */
   async hashPassword(password: string): Promise<string> {
     return await this.authService.hashPassword(password);
   }

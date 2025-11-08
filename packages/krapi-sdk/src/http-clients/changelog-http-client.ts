@@ -1,12 +1,29 @@
 /**
  * Changelog HTTP Client for KRAPI SDK
- *
- * HTTP-based changelog methods for frontend apps
+ * 
+ * HTTP-based changelog methods for frontend applications.
+ * Provides changelog retrieval for projects, collections, and documents.
+ * 
+ * @module http-clients/changelog-http-client
+ * @example
+ * const client = new ChangelogHttpClient({ baseUrl: 'https://api.example.com' });
+ * const changelog = await client.getProjectChangelog('project-id', { limit: 10 });
  */
-
 import { ApiResponse, PaginatedResponse } from "../core";
 
 import { BaseHttpClient } from "./base-http-client";
+
+/**
+ * Changelog HTTP Client
+ * 
+ * HTTP client for changelog operations.
+ * 
+ * @class ChangelogHttpClient
+ * @extends {BaseHttpClient}
+ * @example
+ * const client = new ChangelogHttpClient({ baseUrl: 'https://api.example.com' });
+ * const changelog = await client.getProjectChangelog('project-id');
+ */
 export class ChangelogHttpClient extends BaseHttpClient {
   // Project Changelog
   async getProjectChangelog(

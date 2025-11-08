@@ -1,3 +1,12 @@
+/**
+ * Home Redirect Page
+ * 
+ * Redirects users to dashboard or login based on authentication status.
+ * 
+ * @module app/home-redirect
+ * @example
+ * // Automatically rendered at / route
+ */
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -5,6 +14,13 @@ import { useEffect } from "react";
 
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 
+/**
+ * Home Page Component
+ * 
+ * Redirects authenticated users to dashboard, unauthenticated users to login.
+ * 
+ * @returns {JSX.Element} Loading state during redirect
+ */
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useReduxAuth();

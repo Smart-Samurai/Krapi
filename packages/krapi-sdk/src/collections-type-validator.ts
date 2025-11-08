@@ -12,9 +12,14 @@ import {
 
 /**
  * Collections Type Validator
- *
+ * 
  * Validates collection type definitions against actual database schema,
  * detects mismatches, and provides auto-fixing capabilities.
+ * 
+ * @class CollectionsTypeValidator
+ * @example
+ * const validator = new CollectionsTypeValidator(dbConnection, console);
+ * const result = await validator.validateCollectionType(typeDefinition, 'users');
  */
 export class CollectionsTypeValidator {
   private schemaInspector: PostgreSQLSchemaInspector;

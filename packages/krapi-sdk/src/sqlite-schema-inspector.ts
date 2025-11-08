@@ -1,8 +1,13 @@
 /**
  * SQLite Schema Inspector
- *
+ * 
  * Queries SQLite system tables to get actual database schema information
  * for comparison with expected collection schemas.
+ * 
+ * @class SQLiteSchemaInspector
+ * @example
+ * const inspector = new SQLiteSchemaInspector(dbConnection, console);
+ * const schema = await inspector.getTableSchema('users');
  */
 export class SQLiteSchemaInspector {
   constructor(

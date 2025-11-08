@@ -41,16 +41,42 @@ export interface EndpointTestResult {
   error?: string;
 }
 
+/**
+ * Testing Service for KRAPI SDK
+ * 
+ * Provides testing utilities, health checks, and development helpers.
+ * 
+ * @class TestingService
+ * @example
+ * const testingService = new TestingService(dbConnection, logger);
+ * const testSuite = await testingService.runDatabaseTests();
+ */
 export class TestingService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new TestingService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // Database Testing
+  /**
+   * Run database tests
+   * 
+   * Runs comprehensive database tests including connection, tables, performance, and data integrity.
+   * 
+   * @returns {Promise<TestSuite>} Test suite results
+   * 
+   * @example
+   * const testSuite = await testingService.runDatabaseTests();
+   * console.log(`Passed: ${testSuite.totalPassed}, Failed: ${testSuite.totalFailed}`);
+   */
   async runDatabaseTests(): Promise<TestSuite> {
     const startTime = Date.now();
     const tests: TestResult[] = [];

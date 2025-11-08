@@ -1,3 +1,24 @@
+/**
+ * Testing Routes
+ * 
+ * Provides testing utilities for development and testing.
+ * Base path: /krapi/k1/testing
+ * 
+ * Routes:
+ * - POST /projects - Create test project
+ * - GET /projects - Get test projects
+ * - DELETE /projects/:projectId - Delete test project
+ * - DELETE /cleanup - Clean up test data
+ * - POST /reset - Reset test data
+ * - POST /run - Run integration tests
+ * - POST /scenarios/:scenarioName - Run specific test scenario
+ * - GET /scenarios - Get available test scenarios
+ * 
+ * Only available in development mode or when ENABLE_TESTING is enabled.
+ * All routes require authentication.
+ * 
+ * @module routes/testing.routes
+ */
 import { Router, IRouter } from "express";
 
 import { TestingController } from "@/controllers/testing.controller";

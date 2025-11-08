@@ -3,13 +3,22 @@
  * 
  * Defines default collections that should be created for every new project.
  * These collections provide common functionality that all projects need.
+ * 
+ * @module utils/default-collections
  */
 
-import { CollectionField, CollectionIndex } from "@/types";
 import { FieldType } from "@krapi/sdk";
 
+import { CollectionField, CollectionIndex } from "@/types";
+
 /**
- * Default collections schema definitions
+ * Default collection schema definition
+ * 
+ * @interface DefaultCollection
+ * @property {string} name - Collection name
+ * @property {string} description - Collection description
+ * @property {CollectionField[]} fields - Collection fields
+ * @property {CollectionIndex[]} [indexes] - Collection indexes
  */
 export interface DefaultCollection {
   name: string;
@@ -27,6 +36,12 @@ export interface DefaultCollection {
  * - Optional contact information (email, phone)
  * - Confirmation state tracking
  * - Personal information fields
+ * 
+ * @returns {DefaultCollection} Default users collection schema
+ * 
+ * @example
+ * const usersCollection = getDefaultUsersCollection();
+ * await db.createCollection(projectId, usersCollection.name, usersCollection);
  */
 export function getDefaultUsersCollection(): DefaultCollection {
   return {

@@ -1,3 +1,20 @@
+/**
+ * Input OTP Components
+ * 
+ * One-time password (OTP) input components built on input-otp library.
+ * Provides multi-digit OTP input with validation and formatting.
+ * Includes InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator.
+ * 
+ * @module components/ui/input-otp
+ * @example
+ * <InputOTP maxLength={6}>
+ *   <InputOTPGroup>
+ *     <InputOTPSlot index={0} />
+ *     <InputOTPSlot index={1} />
+ *     <InputOTPSlot index={2} />
+ *   </InputOTPGroup>
+ * </InputOTP>
+ */
 "use client"
 
 import { OTPInput, OTPInputContext } from "input-otp"

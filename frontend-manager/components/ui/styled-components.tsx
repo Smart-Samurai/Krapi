@@ -1,3 +1,15 @@
+/**
+ * Styled Components
+ * 
+ * Custom styled components with consistent theming and variants.
+ * Includes StyledButton, StyledCard, StyledInput, and other styled primitives.
+ * 
+ * @module components/ui/styled-components
+ * @example
+ * <StyledButton variant="primary" size="md">
+ *   Click me
+ * </StyledButton>
+ */
 import React from "react";
 
 import { cn } from "@/lib/utils";

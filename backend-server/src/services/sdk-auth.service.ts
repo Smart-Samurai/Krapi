@@ -1,8 +1,39 @@
 import { AuthService } from "@krapi/sdk";
 
+/**
+ * SDK Auth Service Wrapper
+ * 
+ * Wrapper service that delegates to the SDK AuthService.
+ * Provides a consistent interface for backend services to access authentication operations.
+ * 
+ * @class SDKAuthService
+ * @example
+ * const authService = new AuthService(dbConnection);
+ * const sdkAuthService = new SDKAuthService(authService);
+ * const session = await sdkAuthService.adminLogin({ username: 'admin', password: 'pass' });
+ */
 export class SDKAuthService {
+  /**
+   * Create a new SDKAuthService instance
+   * 
+   * @param {AuthService} authService - SDK AuthService instance
+   */
   constructor(private authService: AuthService) {}
 
+  /**
+   * Admin login with username and password
+   * 
+   * @param {Object} credentials - Login credentials
+   * @param {string} credentials.username - Admin username
+   * @param {string} credentials.password - Admin password
+   * @returns {Promise<unknown>} Authentication result with session token
+   * 
+   * @example
+   * const result = await sdkAuthService.adminLogin({
+   *   username: 'admin',
+   *   password: 'password'
+   * });
+   */
   async adminLogin(credentials: {
     username: string;
     password: string;
@@ -11,11 +42,40 @@ export class SDKAuthService {
     return await this.authService.authenticateAdmin(credentials);
   }
 
+  /**
+   * Admin login with API key
+   * 
+   * @param {string} apiKey - Admin API key
+   * @returns {Promise<unknown>} Authentication result with session token
+   * 
+   * @example
+   * const result = await sdkAuthService.adminApiKeyLogin('ak_...');
+   */
   async adminApiKeyLogin(apiKey: string): Promise<unknown> {
     // SDK doesn't have adminApiKeyLogin, we need to use createSessionFromApiKey
     return await this.authService.createSessionFromApiKey(apiKey);
   }
 
+  /**
+   * Create a new session
+   * 
+   * @param {Object} sessionData - Session data
+   * @param {string} sessionData.user_id - User ID
+   * @param {"admin" | "project"} sessionData.user_type - User type
+   * @param {string} [sessionData.project_id] - Project ID (for project users)
+   * @param {string[]} sessionData.scopes - User scopes
+   * @param {boolean} [sessionData.remember_me] - Whether to remember session
+   * @param {string} [sessionData.ip_address] - Client IP address
+   * @param {string} [sessionData.user_agent] - Client user agent
+   * @returns {Promise<unknown>} Created session
+   * 
+   * @example
+   * const session = await sdkAuthService.createSession({
+   *   user_id: 'user-id',
+   *   user_type: 'admin',
+   *   scopes: ['admin:read']
+   * });
+   */
   async createSession(sessionData: {
     user_id: string;
     user_type: "admin" | "project";
@@ -41,6 +101,15 @@ export class SDKAuthService {
     throw new Error("projectApiKeyLogin not implemented in SDK");
   }
 
+  /**
+   * Validate a session token
+   * 
+   * @param {string} sessionToken - Session token to validate
+   * @returns {Promise<unknown>} Session data if valid
+   * 
+   * @example
+   * const session = await sdkAuthService.validateSession('session-token');
+   */
   async validateSession(sessionToken: string): Promise<unknown> {
     return await this.authService.validateSession(sessionToken);
   }
@@ -50,6 +119,25 @@ export class SDKAuthService {
     throw new Error("refreshSession not implemented in SDK");
   }
 
+  /**
+   * Register a new user
+   * 
+   * @param {Object} registerData - Registration data
+   * @param {string} registerData.username - Username
+   * @param {string} registerData.email - Email address
+   * @param {string} registerData.password - Password
+   * @param {string} [registerData.role] - User role
+   * @param {string} [registerData.access_level] - Access level
+   * @param {string[]} [registerData.permissions] - User permissions
+   * @returns {Promise<unknown>} Registration result
+   * 
+   * @example
+   * const result = await sdkAuthService.register({
+   *   username: 'newuser',
+   *   email: 'user@example.com',
+   *   password: 'password'
+   * });
+   */
   async register(registerData: {
     username: string;
     email: string;
@@ -61,10 +149,36 @@ export class SDKAuthService {
     return await this.authService.register(registerData);
   }
 
+  /**
+   * Logout and invalidate session
+   * 
+   * @param {string} [sessionId] - Session ID to invalidate (if not provided, invalidates current session)
+   * @returns {Promise<unknown>} Logout result
+   * 
+   * @example
+   * await sdkAuthService.logout('session-id');
+   */
   async logout(sessionId?: string): Promise<unknown> {
     return await this.authService.logout(sessionId);
   }
 
+  /**
+   * Change user password
+   * 
+   * @param {string} userId - User ID
+   * @param {"admin" | "project"} userType - User type
+   * @param {string} currentPassword - Current password
+   * @param {string} newPassword - New password
+   * @returns {Promise<boolean>} True if password changed successfully
+   * 
+   * @example
+   * const success = await sdkAuthService.changePassword(
+   *   'user-id',
+   *   'admin',
+   *   'old-password',
+   *   'new-password'
+   * );
+   */
   async changePassword(
     userId: string,
     userType: "admin" | "project",

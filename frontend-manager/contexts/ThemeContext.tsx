@@ -1,9 +1,32 @@
+/**
+ * Theme Context
+ * 
+ * Provides theme management (light/dark) for the application.
+ * Persists theme preference in localStorage.
+ * 
+ * @module contexts/ThemeContext
+ * @example
+ * const { theme, toggleTheme } = useTheme();
+ */
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+/**
+ * Theme Type
+ * 
+ * @typedef {"light" | "dark"} Theme
+ */
 type Theme = "light" | "dark";
 
+/**
+ * Theme Context Type
+ * 
+ * @interface ThemeContextType
+ * @property {Theme} theme - Current theme
+ * @property {Function} toggleTheme - Toggle between light and dark themes
+ * @property {Function} setTheme - Set theme directly
+ */
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
@@ -12,7 +35,11 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-// Get initial theme from localStorage or system preference
+/**
+ * Get initial theme from localStorage or system preference
+ * 
+ * @returns {Theme} Initial theme value
+ */
 function getInitialTheme(): Theme {
   // This runs on the client only
   if (typeof window !== "undefined") {
@@ -28,6 +55,21 @@ function getInitialTheme(): Theme {
   return "light";
 }
 
+/**
+ * Theme Provider Component
+ * 
+ * Provides theme context to the application.
+ * Manages theme state and applies theme to document root.
+ * 
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ * @returns {JSX.Element} Theme provider with context
+ * 
+ * @example
+ * <ThemeProvider>
+ *   <App />
+ * </ThemeProvider>
+ */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
   const [mounted, setMounted] = useState(false);
@@ -70,6 +112,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Use Theme Hook
+ * 
+ * Hook to access theme context.
+ * 
+ * @returns {ThemeContextType} Theme context value
+ * @throws {Error} If used outside ThemeProvider
+ * 
+ * @example
+ * const { theme, toggleTheme } = useTheme();
+ */
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (context === undefined) {

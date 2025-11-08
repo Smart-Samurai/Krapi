@@ -21,15 +21,50 @@ type ExtendedRequest = ExpressRequest &
     };
   };
 
+/**
+ * Collections Controller
+ * 
+ * Handles all collection-related HTTP requests including:
+ * - Collection CRUD operations
+ * - Collection schema management
+ * - Field and index management
+ * - Collection validation
+ * 
+ * All operations use the BackendSDK for database access.
+ * Requires authentication and proper project scopes.
+ * 
+ * @class CollectionsController
+ * @example
+ * const controller = new CollectionsController();
+ * controller.setBackendSDK(backendSDK);
+ * // Controller is ready to handle requests
+ */
 export class CollectionsController {
   private backendSDK?: BackendSDK;
 
+  /**
+   * Set the BackendSDK instance
+   * 
+   * @param {BackendSDK} sdk - The BackendSDK instance to use
+   * @returns {void}
+   * 
+   * @example
+   * controller.setBackendSDK(backendSDK);
+   */
   setBackendSDK(sdk: BackendSDK) {
     this.backendSDK = sdk;
   }
 
   /**
    * Sanitize project ID while preserving UUID format (with dashes)
+   * 
+   * Preserves UUID format (with dashes) for valid UUIDs, otherwise
+   * sanitizes non-UUID project IDs by removing invalid characters.
+   * 
+   * @param {string} projectId - Project ID to sanitize
+   * @returns {string} Sanitized project ID
+   * 
+   * @private
    */
   private sanitizeProjectId(projectId: string): string {
     // Preserve UUID format (with dashes) - only sanitize non-UUID IDs
@@ -43,6 +78,22 @@ export class CollectionsController {
 
   /**
    * Get all collections for a project
+   * 
+   * GET /krapi/k1/projects/:projectId/collections
+   * 
+   * Retrieves all collections for the specified project.
+   * Requires authentication and project access.
+   * 
+   * @param {ExtendedRequest} req - Express request with projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {500} If BackendSDK is not initialized
+   * @throws {500} If database query fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-uuid/collections
+   * // Response: { success: true, collections: [...] }
    */
   async getAllCollections(req: ExtendedRequest, res: Response) {
     try {
@@ -155,7 +206,7 @@ export class CollectionsController {
         projectId: sanitizedId,
         name,
         fieldsCount: fields?.length,
-        fields: fields,
+        fields,
         description,
         indexes,
       });

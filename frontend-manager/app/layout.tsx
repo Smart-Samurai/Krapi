@@ -1,3 +1,11 @@
+/**
+ * Root Layout Component
+ * 
+ * Root layout for the KRAPI frontend manager application.
+ * Provides global styles, theme support, and provider setup.
+ * 
+ * @module app/layout
+ */
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
@@ -7,6 +15,11 @@ import { themeScript } from "@/lib/theme-script";
 
 const inter = Inter({ subsets: ["latin"] });
 
+/**
+ * Application metadata
+ * 
+ * @constant {Metadata}
+ */
 export const metadata: Metadata = {
   title: "KRAPI - Backend as a Service",
   description:
@@ -33,6 +46,11 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Viewport configuration
+ * 
+ * @constant
+ */
 export const viewport = {
   width: "device-width",
   initialScale: 1,
@@ -42,6 +60,32 @@ export const viewport = {
   ],
 };
 
+/**
+ * Root Layout Component
+ * 
+ * Root layout component that wraps all pages with providers and theme support.
+ * 
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ * @returns {JSX.Element} Root layout with providers
+ * 
+ * @example
+ * // Used automatically by Next.js
+ * // Wraps all pages with Providers and theme support
+ */
+/**
+ * Root Layout Component
+ * 
+ * Root layout component that wraps all pages.
+ * Provides theme script, global styles, and providers.
+ * 
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ * @returns {JSX.Element} Root layout JSX
+ * 
+ * @example
+ * // Used automatically by Next.js for all pages
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

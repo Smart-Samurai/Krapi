@@ -1,8 +1,40 @@
 import { CollectionsService, FieldType } from "@krapi/sdk";
 
+/**
+ * SDK Collections Service Wrapper
+ * 
+ * Wrapper service that delegates to the SDK CollectionsService.
+ * Provides a consistent interface for backend services to access collection operations.
+ * 
+ * @class SDKCollectionsService
+ * @example
+ * const collectionsService = new CollectionsService(dbConnection);
+ * const sdkCollectionsService = new SDKCollectionsService(collectionsService);
+ * const collections = await sdkCollectionsService.getCollectionsByProject('project-id');
+ */
 export class SDKCollectionsService {
+  /**
+   * Create a new SDKCollectionsService instance
+   * 
+   * @param {CollectionsService} collectionsService - SDK CollectionsService instance
+   */
   constructor(private collectionsService: CollectionsService) {}
 
+  /**
+   * Get all collections for a project
+   * 
+   * @param {string} _projectId - Project ID
+   * @param {Object} [_options] - Query options
+   * @param {number} [_options.limit] - Maximum number of collections
+   * @param {number} [_options.offset] - Number of collections to skip
+   * @param {string} [_options.search] - Search term
+   * @param {boolean} [_options.active] - Filter by active status
+   * @returns {Promise<unknown[]>} Array of collections
+   * @throws {Error} Not implemented in SDK
+   * 
+   * @example
+   * const collections = await sdkCollectionsService.getProjectCollections('project-id');
+   */
   async getProjectCollections(
     _projectId: string,
     _options: {
@@ -16,15 +48,63 @@ export class SDKCollectionsService {
     throw new Error("getProjectCollections not implemented in SDK");
   }
 
+  /**
+   * Get collection by ID
+   * 
+   * @param {string} _collectionId - Collection ID
+   * @returns {Promise<unknown | null>} Collection or null if not found
+   * @throws {Error} Not implemented in SDK
+   * 
+   * @example
+   * const collection = await sdkCollectionsService.getCollectionById('collection-id');
+   */
   async getCollectionById(_collectionId: string): Promise<unknown | null> {
     // SDK doesn't have getCollectionById, this would need to be implemented
     throw new Error("getCollectionById not implemented in SDK");
   }
 
+  /**
+   * Get collections by project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<unknown[]>} Array of collections
+   * 
+   * @example
+   * const collections = await sdkCollectionsService.getCollectionsByProject('project-id');
+   */
   async getCollectionsByProject(projectId: string): Promise<unknown[]> {
     return await this.collectionsService.getCollectionsByProject(projectId);
   }
 
+  /**
+   * Get documents from a collection
+   * 
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {Object} [filter] - Document filters
+   * @param {string} [filter.search] - Search term
+   * @param {Record<string, unknown>} [filter.field_filters] - Field-specific filters
+   * @param {string} [filter.created_after] - Filter by creation date (ISO string)
+   * @param {string} [filter.created_before] - Filter by creation date (ISO string)
+   * @param {string} [filter.updated_after] - Filter by update date (ISO string)
+   * @param {string} [filter.updated_before] - Filter by update date (ISO string)
+   * @param {string} [filter.created_by] - Filter by creator user ID
+   * @param {string} [filter.updated_by] - Filter by updater user ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of documents
+   * @param {number} [options.offset] - Number of documents to skip
+   * @param {string} [options.sort_by] - Field to sort by
+   * @param {"asc" | "desc"} [options.sort_order] - Sort order
+   * @returns {Promise<unknown[]>} Array of documents
+   * 
+   * @example
+   * const documents = await sdkCollectionsService.getDocuments(
+   *   'project-id',
+   *   'users',
+   *   { search: 'john' },
+   *   { limit: 10, sort_by: 'created_at', sort_order: 'desc' }
+   * );
+   */
   async getDocuments(
     projectId: string,
     collectionName: string,
@@ -54,6 +134,19 @@ export class SDKCollectionsService {
     );
   }
 
+  /**
+   * Create a document in a collection
+   * 
+   * @param {string} collectionId - Collection ID/name
+   * @param {Record<string, unknown>} data - Document data
+   * @returns {Promise<unknown>} Created document
+   * 
+   * @example
+   * const document = await sdkCollectionsService.createDocument('users', {
+   *   name: 'John Doe',
+   *   email: 'john@example.com'
+   * });
+   */
   async createDocument(
     collectionId: string,
     data: Record<string, unknown>
@@ -68,6 +161,35 @@ export class SDKCollectionsService {
     );
   }
 
+  /**
+   * Create a new collection
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} collectionData - Collection data
+   * @param {string} collectionData.name - Collection name
+   * @param {string} [collectionData.description] - Collection description
+   * @param {Array} collectionData.fields - Collection fields
+   * @param {string} collectionData.fields[].name - Field name
+   * @param {string} collectionData.fields[].type - Field type
+   * @param {boolean} [collectionData.fields[].required] - Whether field is required
+   * @param {boolean} [collectionData.fields[].unique] - Whether field is unique
+   * @param {boolean} [collectionData.fields[].indexed] - Whether field is indexed
+   * @param {unknown} [collectionData.fields[].default] - Default value
+   * @param {string} [collectionData.fields[].description] - Field description
+   * @param {Array} [collectionData.indexes] - Collection indexes
+   * @param {string} collectionData.indexes[].name - Index name
+   * @param {string[]} collectionData.indexes[].fields - Index fields
+   * @param {boolean} [collectionData.indexes[].unique] - Whether index is unique
+   * @returns {Promise<unknown>} Created collection
+   * 
+   * @example
+   * const collection = await sdkCollectionsService.createCollection('project-id', {
+   *   name: 'users',
+   *   fields: [
+   *     { name: 'email', type: 'string', required: true, unique: true }
+   *   ]
+   * });
+   */
   async createCollection(
     projectId: string,
     collectionData: {

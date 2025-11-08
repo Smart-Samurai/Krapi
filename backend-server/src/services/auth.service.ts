@@ -16,7 +16,7 @@ import {
 
 /**
  * Authentication Service
- *
+ * 
  * Singleton service that handles all authentication and authorization logic:
  * - Password hashing and verification
  * - JWT token generation and validation
@@ -24,8 +24,14 @@ import {
  * - Scope-based permissions
  * - API key generation
  * - Authentication logging
- *
+ * 
  * Uses bcrypt for password hashing and jsonwebtoken for JWT operations.
+ * 
+ * @class AuthService
+ * @example
+ * const authService = AuthService.getInstance();
+ * const user = await authService.authenticateAdmin('username', 'password');
+ * const session = await authService.createAdminSessionWithScopes(user);
  */
 export class AuthService {
   private static instance: AuthService;
@@ -45,7 +51,11 @@ export class AuthService {
 
   /**
    * Get singleton instance of AuthService
-   * @returns AuthService instance
+   * 
+   * @returns {AuthService} AuthService instance
+   * 
+   * @example
+   * const authService = AuthService.getInstance();
    */
   static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -80,7 +90,19 @@ export class AuthService {
     }
   }
 
-  // Admin Authentication
+  /**
+   * Authenticate admin user with username and password
+   * 
+   * @param {string} username - Admin username
+   * @param {string} password - Admin password
+   * @returns {Promise<AdminUser | null>} Admin user if authentication succeeds, null otherwise
+   * 
+   * @example
+   * const user = await authService.authenticateAdmin('admin', 'password');
+   * if (user) {
+   *   console.log('Authentication successful');
+   * }
+   */
   async authenticateAdmin(
     username: string,
     password: string
@@ -99,6 +121,15 @@ export class AuthService {
 
   /**
    * Get scopes for a given admin role
+   * 
+   * Returns the list of scopes/permissions associated with an admin role.
+   * 
+   * @param {AdminRole | string} role - Admin role (MASTER_ADMIN, ADMIN, PROJECT_ADMIN, DEVELOPER)
+   * @returns {Scope[]} Array of scopes for the role
+   * 
+   * @example
+   * const scopes = authService.getScopesForRole(AdminRole.ADMIN);
+   * // Returns: [ADMIN_READ, ADMIN_WRITE, PROJECTS_READ, ...]
    */
   getScopesForRole(role: AdminRole | string): Scope[] {
     // Handle both enum values and string values for backward compatibility
@@ -155,6 +186,14 @@ export class AuthService {
 
   /**
    * Get default scopes for project API keys
+   * 
+   * Returns the default set of scopes assigned to project API keys.
+   * 
+   * @returns {Scope[]} Array of default project scopes
+   * 
+   * @example
+   * const scopes = authService.getDefaultProjectScopes();
+   * // Returns: [COLLECTIONS_READ, DOCUMENTS_READ, DOCUMENTS_WRITE, ...]
    */
   getDefaultProjectScopes(): Scope[] {
     return [
@@ -170,6 +209,16 @@ export class AuthService {
 
   /**
    * Create admin session with appropriate scopes
+   * 
+   * Creates a new session for an admin user with scopes based on their role.
+   * Session expires in 24 hours.
+   * 
+   * @param {AdminUser} adminUser - Admin user to create session for
+   * @returns {Promise<BackendSession>} Created session
+   * 
+   * @example
+   * const session = await authService.createAdminSessionWithScopes(adminUser);
+   * console.log('Session token:', session.token);
    */
   async createAdminSessionWithScopes(
     adminUser: AdminUser
@@ -192,6 +241,19 @@ export class AuthService {
 
   /**
    * Create project session with appropriate scopes
+   * 
+   * Creates a new session for a project with specified scopes or default project scopes.
+   * Session expires in 24 hours.
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Scope[]} [scopes] - Optional scopes (uses default project scopes if not provided)
+   * @returns {Promise<BackendSession>} Created session
+   * @throws {Error} If project is not found or inactive
+   * 
+   * @example
+   * const session = await authService.createProjectSessionWithScopes('project-id');
+   * // Or with custom scopes:
+   * const session = await authService.createProjectSessionWithScopes('project-id', [Scope.DOCUMENTS_READ]);
    */
   async createProjectSessionWithScopes(
     projectId: string,
@@ -226,7 +288,23 @@ export class AuthService {
     return `tok_${crypto.randomBytes(32).toString("hex")}`;
   }
 
-  // Validate Session Token (without consuming)
+  /**
+   * Validate session token (without consuming)
+   * 
+   * Validates a session token and returns session information if valid.
+   * Updates last activity timestamp for valid sessions.
+   * 
+   * @param {string} token - Session token to validate
+   * @returns {Promise<Object>} Validation result
+   * @returns {boolean} returns.valid - Whether session is valid
+   * @returns {BackendSession} [returns.session] - Session data if valid
+   * 
+   * @example
+   * const result = await authService.validateSessionToken('session-token');
+   * if (result.valid) {
+   *   console.log('Session valid:', result.session);
+   * }
+   */
   async validateSessionToken(
     token: string
   ): Promise<{ valid: boolean; session?: BackendSession }> {
@@ -259,7 +337,26 @@ export class AuthService {
     return { valid: true, session: updatedSession || session };
   }
 
-  // Generate JWT Token (for after session validation)
+  /**
+   * Generate JWT token
+   * 
+   * Generates a JWT token with the specified payload.
+   * Token expiration is configured via JWT_EXPIRES_IN environment variable (default: 7d).
+   * 
+   * @param {Object} payload - JWT payload
+   * @param {string} payload.id - User/session ID
+   * @param {SessionType} payload.type - Session type
+   * @param {string} [payload.projectId] - Project ID (for project sessions)
+   * @param {string[]} [payload.permissions] - User permissions
+   * @returns {string} JWT token
+   * 
+   * @example
+   * const token = authService.generateJWT({
+   *   id: 'user-id',
+   *   type: SessionType.ADMIN,
+   *   permissions: ['admin:read']
+   * });
+   */
   generateJWT(payload: {
     id: string;
     type: SessionType;
@@ -271,7 +368,26 @@ export class AuthService {
     } as jwt.SignOptions);
   }
 
-  // Verify JWT Token
+  /**
+   * Verify JWT token
+   * 
+   * Verifies and decodes a JWT token.
+   * 
+   * @param {string} token - JWT token to verify
+   * @returns {Object | null} Decoded token payload or null if invalid
+   * @returns {string} returns.id - User/session ID
+   * @returns {SessionType} returns.type - Session type
+   * @returns {string} [returns.projectId] - Project ID
+   * @returns {string[]} [returns.permissions] - User permissions
+   * @returns {number} [returns.iat] - Issued at timestamp
+   * @returns {number} [returns.exp] - Expiration timestamp
+   * 
+   * @example
+   * const payload = authService.verifyJWT('jwt-token');
+   * if (payload) {
+   *   console.log('User ID:', payload.id);
+   * }
+   */
   verifyJWT(token: string): {
     id: string;
     type: SessionType;
@@ -298,27 +414,85 @@ export class AuthService {
     }
   }
 
-  // Hash Password
+  /**
+   * Hash a password
+   * 
+   * Hashes a plain text password using bcrypt with salt rounds of 10.
+   * 
+   * @param {string} password - Plain text password
+   * @returns {Promise<string>} Hashed password
+   * 
+   * @example
+   * const hash = await authService.hashPassword('plain-password');
+   * // Store hash in database
+   */
   async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
   }
 
-  // Verify Password
+  /**
+   * Verify a password against a hash
+   * 
+   * Compares a plain text password with a bcrypt hash.
+   * 
+   * @param {string} password - Plain text password
+   * @param {string} hash - Hashed password to compare against
+   * @returns {Promise<boolean>} True if password matches hash
+   * 
+   * @example
+   * const isValid = await authService.verifyPassword('password', storedHash);
+   * if (isValid) {
+   *   // Password is correct
+   * }
+   */
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     return bcrypt.compare(password, hash);
   }
 
-  // Generate API Key
+  /**
+   * Generate API key
+   * 
+   * Generates a cryptographically secure random API key (64 hex characters).
+   * 
+   * @returns {string} Generated API key
+   * 
+   * @example
+   * const apiKey = authService.generateApiKey();
+   * // Store apiKey in database
+   */
   generateApiKey(): string {
     return crypto.randomBytes(32).toString("hex");
   }
 
-  // Clean up expired sessions
+  /**
+   * Clean up expired sessions
+   * 
+   * Removes all expired sessions from the database.
+   * 
+   * @returns {Promise<number>} Number of sessions cleaned up
+   * 
+   * @example
+   * const count = await authService.cleanupSessions();
+   * console.log(`Cleaned up ${count} expired sessions`);
+   */
   async cleanupSessions(): Promise<number> {
     return this.db.cleanupExpiredSessions();
   }
 
-  // Log authentication action
+  /**
+   * Log authentication action
+   * 
+   * Creates a changelog entry for an authentication-related action.
+   * 
+   * @param {"login" | "logout" | "session_created" | "password_change" | "api_key_regenerated"} action - Action type
+   * @param {string} userId - User ID
+   * @param {string} [projectId] - Project ID (if applicable)
+   * @param {string} [sessionId] - Session ID (if applicable)
+   * @returns {Promise<void>}
+   * 
+   * @example
+   * await authService.logAuthAction('login', 'user-id', undefined, 'session-id');
+   */
   async logAuthAction(
     action:
       | "login"

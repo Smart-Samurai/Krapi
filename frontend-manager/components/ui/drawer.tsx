@@ -1,3 +1,22 @@
+/**
+ * Drawer Components
+ * 
+ * Drawer components built on vaul (drawer library).
+ * Provides bottom drawer panels that slide up from the bottom.
+ * Includes Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerFooter, etc.
+ * 
+ * @module components/ui/drawer
+ * @example
+ * <Drawer>
+ *   <DrawerTrigger>Open Drawer</DrawerTrigger>
+ *   <DrawerContent>
+ *     <DrawerHeader>
+ *       <DrawerTitle>Title</DrawerTitle>
+ *     </DrawerHeader>
+ *     Content
+ *   </DrawerContent>
+ * </Drawer>
+ */
 "use client"
 
 import * as React from "react"

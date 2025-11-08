@@ -20,6 +20,21 @@ export interface QueryResult {
 
 /**
  * SQLite Adapter that provides PostgreSQL-compatible interface
+ * 
+ * Wraps better-sqlite3 to provide a PostgreSQL-compatible query interface.
+ * Automatically converts PostgreSQL-style parameters ($1, $2) to SQLite-style (?).
+ * 
+ * Features:
+ * - PostgreSQL-compatible parameter syntax
+ * - Async query interface
+ * - Connection management
+ * - Automatic parameter conversion
+ * 
+ * @class SQLiteAdapter
+ * @example
+ * const adapter = new SQLiteAdapter('data/krapi.db');
+ * await adapter.connect();
+ * const result = await adapter.query('SELECT * FROM users WHERE id = $1', ['user-id']);
  */
 export class SQLiteAdapter {
   private db: Database.Database | null = null;
@@ -87,6 +102,19 @@ export class SQLiteAdapter {
 
   /**
    * Execute a query (async wrapper for synchronous better-sqlite3)
+   * 
+   * Executes a SQL query with optional parameters. Automatically converts
+   * PostgreSQL-style parameters ($1, $2) to SQLite-style (?).
+   * 
+   * @param {string} sql - SQL query string (PostgreSQL-style parameters supported)
+   * @param {unknown[]} [params] - Query parameters
+   * @returns {Promise<QueryResult>} Query results with rows and rowCount
+   * @throws {Error} If database is not connected
+   * @throws {Error} If query execution fails
+   * 
+   * @example
+   * const result = await adapter.query('SELECT * FROM users WHERE id = $1', ['user-id']);
+   * console.log(result.rows); // Array of matching rows
    */
   async query(
     sql: string,
@@ -134,6 +162,19 @@ export class SQLiteAdapter {
   /**
    * Connect to the database
    */
+  /**
+   * Connect to the SQLite database
+   * 
+   * Establishes connection to the SQLite database file. Enables WAL mode
+   * for better concurrency. Safe to call multiple times.
+   * 
+   * @returns {Promise<void>}
+   * @throws {Error} If connection fails
+   * 
+   * @example
+   * await adapter.connect();
+   * // Database is now connected
+   */
   async connect(): Promise<void> {
     if (this.isConnected && this.db) {
       return;
@@ -164,6 +205,16 @@ export class SQLiteAdapter {
   /**
    * Close the database connection
    */
+  /**
+   * Close database connection
+   * 
+   * Closes the SQLite database connection and releases resources.
+   * 
+   * @returns {Promise<void>}
+   * 
+   * @example
+   * await adapter.end();
+   */
   async end(): Promise<void> {
     if (this.db) {
       this.db.close();
@@ -175,6 +226,19 @@ export class SQLiteAdapter {
   /**
    * Get the underlying database instance (for advanced operations)
    */
+  /**
+   * Get the underlying database instance
+   * 
+   * Returns the better-sqlite3 Database instance for advanced operations.
+   * 
+   * @returns {Database.Database | null} Database instance or null if not connected
+   * 
+   * @example
+   * const db = adapter.getDatabase();
+   * if (db) {
+   *   // Use db for advanced operations
+   * }
+   */
   getDatabase(): Database.Database | null {
     return this.db;
   }
@@ -182,12 +246,37 @@ export class SQLiteAdapter {
   /**
    * Check if connected
    */
+  /**
+   * Check if database is ready
+   * 
+   * Returns whether the database connection is established and ready.
+   * 
+   * @returns {boolean} True if connected, false otherwise
+   * 
+   * @example
+   * if (adapter.isReady()) {
+   *   // Database is ready for queries
+   * }
+   */
   isReady(): boolean {
     return this.isConnected && this.db !== null;
   }
 
   /**
    * Execute a raw SQL statement (for migrations, etc.)
+   */
+  /**
+   * Execute SQL without returning results
+   * 
+   * Executes SQL statements that don't return data (e.g., CREATE TABLE, ALTER TABLE).
+   * 
+   * @param {string} sql - SQL statement to execute
+   * @returns {Promise<void>}
+   * @throws {Error} If database is not connected
+   * @throws {Error} If execution fails
+   * 
+   * @example
+   * await adapter.exec('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY)');
    */
   async exec(sql: string): Promise<void> {
     if (!this.db) {
@@ -204,6 +293,17 @@ export class SQLiteAdapter {
 
   /**
    * Get database path
+   */
+  /**
+   * Get database file path
+   * 
+   * Returns the path to the SQLite database file.
+   * 
+   * @returns {string} Database file path
+   * 
+   * @example
+   * const path = adapter.getDbPath();
+   * console.log(`Database at: ${path}`);
    */
   getDbPath(): string {
     return this.dbPath;

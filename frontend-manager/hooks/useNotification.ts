@@ -1,6 +1,27 @@
+/**
+ * Notification Hook
+ * 
+ * Hook for managing application notifications with auto-dismiss functionality.
+ * Supports success, error, warning, and info notification types.
+ * 
+ * @module hooks/useNotification
+ * @example
+ * const { showSuccess, showError, notifications } = useNotification();
+ * showSuccess('Operation completed!');
+ */
 import { useState, useCallback } from "react";
 import { AxiosError } from "axios";
 
+/**
+ * Notification Interface
+ * 
+ * @interface Notification
+ * @property {string} id - Unique notification ID
+ * @property {string} message - Notification message
+ * @property {"success" | "error" | "warning" | "info"} type - Notification type
+ * @property {number} duration - Display duration in milliseconds
+ * @property {number} timestamp - Creation timestamp
+ */
 interface Notification {
   id: string;
   message: string;
@@ -9,8 +30,26 @@ interface Notification {
   timestamp: number;
 }
 
+/**
+ * Notification Type
+ * 
+ * @typedef {"success" | "error" | "warning" | "info"} NotificationType
+ */
 type NotificationType = "success" | "error" | "warning" | "info";
 
+/**
+ * Use Notification Return Type
+ * 
+ * @interface UseNotificationReturn
+ * @property {Notification[]} notifications - Array of active notifications
+ * @property {Function} showSuccess - Show success notification
+ * @property {Function} showError - Show error notification
+ * @property {Function} showWarning - Show warning notification
+ * @property {Function} showInfo - Show info notification
+ * @property {Function} removeNotification - Remove notification by ID
+ * @property {Function} clearAll - Clear all notifications
+ * @property {Function} handleError - Handle errors and show error notification
+ */
 interface UseNotificationReturn {
   notifications: Notification[];
   showSuccess: (message: string) => void;
@@ -22,8 +61,36 @@ interface UseNotificationReturn {
   handleError: (error: unknown, fallbackMessage?: string) => void;
 }
 
+/**
+ * Generate unique notification ID
+ * 
+ * @returns {string} Random ID
+ */
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
+/**
+ * Use Notification Hook
+ * 
+ * Manages application notifications with auto-dismiss (5 seconds).
+ * 
+ * @returns {UseNotificationReturn} Notification management functions and state
+ * 
+ * @example
+ * const { showSuccess, showError, notifications } = useNotification();
+ * 
+ * // Show success notification
+ * showSuccess('Operation completed successfully');
+ * 
+ * // Show error notification
+ * showError('Something went wrong');
+ * 
+ * // Handle errors automatically
+ * try {
+ *   await someOperation();
+ * } catch (error) {
+ *   handleError(error, 'Failed to complete operation');
+ * }
+ */
 export const useNotification = (): UseNotificationReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 

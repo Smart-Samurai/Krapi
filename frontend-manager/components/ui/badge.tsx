@@ -1,9 +1,25 @@
+/**
+ * Badge Component
+ * 
+ * Badge component for displaying labels, tags, or status indicators.
+ * Supports multiple variants (default, secondary, destructive, outline).
+ * 
+ * @module components/ui/badge
+ * @example
+ * <Badge variant="default">New</Badge>
+ * <Badge variant="destructive">Error</Badge>
+ */
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Badge Variants
+ * 
+ * @constant {Function} badgeVariants
+ */
 const badgeVariants = cva(
   "inline-flex items-center justify-center  border px-2 py-0.5 text-base font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all overflow-hidden",
   {

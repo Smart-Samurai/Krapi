@@ -1,10 +1,31 @@
+/**
+ * Styled Dialog Components
+ * 
+ * Dialog components built on Radix UI primitives.
+ * Provides Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, etc.
+ * 
+ * @module components/styled/Dialog
+ * @example
+ * <Dialog>
+ *   <DialogTrigger>Open</DialogTrigger>
+ *   <DialogContent>
+ *     <DialogHeader>
+ *       <DialogTitle>Title</DialogTitle>
+ *     </DialogHeader>
+ *   </DialogContent>
+ * </Dialog>
+ */
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
-
+/**
+ * Dialog Root Component
+ * 
+ * @constant {typeof DialogPrimitive.Root}
+ */
 const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;

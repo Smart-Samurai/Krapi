@@ -1,3 +1,12 @@
+/**
+ * User Settings Modal Component
+ * 
+ * Modal dialog for user settings including profile and password management.
+ * 
+ * @module components/UserSettingsModal
+ * @example
+ * <UserSettingsModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+ */
 "use client";
 
 import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -19,17 +28,43 @@ import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useNotification } from "@/hooks/useNotification";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 
+/**
+ * User Settings Modal Props
+ * 
+ * @interface UserSettingsModalProps
+ * @property {boolean} isOpen - Whether modal is open
+ * @property {Function} onClose - Close handler
+ */
 interface UserSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/**
+ * Password Change Data Interface
+ * 
+ * @interface PasswordChangeData
+ * @property {string} currentPassword - Current password
+ * @property {string} newPassword - New password
+ * @property {string} confirmPassword - Password confirmation
+ */
 interface PasswordChangeData {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
 
+/**
+ * User Settings Modal Component
+ * 
+ * Modal for managing user settings including profile and password.
+ * 
+ * @param {UserSettingsModalProps} props - Component props
+ * @returns {JSX.Element} User settings modal
+ * 
+ * @example
+ * <UserSettingsModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+ */
 export default function UserSettingsModal({
   isOpen,
   onClose,

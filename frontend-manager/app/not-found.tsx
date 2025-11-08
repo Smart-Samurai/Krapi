@@ -1,3 +1,12 @@
+/**
+ * Not Found Page
+ * 
+ * 404 error page displayed when a route is not found.
+ * 
+ * @module app/not-found
+ * @example
+ * // Automatically rendered by Next.js for 404 errors
+ */
 import { Home, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -10,6 +19,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+/**
+ * Not Found Page Component
+ * 
+ * Displays 404 error page with navigation options.
+ * 
+ * @returns {JSX.Element} 404 page
+ */
 export default function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

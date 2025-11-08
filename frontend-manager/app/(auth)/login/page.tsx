@@ -1,3 +1,12 @@
+/**
+ * Login Page
+ * 
+ * Authentication page for admin users to sign in to the KRAPI admin dashboard.
+ * 
+ * @module app/(auth)/login/page
+ * @example
+ * // Automatically rendered at /login route
+ */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,14 +38,33 @@ import {
 import { Input } from "@/components/ui/input";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 
+/**
+ * Login Form Schema
+ * 
+ * @constant {z.ZodObject}
+ */
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
   rememberMe: z.boolean().optional(),
 });
 
+/**
+ * Login Form Data Type
+ * 
+ * @typedef {z.infer<typeof loginSchema>} LoginFormData
+ */
 type LoginFormData = z.infer<typeof loginSchema>;
 
+/**
+ * Login Page Component
+ * 
+ * Provides login form for admin authentication.
+ * Handles username/password login with optional "remember me" functionality.
+ * Redirects to dashboard on successful login.
+ * 
+ * @returns {JSX.Element} Login page with authentication form
+ */
 export default function LoginPage() {
   const _router = useRouter();
   const { login, loading, error } = useReduxAuth();

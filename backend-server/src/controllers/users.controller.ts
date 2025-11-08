@@ -4,14 +4,49 @@ import { v4 as uuidv4 } from "uuid";
 import { DatabaseService } from "@/services/database.service";
 import { ApiResponse, BackendProjectUser, SessionType, Scope } from "@/types";
 
+/**
+ * Users Controller
+ * 
+ * Handles all project user-related HTTP requests including:
+ * - User CRUD operations
+ * - User authentication
+ * - User role and scope management
+ * 
+ * All operations require authentication and proper project scopes.
+ * 
+ * @class UsersController
+ * @example
+ * const controller = new UsersController();
+ * // Controller is ready to handle user requests
+ */
 export class UsersController {
   private db: DatabaseService;
 
+  /**
+   * Create a new UsersController instance
+   */
   constructor() {
     this.db = DatabaseService.getInstance();
   }
 
-  // Get all users in a project
+  /**
+   * Get all users in a project
+   * 
+   * GET /krapi/k1/projects/:projectId/users
+   * 
+   * Retrieves all project users with optional pagination and search.
+   * Requires authentication and project access.
+   * 
+   * @param {Request} req - Express request with projectId in params and pagination in query
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {500} If database query fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-uuid/users?page=1&limit=10&search=john
+   * // Response: { success: true, data: [...], pagination: {...} }
+   */
   getUsers = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;
@@ -43,7 +78,25 @@ export class UsersController {
     }
   };
 
-  // Get a specific user
+  /**
+   * Get a specific user by ID
+   * 
+   * GET /krapi/k1/projects/:projectId/users/:userId
+   * 
+   * Retrieves a single project user by ID.
+   * Requires authentication and project access.
+   * 
+   * @param {Request} req - Express request with projectId and userId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {404} If user is not found
+   * @throws {500} If database query fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/projects/project-uuid/users/user-uuid
+   * // Response: { success: true, data: {...} }
+   */
   getUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId, userId } = req.params;
@@ -72,7 +125,27 @@ export class UsersController {
     }
   };
 
-  // Create a new user
+  /**
+   * Create a new project user
+   * 
+   * POST /krapi/k1/projects/:projectId/users
+   * 
+   * Creates a new user in the specified project.
+   * Requires authentication and project write access.
+   * 
+   * @param {Request} req - Express request with projectId in params and user data in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If required fields are missing
+   * @throws {409} If user with email already exists
+   * @throws {500} If user creation fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/projects/project-uuid/users
+   * // Body: { username: 'newuser', email: 'user@example.com', password: 'pass' }
+   * // Response: { success: true, data: {...} }
+   */
   createUser = async (req: Request, res: Response): Promise<void> => {
     try {
       const { projectId } = req.params;

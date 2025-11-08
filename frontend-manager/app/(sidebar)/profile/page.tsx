@@ -1,3 +1,13 @@
+/**
+ * User Profile Page
+ * 
+ * Page for managing user profile information and settings.
+ * Provides profile editing and password management.
+ * 
+ * @module app/(sidebar)/profile/page
+ * @example
+ * // Automatically rendered at /profile route
+ */
 "use client";
 
 import React, { useState } from "react";
@@ -38,6 +48,22 @@ export default function ProfilePage() {
   const { user, scopes, sessionToken, loading: authLoading, isInitialized } = useReduxAuth();
   const krapi = useKrapi();
   const extendedUser = user as ExtendedAdminUser;
+
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // API Key state
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
+  const [isCreatingMasterKey, setIsCreatingMasterKey] = useState(false);
 
   // Show loading state if auth is still initializing
   if (!isInitialized || authLoading) {
@@ -81,22 +107,6 @@ export default function ProfilePage() {
       </PageLayout>
     );
   }
-
-  // Password state
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-  // API Key state
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
-  const [isCreatingMasterKey, setIsCreatingMasterKey] = useState(false);
 
   const getInitials = () => {
     if (!user) return "U";

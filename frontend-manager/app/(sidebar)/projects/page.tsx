@@ -1,3 +1,23 @@
+/**
+ * Projects Page
+ * 
+ * Main page for listing and managing projects.
+ * Provides project creation, editing, deletion, and navigation to project details.
+ * 
+ * @module app/(sidebar)/projects/page
+ * @example
+ * // Automatically rendered at /projects route
+ */
+/**
+ * Projects Page
+ * 
+ * Main page for listing and managing projects.
+ * Provides project creation, editing, and deletion functionality.
+ * 
+ * @module app/(sidebar)/projects/page
+ * @example
+ * // Automatically rendered at /projects route
+ */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,20 +66,49 @@ import {
 } from "@/store/projectsSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
+/**
+ * Create Project Schema
+ * 
+ * @constant {z.ZodObject}
+ */
 const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
 });
 
+/**
+ * Edit Project Schema
+ * 
+ * @constant {z.ZodObject}
+ */
 const editProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().optional(),
   active: z.boolean().optional(),
 });
 
+/**
+ * Create Project Form Data Type
+ * 
+ * @typedef {z.infer<typeof createProjectSchema>} CreateProjectFormData
+ */
 type CreateProjectFormData = z.infer<typeof createProjectSchema>;
+
+/**
+ * Edit Project Form Data Type
+ * 
+ * @typedef {z.infer<typeof editProjectSchema>} EditProjectFormData
+ */
 type EditProjectFormData = z.infer<typeof editProjectSchema>;
 
+/**
+ * Projects Page Component
+ * 
+ * Displays list of projects with create, edit, and delete functionality.
+ * Requires authentication and appropriate scopes.
+ * 
+ * @returns {JSX.Element} Projects page
+ */
 export default function ProjectsPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -115,7 +164,7 @@ export default function ProjectsPage() {
         fulfilled: fetchProjects.fulfilled.match(action),
         rejected: fetchProjects.rejected.match(action),
         payload: action.payload,
-        error: fetchProjects.rejected.match(action) ? (action.payload || (action as any).error?.message) : undefined,
+        error: fetchProjects.rejected.match(action) ? (action.payload || (action.error as { message?: string })?.message) : undefined,
       });
       
       if (fetchProjects.fulfilled.match(action)) {

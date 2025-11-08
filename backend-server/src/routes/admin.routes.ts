@@ -1,3 +1,21 @@
+/**
+ * Admin Routes
+ * 
+ * Handles admin user management endpoints.
+ * Base path: /krapi/k1/admin
+ * 
+ * Routes:
+ * - GET /users - Get all admin users
+ * - GET /users/:userId - Get admin user by ID
+ * - POST /users - Create admin user
+ * - PUT /users/:userId - Update admin user
+ * - DELETE /users/:userId - Delete admin user
+ * 
+ * SDK-driven implementation using BackendSDK for all functionality.
+ * All routes require authentication and admin scopes.
+ * 
+ * @module routes/admin.routes
+ */
 import { BackendSDK } from "@krapi/sdk";
 import { Router, IRouter } from "express";
 
@@ -5,17 +23,17 @@ import { authenticate, requireScopes } from "@/middleware/auth.middleware";
 import { DatabaseService } from "@/services/database.service";
 import { Scope, AuthenticatedRequest } from "@/types";
 
-/**
- * Admin Routes
- *
- * SDK-driven implementation using BackendSDK for all functionality
- */
-
 const router: IRouter = Router();
 
 // Initialize the BackendSDK - will be set from app.ts
 let backendSDK: BackendSDK;
 
+/**
+ * Initialize BackendSDK for admin routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
 export const initializeAdminSDK = (sdk: BackendSDK) => {
   backendSDK = sdk;
 };

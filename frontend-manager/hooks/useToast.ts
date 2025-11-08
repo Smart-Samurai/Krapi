@@ -1,7 +1,24 @@
+/**
+ * Toast Notification Hook
+ * 
+ * Hook for managing toast notifications with auto-dismiss functionality.
+ * Supports multiple simultaneous toasts with different variants.
+ * 
+ * @module hooks/useToast
+ * @example
+ * const { toast, dismiss } = useToast();
+ * toast({ title: "Success", description: "Operation completed", variant: "success" });
+ */
 import { useState, useCallback } from "react";
 
 /**
- * Toast notification options
+ * Toast Notification Options
+ * 
+ * @interface ToastOptions
+ * @property {string} [title] - Toast title text
+ * @property {string} [description] - Toast description/body text
+ * @property {"default" | "success" | "error" | "warning" | "info"} [variant="default"] - Visual style variant
+ * @property {number} [duration=3000] - Auto-dismiss duration in milliseconds
  */
 interface ToastOptions {
   /** Toast title text */
@@ -15,7 +32,12 @@ interface ToastOptions {
 }
 
 /**
- * Internal toast state
+ * Internal Toast State
+ * 
+ * @interface ToastState
+ * @extends {ToastOptions}
+ * @property {string} id - Unique toast identifier
+ * @property {boolean} isOpen - Whether toast is currently visible
  */
 interface ToastState extends ToastOptions {
   /** Unique toast identifier */
@@ -25,32 +47,19 @@ interface ToastState extends ToastOptions {
 }
 
 /**
- * Toast Notification Hook
+ * Use Toast Hook
  * 
  * Manages toast notifications with auto-dismiss functionality.
- * Supports multiple simultaneous toasts with different variants.
+ * 
+ * @returns {Object} Toast management functions and state
+ * @returns {ToastState[]} returns.toasts - Array of active toasts
+ * @returns {Function} returns.toast - Function to show a new toast
+ * @returns {Function} returns.dismiss - Function to dismiss a specific toast
+ * @returns {Function} returns.dismissAll - Function to dismiss all toasts
  * 
  * @example
- * ```tsx
  * const { toast, dismiss } = useToast();
- * 
- * // Show success toast
- * toast({
- *   title: "Success",
- *   description: "Operation completed successfully",
- *   variant: "success"
- * });
- * 
- * // Show error toast with custom duration
- * toast({
- *   title: "Error",
- *   description: "Something went wrong",
- *   variant: "error",
- *   duration: 5000
- * });
- * ```
- * 
- * @returns Toast management functions and state
+ * toast({ title: "Success", description: "Done!", variant: "success" });
  */
 export function useToast() {
   const [toasts, setToasts] = useState<ToastState[]>([]);

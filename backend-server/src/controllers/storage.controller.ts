@@ -9,11 +9,34 @@ import { DatabaseService } from "@/services/database.service";
 import { MultiDatabaseManager } from "@/services/multi-database-manager.service";
 import { AuthenticatedRequest, ApiResponse, FileRecord } from "@/types";
 
+/**
+ * Storage Controller
+ * 
+ * Handles all file storage-related HTTP requests including:
+ * - File upload
+ * - File download
+ * - File deletion
+ * - File listing
+ * - Storage statistics
+ * 
+ * Files are stored in project-specific directories: `data/projects/{projectId}/files/`
+ * 
+ * @class StorageController
+ * @example
+ * const controller = new StorageController();
+ * // Controller is ready to handle storage requests
+ */
 export class StorageController {
   private db: DatabaseService;
   private dbManager: MultiDatabaseManager;
   private maxFileSize: number;
 
+  /**
+   * Create a new StorageController instance
+   * 
+   * Initializes database service and multi-database manager.
+   * Configures maximum file size from environment or defaults to 50MB.
+   */
   constructor() {
     this.db = DatabaseService.getInstance();
     // Get MultiDatabaseManager instance to access project folder paths
@@ -75,7 +98,27 @@ export class StorageController {
     });
   }
 
-  // Upload file
+  /**
+   * Upload a file
+   * 
+   * POST /krapi/k1/projects/:projectId/storage/upload
+   * 
+   * Uploads a file to the project's storage directory.
+   * Requires authentication and project access.
+   * 
+   * @param {Request} req - Express request with file in body and projectId in params
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {404} If project is not found
+   * @throws {400} If file is missing or invalid
+   * @throws {500} If upload fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/projects/project-uuid/storage/upload
+   * // Body: multipart/form-data with 'file' field
+   * // Response: { success: true, file: {...} }
+   */
   uploadFile = async (req: Request, res: Response): Promise<void> => {
     try {
       const authReq = req as AuthenticatedRequest;

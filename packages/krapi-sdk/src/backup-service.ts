@@ -46,13 +46,34 @@ export interface RestoreOptions {
 
 /**
  * Backup Service for KRAPI
- * Provides encrypted backup and restore functionality
+ * 
+ * Provides encrypted backup and restore functionality.
+ * Supports project backups and system-wide backups with encryption.
+ * 
+ * @class BackupService
+ * @example
+ * const backupService = new BackupService(dbConnection, logger);
+ * const backup = await backupService.backupProject({ projectId: 'project-id', password: 'encryption-password' });
  */
 export class BackupService {
   private backupsDir: string;
   private encryptionAlgorithm = "aes-256-gcm";
   private keyDerivationIterations = 100000;
 
+  /**
+   * Create a new BackupService instance
+   * 
+   * @param {DatabaseConnection} dbConnection - Database connection
+   * @param {Logger} [logger=console] - Logger instance
+   * @param {string} [backupsDir] - Backup directory path (default: data/backups)
+   */
+  /**
+   * Create a new BackupService instance
+   * 
+   * @param {DatabaseConnection} dbConnection - Database connection
+   * @param {Logger} [logger=console] - Logger instance
+   * @param {string} [backupsDir] - Backup directory path (default: data/backups)
+   */
   constructor(
     private dbConnection: DatabaseConnection,
     private logger: Logger = console,
@@ -145,6 +166,24 @@ export class BackupService {
 
   /**
    * Create encrypted backup of a project
+   * 
+   * Creates an encrypted backup of a project's database and optionally files.
+   * 
+   * @param {BackupOptions} options - Backup options
+   * @param {string} options.projectId - Project ID (required)
+   * @param {string} [options.description] - Backup description
+   * @param {string} [options.password] - Encryption password (generated if not provided)
+   * @param {boolean} [options.includeFiles] - Whether to include files in backup
+   * @param {number} [options.compressionLevel] - Compression level (1-9)
+   * @returns {Promise<BackupMetadata & { password: string }>} Backup metadata with password
+   * @throws {Error} If project not found or backup fails
+   * 
+   * @example
+   * const backup = await backupService.backupProject({
+   *   projectId: 'project-id',
+   *   description: 'Monthly backup',
+   *   password: 'secure-password'
+   * });
    */
   async backupProject(options: BackupOptions): Promise<BackupMetadata & { password: string }> {
     if (!options.projectId) {

@@ -1,12 +1,56 @@
 import { StorageService } from "@krapi/sdk";
 
+/**
+ * SDK Storage Service Wrapper
+ * 
+ * Wrapper service that delegates to the SDK StorageService.
+ * Provides a consistent interface for backend services to access storage operations.
+ * 
+ * @class SDKStorageService
+ * @example
+ * const storageService = new StorageService(dbConnection);
+ * const sdkStorageService = new SDKStorageService(storageService);
+ * const fileInfo = await sdkStorageService.uploadFile('project-id', fileData);
+ */
 export class SDKStorageService {
+  /**
+   * Create a new SDKStorageService instance
+   * 
+   * @param {StorageService} storageService - SDK StorageService instance
+   */
   constructor(private storageService: StorageService) {}
 
+  /**
+   * Get storage information for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<unknown>} Storage information
+   * 
+   * @example
+   * const info = await sdkStorageService.getStorageInfo('project-id');
+   */
   async getStorageInfo(projectId: string): Promise<unknown> {
     return await this.storageService.getStorageInfo(projectId);
   }
 
+  /**
+   * Upload a file to storage
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} fileData - File data
+   * @param {string} fileData.filename - Original filename
+   * @param {Buffer} fileData.content - File content buffer
+   * @param {string} fileData.contentType - MIME type
+   * @param {Record<string, unknown>} [fileData.metadata] - File metadata
+   * @returns {Promise<unknown>} Uploaded file information
+   * 
+   * @example
+   * const fileInfo = await sdkStorageService.uploadFile('project-id', {
+   *   filename: 'document.pdf',
+   *   content: fileBuffer,
+   *   contentType: 'application/pdf'
+   * });
+   */
   async uploadFile(
     projectId: string,
     fileData: {

@@ -1,3 +1,22 @@
+/**
+ * Form Components
+ * 
+ * Form components built on react-hook-form and Radix UI Label.
+ * Provides form context, field management, and validation integration.
+ * Includes Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage.
+ * 
+ * @module components/ui/form
+ * @example
+ * <Form {...form}>
+ *   <FormField name="email" control={form.control} render={({ field }) => (
+ *     <FormItem>
+ *       <FormLabel>Email</FormLabel>
+ *       <FormControl><Input {...field} /></FormControl>
+ *       <FormMessage />
+ *     </FormItem>
+ *   )} />
+ * </Form>
+ */
 "use client"
 
 import * as LabelPrimitive from "@radix-ui/react-label"
@@ -16,6 +35,11 @@ import {
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
+/**
+ * Form Provider Component
+ * 
+ * @constant {typeof FormProvider}
+ */
 const Form = FormProvider
 
 type FormFieldContextValue<

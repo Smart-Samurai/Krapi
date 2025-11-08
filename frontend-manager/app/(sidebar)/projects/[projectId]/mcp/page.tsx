@@ -1,3 +1,13 @@
+/**
+ * Project MCP Page
+ * 
+ * Page providing MCP (Model Context Protocol) interface for project-specific operations.
+ * Allows LLM interaction with project database and operations.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/mcp/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/mcp route
+ */
 "use client";
 
 import { MessageSquare, Send, Bot, User, Wrench, Plug, CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -21,6 +31,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/**
+ * Chat Message Interface
+ * 
+ * @interface ChatMessage
+ * @property {"user" | "assistant" | "tool" | "system"} role - Message role
+ * @property {string} content - Message content
+ * @property {string} [tool_call_id] - Tool call ID
+ * @property {string} [name] - Message name
+ * @property {Array} [tool_calls] - Tool calls array
+ */
 interface ChatMessage {
   role: "user" | "assistant" | "tool" | "system";
   content: string;
@@ -32,6 +52,14 @@ interface ChatMessage {
   }>;
 }
 
+/**
+ * Project MCP Page Component
+ * 
+ * Provides MCP (Model Context Protocol) interface for project-specific operations.
+ * Allows LLM interaction with project database and operations.
+ * 
+ * @returns {JSX.Element} Project MCP page
+ */
 export default function ProjectMcpPage() {
   const params = useParams();
   if (!params || !params.projectId) {

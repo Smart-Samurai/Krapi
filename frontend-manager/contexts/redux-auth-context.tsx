@@ -1,3 +1,13 @@
+/**
+ * Redux Auth Context
+ * 
+ * Provides authentication context using Redux for state management.
+ * Handles login, logout, session management, and scope checking.
+ * 
+ * @module contexts/redux-auth-context
+ * @example
+ * const { user, login, logout, hasScope } = useReduxAuth();
+ */
 "use client";
 
 import React, {
@@ -19,6 +29,25 @@ import {
 import type { AdminUser } from "@/lib/krapi";
 import { krapi } from "@/lib/krapi";
 
+/**
+ * Auth Context Type
+ * 
+ * @interface AuthContextType
+ * @property {AdminUser & { scopes?: string[] } | null} user - Current authenticated user
+ * @property {boolean} loading - Whether auth is loading
+ * @property {string | null} error - Error message if any
+ * @property {Function} login - Login function
+ * @property {Function} loginWithApiKey - Login with API key function
+ * @property {Function} logout - Logout function
+ * @property {typeof krapi} krapi - KRAPI SDK instance
+ * @property {string | null} sessionToken - Current session token
+ * @property {string | null} apiKey - Current API key
+ * @property {string[]} scopes - User's current scopes
+ * @property {Function} hasScope - Check if user has a scope
+ * @property {Function} hasMasterAccess - Check if user has master access
+ * @property {Function} handleAuthError - Handle authentication errors
+ * @property {boolean} isInitialized - Whether auth is initialized
+ */
 interface AuthContextType {
   user: (AdminUser & { scopes?: string[] }) | null;
   loading: boolean;
@@ -38,6 +67,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Redux Auth Provider Component
+ * 
+ * Provides authentication context to the application using Redux for state management.
+ * Initializes KRAPI SDK, handles authentication, and manages session tokens.
+ * 
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ * @returns {JSX.Element} Auth provider with context
+ * 
+ * @example
+ * <ReduxAuthProvider>
+ *   <App />
+ * </ReduxAuthProvider>
+ */
 export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -82,6 +126,32 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [sessionToken, apiKey, sdkInitialized]);
 
+  // Global error handler for unhandled promise rejections (catches SDK errors)
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      if (error && (
+        error.isAuthError === true ||
+        error.status === 401 ||
+        error.response?.status === 401 ||
+        (typeof error.message === 'string' && (
+          error.message.includes('expired') ||
+          error.message.includes('Invalid') ||
+          error.message.includes('Unauthorized') ||
+          error.message.includes('log in again')
+        ))
+      )) {
+        event.preventDefault(); // Prevent default error logging
+        handleAuthError(error);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [handleAuthError]);
+
   // Handle auth errors and redirect
   const handleAuthError = useCallback(
     (error: any) => {
@@ -89,11 +159,15 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
 
       // Check if it's an authentication error
       const isAuthError =
+        error?.isAuthError === true ||
         error?.status === 401 ||
         error?.response?.status === 401 ||
         error?.message?.includes("Unauthorized") ||
         error?.message?.includes("Invalid token") ||
         error?.message?.includes("Token expired") ||
+        error?.message?.includes("expired") ||
+        error?.message?.includes("Invalid") ||
+        error?.message?.includes("log in again") ||
         error?.isApiError === true;
 
       if (isAuthError) {

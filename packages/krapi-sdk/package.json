@@ -5,12 +5,12 @@
   "keywords": ["krapi", "backend", "sdk", "api", "client", "self-hosted", "database", "collections", "documents"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/krapi.git",
+    "url": "https://github.com/GenorTG/Krapi.git",
     "directory": "packages/krapi-sdk"
   },
-  "homepage": "https://github.com/your-org/krapi#readme",
+  "homepage": "https://github.com/GenorTG/Krapi#readme",
   "license": "MIT",
-  "author": "KRAPI Team",
+  "author": "GenorTG",
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"

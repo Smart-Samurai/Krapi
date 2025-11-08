@@ -1,3 +1,13 @@
+/**
+ * Breadcrumb Component
+ * 
+ * Navigation breadcrumb component that shows the current page hierarchy.
+ * Can auto-generate from pathname or use provided items.
+ * 
+ * @module components/common/Breadcrumb
+ * @example
+ * <Breadcrumb items={[{ label: 'Projects', href: '/projects' }, { label: 'Project Details' }]} />
+ */
 "use client";
 
 import { ChevronRight, Home } from "lucide-react";
@@ -13,16 +23,42 @@ import {
   BreadcrumbSeparator as UIBreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
+/**
+ * Breadcrumb Item Type
+ * 
+ * @interface BreadcrumbItemType
+ * @property {string} label - Breadcrumb label
+ * @property {string} [href] - Optional link URL
+ */
 interface BreadcrumbItemType {
   label: string;
   href?: string;
 }
 
+/**
+ * Breadcrumb Props
+ * 
+ * @interface BreadcrumbProps
+ * @property {BreadcrumbItemType[]} [items] - Manual breadcrumb items (optional)
+ * @property {string} [homeHref="/dashboard"] - Home link URL
+ */
 interface BreadcrumbProps {
   items?: BreadcrumbItemType[];
   homeHref?: string;
 }
 
+/**
+ * Breadcrumb Component
+ * 
+ * Displays navigation breadcrumbs. If items are provided, uses them.
+ * Otherwise, auto-generates from current pathname.
+ * 
+ * @param {BreadcrumbProps} props - Component props
+ * @returns {JSX.Element | null} Breadcrumb navigation or null
+ * 
+ * @example
+ * <Breadcrumb items={[{ label: 'Projects', href: '/projects' }]} />
+ */
 export function Breadcrumb({ items, homeHref = "/dashboard" }: BreadcrumbProps) {
   const pathname = usePathname();
 

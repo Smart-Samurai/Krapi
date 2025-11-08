@@ -14,6 +14,42 @@ const db = DatabaseService.getInstance();
 
 /**
  * Authenticate request using Bearer token or API key
+ * 
+ * Middleware that validates authentication for incoming requests.
+ * Supports both session token (Bearer) and API key authentication.
+ * 
+ * Authentication methods (checked in order):
+ * 1. X-API-Key header (for API key authentication)
+ * 2. Authorization header with Bearer token (for session authentication)
+ * 3. Authorization header with ApiKey prefix (alternative API key format)
+ * 
+ * For API keys:
+ * - Validates API key exists and is active
+ * - Checks expiration date
+ * - Verifies associated user/project is active
+ * - Sets user context and scopes on request
+ * 
+ * For session tokens:
+ * - Validates session token
+ * - Checks session expiration
+ * - Verifies user exists and is active
+ * - Sets user context and scopes on request
+ * 
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {Promise<void>}
+ * 
+ * @throws {401} If no authentication provided
+ * @throws {401} If authentication is invalid or expired
+ * @throws {401} If user/project is inactive
+ * 
+ * @example
+ * // Apply to routes
+ * router.use(authenticate);
+ * 
+ * // Or to specific routes
+ * router.get('/protected', authenticate, handler);
  */
 export const authenticate = async (
   req: Request,
@@ -83,7 +119,7 @@ export const authenticate = async (
       if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
           success: false,
-          error: "Invalid or inactive API key",
+          error: "Invalid or inactive API key - please log in again",
         });
         return;
       }
@@ -92,7 +128,7 @@ export const authenticate = async (
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: "API key expired",
+          error: "API key expired - please log in again",
         });
         return;
       }
@@ -161,7 +197,7 @@ export const authenticate = async (
     if (!authHeader) {
       res.status(401).json({
         success: false,
-        error: "Authorization header or X-API-Key header required",
+        error: "Authorization required - please log in again",
       });
       return;
     }
@@ -189,7 +225,7 @@ export const authenticate = async (
       if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
           success: false,
-          error: "Invalid or inactive API key",
+          error: "Invalid or inactive API key - please log in again",
         });
         return;
       }
@@ -198,7 +234,7 @@ export const authenticate = async (
       if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
         res.status(401).json({
           success: false,
-          error: "API key expired",
+          error: "API key expired - please log in again",
         });
         return;
       }
@@ -266,7 +302,7 @@ export const authenticate = async (
       if (!result.valid || !result.session) {
         res.status(401).json({
           success: false,
-          error: "Invalid or expired session",
+          error: "Invalid or expired session - please log in again",
         });
         return;
       }
@@ -316,6 +352,45 @@ export const authenticate = async (
 
 /**
  * Require specific scopes for access
+ * 
+ * Creates middleware that enforces scope-based authorization.
+ * Checks if the authenticated user has the required scopes.
+ * 
+ * Features:
+ * - Supports "requireAll" mode (all scopes required) or "any" mode (any scope sufficient)
+ * - Supports project-specific scope checking
+ * - MASTER scope bypasses all checks
+ * - Validates project access for project-specific operations
+ * 
+ * @param {ScopeRequirement} requirement - Scope requirement configuration
+ * @param {Scope[]} requirement.scopes - Array of required scopes
+ * @param {boolean} [requirement.requireAll] - If true, all scopes required; if false, any scope sufficient
+ * @param {boolean} [requirement.projectSpecific] - If true, validates project access
+ * @returns {Function} Express middleware function
+ * 
+ * @throws {401} If user is not authenticated
+ * @throws {400} If project ID is required but missing
+ * @throws {403} If user lacks required scopes
+ * @throws {403} If API key doesn't have access to the project
+ * 
+ * @example
+ * // Require any of the specified scopes
+ * router.get('/projects', requireScopes({ 
+ *   scopes: [Scope.PROJECTS_READ, Scope.PROJECTS_WRITE],
+ *   requireAll: false 
+ * }), handler);
+ * 
+ * // Require all specified scopes
+ * router.post('/projects', requireScopes({ 
+ *   scopes: [Scope.PROJECTS_READ, Scope.PROJECTS_WRITE],
+ *   requireAll: true 
+ * }), handler);
+ * 
+ * // Project-specific scope check
+ * router.get('/projects/:projectId/data', requireScopes({ 
+ *   scopes: [Scope.DOCUMENTS_READ],
+ *   projectSpecific: true 
+ * }), handler);
  */
 export const requireScopes = (requirement: ScopeRequirement) => {
   return async (
@@ -411,56 +486,136 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 };
 
 /**
- * Shorthand middleware for common scope requirements
+ * Shorthand middleware requiring admin read access
+ * 
+ * Convenience middleware that requires ADMIN_READ scope.
+ * 
+ * @example
+ * router.get('/admin/users', requireAdmin, handler);
  */
 export const requireAdmin = requireScopes({
   scopes: [Scope.ADMIN_READ],
   requireAll: false,
 });
 
+/**
+ * Shorthand middleware requiring project read access
+ * 
+ * Convenience middleware that requires PROJECTS_READ scope with project-specific validation.
+ * 
+ * @example
+ * router.get('/projects/:projectId', requireProjectAccess, handler);
+ */
 export const requireProjectAccess = requireScopes({
   scopes: [Scope.PROJECTS_READ],
   requireAll: false,
   projectSpecific: true,
 });
 
+/**
+ * Shorthand middleware requiring collection read access
+ * 
+ * Convenience middleware that requires COLLECTIONS_READ scope with project-specific validation.
+ * 
+ * @example
+ * router.get('/projects/:projectId/collections', requireCollectionRead, handler);
+ */
 export const requireCollectionRead = requireScopes({
   scopes: [Scope.COLLECTIONS_READ],
   requireAll: false,
   projectSpecific: true,
 });
 
+/**
+ * Shorthand middleware requiring collection write access
+ * 
+ * Convenience middleware that requires COLLECTIONS_WRITE scope with project-specific validation.
+ * 
+ * @example
+ * router.post('/projects/:projectId/collections', requireCollectionWrite, handler);
+ */
 export const requireCollectionWrite = requireScopes({
   scopes: [Scope.COLLECTIONS_WRITE],
   requireAll: false,
   projectSpecific: true,
 });
 
+/**
+ * Shorthand middleware requiring document read access
+ * 
+ * Convenience middleware that requires DOCUMENTS_READ scope with project-specific validation.
+ * 
+ * @example
+ * router.get('/projects/:projectId/documents', requireDocumentRead, handler);
+ */
 export const requireDocumentRead = requireScopes({
   scopes: [Scope.DOCUMENTS_READ],
   requireAll: false,
   projectSpecific: true,
 });
 
+/**
+ * Shorthand middleware requiring document write access
+ * 
+ * Convenience middleware that requires DOCUMENTS_WRITE scope with project-specific validation.
+ * 
+ * @example
+ * router.post('/projects/:projectId/documents', requireDocumentWrite, handler);
+ */
 export const requireDocumentWrite = requireScopes({
   scopes: [Scope.DOCUMENTS_WRITE],
   requireAll: false,
   projectSpecific: true,
 });
 
+/**
+ * Shorthand middleware requiring storage read access
+ * 
+ * Convenience middleware that requires STORAGE_READ scope with project-specific validation.
+ * 
+ * @example
+ * router.get('/projects/:projectId/storage', requireStorageRead, handler);
+ */
 export const requireStorageRead = requireScopes({
   scopes: [Scope.STORAGE_READ],
   requireAll: false,
   projectSpecific: true,
 });
 
+/**
+ * Shorthand middleware requiring storage write access
+ * 
+ * Convenience middleware that requires STORAGE_WRITE scope with project-specific validation.
+ * 
+ * @example
+ * router.post('/projects/:projectId/storage', requireStorageWrite, handler);
+ */
 export const requireStorageWrite = requireScopes({
   scopes: [Scope.STORAGE_WRITE],
   requireAll: false,
   projectSpecific: true,
 });
 
-// Legacy exports for backward compatibility
+/**
+ * Legacy export for backward compatibility
+ * 
+ * @deprecated Use `authenticate` instead
+ * @see authenticate
+ */
 export const authenticateJWT = authenticate;
+
+/**
+ * Legacy export for backward compatibility
+ * 
+ * @deprecated Use `authenticate` instead
+ * @see authenticate
+ */
 export const authenticateAdmin = authenticate;
+
+/**
+ * Legacy export for backward compatibility
+ * 
+ * @deprecated Use `authenticate` instead
+ * @see authenticate
+ */
 export const authenticateProject = authenticate;

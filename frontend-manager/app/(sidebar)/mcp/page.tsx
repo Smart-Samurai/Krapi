@@ -1,3 +1,13 @@
+/**
+ * Admin MCP Page
+ * 
+ * Page providing MCP (Model Context Protocol) interface for admin/system operations.
+ * Allows LLM interaction with system database and operations.
+ * 
+ * @module app/(sidebar)/mcp/page
+ * @example
+ * // Automatically rendered at /mcp route
+ */
 "use client";
 
 import { MessageSquare, Send, Bot, User, Wrench, Plug, CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -20,6 +30,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+/**
+ * Chat Message Interface
+ * 
+ * @interface ChatMessage
+ * @property {"user" | "assistant" | "tool" | "system"} role - Message role
+ * @property {string} content - Message content
+ * @property {string} [tool_call_id] - Tool call ID
+ * @property {string} [name] - Message name
+ * @property {Array} [tool_calls] - Tool calls array
+ */
 interface ChatMessage {
   role: "user" | "assistant" | "tool" | "system";
   content: string;
@@ -31,6 +51,14 @@ interface ChatMessage {
   }>;
 }
 
+/**
+ * Admin MCP Page Component
+ * 
+ * Provides MCP (Model Context Protocol) interface for admin/system operations.
+ * Allows LLM interaction with system database and operations.
+ * 
+ * @returns {JSX.Element} Admin MCP page
+ */
 export default function AdminMcpPage() {
   const [provider, setProvider] = useState<"openai" | "lmstudio" | "ollama">("openai");
   const [endpoint, setEndpoint] = useState("");

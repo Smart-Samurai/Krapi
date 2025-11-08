@@ -1,3 +1,17 @@
+/**
+ * Popover Components
+ * 
+ * Popover components built on Radix UI Popover primitives.
+ * Provides floating content that appears on top of other content.
+ * Includes Popover, PopoverTrigger, and PopoverContent.
+ * 
+ * @module components/ui/popover
+ * @example
+ * <Popover>
+ *   <PopoverTrigger>Open Popover</PopoverTrigger>
+ *   <PopoverContent>Popover content</PopoverContent>
+ * </Popover>
+ */
 "use client"
 
 import * as PopoverPrimitive from "@radix-ui/react-popover"

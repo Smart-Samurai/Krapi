@@ -1,7 +1,7 @@
 import crypto from "crypto";
 /**
  * Storage Service for BackendSDK
- *
+ * 
  * Provides comprehensive file and storage management functionality including:
  * - File upload and download
  * - File metadata management
@@ -10,6 +10,11 @@ import crypto from "crypto";
  * - File organization (folders, tags)
  * - File transformations and thumbnails
  * - Storage quotas and analytics
+ * 
+ * @class StorageService
+ * @example
+ * const storageService = new StorageService(dbConnection, logger);
+ * const fileInfo = await storageService.uploadFile(projectId, uploadRequest, fileBuffer);
  */
 
 import { DatabaseConnection, Logger } from "./core";
@@ -184,12 +189,35 @@ export class StorageService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new StorageService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // File CRUD Operations
+  /**
+   * Get all files for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of files
+   * @param {number} [options.offset] - Number of files to skip
+   * @param {FileFilter} [options.filter] - File filters
+   * @param {boolean} [options.include_deleted] - Include deleted files
+   * @returns {Promise<StoredFile[]>} Array of stored files
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const files = await storageService.getAllFiles('project-id', {
+   *   limit: 10,
+   *   filter: { mime_type: 'image/jpeg' }
+   * });
+   */
   async getAllFiles(
     projectId: string,
     options?: {
@@ -300,6 +328,19 @@ export class StorageService {
     }
   }
 
+  /**
+   * Get file by ID
+   *
+   * Retrieves a single file by its ID and updates access tracking.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} fileId - File ID
+   * @returns {Promise<StoredFile | null>} File or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const file = await storageService.getFileById('project-id', 'file-id');
+   */
   async getFileById(
     projectId: string,
     fileId: string
@@ -323,6 +364,33 @@ export class StorageService {
     }
   }
 
+  /**
+   * Upload a file
+   *
+   * Uploads a file to storage with deduplication, quota checking, and versioning.
+   *
+   * @param {string} projectId - Project ID
+   * @param {UploadRequest} fileData - File metadata
+   * @param {string} fileData.original_name - Original filename
+   * @param {number} fileData.file_size - File size in bytes
+   * @param {string} fileData.mime_type - MIME type
+   * @param {string} [fileData.folder_id] - Optional folder ID
+   * @param {string[]} [fileData.tags] - Optional tags
+   * @param {Record<string, unknown>} [fileData.metadata] - Optional metadata
+   * @param {boolean} [fileData.is_public=false] - Whether file is public
+   * @param {string} fileData.uploaded_by - User ID who uploaded
+   * @param {Buffer} fileBuffer - File content buffer
+   * @returns {Promise<StoredFile>} Uploaded file information
+   * @throws {Error} If upload fails, quota exceeded, or validation fails
+   *
+   * @example
+   * const file = await storageService.uploadFile('project-id', {
+   *   original_name: 'document.pdf',
+   *   file_size: 1024000,
+   *   mime_type: 'application/pdf',
+   *   uploaded_by: 'user-id'
+   * }, fileBuffer);
+   */
   async uploadFile(
     projectId: string,
     fileData: UploadRequest,
@@ -404,6 +472,29 @@ export class StorageService {
     }
   }
 
+  /**
+   * Update file metadata
+   *
+   * Updates file metadata (name, folder, tags, metadata, visibility) without changing the file content.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} fileId - File ID
+   * @param {Object} updates - File updates
+   * @param {string} [updates.original_name] - New filename
+   * @param {string} [updates.folder_id] - New folder ID
+   * @param {string[]} [updates.tags] - Updated tags
+   * @param {Record<string, unknown>} [updates.metadata] - Updated metadata (merged with existing)
+   * @param {boolean} [updates.is_public] - Public visibility
+   * @param {string} _updatedBy - User ID who updated (currently unused)
+   * @returns {Promise<StoredFile | null>} Updated file or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await storageService.updateFile('project-id', 'file-id', {
+   *   original_name: 'renamed.pdf',
+   *   tags: ['important', 'document']
+   * }, 'user-id');
+   */
   async updateFile(
     projectId: string,
     fileId: string,
@@ -471,6 +562,25 @@ export class StorageService {
     }
   }
 
+  /**
+   * Delete a file
+   *
+   * Deletes a file either softly (marks as deleted) or permanently (removes from storage and database).
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} fileId - File ID
+   * @param {string} deletedBy - User ID who deleted
+   * @param {boolean} [permanent=false] - Whether to permanently delete
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * // Soft delete
+   * await storageService.deleteFile('project-id', 'file-id', 'user-id', false);
+   *
+   * // Permanent delete
+   * await storageService.deleteFile('project-id', 'file-id', 'user-id', true);
+   */
   async deleteFile(
     projectId: string,
     fileId: string,
@@ -523,6 +633,20 @@ export class StorageService {
     }
   }
 
+  /**
+   * Restore a deleted file
+   *
+   * Restores a soft-deleted file by marking it as not deleted.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} fileId - File ID
+   * @param {string} _restoredBy - User ID who restored (currently unused)
+   * @returns {Promise<boolean>} True if restoration successful
+   * @throws {Error} If restoration fails
+   *
+   * @example
+   * const restored = await storageService.restoreFile('project-id', 'file-id', 'user-id');
+   */
   async restoreFile(
     projectId: string,
     fileId: string,
@@ -541,7 +665,18 @@ export class StorageService {
     }
   }
 
-  // Folder Management
+  /**
+   * Get all folders for a project
+   *
+   * Retrieves all file folders for a project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<FileFolder[]>} Array of folders
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const folders = await storageService.getAllFolders('project-id');
+   */
   async getAllFolders(projectId: string): Promise<FileFolder[]> {
     try {
       const result = await this.db.query(
@@ -555,6 +690,28 @@ export class StorageService {
     }
   }
 
+  /**
+   * Create a new folder
+   *
+   * Creates a new file folder with optional parent folder.
+   *
+   * @param {string} projectId - Project ID
+   * @param {Object} folderData - Folder data
+   * @param {string} folderData.name - Folder name
+   * @param {string} [folderData.parent_id] - Parent folder ID
+   * @param {string} [folderData.description] - Folder description
+   * @param {boolean} [folderData.is_public=false] - Whether folder is public
+   * @param {string} createdBy - User ID who created
+   * @returns {Promise<FileFolder>} Created folder
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const folder = await storageService.createFolder('project-id', {
+   *   name: 'Documents',
+   *   parent_id: 'parent-folder-id',
+   *   description: 'Document folder'
+   * }, 'user-id');
+   */
   async createFolder(
     projectId: string,
     folderData: {
@@ -598,6 +755,19 @@ export class StorageService {
     }
   }
 
+  /**
+   * Get folder by ID
+   *
+   * Retrieves a single folder by its ID.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} folderId - Folder ID
+   * @returns {Promise<FileFolder | null>} Folder or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const folder = await storageService.getFolderById('project-id', 'folder-id');
+   */
   async getFolderById(
     projectId: string,
     folderId: string
@@ -614,7 +784,36 @@ export class StorageService {
     }
   }
 
-  // File Versioning
+  /**
+   * Create a file version
+   *
+   * Creates a new version of a file for versioning support.
+   *
+   * @param {string} fileId - File ID
+   * @param {Object} versionData - Version data
+   * @param {number} versionData.version_number - Version number
+   * @param {string} versionData.file_name - Version filename
+   * @param {string} versionData.file_path - Version file path
+   * @param {number} versionData.file_size - Version file size
+   * @param {string} versionData.file_hash - Version file hash
+   * @param {string} versionData.storage_path - Storage path
+   * @param {string} versionData.uploaded_by - User ID who uploaded
+   * @param {boolean} versionData.is_current - Whether this is the current version
+   * @returns {Promise<FileVersion>} Created file version
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const version = await storageService.createFileVersion('file-id', {
+   *   version_number: 2,
+   *   file_name: 'document_v2.pdf',
+   *   file_path: '/path/to/file',
+   *   file_size: 1024000,
+   *   file_hash: 'abc123...',
+   *   storage_path: '/storage/path',
+   *   uploaded_by: 'user-id',
+   *   is_current: true
+   * });
+   */
   async createFileVersion(
     fileId: string,
     versionData: {
@@ -661,6 +860,18 @@ export class StorageService {
     }
   }
 
+  /**
+   * Get all versions of a file
+   *
+   * Retrieves all versions of a file, ordered by version number (newest first).
+   *
+   * @param {string} fileId - File ID
+   * @returns {Promise<FileVersion[]>} Array of file versions
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const versions = await storageService.getFileVersions('file-id');
+   */
   async getFileVersions(fileId: string): Promise<FileVersion[]> {
     try {
       const result = await this.db.query(
@@ -674,7 +885,22 @@ export class StorageService {
     }
   }
 
-  // Storage Statistics and Quotas
+  /**
+   * Get storage statistics for a project
+   *
+   * Retrieves comprehensive storage statistics including file counts, sizes,
+   * usage by type/folder, quota information, and access analytics.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<StorageStatistics>} Storage statistics
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const stats = await storageService.getStorageStatistics('project-id');
+   * console.log(`Total files: ${stats.total_files}`);
+   * console.log(`Storage used: ${stats.total_size} bytes`);
+   * console.log(`Usage: ${stats.storage_used_percentage}%`);
+   */
   async getStorageStatistics(projectId: string): Promise<StorageStatistics> {
     try {
       const [
@@ -887,6 +1113,20 @@ export class StorageService {
 
   /**
    * Get storage information for a project
+   *
+   * Retrieves basic storage information including file count, total size, usage percentage, and quota.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Object>} Storage information
+   * @returns {number} returns.total_files - Total number of files
+   * @returns {number} returns.total_size - Total storage used in bytes
+   * @returns {number} returns.storage_used_percentage - Storage usage percentage
+   * @returns {number} returns.quota - Storage quota in bytes
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const info = await storageService.getStorageInfo('project-id');
+   * console.log(`Using ${info.storage_used_percentage}% of ${info.quota} bytes`);
    */
   async getStorageInfo(projectId: string): Promise<{
     total_files: number;

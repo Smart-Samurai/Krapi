@@ -1,3 +1,22 @@
+/**
+ * Sheet Components
+ * 
+ * Sheet (side panel) components built on Radix UI Dialog primitives.
+ * Provides slide-in side panels from different directions (left, right, top, bottom).
+ * Includes Sheet, SheetTrigger, SheetContent, SheetHeader, SheetFooter, etc.
+ * 
+ * @module components/ui/sheet
+ * @example
+ * <Sheet>
+ *   <SheetTrigger>Open Sheet</SheetTrigger>
+ *   <SheetContent side="right">
+ *     <SheetHeader>
+ *       <SheetTitle>Title</SheetTitle>
+ *     </SheetHeader>
+ *     Content
+ *   </SheetContent>
+ * </Sheet>
+ */
 "use client"
 
 import * as SheetPrimitive from "@radix-ui/react-dialog"

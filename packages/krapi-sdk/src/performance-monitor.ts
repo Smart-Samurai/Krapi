@@ -1,5 +1,35 @@
+/**
+ * Performance Monitor
+ * 
+ * Monitors and tracks performance metrics for database operations.
+ * Provides performance logging, query analysis, and load testing capabilities.
+ * 
+ * @module performance-monitor
+ * @example
+ * const monitor = new PerformanceMonitor(dbConnection, console);
+ * await monitor.initializePerformanceTables();
+ * await monitor.startOperation('query');
+ * // ... perform operation
+ * await monitor.endOperation('query', { success: true });
+ */
 import { Logger } from "./core";
 
+/**
+ * Performance Metric Interface
+ * 
+ * @interface PerformanceMetric
+ * @property {string} id - Metric ID
+ * @property {string} operation - Operation name
+ * @property {string} [collection_name] - Collection name
+ * @property {number} duration_ms - Operation duration in milliseconds
+ * @property {number} memory_usage_mb - Memory usage in MB
+ * @property {number} cpu_usage_percent - CPU usage percentage
+ * @property {number} records_processed - Number of records processed
+ * @property {boolean} success - Whether operation succeeded
+ * @property {string} [error_message] - Error message if failed
+ * @property {Record<string, unknown>} [metadata] - Additional metadata
+ * @property {Date} timestamp - Metric timestamp
+ */
 export interface PerformanceMetric {
   id: string;
   operation: string;
@@ -14,6 +44,22 @@ export interface PerformanceMetric {
   timestamp: Date;
 }
 
+/**
+ * Load Test Result Interface
+ * 
+ * @interface LoadTestResult
+ * @property {number} total_operations - Total operations performed
+ * @property {number} successful_operations - Successful operations
+ * @property {number} failed_operations - Failed operations
+ * @property {number} average_duration_ms - Average duration in milliseconds
+ * @property {number} min_duration_ms - Minimum duration
+ * @property {number} max_duration_ms - Maximum duration
+ * @property {number} total_duration_ms - Total duration
+ * @property {number} operations_per_second - Operations per second
+ * @property {number} memory_peak_mb - Peak memory usage in MB
+ * @property {number} cpu_peak_percent - Peak CPU usage percentage
+ * @property {string[]} errors - Error messages
+ */
 export interface LoadTestResult {
   total_operations: number;
   successful_operations: number;
@@ -28,6 +74,17 @@ export interface LoadTestResult {
   errors: string[];
 }
 
+/**
+ * Query Performance Interface
+ * 
+ * @interface QueryPerformance
+ * @property {string} query - SQL query
+ * @property {number} execution_time_ms - Execution time in milliseconds
+ * @property {number} rows_returned - Number of rows returned
+ * @property {number} rows_scanned - Number of rows scanned
+ * @property {boolean} index_usage - Whether index was used
+ * @property {string[]} optimization_suggestions - Optimization suggestions
+ */
 export interface QueryPerformance {
   query: string;
   execution_time_ms: number;
@@ -37,6 +94,18 @@ export interface QueryPerformance {
   optimization_suggestions: string[];
 }
 
+/**
+ * Performance Monitor Class
+ * 
+ * Monitors and tracks performance metrics for database operations.
+ * 
+ * @class PerformanceMonitor
+ * @example
+ * const monitor = new PerformanceMonitor(dbConnection, console);
+ * await monitor.startOperation('query');
+ * // ... perform operation
+ * await monitor.endOperation('query', { success: true });
+ */
 export class PerformanceMonitor {
   private metrics: PerformanceMetric[] = [];
   private startTime = 0;

@@ -126,16 +126,53 @@ export interface UserStatistics {
   }>;
 }
 
+/**
+ * Users Service for BackendSDK
+ * 
+ * Provides comprehensive user management functionality including:
+ * - Project-specific user management
+ * - User authentication and authorization
+ * - User profile management
+ * - User roles and permissions within projects
+ * - User activity tracking
+ * 
+ * @class UsersService
+ * @example
+ * const usersService = new UsersService(dbConnection, logger);
+ * const users = await usersService.getAllUsers('project-id', { limit: 10 });
+ */
 export class UsersService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new UsersService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // User CRUD Operations
+  /**
+   * Get all users for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of users
+   * @param {number} [options.offset] - Number of users to skip
+   * @param {UserFilter} [options.filter] - User filters
+   * @returns {Promise<ProjectUser[]>} Array of project users
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const users = await usersService.getAllUsers('project-id', {
+   *   limit: 10,
+   *   filter: { role: 'admin', is_active: true }
+   * });
+   */
   async getAllUsers(
     projectId: string,
     options?: {
@@ -217,6 +254,19 @@ export class UsersService {
     }
   }
 
+  /**
+   * Get user by ID
+   *
+   * Retrieves a single project user by their ID.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} userId - User ID
+   * @returns {Promise<ProjectUser | null>} User or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const user = await usersService.getUserById('project-id', 'user-id');
+   */
   async getUserById(
     projectId: string,
     userId: string
@@ -233,6 +283,19 @@ export class UsersService {
     }
   }
 
+  /**
+   * Get user by email
+   *
+   * Retrieves a project user by their email address.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} email - Email address
+   * @returns {Promise<ProjectUser | null>} User or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const user = await usersService.getUserByEmail('project-id', 'user@example.com');
+   */
   async getUserByEmail(
     projectId: string,
     email: string
@@ -249,6 +312,19 @@ export class UsersService {
     }
   }
 
+  /**
+   * Get user by username
+   *
+   * Retrieves a project user by their username.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} username - Username
+   * @returns {Promise<ProjectUser | null>} User or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const user = await usersService.getUserByUsername('project-id', 'username');
+   */
   async getUserByUsername(
     projectId: string,
     username: string
@@ -265,6 +341,30 @@ export class UsersService {
     }
   }
 
+  /**
+   * Create a new project user
+   *
+   * Creates a new user in a project with optional password hashing and role assignment.
+   *
+   * @param {string} projectId - Project ID
+   * @param {CreateUserRequest} userData - User creation data
+   * @param {string} [userData.username] - Username
+   * @param {string} [userData.email] - Email address
+   * @param {string} [userData.password] - Password (will be hashed)
+   * @param {string} [userData.role="member"] - User role
+   * @param {string[]} [userData.permissions] - Permission scopes
+   * @param {string} [createdBy] - User ID who created this user
+   * @returns {Promise<ProjectUser>} Created user
+   * @throws {Error} If creation fails or user already exists
+   *
+   * @example
+   * const user = await usersService.createUser('project-id', {
+   *   username: 'newuser',
+   *   email: 'user@example.com',
+   *   password: 'password',
+   *   role: 'admin'
+   * }, 'creator-user-id');
+   */
   async createUser(
     projectId: string,
     userData: CreateUserRequest,
@@ -325,6 +425,24 @@ export class UsersService {
     }
   }
 
+  /**
+   * Update a project user
+   *
+   * Updates user information with the provided data.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} userId - User ID
+   * @param {UpdateUserRequest} updates - User update data
+   * @param {string} [updatedBy] - User ID who made the update
+   * @returns {Promise<ProjectUser | null>} Updated user or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await usersService.updateUser('project-id', 'user-id', {
+   *   display_name: 'New Name',
+   *   role: 'admin'
+   * }, 'updater-user-id');
+   */
   async updateUser(
     projectId: string,
     userId: string,
@@ -422,6 +540,20 @@ export class UsersService {
     }
   }
 
+  /**
+   * Soft delete a project user
+   *
+   * Marks a user as inactive (soft delete) rather than permanently removing them.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} userId - User ID
+   * @param {string} [deletedBy] - User ID who deleted
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * const deleted = await usersService.deleteUser('project-id', 'user-id', 'deleter-user-id');
+   */
   async deleteUser(
     projectId: string,
     userId: string,
@@ -454,6 +586,21 @@ export class UsersService {
     }
   }
 
+  /**
+   * Permanently delete a project user
+   *
+   * Permanently removes a user and all associated data from the database.
+   * This action cannot be undone.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} userId - User ID
+   * @param {string} [deletedBy] - User ID who deleted
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * const deleted = await usersService.hardDeleteUser('project-id', 'user-id', 'deleter-user-id');
+   */
   async hardDeleteUser(
     projectId: string,
     userId: string,
@@ -495,7 +642,18 @@ export class UsersService {
     }
   }
 
-  // Role Management
+  /**
+   * Get all roles for a project
+   *
+   * Retrieves all user roles defined for a project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<UserRole[]>} Array of user roles
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const roles = await usersService.getAllRoles('project-id');
+   */
   async getAllRoles(projectId: string): Promise<UserRole[]> {
     try {
       const result = await this.db.query(
@@ -509,6 +667,29 @@ export class UsersService {
     }
   }
 
+  /**
+   * Create a new user role
+   *
+   * Creates a new role with specified permissions for a project.
+   *
+   * @param {string} projectId - Project ID
+   * @param {Object} roleData - Role data
+   * @param {string} roleData.name - Role name (unique identifier)
+   * @param {string} roleData.display_name - Display name
+   * @param {string} [roleData.description] - Role description
+   * @param {string[]} roleData.permissions - Permission scopes
+   * @param {boolean} [roleData.is_default=false] - Whether this is the default role
+   * @returns {Promise<UserRole>} Created role
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const role = await usersService.createRole('project-id', {
+   *   name: 'editor',
+   *   display_name: 'Editor',
+   *   description: 'Can edit content',
+   *   permissions: ['collections:read', 'collections:write', 'documents:write']
+   * });
+   */
   async createRole(
     projectId: string,
     roleData: {
@@ -539,6 +720,26 @@ export class UsersService {
     }
   }
 
+  /**
+   * Update a user role
+   *
+   * Updates role information including permissions.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} roleId - Role ID
+   * @param {Object} updates - Role updates
+   * @param {string} [updates.display_name] - New display name
+   * @param {string} [updates.description] - New description
+   * @param {string[]} [updates.permissions] - Updated permissions
+   * @param {boolean} [updates.is_default] - Whether this is the default role
+   * @returns {Promise<UserRole | null>} Updated role or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await usersService.updateRole('project-id', 'role-id', {
+   *   permissions: ['collections:read', 'collections:write', 'documents:read']
+   * });
+   */
   async updateRole(
     projectId: string,
     roleId: string,
@@ -596,7 +797,32 @@ export class UsersService {
     }
   }
 
-  // User Activity Tracking
+  /**
+   * Log user activity
+   *
+   * Records a user activity event for audit and analytics.
+   *
+   * @param {Object} activityData - Activity data
+   * @param {string} activityData.user_id - User ID
+   * @param {string} activityData.project_id - Project ID
+   * @param {string} activityData.action - Action performed
+   * @param {string} activityData.entity_type - Entity type (e.g., 'document', 'collection')
+   * @param {string} [activityData.entity_id] - Entity ID
+   * @param {Record<string, unknown>} activityData.details - Activity details
+   * @param {string} [activityData.ip_address] - Client IP address
+   * @param {string} [activityData.user_agent] - Client user agent
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await usersService.logUserActivity({
+   *   user_id: 'user-id',
+   *   project_id: 'project-id',
+   *   action: 'created',
+   *   entity_type: 'document',
+   *   entity_id: 'doc-id',
+   *   details: { collection: 'users' }
+   * });
+   */
   async logUserActivity(activityData: {
     user_id: string;
     project_id: string;
@@ -629,6 +855,27 @@ export class UsersService {
     }
   }
 
+  /**
+   * Get user activity log
+   *
+   * Retrieves activity log entries for a specific user with optional filtering.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} userId - User ID
+   * @param {Object} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of entries
+   * @param {number} [options.offset] - Number of entries to skip
+   * @param {string} [options.action_filter] - Filter by action type
+   * @param {string} [options.entity_type_filter] - Filter by entity type
+   * @returns {Promise<UserActivity[]>} Array of activity log entries
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const activity = await usersService.getUserActivity('project-id', 'user-id', {
+   *   limit: 50,
+   *   action_filter: 'created'
+   * });
+   */
   async getUserActivity(
     projectId: string,
     userId: string,
@@ -679,7 +926,21 @@ export class UsersService {
     }
   }
 
-  // User Statistics
+  /**
+   * Get user statistics for a project
+   *
+   * Retrieves comprehensive user statistics including counts, role distribution,
+   * login activity, and most active users.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<UserStatistics>} User statistics
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const stats = await usersService.getUserStatistics('project-id');
+   * console.log(`Total users: ${stats.total_users}`);
+   * console.log(`Active users: ${stats.active_users}`);
+   */
   async getUserStatistics(projectId: string): Promise<UserStatistics> {
     try {
       const [
@@ -811,7 +1072,21 @@ export class UsersService {
     }
   }
 
-  // Password management
+  /**
+   * Change a user's password
+   *
+   * Updates a user's password with hashing and activity logging.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} userId - User ID
+   * @param {string} newPassword - New password (will be hashed)
+   * @param {string} [changedBy] - User ID who changed the password
+   * @returns {Promise<boolean>} True if password changed successfully
+   * @throws {Error} If change fails
+   *
+   * @example
+   * const changed = await usersService.changeUserPassword('project-id', 'user-id', 'newpassword', 'admin-user-id');
+   */
   async changeUserPassword(
     projectId: string,
     userId: string,

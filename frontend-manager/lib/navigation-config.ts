@@ -1,3 +1,14 @@
+/**
+ * Navigation Configuration
+ * 
+ * Centralized navigation configuration for the application sidebar.
+ * Defines navigation items with icons, labels, and routes.
+ * 
+ * @module lib/navigation-config
+ * @example
+ * import { navigationItems } from '@/lib/navigation-config';
+ * const dashboardItem = navigationItems.dashboard;
+ */
 import {
   LayoutDashboard,
   Users,
@@ -11,12 +22,35 @@ import {
   Database,
 } from "lucide-react";
 
+/**
+ * Navigation Item Interface
+ * 
+ * @interface NavigationItem
+ * @property {React.ComponentType} icon - Icon component
+ * @property {string} label - Navigation label
+ * @property {string} href - Navigation route
+ */
 export interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   href: string;
 }
 
+/**
+ * Navigation Items Interface
+ * 
+ * @interface NavigationItems
+ * @property {NavigationItem} dashboard - Dashboard navigation item
+ * @property {NavigationItem} projects - Projects navigation item
+ * @property {NavigationItem} apiKeys - API Keys navigation item
+ * @property {NavigationItem} testSuite - Test Suite navigation item
+ * @property {NavigationItem} system - System navigation item
+ * @property {NavigationItem} users - Users navigation item
+ * @property {NavigationItem} email - Email navigation item
+ * @property {NavigationItem} storage - Storage navigation item
+ * @property {NavigationItem} settings - Settings navigation item
+ * @property {NavigationItem} profile - Profile navigation item
+ */
 export interface NavigationItems {
   dashboard: NavigationItem;
   projects: NavigationItem;
@@ -30,6 +64,16 @@ export interface NavigationItems {
   profile: NavigationItem;
 }
 
+/**
+ * Navigation Items Configuration
+ * 
+ * Centralized navigation configuration object.
+ * 
+ * @constant {NavigationItems}
+ * @example
+ * const dashboardItem = navigationItems.dashboard;
+ * // Returns: { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' }
+ */
 export const navigationItems: NavigationItems = {
   dashboard: {
     icon: LayoutDashboard,

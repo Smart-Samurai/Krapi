@@ -1,5 +1,23 @@
+/**
+ * Common Form Schemas
+ * 
+ * Reusable Zod validation schemas for common form fields and operations.
+ * Includes email, password, name, registration, login, project, collection, and API key schemas.
+ * 
+ * @module lib/forms
+ * @example
+ * import { emailSchema, passwordSchema } from '@/lib/forms';
+ * const emailResult = emailSchema.parse({ email: 'user@example.com' });
+ */
 import { z } from "zod";
 
+/**
+ * Email Schema
+ * 
+ * Validation schema for email addresses.
+ * 
+ * @constant {z.ZodObject}
+ */
 // Common form schemas
 export const emailSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

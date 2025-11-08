@@ -1,5 +1,35 @@
+/**
+ * Metadata Manager
+ * 
+ * Manages collection metadata including custom fields, validation rules, and schema versions.
+ * Provides metadata persistence and querying capabilities.
+ * 
+ * @module metadata-manager
+ * @example
+ * const manager = new MetadataManager(dbConnection, console);
+ * await manager.initializeMetadataTables();
+ * const field = await manager.addCustomField({ collection_name: 'users', field_name: 'age', field_type: 'number' });
+ */
 import { DatabaseConnection, Logger } from "./core";
 
+/**
+ * Custom Field Interface
+ * 
+ * @interface CustomField
+ * @property {string} id - Field ID
+ * @property {string} collection_name - Collection name
+ * @property {string} field_name - Field name
+ * @property {string} field_type - Field type
+ * @property {string} [display_name] - Display name
+ * @property {string} [description] - Field description
+ * @property {boolean} required - Whether field is required
+ * @property {boolean} unique - Whether field is unique
+ * @property {unknown} [default_value] - Default value
+ * @property {Record<string, unknown>} [validation] - Validation rules
+ * @property {Record<string, unknown>} [metadata] - Additional metadata
+ * @property {string} created_at - Creation timestamp
+ * @property {string} updated_at - Update timestamp
+ */
 export interface CustomField {
   id: string;
   collection_name: string;
@@ -16,6 +46,19 @@ export interface CustomField {
   updated_at: string;
 }
 
+/**
+ * Collection Metadata Interface
+ * 
+ * @interface CollectionMetadata
+ * @property {string} id - Metadata ID
+ * @property {string} collection_name - Collection name
+ * @property {string} version - Schema version
+ * @property {Record<string, unknown>} schema - Collection schema
+ * @property {CustomField[]} custom_fields - Custom fields
+ * @property {Record<string, unknown>} validation_rules - Validation rules
+ * @property {string} created_at - Creation timestamp
+ * @property {string} updated_at - Update timestamp
+ */
 export interface CollectionMetadata {
   id: string;
   collection_name: string;
@@ -27,6 +70,15 @@ export interface CollectionMetadata {
   updated_at: string;
 }
 
+/**
+ * Metadata Query Interface
+ * 
+ * @interface MetadataQuery
+ * @property {string} [collection_name] - Filter by collection name
+ * @property {string} [field_type] - Filter by field type
+ * @property {boolean} [required] - Filter by required status
+ * @property {boolean} [unique] - Filter by unique status
+ */
 export interface MetadataQuery {
   collection_name?: string;
   field_type?: string;
@@ -34,6 +86,17 @@ export interface MetadataQuery {
   unique?: boolean;
 }
 
+/**
+ * Metadata Manager Class
+ * 
+ * Manages collection metadata including custom fields and validation rules.
+ * 
+ * @class MetadataManager
+ * @example
+ * const manager = new MetadataManager(dbConnection, console);
+ * await manager.initializeMetadataTables();
+ * const metadata = await manager.getCollectionMetadata('users');
+ */
 export class MetadataManager {
   private db: DatabaseConnection;
   private logger: Logger;

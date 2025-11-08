@@ -1,8 +1,26 @@
+/**
+ * Alert Components
+ * 
+ * Alert components for displaying important messages.
+ * Includes Alert, AlertTitle, AlertDescription with variant support.
+ * 
+ * @module components/ui/alert
+ * @example
+ * <Alert variant="destructive">
+ *   <AlertTitle>Error</AlertTitle>
+ *   <AlertDescription>Something went wrong</AlertDescription>
+ * </Alert>
+ */
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Alert Variants
+ * 
+ * @constant {Function} alertVariants
+ */
 const alertVariants = cva(
   "relative w-full  border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
   {

@@ -1,3 +1,18 @@
+/**
+ * Tabs Components
+ * 
+ * Tab components built on Radix UI Tabs primitives.
+ * Includes Tabs, TabsList, TabsTrigger, TabsContent.
+ * 
+ * @module components/ui/tabs
+ * @example
+ * <Tabs defaultValue="tab1">
+ *   <TabsList>
+ *     <TabsTrigger value="tab1">Tab 1</TabsTrigger>
+ *   </TabsList>
+ *   <TabsContent value="tab1">Content</TabsContent>
+ * </Tabs>
+ */
 "use client";
 
 import * as TabsPrimitive from "@radix-ui/react-tabs";
@@ -5,6 +20,11 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Tabs Root Component
+ * 
+ * @constant {typeof TabsPrimitive.Root}
+ */
 const Tabs = TabsPrimitive.Root;
 
 const TabsList = React.forwardRef<

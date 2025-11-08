@@ -1,3 +1,12 @@
+/**
+ * Checkbox Component
+ * 
+ * Checkbox component built on Radix UI Checkbox primitive.
+ * 
+ * @module components/ui/checkbox
+ * @example
+ * <Checkbox checked={isChecked} onCheckedChange={setIsChecked} />
+ */
 "use client"
 
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
@@ -6,6 +15,17 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Checkbox Component
+ * 
+ * Checkbox input with consistent styling.
+ * 
+ * @param {React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>} props - Checkbox props
+ * @returns {JSX.Element} Checkbox component
+ * 
+ * @example
+ * <Checkbox checked={value} onCheckedChange={setValue} />
+ */
 const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>

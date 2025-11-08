@@ -1,6 +1,23 @@
 import { UsersService } from "@krapi/sdk";
 
+/**
+ * SDK Users Service Wrapper
+ * 
+ * Wrapper service that delegates to the SDK UsersService.
+ * Provides a consistent interface for backend services to access project user operations.
+ * 
+ * @class SDKUsersService
+ * @example
+ * const usersService = new UsersService(dbConnection);
+ * const sdkUsersService = new SDKUsersService(usersService);
+ * const user = await sdkUsersService.createUser('project-id', userData);
+ */
 export class SDKUsersService {
+  /**
+   * Create a new SDKUsersService instance
+   * 
+   * @param {UsersService} usersService - SDK UsersService instance
+   */
   constructor(private usersService: UsersService) {}
 
   async getProjectUsers(
@@ -41,6 +58,25 @@ export class SDKUsersService {
     throw new Error("getUserByUsername not implemented in SDK");
   }
 
+  /**
+   * Create a new project user
+   * 
+   * @param {string} projectId - Project ID
+   * @param {Object} userData - User data
+   * @param {string} userData.username - Username
+   * @param {string} userData.email - Email address
+   * @param {string} userData.password - Password
+   * @param {string} [userData.role] - User role
+   * @param {Record<string, unknown>} [userData.metadata] - User metadata
+   * @returns {Promise<unknown>} Created user
+   * 
+   * @example
+   * const user = await sdkUsersService.createUser('project-id', {
+   *   username: 'newuser',
+   *   email: 'user@example.com',
+   *   password: 'password'
+   * });
+   */
   async createUser(
     projectId: string,
     userData: {

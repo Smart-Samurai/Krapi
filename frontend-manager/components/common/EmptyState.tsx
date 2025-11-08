@@ -1,3 +1,17 @@
+/**
+ * Empty State Component
+ * 
+ * Displays an empty state message with icon, title, description, and optional action button.
+ * 
+ * @module components/common/EmptyState
+ * @example
+ * <EmptyState
+ *   icon={FolderOpen}
+ *   title="No projects"
+ *   description="Create your first project to get started"
+ *   action={{ label: "Create Project", onClick: handleCreate }}
+ * />
+ */
 "use client";
 
 import { LucideIcon } from "lucide-react";
@@ -8,6 +22,18 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
+/**
+ * Empty State Props
+ * 
+ * @interface EmptyStateProps
+ * @property {LucideIcon} icon - Icon to display
+ * @property {string} title - Empty state title
+ * @property {string} description - Empty state description
+ * @property {Object} [action] - Optional action button
+ * @property {string} action.label - Action button label
+ * @property {Function} action.onClick - Action button click handler
+ * @property {LucideIcon} [action.icon] - Optional action button icon
+ */
 interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
@@ -19,6 +45,22 @@ interface EmptyStateProps {
   };
 }
 
+/**
+ * Empty State Component
+ * 
+ * Displays an empty state with icon, message, and optional action.
+ * 
+ * @param {EmptyStateProps} props - Component props
+ * @returns {JSX.Element} Empty state component
+ * 
+ * @example
+ * <EmptyState
+ *   icon={FolderOpen}
+ *   title="No projects"
+ *   description="Create your first project"
+ *   action={{ label: "Create", onClick: handleCreate }}
+ * />
+ */
 export function EmptyState({
   icon: Icon,
   title,

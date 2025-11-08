@@ -1,3 +1,23 @@
+/**
+ * Files Page
+ * 
+ * Page for managing files within a project.
+ * Provides file upload, download, deletion, and folder management.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/files/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/files route
+ */
+/**
+ * Files Page
+ * 
+ * Page for managing files within a project.
+ * Provides file upload, download, preview, and management functionality.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/files/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/files route
+ */
 "use client";
 
 import {
@@ -87,6 +107,12 @@ import {
 } from "@/store/storageSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
+/**
+ * Get file icon based on MIME type
+ * 
+ * @param {string} mimeType - File MIME type
+ * @returns {React.ComponentType} Icon component
+ */
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/")) return Image;
   if (mimeType.startsWith("video/")) return Video;

@@ -33,8 +33,24 @@ export interface ChangelogQueryOptions {
 
 /**
  * Service for managing changelog entries to track changes to entities
+ * 
+ * @class ChangelogService
+ * @example
+ * const changelogService = new ChangelogService(dbConnection, logger);
+ * const entry = await changelogService.create({
+ *   entity_type: 'project',
+ *   entity_id: 'project-id',
+ *   action: 'created',
+ *   changes: { name: 'New Project' }
+ * });
  */
 export class ChangelogService {
+  /**
+   * Create a new ChangelogService instance
+   * 
+   * @param {DatabaseConnection} dbConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(
     private dbConnection: DatabaseConnection,
     private logger: Logger
@@ -42,6 +58,25 @@ export class ChangelogService {
 
   /**
    * Create a new changelog entry
+   * 
+   * @param {CreateChangelogEntryParams} params - Changelog entry parameters
+   * @param {string} params.entity_type - Entity type (e.g., 'project', 'collection')
+   * @param {string} params.entity_id - Entity ID
+   * @param {string} params.action - Action performed (e.g., 'created', 'updated', 'deleted')
+   * @param {Record<string, unknown>} params.changes - Changes made
+   * @param {string} [params.user_id] - User ID who performed the action
+   * @param {Record<string, unknown>} [params.metadata] - Additional metadata
+   * @returns {Promise<ChangelogEntry>} Created changelog entry
+   * @throws {Error} If creation fails
+   * 
+   * @example
+   * const entry = await changelogService.create({
+   *   entity_type: 'project',
+   *   entity_id: 'project-id',
+   *   action: 'updated',
+   *   changes: { name: 'New Name' },
+   *   user_id: 'user-id'
+   * });
    */
   async create(params: CreateChangelogEntryParams): Promise<ChangelogEntry> {
     try {
@@ -88,6 +123,18 @@ export class ChangelogService {
 
   /**
    * Get changelog entries by entity
+   * 
+   * @param {string} entity_type - Entity type
+   * @param {string} entity_id - Entity ID
+   * @param {ChangelogQueryOptions} [options] - Query options
+   * @returns {Promise<ChangelogEntry[]>} Array of changelog entries
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const entries = await changelogService.getByEntity('project', 'project-id', {
+   *   limit: 10,
+   *   action: 'created'
+   * });
    */
   async getByEntity(
     entity_type: string,

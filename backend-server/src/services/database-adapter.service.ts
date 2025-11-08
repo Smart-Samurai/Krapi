@@ -29,9 +29,14 @@ import {
 
 /**
  * Database Adapter Service
- *
- * This service wraps the existing DatabaseService to provide
- * a consistent interface for the controllers.
+ * 
+ * Wraps the existing DatabaseService to provide a consistent interface for controllers.
+ * Acts as an adapter layer between controllers and the core DatabaseService.
+ * 
+ * @class DatabaseAdapterService
+ * @example
+ * const adapter = DatabaseAdapterService.getInstance();
+ * const projects = await adapter.getProjects({ limit: 10 });
  */
 export class DatabaseAdapterService {
   private static instance: DatabaseAdapterService;
@@ -41,6 +46,14 @@ export class DatabaseAdapterService {
     this.db = DatabaseService.getInstance();
   }
 
+  /**
+   * Get singleton instance of DatabaseAdapterService
+   * 
+   * @returns {DatabaseAdapterService} The singleton instance
+   * 
+   * @example
+   * const adapter = DatabaseAdapterService.getInstance();
+   */
   static getInstance(): DatabaseAdapterService {
     if (!DatabaseAdapterService.instance) {
       DatabaseAdapterService.instance = new DatabaseAdapterService();
@@ -48,7 +61,17 @@ export class DatabaseAdapterService {
     return DatabaseAdapterService.instance;
   }
 
-  // Projects
+  /**
+   * Get all projects with optional pagination
+   * 
+   * @param {QueryOptions} [options] - Query options
+   * @param {number} [options.limit] - Maximum number of projects
+   * @param {number} [options.offset] - Number of projects to skip
+   * @returns {Promise<BackendProject[]>} Array of projects
+   * 
+   * @example
+   * const projects = await adapter.getProjects({ limit: 10, offset: 0 });
+   */
   async getProjects(options: QueryOptions = {}): Promise<BackendProject[]> {
     const projects = await this.db.getAllProjects();
 
@@ -62,10 +85,32 @@ export class DatabaseAdapterService {
     return projects;
   }
 
+  /**
+   * Get project by ID
+   * 
+   * @param {string} id - Project ID
+   * @returns {Promise<BackendProject | null>} Project or null if not found
+   * 
+   * @example
+   * const project = await adapter.getProjectById('project-id');
+   */
   async getProjectById(id: string): Promise<BackendProject | null> {
     return await this.db.getProjectById(id);
   }
 
+  /**
+   * Create a new project
+   * 
+   * @param {BackendCreateProjectRequest} data - Project creation data
+   * @returns {Promise<BackendProject>} Created project
+   * @throws {Error} If project creation fails
+   * 
+   * @example
+   * const project = await adapter.createProject({
+   *   name: 'My Project',
+   *   description: 'Project description'
+   * });
+   */
   async createProject(
     data: BackendCreateProjectRequest
   ): Promise<BackendProject> {
@@ -83,6 +128,19 @@ export class DatabaseAdapterService {
     return await this.db.createProject(projectData);
   }
 
+  /**
+   * Update an existing project
+   * 
+   * @param {string} id - Project ID
+   * @param {Partial<BackendProject>} updates - Project updates
+   * @returns {Promise<BackendProject | null>} Updated project or null if not found
+   * @throws {Error} If project is not found
+   * 
+   * @example
+   * const updated = await adapter.updateProject('project-id', {
+   *   name: 'Updated Name'
+   * });
+   */
   async updateProject(
     id: string,
     updates: Partial<BackendProject>
@@ -94,10 +152,29 @@ export class DatabaseAdapterService {
     return result;
   }
 
+  /**
+   * Delete a project
+   * 
+   * @param {string} id - Project ID
+   * @returns {Promise<boolean>} True if deleted successfully
+   * 
+   * @example
+   * await adapter.deleteProject('project-id');
+   */
   async deleteProject(id: string): Promise<boolean> {
     return await this.db.deleteProject(id);
   }
 
+  /**
+   * Get project statistics
+   * 
+   * @param {string} id - Project ID
+   * @returns {Promise<ProjectStats>} Project statistics
+   * @throws {Error} If project is not found
+   * 
+   * @example
+   * const stats = await adapter.getProjectStats('project-id');
+   */
   async getProjectStats(id: string): Promise<ProjectStats> {
     try {
       // Get the project to verify it exists
@@ -174,6 +251,16 @@ export class DatabaseAdapterService {
     }
   }
 
+  /**
+   * Get project settings
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<BackendProjectSettings>} Project settings
+   * @throws {Error} If project is not found
+   * 
+   * @example
+   * const settings = await adapter.getProjectSettings('project-id');
+   */
   async getProjectSettings(projectId: string): Promise<BackendProjectSettings> {
     const project = await this.db.getProjectById(projectId);
     if (!project) {
@@ -182,6 +269,19 @@ export class DatabaseAdapterService {
     return project.settings;
   }
 
+  /**
+   * Update project settings
+   * 
+   * @param {string} id - Project ID
+   * @param {Partial<ProjectSettings>} settings - Settings updates
+   * @returns {Promise<ProjectSettings>} Updated project settings
+   * @throws {Error} If project is not found
+   * 
+   * @example
+   * const settings = await adapter.updateProjectSettings('project-id', {
+   *   authentication_required: true
+   * });
+   */
   async updateProjectSettings(
     id: string,
     settings: Partial<ProjectSettings>
@@ -220,11 +320,28 @@ export class DatabaseAdapterService {
     };
   }
 
-  // Collections
+  /**
+   * Get all collections for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Collection[]>} Array of collections
+   * 
+   * @example
+   * const collections = await adapter.getCollections('project-id');
+   */
   async getCollections(projectId: string): Promise<Collection[]> {
     return await this.db.getProjectCollections(projectId);
   }
 
+  /**
+   * Get collection by ID
+   * 
+   * @param {string} id - Collection ID
+   * @returns {Promise<Collection | null>} Collection or null if not found
+   * 
+   * @example
+   * const collection = await adapter.getCollectionById('collection-id');
+   */
   async getCollectionById(id: string): Promise<Collection | null> {
     try {
       // Since the database service doesn't have getCollectionById,
@@ -251,6 +368,26 @@ export class DatabaseAdapterService {
     }
   }
 
+  /**
+   * Create a new collection
+   * 
+   * @param {Partial<Collection>} collection - Collection data
+   * @param {string} collection.project_id - Project ID (required)
+   * @param {string} collection.name - Collection name (required)
+   * @param {string} [collection.description] - Collection description
+   * @param {CollectionField[]} [collection.fields] - Collection fields
+   * @param {CollectionIndex[]} [collection.indexes] - Collection indexes
+   * @returns {Promise<Collection>} Created collection
+   * @throws {Error} If project_id or name is missing
+   * @throws {Error} If collection creation fails
+   * 
+   * @example
+   * const collection = await adapter.createCollection({
+   *   project_id: 'project-id',
+   *   name: 'users',
+   *   fields: [{ name: 'email', type: 'string', required: true }]
+   * });
+   */
   async createCollection(collection: Partial<Collection>): Promise<Collection> {
     if (!collection.project_id || !collection.name) {
       throw new Error("Project ID and name are required");

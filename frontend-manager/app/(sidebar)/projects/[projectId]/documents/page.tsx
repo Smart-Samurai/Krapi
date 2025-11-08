@@ -1,3 +1,23 @@
+/**
+ * Documents Page
+ * 
+ * Page for managing documents within a project collection.
+ * Provides document creation, editing, deletion, and filtering.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/documents/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/documents route
+ */
+/**
+ * Documents Page
+ * 
+ * Page for managing documents within a project collection.
+ * Provides document CRUD operations, filtering, and pagination.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/documents/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/documents route
+ */
 "use client";
 
 import {
@@ -78,6 +98,13 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
+/**
+ * Documents Page Component
+ * 
+ * Displays documents for a selected collection with CRUD operations.
+ * 
+ * @returns {JSX.Element} Documents page
+ */
 export default function DocumentsPage() {
   const params = useParams();
   if (!params || !params.projectId) {

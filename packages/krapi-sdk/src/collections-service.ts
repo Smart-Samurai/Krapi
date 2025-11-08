@@ -87,15 +87,29 @@ export interface DatabaseConnection {
 
 /**
  * Collections Service
- *
+ * 
  * High-level service for managing dynamic collections with schema validation,
  * auto-fixing, and TypeScript interface generation.
+ * 
+ * @class CollectionsService
+ * @example
+ * const collectionsService = new CollectionsService(dbConnection, logger);
+ * const collection = await collectionsService.createCollection({
+ *   name: 'users',
+ *   fields: [{ name: 'email', type: FieldType.string, required: true }]
+ * });
  */
 export class CollectionsService {
   private schemaManager: CollectionsSchemaManager;
   private schemaInspector: SQLiteSchemaInspector;
   private db: DatabaseConnection;
 
+  /**
+   * Create a new CollectionsService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Console} [logger=console] - Logger instance
+   */
   constructor(
     databaseConnection: DatabaseConnection,
     private logger: Console = console
@@ -148,6 +162,32 @@ export class CollectionsService {
    * Create a new collection with custom schema
    * Example: Create an "articles" collection with title, content, author fields
    */
+  /**
+   * Create a new collection
+   *
+   * Creates a new collection with the specified schema and fields.
+   * Automatically creates the database table and indexes.
+   *
+   * @param {Object} collectionData - Collection creation data
+   * @param {string} collectionData.project_id - Project ID
+   * @param {string} collectionData.name - Collection name (required)
+   * @param {string} [collectionData.description] - Collection description
+   * @param {CollectionField[]} collectionData.fields - Collection field definitions
+   * @param {CollectionSettings} [collectionData.settings] - Collection settings
+   * @returns {Promise<Collection>} Created collection
+   * @throws {Error} If creation fails or collection name already exists
+   *
+   * @example
+   * const collection = await collectionsService.createCollection({
+   *   project_id: 'project-id',
+   *   name: 'users',
+   *   description: 'User collection',
+   *   fields: [
+   *     { name: 'email', type: FieldType.string, required: true },
+   *     { name: 'name', type: FieldType.string, required: true }
+   *   ]
+   * });
+   */
   async createCollection(collectionData: {
     name: string;
     description?: string;
@@ -199,6 +239,23 @@ export class CollectionsService {
 
   /**
    * Create a collection from a predefined template
+   *
+   * Creates a collection using a template (e.g., 'users', 'posts', 'products')
+   * with optional customizations.
+   *
+   * @param {string} templateName - Template name
+   * @param {Object} [customizations] - Optional customizations
+   * @param {string} [customizations.name] - Custom collection name
+   * @param {string} [customizations.description] - Custom description
+   * @param {Array} [customizations.additionalFields] - Additional fields to add
+   * @returns {Promise<Collection>} Created collection
+   * @throws {Error} If template not found or creation fails
+   *
+   * @example
+   * const collection = await collectionsService.createCollectionFromTemplate('users', {
+   *   name: 'customers',
+   *   additionalFields: [{ name: 'phone', type: FieldType.string }]
+   * });
    */
   async createCollectionFromTemplate(
     templateName: string,
@@ -231,7 +288,24 @@ export class CollectionsService {
   }
 
   /**
-   * Update collection schema (add/remove/modify fields)
+   * Update collection schema
+   *
+   * Updates a collection's schema by adding, removing, or modifying fields.
+   * Automatically updates the database table structure.
+   *
+   * @param {string} collectionId - Collection ID
+   * @param {Object} updates - Schema updates
+   * @param {Array} [updates.addFields] - Fields to add
+   * @param {string[]} [updates.removeFields] - Field names to remove
+   * @param {Array} [updates.modifyFields] - Fields to modify
+   * @returns {Promise<Collection>} Updated collection
+   * @throws {Error} If update fails or collection not found
+   *
+   * @example
+   * const updated = await collectionsService.updateCollectionSchema('collection-id', {
+   *   addFields: [{ name: 'age', type: FieldType.number }],
+   *   removeFields: ['old_field']
+   * });
    */
   async updateCollectionSchema(
     collectionId: string,
@@ -551,7 +625,16 @@ export class CollectionsService {
   }
 
   /**
-   * Get all collections for a specific project
+   * Get all collections for a project
+   *
+   * Retrieves all collections associated with a specific project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Collection[]>} Array of collections
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const collections = await collectionsService.getCollectionsByProject('project-id');
    */
   async getCollectionsByProject(projectId: string): Promise<Collection[]> {
     try {
@@ -569,7 +652,16 @@ export class CollectionsService {
   }
 
   /**
-   * Get collections by project ID (alias for getCollectionsByProject)
+   * Get collections by project ID
+   *
+   * Alias for getCollectionsByProject. Retrieves all collections for a project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Collection[]>} Array of collections
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const collections = await collectionsService.getProjectCollections('project-id');
    */
   async getProjectCollections(projectId: string): Promise<Collection[]> {
     return this.getCollectionsByProject(projectId);
@@ -577,6 +669,16 @@ export class CollectionsService {
 
   /**
    * Get a collection by ID
+   *
+   * Retrieves a single collection by its ID within a project.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionId - Collection ID
+   * @returns {Promise<Collection | null>} Collection or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const collection = await collectionsService.getCollection('project-id', 'collection-id');
    */
   async getCollection(
     projectId: string,
@@ -600,6 +702,19 @@ export class CollectionsService {
 
   /**
    * Update a collection
+   *
+   * Updates collection metadata (name, description, settings) without changing schema.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionId - Collection ID
+   * @param {Partial<Collection>} updates - Collection updates
+   * @returns {Promise<Collection>} Updated collection
+   * @throws {Error} If update fails or collection not found
+   *
+   * @example
+   * const updated = await collectionsService.updateCollection('project-id', 'collection-id', {
+   *   description: 'Updated description'
+   * });
    */
   async updateCollection(
     projectId: string,
@@ -625,6 +740,17 @@ export class CollectionsService {
 
   /**
    * Delete a collection
+   *
+   * Permanently deletes a collection and all its documents.
+   * This action cannot be undone.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionId - Collection ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails or collection not found
+   *
+   * @example
+   * const deleted = await collectionsService.deleteCollection('project-id', 'collection-id');
    */
   async deleteCollection(
     projectId: string,
@@ -1033,7 +1159,22 @@ export class CollectionsService {
   // ===== DOCUMENT CRUD OPERATIONS =====
 
   /**
-   * Get all documents from a collection with filtering and pagination
+   * Get all documents from a collection
+   *
+   * Retrieves documents from a collection with optional filtering, sorting, and pagination.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {DocumentFilter} [filter] - Document filters
+   * @param {DocumentQueryOptions} [options] - Query options (limit, offset, sort)
+   * @returns {Promise<Document[]>} Array of documents
+   * @throws {Error} If query fails or collection not found
+   *
+   * @example
+   * const documents = await collectionsService.getDocuments('project-id', 'users', {
+   *   field_filters: { active: true },
+   *   search: 'john'
+   * }, { limit: 10, sort_by: 'created_at', sort_order: 'desc' });
    */
   async getDocuments(
     projectId: string,
@@ -1171,6 +1312,17 @@ export class CollectionsService {
 
   /**
    * Get a single document by ID
+   *
+   * Retrieves a document by its ID from a collection.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string} documentId - Document ID
+   * @returns {Promise<Document | null>} Document or null if not found
+   * @throws {Error} If query fails or collection not found
+   *
+   * @example
+   * const document = await collectionsService.getDocumentById('project-id', 'users', 'doc-id');
    */
   async getDocumentById(
     projectId: string,
@@ -1212,6 +1364,22 @@ export class CollectionsService {
 
   /**
    * Create a new document in a collection
+   *
+   * Creates a new document with validation against the collection schema.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {CreateDocumentRequest} documentData - Document data
+   * @param {Record<string, unknown>} documentData.data - Document data object
+   * @param {string} [documentData.created_by] - User ID who created the document
+   * @returns {Promise<Document>} Created document
+   * @throws {Error} If creation fails, validation fails, or collection not found
+   *
+   * @example
+   * const document = await collectionsService.createDocument('project-id', 'users', {
+   *   data: { email: 'user@example.com', name: 'John Doe' },
+   *   created_by: 'user-id'
+   * });
    */
   async createDocument(
     projectId: string,
@@ -1289,6 +1457,23 @@ export class CollectionsService {
 
   /**
    * Update an existing document
+   *
+   * Updates a document's data with validation against the collection schema.
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string} documentId - Document ID
+   * @param {UpdateDocumentRequest} updateData - Update data
+   * @param {Record<string, unknown>} updateData.data - Updated data (merged with existing)
+   * @param {string} [updateData.updated_by] - User ID who updated the document
+   * @returns {Promise<Document | null>} Updated document or null if not found
+   * @throws {Error} If update fails, validation fails, or document not found
+   *
+   * @example
+   * const updated = await collectionsService.updateDocument('project-id', 'users', 'doc-id', {
+   *   data: { name: 'Jane Doe' },
+   *   updated_by: 'user-id'
+   * });
    */
   async updateDocument(
     projectId: string,
@@ -1379,7 +1564,20 @@ export class CollectionsService {
   }
 
   /**
-   * Delete a document (soft delete)
+   * Delete a document
+   *
+   * Permanently deletes a document from a collection.
+   * Note: Currently implemented as hard delete (permanently removed).
+   *
+   * @param {string} projectId - Project ID
+   * @param {string} collectionName - Collection name
+   * @param {string} documentId - Document ID
+   * @param {string} [_deletedBy] - User ID who deleted (currently unused)
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails or document not found
+   *
+   * @example
+   * const deleted = await collectionsService.deleteDocument('project-id', 'users', 'doc-id');
    */
   async deleteDocument(
     projectId: string,

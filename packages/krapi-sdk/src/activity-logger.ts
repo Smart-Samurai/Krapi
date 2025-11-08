@@ -1,5 +1,40 @@
+/**
+ * Activity Logger
+ * 
+ * Provides activity logging functionality for tracking user actions and system events.
+ * Logs activities to the database with metadata, timestamps, and severity levels.
+ * 
+ * @module activity-logger
+ * @example
+ * const logger = new ActivityLogger(dbConnection, console);
+ * await logger.log({
+ *   user_id: 'user-id',
+ *   project_id: 'project-id',
+ *   action: 'created',
+ *   resource_type: 'document',
+ *   resource_id: 'doc-id',
+ *   details: { collection: 'users' }
+ * });
+ */
 import { Logger } from "./core";
 
+/**
+ * Activity Log Interface
+ * 
+ * @interface ActivityLog
+ * @property {string} id - Log entry ID
+ * @property {string} [user_id] - User ID who performed the action
+ * @property {string} [project_id] - Project ID
+ * @property {string} action - Action performed
+ * @property {string} resource_type - Type of resource affected
+ * @property {string} [resource_id] - Resource ID
+ * @property {Record<string, unknown>} details - Action details
+ * @property {string} [ip_address] - IP address
+ * @property {string} [user_agent] - User agent
+ * @property {Date} timestamp - Action timestamp
+ * @property {"info" | "warning" | "error" | "critical"} severity - Log severity
+ * @property {Record<string, unknown>} [metadata] - Additional metadata
+ */
 export interface ActivityLog {
   id: string;
   user_id?: string;
@@ -15,6 +50,21 @@ export interface ActivityLog {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Activity Query Interface
+ * 
+ * @interface ActivityQuery
+ * @property {string} [user_id] - Filter by user ID
+ * @property {string} [project_id] - Filter by project ID
+ * @property {string} [action] - Filter by action
+ * @property {string} [resource_type] - Filter by resource type
+ * @property {string} [resource_id] - Filter by resource ID
+ * @property {string} [severity] - Filter by severity
+ * @property {Date} [start_date] - Start date filter
+ * @property {Date} [end_date] - End date filter
+ * @property {number} [limit] - Maximum number of results
+ * @property {number} [offset] - Number of results to skip
+ */
 export interface ActivityQuery {
   user_id?: string;
   project_id?: string;
@@ -28,6 +78,22 @@ export interface ActivityQuery {
   offset?: number;
 }
 
+/**
+ * Activity Logger Class
+ * 
+ * Manages activity logging with database persistence.
+ * Provides methods for logging activities and querying activity logs.
+ * 
+ * @class ActivityLogger
+ * @example
+ * const logger = new ActivityLogger(dbConnection, console);
+ * await logger.log({
+ *   user_id: 'user-id',
+ *   action: 'created',
+ *   resource_type: 'document',
+ *   details: {}
+ * });
+ */
 export class ActivityLogger {
   private initialized = false;
 

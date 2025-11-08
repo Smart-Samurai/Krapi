@@ -76,16 +76,47 @@ export interface EmailProvider {
   updated_at: string;
 }
 
+/**
+ * Email Service for BackendSDK
+ * 
+ * Provides email configuration management, template management,
+ * and email sending functionality.
+ * 
+ * @class EmailService
+ * @example
+ * const emailService = new EmailService(dbConnection, logger);
+ * await emailService.sendEmail({
+ *   project_id: 'project-id',
+ *   to: 'user@example.com',
+ *   subject: 'Hello',
+ *   body: 'World'
+ * });
+ */
 export class EmailService {
   private db: DatabaseConnection;
   private logger: Logger;
 
+  /**
+   * Create a new EmailService instance
+   * 
+   * @param {DatabaseConnection} databaseConnection - Database connection
+   * @param {Logger} logger - Logger instance
+   */
   constructor(databaseConnection: DatabaseConnection, logger: Logger) {
     this.db = databaseConnection;
     this.logger = logger;
   }
 
-  // Email Configuration Management
+  /**
+   * Get email configuration for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<EmailConfig | null>} Email configuration or null if not found
+   * @throws {Error} If query fails
+   * 
+   * @example
+   * const config = await emailService.getConfig('project-id');
+   */
   async getConfig(projectId: string): Promise<EmailConfig | null> {
     try {
       const result = await this.db.query(
@@ -107,6 +138,25 @@ export class EmailService {
     }
   }
 
+  /**
+   * Update email configuration for a project
+   * 
+   * @param {string} projectId - Project ID
+   * @param {EmailConfig} config - Email configuration
+   * @returns {Promise<EmailConfig | null>} Updated configuration or null if project not found
+   * @throws {Error} If update fails
+   * 
+   * @example
+   * const config = await emailService.updateConfig('project-id', {
+   *   smtp_host: 'smtp.example.com',
+   *   smtp_port: 587,
+   *   smtp_secure: false,
+   *   smtp_username: 'user',
+   *   smtp_password: 'pass',
+   *   from_email: 'noreply@example.com',
+   *   from_name: 'KRAPI'
+   * });
+   */
   async updateConfig(
     projectId: string,
     config: EmailConfig
@@ -137,6 +187,21 @@ export class EmailService {
     }
   }
 
+  /**
+   * Test email configuration
+   * 
+   * Tests the email configuration by attempting to create a test transporter.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {Promise<EmailResult>} Test result
+   * @throws {Error} If configuration not found or test fails
+   * 
+   * @example
+   * const result = await emailService.testConfig('project-id');
+   * if (result.success) {
+   *   console.log('Email configuration is valid');
+   * }
+   */
   async testConfig(projectId: string): Promise<EmailResult> {
     try {
       const config = await this.getConfig(projectId);
@@ -177,7 +242,18 @@ export class EmailService {
     }
   }
 
-  // Email Template Management
+  /**
+   * Get all email templates for a project
+   *
+   * Retrieves all email templates associated with a project.
+   *
+   * @param {string} projectId - Project ID
+   * @returns {Promise<EmailTemplate[]>} Array of email templates
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const templates = await emailService.getTemplates('project-id');
+   */
   async getTemplates(projectId: string): Promise<EmailTemplate[]> {
     try {
       const result = await this.db.query(
@@ -193,6 +269,18 @@ export class EmailService {
     }
   }
 
+  /**
+   * Get email template by ID
+   *
+   * Retrieves a single email template by its ID.
+   *
+   * @param {string} templateId - Template ID
+   * @returns {Promise<EmailTemplate | null>} Template or null if not found
+   * @throws {Error} If query fails
+   *
+   * @example
+   * const template = await emailService.getTemplate('template-id');
+   */
   async getTemplate(templateId: string): Promise<EmailTemplate | null> {
     try {
       const result = await this.db.query(
@@ -207,6 +295,29 @@ export class EmailService {
     }
   }
 
+  /**
+   * Create a new email template
+   *
+   * Creates a new email template with subject, body, and variable definitions.
+   *
+   * @param {Omit<EmailTemplate, "id" | "created_at" | "updated_at">} templateData - Template data
+   * @param {string} templateData.project_id - Project ID
+   * @param {string} templateData.name - Template name
+   * @param {string} templateData.subject - Email subject (supports variables)
+   * @param {string} templateData.body - Email body HTML (supports variables)
+   * @param {string[]} [templateData.variables] - Available template variables
+   * @returns {Promise<EmailTemplate>} Created template
+   * @throws {Error} If creation fails
+   *
+   * @example
+   * const template = await emailService.createTemplate({
+   *   project_id: 'project-id',
+   *   name: 'welcome',
+   *   subject: 'Welcome {{name}}!',
+   *   body: '<h1>Welcome {{name}}</h1><p>Your account is ready.</p>',
+   *   variables: ['name', 'email']
+   * });
+   */
   async createTemplate(
     templateData: Omit<EmailTemplate, "id" | "created_at" | "updated_at">
   ): Promise<EmailTemplate> {
@@ -225,6 +336,26 @@ export class EmailService {
     }
   }
 
+  /**
+   * Update an email template
+   *
+   * Updates email template subject, body, or variables.
+   *
+   * @param {string} templateId - Template ID
+   * @param {Partial<EmailTemplate>} templateData - Template updates
+   * @param {string} [templateData.name] - New template name
+   * @param {string} [templateData.subject] - Updated subject
+   * @param {string} [templateData.body] - Updated body
+   * @param {string[]} [templateData.variables] - Updated variables
+   * @returns {Promise<EmailTemplate | null>} Updated template or null if not found
+   * @throws {Error} If update fails
+   *
+   * @example
+   * const updated = await emailService.updateTemplate('template-id', {
+   *   subject: 'Updated Welcome {{name}}!',
+   *   body: '<h1>Welcome {{name}}</h1>'
+   * });
+   */
   async updateTemplate(
     templateId: string,
     templateData: Partial<EmailTemplate>
@@ -273,6 +404,18 @@ export class EmailService {
     }
   }
 
+  /**
+   * Delete an email template
+   *
+   * Permanently deletes an email template.
+   *
+   * @param {string} templateId - Template ID
+   * @returns {Promise<boolean>} True if deletion successful
+   * @throws {Error} If deletion fails
+   *
+   * @example
+   * const deleted = await emailService.deleteTemplate('template-id');
+   */
   async deleteTemplate(templateId: string): Promise<boolean> {
     try {
       const result = await this.db.query(
@@ -287,7 +430,33 @@ export class EmailService {
     }
   }
 
-  // Email Sending
+  /**
+   * Send an email
+   *
+   * Sends an email using the project's email configuration.
+   * Validates configuration and required fields before sending.
+   *
+   * @param {EmailRequest} emailData - Email data
+   * @param {string} emailData.project_id - Project ID
+   * @param {string | string[]} emailData.to - Recipient email(s)
+   * @param {string} emailData.subject - Email subject
+   * @param {string} emailData.body - Email body (HTML)
+   * @param {string} [emailData.text] - Plain text version
+   * @param {string | string[]} [emailData.cc] - CC recipients
+   * @param {string | string[]} [emailData.bcc] - BCC recipients
+   * @param {string} [emailData.replyTo] - Reply-to address
+   * @param {Array} [emailData.attachments] - Email attachments
+   * @returns {Promise<EmailResult>} Email sending result
+   * @throws {Error} If sending fails or configuration missing
+   *
+   * @example
+   * const result = await emailService.sendEmail({
+   *   project_id: 'project-id',
+   *   to: 'user@example.com',
+   *   subject: 'Hello',
+   *   body: '<h1>Hello World</h1>'
+   * });
+   */
   async sendEmail(emailData: EmailRequest): Promise<EmailResult> {
     try {
       // Get the project to check if email is configured
@@ -362,7 +531,23 @@ export class EmailService {
     }
   }
 
-  // Convenience method for sending emails with project context
+  /**
+   * Send email (convenience method)
+   *
+   * Alias for sendEmail. Sends an email with project context.
+   *
+   * @param {EmailRequest} emailWithProject - Email request with project_id
+   * @returns {Promise<EmailResult>} Email sending result
+   * @throws {Error} If sending fails
+   *
+   * @example
+   * const result = await emailService.sendEmailRequest({
+   *   project_id: 'project-id',
+   *   to: 'user@example.com',
+   *   subject: 'Hello',
+   *   body: 'World'
+   * });
+   */
   async sendEmailRequest(emailWithProject: EmailRequest): Promise<EmailResult> {
     return this.sendEmail(emailWithProject);
   }

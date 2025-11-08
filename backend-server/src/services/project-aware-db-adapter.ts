@@ -1,13 +1,18 @@
 /**
  * Project-Aware Database Connection Adapter
  * 
- * This adapter wraps DatabaseService and routes queries to the correct database
- * based on project context. It attempts to intelligently route queries:
+ * Wraps DatabaseService and routes queries to the correct database based on project context.
+ * Intelligently routes queries:
  * - Queries to main database tables (admin_users, projects, sessions, api_keys, etc.) -> main DB
  * - Queries to project-specific tables (collections, documents, files, etc.) -> project DB
  * 
- * For project-specific queries, it extracts project_id from the SQL parameters
- * or uses a context object to determine which project database to query.
+ * For project-specific queries, extracts project_id from SQL parameters or uses context object.
+ * 
+ * @class ProjectAwareDbAdapter
+ * @example
+ * const adapter = new ProjectAwareDbAdapter(dbService);
+ * adapter.setProjectContext('project-id');
+ * const result = await adapter.query('SELECT * FROM collections WHERE project_id = $1', ['project-id']);
  */
 
 import { DatabaseService } from "./database.service";
@@ -26,6 +31,15 @@ export class ProjectAwareDbAdapter {
 
   /**
    * Set the project context for subsequent queries
+   * 
+   * Sets the project ID context that will be used for routing project-specific queries.
+   * 
+   * @param {string} projectId - Project ID
+   * @returns {void}
+   * 
+   * @example
+   * adapter.setProjectContext('project-id');
+   * // All subsequent queries will use this project context
    */
   setProjectContext(projectId: string): void {
     this.context.projectId = projectId;
@@ -33,6 +47,13 @@ export class ProjectAwareDbAdapter {
 
   /**
    * Clear the project context
+   * 
+   * Clears the current project context, so queries will only go to main database.
+   * 
+   * @returns {void}
+   * 
+   * @example
+   * adapter.clearProjectContext();
    */
   clearProjectContext(): void {
     this.context.projectId = undefined;

@@ -1,3 +1,17 @@
+/**
+ * Toggle Group Components
+ * 
+ * Toggle group components built on Radix UI Toggle Group primitives.
+ * Provides groups of toggle buttons that can be single or multiple selection.
+ * Includes ToggleGroup and ToggleGroupItem.
+ * 
+ * @module components/ui/toggle-group
+ * @example
+ * <ToggleGroup type="single" value={value} onValueChange={setValue}>
+ *   <ToggleGroupItem value="a">A</ToggleGroupItem>
+ *   <ToggleGroupItem value="b">B</ToggleGroupItem>
+ * </ToggleGroup>
+ */
 "use client"
 
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"

@@ -1,3 +1,19 @@
+/**
+ * Accordion Components
+ * 
+ * Accordion components built on Radix UI Accordion primitives.
+ * Provides collapsible content sections.
+ * Includes Accordion, AccordionItem, AccordionTrigger, and AccordionContent.
+ * 
+ * @module components/ui/accordion
+ * @example
+ * <Accordion type="single" collapsible>
+ *   <AccordionItem value="item-1">
+ *     <AccordionTrigger>Section 1</AccordionTrigger>
+ *     <AccordionContent>Content 1</AccordionContent>
+ *   </AccordionItem>
+ * </Accordion>
+ */
 "use client"
 
 import * as AccordionPrimitive from "@radix-ui/react-accordion"

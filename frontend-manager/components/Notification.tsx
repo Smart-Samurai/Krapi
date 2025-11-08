@@ -1,11 +1,40 @@
+/**
+ * Notification Components
+ * 
+ * Reusable notification components for displaying success and error messages.
+ * 
+ * @module components/Notification
+ * @example
+ * <Notification type="success" message="Operation completed" onClose={handleClose} />
+ * <NotificationContainer error={error} success={success} />
+ */
 import { AlertCircle, CheckCircle, X } from "lucide-react";
 
+/**
+ * Notification Props
+ * 
+ * @interface NotificationProps
+ * @property {"error" | "success"} type - Notification type
+ * @property {string} message - Notification message
+ * @property {Function} onClose - Close handler
+ */
 interface NotificationProps {
   type: "error" | "success";
   message: string;
   onClose: () => void;
 }
 
+/**
+ * Notification Component
+ * 
+ * Displays a single notification (success or error) with close button.
+ * 
+ * @param {NotificationProps} props - Component props
+ * @returns {JSX.Element} Notification component
+ * 
+ * @example
+ * <Notification type="success" message="Saved!" onClose={() => {}} />
+ */
 export default function Notification({
   type,
   message,
@@ -38,6 +67,15 @@ export default function Notification({
   );
 }
 
+/**
+ * Notification Container Props
+ * 
+ * @interface NotificationContainerProps
+ * @property {string | null} [error] - Error message to display
+ * @property {string | null} [success] - Success message to display
+ * @property {Function} [onClearError] - Clear error handler
+ * @property {Function} [onClearSuccess] - Clear success handler
+ */
 interface NotificationContainerProps {
   error?: string | null;
   success?: string | null;
@@ -45,6 +83,22 @@ interface NotificationContainerProps {
   onClearSuccess?: () => void;
 }
 
+/**
+ * Notification Container Component
+ * 
+ * Container that displays error and/or success notifications.
+ * 
+ * @param {NotificationContainerProps} props - Component props
+ * @returns {JSX.Element} Notification container
+ * 
+ * @example
+ * <NotificationContainer
+ *   error={error}
+ *   success={success}
+ *   onClearError={() => setError(null)}
+ *   onClearSuccess={() => setSuccess(null)}
+ * />
+ */
 export function NotificationContainer({
   error,
   success,

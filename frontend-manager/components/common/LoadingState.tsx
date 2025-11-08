@@ -1,3 +1,13 @@
+/**
+ * Loading State Components
+ * 
+ * Reusable loading state components with skeleton loaders.
+ * 
+ * @module components/common/LoadingState
+ * @example
+ * <LoadingState count={5} />
+ * <LoadingCard message="Loading projects..." />
+ */
 "use client";
 
 import {
@@ -6,10 +16,27 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/**
+ * Loading State Props
+ * 
+ * @interface LoadingStateProps
+ * @property {number} [count=3] - Number of skeleton items to display
+ */
 interface LoadingStateProps {
   count?: number;
 }
 
+/**
+ * Loading State Component
+ * 
+ * Displays skeleton loaders for loading states.
+ * 
+ * @param {LoadingStateProps} props - Component props
+ * @returns {JSX.Element} Loading state with skeletons
+ * 
+ * @example
+ * <LoadingState count={5} />
+ */
 export function LoadingState({
   count = 3,
 }: LoadingStateProps) {
@@ -31,6 +58,18 @@ export function LoadingState({
   );
 }
 
+/**
+ * Loading Card Component
+ * 
+ * Card-style loading state with message.
+ * 
+ * @param {Object} props - Component props
+ * @param {string} [props.message="Loading..."] - Loading message
+ * @returns {JSX.Element} Loading card
+ * 
+ * @example
+ * <LoadingCard message="Loading projects..." />
+ */
 export function LoadingCard({ message = "Loading..." }: { message?: string }) {
   return (
     <Card>

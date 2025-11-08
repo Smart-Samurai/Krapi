@@ -5,8 +5,19 @@
 
 /**
  * Email Controller
- *
- * TEMPORARILY DISABLED - Will be reimplemented using direct services
+ * 
+ * Handles email-related operations including:
+ * - Email configuration management
+ * - Email template management
+ * - Email sending
+ * 
+ * **STATUS: TEMPORARILY DISABLED**
+ * 
+ * This controller is currently commented out and will be reimplemented using direct services.
+ * All email functionality is currently handled through the email routes using SDK services.
+ * 
+ * @module controllers/email.controller
+ * @deprecated This controller is disabled - use email routes with SDK services instead
  */
 /*
 export class EmailController {

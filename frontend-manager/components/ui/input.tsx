@@ -1,7 +1,30 @@
+/**
+ * Input Component
+ * 
+ * Text input component with consistent styling and focus states.
+ * 
+ * @module components/ui/input
+ * @example
+ * <Input type="text" placeholder="Enter text" />
+ * <Input type="email" placeholder="Email" />
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Input Component
+ * 
+ * Text input with consistent styling, focus states, and validation support.
+ * 
+ * @param {React.ComponentProps<"input">} props - Input props
+ * @param {string} [props.className] - Additional CSS classes
+ * @param {string} [props.type] - Input type (text, email, password, etc.)
+ * @returns {JSX.Element} Input component
+ * 
+ * @example
+ * <Input type="text" placeholder="Enter name" />
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input

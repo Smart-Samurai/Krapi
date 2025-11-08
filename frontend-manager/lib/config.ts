@@ -1,3 +1,13 @@
+/**
+ * Application Configuration
+ * 
+ * Centralized configuration for API connections and environment settings.
+ * 
+ * @module lib/config
+ * @example
+ * import { config } from '@/lib/config';
+ * const apiUrl = config.getApiUrl('/projects');
+ */
 // Base configuration
 const baseConfig = {
   // API Configuration
@@ -22,6 +32,22 @@ const productionOverrides =
       }
     : {};
 
+/**
+ * Application Configuration Object
+ * 
+ * Centralized configuration for API connections and environment settings.
+ * 
+ * @constant {Object} config
+ * @property {Object} config.api - API configuration
+ * @property {string} config.api.baseUrl - Base API URL
+ * @property {number} config.api.timeout - Request timeout in milliseconds
+ * @property {boolean} config.isDevelopment - Whether running in development mode
+ * @property {Function} config.getApiUrl - Helper to build API URLs
+ * 
+ * @example
+ * const apiUrl = config.getApiUrl('/projects');
+ * // Returns: 'http://localhost:3470/krapi/k1/projects'
+ */
 // Centralized configuration for API connections
 export const config = {
   ...baseConfig,

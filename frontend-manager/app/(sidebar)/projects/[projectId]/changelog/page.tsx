@@ -1,3 +1,13 @@
+/**
+ * Project Changelog Page
+ * 
+ * Page for viewing project changelog and activity history.
+ * Displays changes to projects, collections, documents, and other entities.
+ * 
+ * @module app/(sidebar)/projects/[projectId]/changelog/page
+ * @example
+ * // Automatically rendered at /projects/[projectId]/changelog route
+ */
 "use client";
 
 import {
@@ -54,10 +64,6 @@ interface ChangelogEntry {
 export default function ProjectChangelogPage() {
   const params = useParams();
   const projectId = params?.projectId as string;
-  
-  if (!projectId) {
-    return <div>Project ID is required</div>;
-  }
   const { toast } = useToast();
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +78,10 @@ export default function ProjectChangelogPage() {
     total: 0,
     has_more: false,
   });
+
+  if (!projectId) {
+    return <div>Project ID is required</div>;
+  }
 
   const fetchChangelog = useCallback(async () => {
     try {

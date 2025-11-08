@@ -13,26 +13,42 @@ import {
 
 /**
  * Authentication Controller
- *
- * Handles all authentication-related operations including:
+ * 
+ * Handles all authentication-related HTTP requests including:
  * - Admin and project session creation
  * - User login/logout
  * - Password management
  * - API key regeneration
  * - Session validation
- *
- * NOW USES BACKEND SDK FOR ALL OPERATIONS
+ * 
+ * All operations use direct services (AuthService, DatabaseService).
+ * 
+ * @class AuthController
+ * @example
+ * const controller = new AuthController();
+ * // Controller is ready to handle authentication requests
  */
 export class AuthController {
   /**
    * Create admin session using API key
+   * 
    * POST /krapi/k1/auth/admin/session
-   *
+   * 
    * Creates a new admin session token from a valid admin or master API key.
    * The session inherits the scopes from the API key.
-   *
-   * @param req - Request with api_key in body
-   * @param res - Response with session token and expiration
+   * 
+   * @param {Request} req - Express request with api_key in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If API key is missing
+   * @throws {401} If API key is invalid or inactive
+   * @throws {500} If session creation fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/admin/session
+   * // Body: { api_key: 'ak_...' }
+   * // Response: { success: true, data: { session_token: '...', expires_at: '...', scopes: [...] } }
    */
   createAdminSession = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -98,12 +114,23 @@ export class AuthController {
 
   /**
    * Create project-specific session
+   * 
    * POST /krapi/k1/auth/project/:projectId/session
-   *
+   * 
    * Creates a new project session token from valid project credentials.
-   *
-   * @param req - Request with projectId in params and credentials in body
-   * @param res - Response with session token and expiration
+   * 
+   * @param {Request} req - Express request with projectId in params and credentials in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If username or password is missing
+   * @throws {401} If credentials are invalid
+   * @throws {500} If session creation fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/project/project-id/session
+   * // Body: { username: 'user', password: 'pass' }
+   * // Response: { success: true, data: { session_token: '...', expires_at: '...', scopes: [...] } }
    */
   createProjectSession = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -178,12 +205,23 @@ export class AuthController {
 
   /**
    * Admin login with username and password
+   * 
    * POST /krapi/k1/auth/admin/login
-   *
-   * Authenticates admin user and returns session information.
-   *
-   * @param req - Request with username and password in body
-   * @param res - Response with user data and session token
+   * 
+   * Authenticates admin user with username and password and returns session information.
+   * 
+   * @param {Request} req - Express request with username and password in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If username or password is missing
+   * @throws {401} If credentials are invalid
+   * @throws {500} If authentication fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/admin/login
+   * // Body: { username: 'admin', password: 'password' }
+   * // Response: { success: true, data: { user: {...}, token: '...', session_token: '...', expires_at: '...' } }
    */
   adminLogin = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -253,12 +291,24 @@ export class AuthController {
 
   /**
    * Validate session token
+   * 
    * POST /krapi/k1/auth/session/validate
-   *
-   * Validates a session token and returns session information.
-   *
-   * @param req - Request with token in body
-   * @param res - Response with validation result
+   * 
+   * Validates a session token and returns session and user information if valid.
+   * 
+   * @param {Request} req - Express request with token in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If token is missing
+   * @throws {401} If session is invalid or expired
+   * @throws {401} If user not found for session
+   * @throws {500} If validation fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/session/validate
+   * // Body: { token: 'session-token' }
+   * // Response: { success: true, data: { valid: true, session: {...}, user: {...}, scopes: [...] } }
    */
   validateSession = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -343,12 +393,23 @@ export class AuthController {
 
   /**
    * Logout and invalidate session
+   * 
    * POST /krapi/k1/auth/logout
-   *
-   * Logs out the current user and invalidates their session.
-   *
-   * @param req - Authenticated request
-   * @param res - Response with success message
+   * 
+   * Logs out the current user and invalidates their session token.
+   * Requires authentication via Bearer token.
+   * 
+   * @param {Request} req - Express request with Bearer token in Authorization header
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {401} If no valid session token provided
+   * @throws {500} If logout fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/logout
+   * // Header: Authorization: Bearer <token>
+   * // Response: { success: true, message: 'Logged out successfully' }
    */
   logout = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -404,12 +465,25 @@ export class AuthController {
 
   /**
    * Get current authenticated user
+   * 
    * GET /krapi/k1/auth/me
-   *
+   * 
    * Returns information about the currently authenticated user.
-   *
-   * @param req - Authenticated request
-   * @param res - Response with user data
+   * Requires authentication via Bearer token.
+   * 
+   * @param {Request} req - Express request with Bearer token in Authorization header
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {401} If no valid session token provided
+   * @throws {401} If session is invalid or expired
+   * @throws {404} If user not found
+   * @throws {500} If retrieval fails
+   * 
+   * @example
+   * // Request: GET /krapi/k1/auth/me
+   * // Header: Authorization: Bearer <token>
+   * // Response: { success: true, data: { id: '...', username: '...', scopes: [...] } }
    */
   getCurrentUser = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -485,12 +559,25 @@ export class AuthController {
 
   /**
    * Change user password
+   * 
    * POST /krapi/k1/auth/change-password
-   *
-   * Changes the password for the current user.
-   *
-   * @param req - Authenticated request with current and new password
-   * @param res - Response with success message
+   * 
+   * Changes the password for the current authenticated user.
+   * Requires authentication and current password verification.
+   * 
+   * @param {Request} req - Express request with current_password and new_password in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If current password is incorrect
+   * @throws {401} If user is not authenticated
+   * @throws {404} If user not found
+   * @throws {500} If password change fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/change-password
+   * // Body: { current_password: 'old', new_password: 'new' }
+   * // Response: { success: true, message: 'Password changed successfully' }
    */
   changePassword = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -554,12 +641,23 @@ export class AuthController {
 
   /**
    * Admin login using API key
+   * 
    * POST /krapi/k1/auth/admin/api-login
-   *
+   * 
    * Authenticates admin user using API key and returns session information.
-   *
-   * @param req - Request with api_key in body
-   * @param res - Response with user data and session token
+   * 
+   * @param {Request} req - Express request with api_key in body
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   * 
+   * @throws {400} If API key is missing
+   * @throws {401} If API key is invalid or inactive
+   * @throws {500} If authentication fails
+   * 
+   * @example
+   * // Request: POST /krapi/k1/auth/admin/api-login
+   * // Body: { api_key: 'ak_...' }
+   * // Response: { success: true, data: { user: {...}, token: '...', session_token: '...', expires_at: '...' } }
    */
   adminApiLogin = async (req: Request, res: Response): Promise<void> => {
     try {

@@ -1,9 +1,22 @@
+/**
+ * Upload Middleware
+ * 
+ * Provides file upload middleware using multer.
+ * Handles file storage, validation, and size limits.
+ * 
+ * @module middleware/upload.middleware
+ */
 import path from "path";
 
 import { Request, RequestHandler } from "express";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 
+/**
+ * Multer disk storage configuration
+ * 
+ * Stores files in the uploads directory with unique filenames.
+ */
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
@@ -19,6 +32,16 @@ const storage = multer.diskStorage({
   },
 });
 
+/**
+ * File type filter
+ * 
+ * Validates that uploaded files match allowed MIME types.
+ * 
+ * @param {Request} req - Express request
+ * @param {Express.Multer.File} file - Uploaded file
+ * @param {multer.FileFilterCallback} cb - Callback function
+ * @returns {void}
+ */
 // File filter to validate file types
 const fileFilter = (
   req: Request,
@@ -46,6 +69,13 @@ const fileFilter = (
   }
 };
 
+/**
+ * Multer upload middleware
+ * 
+ * Configured multer instance with disk storage, file filtering, and size limits.
+ * Max file size: 50MB
+ * Max files per request: 10
+ */
 // Configure multer
 export const uploadMiddleware = multer({
   storage,
@@ -56,12 +86,29 @@ export const uploadMiddleware = multer({
   },
 });
 
+/**
+ * Single file upload middleware
+ * 
+ * Handles upload of a single file in the "file" field.
+ */
 // Single file upload
 export const uploadSingle: RequestHandler = uploadMiddleware.single("file");
 
+/**
+ * Multiple files upload middleware
+ * 
+ * Handles upload of multiple files in the "files" field (max 10 files).
+ */
 // Multiple files upload
 export const uploadMultiple: RequestHandler = uploadMiddleware.array("files", 10);
 
+/**
+ * Fields upload middleware
+ * 
+ * Handles upload of files in multiple named fields:
+ * - "avatar": max 1 file
+ * - "documents": max 10 files
+ */
 // Fields upload (different field names)
 export const uploadFields: RequestHandler = uploadMiddleware.fields([
   { name: "avatar", maxCount: 1 },

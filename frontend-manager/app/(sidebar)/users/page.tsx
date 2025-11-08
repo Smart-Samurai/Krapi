@@ -1,3 +1,13 @@
+/**
+ * Admin Users Page
+ * 
+ * Page for managing admin users with role and permission configuration.
+ * Provides admin user CRUD operations and access level management.
+ * 
+ * @module app/(sidebar)/users/page
+ * @example
+ * // Automatically rendered at /users route
+ */
 "use client";
 
 import {
@@ -74,6 +84,21 @@ interface AdminPermissions {
   isMasterAdmin: boolean;
 }
 
+/**
+ * Local Admin User Interface
+ * 
+ * @interface LocalAdminUser
+ * @property {string} id - User ID
+ * @property {string} email - Email address
+ * @property {string} firstName - First name
+ * @property {string} lastName - Last name
+ * @property {"master_admin" | "admin" | "project_admin" | "limited_admin"} role - User role
+ * @property {"active" | "inactive" | "suspended"} status - User status
+ * @property {AdminPermissions} permissions - User permissions
+ * @property {string} lastActive - Last active timestamp
+ * @property {string} createdAt - Creation timestamp
+ * @property {string} [lastLogin] - Last login timestamp
+ */
 interface LocalAdminUser {
   id: string;
   email: string;
@@ -87,6 +112,11 @@ interface LocalAdminUser {
   lastLogin?: string;
 }
 
+/**
+ * Admin User Schema
+ * 
+ * @constant {z.ZodObject}
+ */
 const adminUserSchema = z
   .object({
     email: z.string().email("Invalid email address"),

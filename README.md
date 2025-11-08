@@ -1,28 +1,24 @@
 # KRAPI - Self-Hosted Backend Database and File Storage Solution
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+
 **KRAPI** is a comprehensive, self-hosted backend solution that provides database, file storage, user management, and API capabilities for your applications. Perfect for developers who want to focus on their frontend and app logic while using KRAPI as their backend infrastructure.
 
-## ?? Client SDK
+## 📋 Table of Contents
 
-KRAPI provides an easy-to-import client SDK, similar to Appwrite:
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Documentation](#-documentation)
+- [Development](#-development)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Code Ownership](#-code-ownership)
 
-```typescript
-// In your React, Vue, or any frontend app
-import { KrapiClient } from '@krapi/sdk/client';
-
-const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
-  apiKey: 'your-api-key'
-});
-
-// Use it - no custom API calls needed!
-const projects = await krapi.projects.list();
-const documents = await krapi.collections.documents.list('project-id', 'collection-name');
-```
-
-See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complete SDK documentation.
-
-## ?? Features
+## 🚀 Features
 
 - **Multi-Database Architecture**: One main controller database plus separate SQLite database files for each project
 - **Encrypted Backups**: Built-in AES-256-GCM encrypted backup and restore functionality per project
@@ -35,194 +31,9 @@ See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complet
 - **RESTful API**: Full REST API for all operations
 - **Web UI**: Beautiful Next.js-based management interface
 - **Type-Safe SDK**: TypeScript SDK for seamless integration
+- **Model Context Protocol (MCP)**: AI-powered database operations via LLM integration
 
-## ?? Prerequisites
-
-Before installing KRAPI, ensure you have the following installed on your system:
-
-### Required Dependencies
-
-- **Node.js** (v18 or higher)
-- **pnpm** (v8 or higher) - Preferred package manager
-- **npm** (v9 or higher) - Alternative package manager
-
-### Optional Dependencies
-
-- **Docker** (for containerized database if needed)
-
-### Platform-Specific Requirements
-
-- **Linux/macOS**: Bash shell (comes pre-installed)
-- **Windows**: PowerShell 5.1+ or Windows Terminal (or use `krapi-manager.bat`)
-
-## ?? Installation
-
-### Quick Start (Linux/macOS)
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd krapi
-
-# Run the setup script
-chmod +x krapi-manager.sh
-./krapi-manager.sh install
-
-# Start development server (includes SDK build)
-./krapi-manager.sh dev
-```
-
-### Quick Start (Windows)
-
-**Option 1: Using Batch File (Recommended)**
-
-Double-click `krapi-manager.bat` or run:
-```cmd
-krapi-manager.bat
-```
-
-For unattended install and launch:
-```cmd
-krapi-manager.bat --unattended
-```
-
-**Option 2: Using PowerShell**
-
-```powershell
-# Clone the repository
-git clone <repository-url>
-cd krapi
-
-# Run the setup script
-.\krapi-manager.ps1 install
-
-# Initialize environment
-npm run init-env
-
-# Start development server
-.\krapi-manager.ps1 dev
-```
-
-### Manual Installation
-
-#### Using npm
-
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd krapi
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-   This installs all dependencies across all workspaces (root, backend-server, frontend-manager, packages/*, and test suite).
-
-3. **Initialize environment**:
-   ```bash
-   npm run init-env
-   ```
-   This creates a `.env` file from `env.example` with default values.
-
-4. **Build packages and SDK**:
-   ```bash
-   npm run build:packages
-   ```
-   This builds all internal packages including the SDK (`krapi-logger`, `krapi-error-handler`, `krapi-monitor`, and `krapi-sdk`). **Important**: The SDK must be built before the application can run.
-
-5. **Build the application** (optional, for production):
-   ```bash
-   npm run build:all
-   ```
-   This builds all packages, backend, and frontend.
-
-6. **Start the application**:
-   ```bash
-   # Development mode (includes SDK build)
-   npm run dev:all
-
-   # Production mode (builds everything then starts)
-   npm run start:all
-   ```
-
-#### Using pnpm
-
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd krapi
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   pnpm install
-   ```
-   This installs all dependencies across all workspaces using pnpm's efficient workspace management.
-
-3. **Initialize environment**:
-   ```bash
-   npm run init-env
-   ```
-   This creates a `.env` file from `env.example` with default values.
-
-4. **Build packages and SDK**:
-   ```bash
-   npm run build:packages
-   ```
-   Or use pnpm directly:
-   ```bash
-   pnpm run build:packages
-   ```
-   This builds all internal packages including the SDK. **Important**: The SDK must be built before the application can run.
-
-5. **Build the application** (optional, for production):
-   ```bash
-   npm run build:all
-   ```
-   Or:
-   ```bash
-   pnpm run build:all
-   ```
-
-6. **Start the application**:
-   ```bash
-   # Development mode (includes SDK build)
-   pnpm run dev:all
-
-   # Production mode (builds everything then starts)
-   pnpm run start:all
-   ```
-
-### Environment Configuration
-
-After installation, configure your environment:
-
-1. **Edit `.env` file** and update:
-   - `JWT_SECRET`: Generate a secure 256-bit secret key (use `openssl rand -hex 32`)
-   - `DEFAULT_ADMIN_PASSWORD`: Change from default `admin`
-   - `DB_PASSWORD`: Set a secure database password (if using PostgreSQL)
-   - Other configuration values as needed
-
-2. **Database Setup**:
-   - **SQLite** (default): No additional setup needed, databases are created automatically
-   - **PostgreSQL**: Ensure Docker is running or configure connection in `.env`
-
-### Installation Commands Summary
-
-**Complete Installation (npm)**:
-```bash
-npm install && npm run init-env && npm run build:packages && npm run dev:all
-```
-
-**Complete Installation (pnpm)**:
-```bash
-pnpm install && npm run init-env && npm run build:packages && pnpm run dev:all
-```
-
-**Note**: The `dev:all` and `start:all` commands automatically build packages (including SDK) before starting, so you don't need to manually run `build:packages` if using those commands.
-
-## ??? Architecture
+## 🏗️ Architecture
 
 ### Multi-Database Architecture
 
@@ -249,18 +60,18 @@ KRAPI uses a revolutionary multi-database architecture:
 
 ### Benefits
 
-? **Independent Backups**: Each project can be backed up and restored independently  
-? **Version Control**: Project database files can be versioned separately  
-? **Isolation**: Project data is completely isolated  
-? **Scalability**: Each project database can be moved to separate servers if needed  
-? **Security**: Data breaches affect only individual projects, not the entire system
+✅ **Independent Backups**: Each project can be backed up and restored independently  
+✅ **Version Control**: Project database files can be versioned separately  
+✅ **Isolation**: Project data is completely isolated  
+✅ **Scalability**: Each project database can be moved to separate servers if needed  
+✅ **Security**: Data breaches affect only individual projects, not the entire system
 
 ### Plug and Socket Design
 
 KRAPI implements a "plug and socket" architecture where:
 
-- **Frontend (Plug) ??**: Uses the KRAPI SDK to connect to the backend
-- **Backend (Socket) ?**: Receives requests and routes them through the SDK
+- **Frontend (Plug) 🔌**: Uses the KRAPI SDK to connect to the backend
+- **Backend (Socket) ⚡**: Receives requests and routes them through the SDK
 - **SDK (Interface)**: Provides identical methods for both client and server environments
 
 All SDK methods work identically whether called from:
@@ -268,36 +79,154 @@ All SDK methods work identically whether called from:
 - Backend (via direct database connection)
 - External applications (via API)
 
-## ?? Usage
+## 📦 Prerequisites
+
+Before installing KRAPI, ensure you have the following installed on your system:
+
+### Required Dependencies
+
+- **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
+- **pnpm** (v8 or higher) - Preferred package manager - [Install](https://pnpm.io/installation)
+- **npm** (v9 or higher) - Alternative package manager (comes with Node.js)
+
+### Optional Dependencies
+
+- **Docker** (for containerized database if needed) - [Download](https://www.docker.com/)
+
+### Platform-Specific Requirements
+
+- **Linux/macOS**: Bash shell (comes pre-installed)
+- **Windows**: PowerShell 5.1+ or Windows Terminal (or use `krapi-manager.bat`)
+
+## 🚀 Installation
+
+### Quick Start (Linux/macOS)
+
+```bash
+# Clone the repository
+git clone https://github.com/GenorTG/Krapi.git
+cd Krapi
+
+# Run the setup script
+chmod +x krapi-manager.sh
+./krapi-manager.sh
+
+# Or for development mode
+./krapi-manager.sh --dev
+```
+
+### Quick Start (Windows)
+
+**Option 1: Using Batch File (Recommended)**
+
+Double-click `krapi-manager.bat` or run:
+```cmd
+krapi-manager.bat
+```
+
+**Option 2: Using PowerShell**
+
+```powershell
+# Clone the repository
+git clone https://github.com/GenorTG/Krapi.git
+cd Krapi
+
+# Run the setup script
+.\krapi-manager.ps1
+```
+
+### Manual Installation
+
+#### Using pnpm (Recommended)
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/GenorTG/Krapi.git
+   cd Krapi
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pnpm install
+   ```
+
+3. **Initialize environment**:
+   ```bash
+   npm run init-env
+   ```
+
+4. **Build packages and SDK**:
+   ```bash
+   pnpm run build:packages
+   ```
+
+5. **Start the application**:
+   ```bash
+   # Development mode
+   pnpm run dev:all
+
+   # Production mode
+   pnpm run start:all
+   ```
+
+#### Using npm
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/GenorTG/Krapi.git
+   cd Krapi
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Initialize environment**:
+   ```bash
+   npm run init-env
+   ```
+
+4. **Build packages and SDK**:
+   ```bash
+   npm run build:packages
+   ```
+
+5. **Start the application**:
+   ```bash
+   # Development mode
+   npm run dev:all
+
+   # Production mode
+   npm run start:all
+   ```
+
+### Environment Configuration
+
+After installation, configure your environment:
+
+1. **Edit `.env` file** and update:
+   - `JWT_SECRET`: Generate a secure 256-bit secret key (use `openssl rand -hex 32`)
+   - `DEFAULT_ADMIN_PASSWORD`: Change from default `admin`
+   - `DB_PASSWORD`: Set a secure database password (if using PostgreSQL)
+   - Other configuration values as needed
+
+2. **Database Setup**:
+   - **SQLite** (default): No additional setup needed, databases are created automatically
+   - **PostgreSQL**: Ensure Docker is running or configure connection in `.env`
+
+## 🎯 Quick Start
 
 ### Starting the Application
 
-#### Using Management Scripts
-
-**Linux/macOS**:
-```bash
-./krapi-manager.sh dev          # Development mode
-./krapi-manager.sh prod         # Production mode
-./krapi-manager.sh install      # Install dependencies
-./krapi-manager.sh health       # Run health checks
-```
-
-**Windows**:
-```powershell
-.\krapi-manager.ps1 dev          # Development mode
-.\krapi-manager.ps1 prod         # Production mode
-.\krapi-manager.ps1 install      # Install dependencies
-.\krapi-manager.ps1 health       # Run health checks
-```
-
-#### Using npm Scripts
+Once installed, start the application:
 
 ```bash
-npm run dev:all      # Start in development mode
-npm run start:all    # Start in production mode
-npm run build:all    # Build all packages
-npm run lint:all     # Run linting
-npm run type-check   # Run TypeScript checks
+# Development mode (auto-reloads on changes)
+pnpm run dev:all
+
+# Production mode (optimized build)
+pnpm run start:all
 ```
 
 ### Accessing the Application
@@ -305,7 +234,7 @@ npm run type-check   # Run TypeScript checks
 Once started, access the application at:
 
 - **Frontend UI**: http://localhost:3498
-- **Backend API**: http://localhost:3499
+- **Backend API**: http://localhost:3470
 
 ### Default Admin Account
 
@@ -315,9 +244,94 @@ On first run, a default admin account is created:
 - **Password**: `admin` (change immediately!)
 - **Email**: `admin@yourdomain.com`
 
-**?? IMPORTANT**: Change the default admin password immediately after first login!
+**⚠️ IMPORTANT**: Change the default admin password immediately after first login!
 
-## ?? Security
+### Using the SDK
+
+```typescript
+// In your frontend or backend application
+import { KrapiClient } from '@krapi/sdk/client';
+
+const krapi = new KrapiClient({
+  endpoint: 'http://localhost:3470',
+  apiKey: 'your-api-key'
+});
+
+// Use it - no custom API calls needed!
+const projects = await krapi.projects.list();
+const documents = await krapi.collections.documents.list('project-id', 'collection-name');
+```
+
+See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complete SDK documentation.
+
+## 📚 Documentation
+
+### API Documentation
+
+For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
+
+### SDK Documentation
+
+For SDK usage and examples, see [packages/krapi-sdk/README.md](./packages/krapi-sdk/README.md).
+
+### Development Documentation
+
+- [JSDoc Template Guide](./JSDOC_TEMPLATE.md) - Standards for code documentation
+- [Documentation Status](./DOCUMENTATION_STATUS.md) - Current documentation progress
+- [Architecture Documentation](./backend-server/src/ARCHITECTURE_USERS.md) - User architecture details
+- [Project Structure](./backend-server/src/PROJECT_FOLDER_STRUCTURE.md) - Project organization
+
+## 🛠️ Development
+
+### Building
+
+```bash
+# Build all packages
+pnpm run build:all
+
+# Build individual packages
+pnpm run build:sdk
+pnpm run build:backend
+pnpm run build:frontend
+```
+
+### Testing
+
+```bash
+# Run comprehensive test suite
+pnpm run test:comprehensive
+
+# Or from test suite directory
+cd KRAPI-COMPREHENSIVE-TEST-SUITE
+npm run test:comprehensive
+```
+
+### Code Quality
+
+```bash
+# Run linting
+pnpm run lint:all
+
+# Fix linting issues
+pnpm run lint:fix:all
+
+# Type checking
+pnpm run type-check:all
+
+# Full health check (install + lint + type-check + build)
+pnpm run health
+```
+
+### Development Workflow
+
+1. **Make changes** to code
+2. **Run linting**: `pnpm run lint:all`
+3. **Fix issues**: `pnpm run lint:fix:all`
+4. **Type check**: `pnpm run type-check:all`
+5. **Test**: `pnpm run test:comprehensive`
+6. **Build**: `pnpm run build:all`
+
+## 🔒 Security
 
 ### Authentication
 
@@ -339,84 +353,45 @@ On first run, a default admin account is created:
 4. **Regular Backups**: Use built-in encrypted backup system
 5. **API Key Rotation**: Regularly rotate API keys
 
-## ?? Project Structure
+## 📁 Project Structure
 
 ```
-krapi/
-??? backend-server/          # Backend Express.js server
-?   ??? src/
-?   ?   ??? routes/          # API route handlers
-?   ?   ??? controllers/     # Request controllers
-?   ?   ??? services/        # Business logic services
-?   ?   ??? middleware/      # Express middleware
-?   ?   ??? types/           # TypeScript type definitions
-?   ??? data/                # Database files (SQLite)
-??? frontend-manager/        # Next.js frontend UI
-?   ??? app/                 # Next.js app router pages
-?   ??? components/          # React components
-?   ??? lib/                 # Frontend utilities
-??? packages/
-?   ??? krapi-sdk/           # Core SDK (shared by frontend/backend)
-?       ??? src/
-?       ?   ??? services/    # SDK services
-?       ?   ??? types/       # Shared types
-?       ??? dist/            # Compiled SDK
-??? scripts/                 # Utility scripts
-?   ??? init-env.js          # Environment initialization
-??? data/                    # Application data directory
-?   ??? krapi_main.db        # Main database
-?   ??? projects/            # Project databases
-?   ??? uploads/             # File uploads
-?   ??? backups/             # Encrypted backups
-??? krapi-manager.sh         # Linux/macOS management script
-??? krapi-manager.bat        # Windows batch launcher (recommended)
-??? krapi-manager.ps1        # Windows PowerShell script (alternative)
-??? env.example              # Environment configuration template
-??? README.md                # This file
+Krapi/
+├── backend-server/          # Backend Express.js server
+│   ├── src/
+│   │   ├── routes/          # API route handlers
+│   │   ├── controllers/     # Request controllers
+│   │   ├── services/        # Business logic services
+│   │   ├── middleware/      # Express middleware
+│   │   ├── mcp/             # Model Context Protocol (MCP)
+│   │   └── types/           # TypeScript type definitions
+│   └── data/                # Database files (SQLite)
+├── frontend-manager/         # Next.js frontend UI
+│   ├── app/                 # Next.js app router pages
+│   ├── components/          # React components
+│   └── lib/                 # Frontend utilities
+├── packages/
+│   ├── krapi-sdk/           # Core SDK (shared by frontend/backend)
+│   │   ├── src/
+│   │   │   ├── services/    # SDK services
+│   │   │   └── types/       # Shared types
+│   │   └── dist/            # Compiled SDK
+│   ├── krapi-logger/        # Logging package
+│   ├── krapi-error-handler/ # Error handling package
+│   └── krapi-monitor/       # Monitoring package
+├── scripts/                 # Utility scripts
+├── data/                    # Application data directory
+│   ├── krapi_main.db        # Main database
+│   ├── projects/            # Project databases
+│   ├── uploads/             # File uploads
+│   └── backups/             # Encrypted backups
+├── krapi-manager.sh         # Linux/macOS management script
+├── krapi-manager.bat        # Windows batch launcher
+├── krapi-manager.ps1        # Windows PowerShell script
+└── README.md                # This file
 ```
 
-## ??? Development
-
-### Building
-
-```bash
-# Build all packages
-npm run build:all
-
-# Build individual packages
-npm run build:sdk
-npm run build:backend
-npm run build:frontend
-```
-
-### Testing
-
-```bash
-# Run comprehensive test suite
-npm run test:comprehensive
-
-# Or from test suite directory
-cd KRAPI-COMPREHENSIVE-TEST-SUITE
-node comprehensive-test-runner.js
-```
-
-### Code Quality
-
-```bash
-# Run linting
-npm run lint:all
-
-# Fix linting issues
-npm run lint:fix:all
-
-# Type checking
-npm run type-check:all
-
-# Full health check
-npm run health
-```
-
-## ?? Backups
+## 💾 Backups
 
 ### Creating Backups
 
@@ -461,33 +436,65 @@ POST /krapi/k1/projects/{projectId}/restore
 - **Versioning**: Automatic version tracking
 - **Metadata**: Backup descriptions and timestamps
 
-## ?? API Documentation
-
-For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
-
-## ?? Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please follow these guidelines:
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes** following the code style and documentation standards
+4. **Add JSDoc comments** to all new functions and classes (see [JSDOC_TEMPLATE.md](./JSDOC_TEMPLATE.md))
+5. **Run tests and linting**: `pnpm run lint:all && pnpm run type-check:all`
+6. **Commit your changes**: `git commit -m 'Add amazing feature'`
+7. **Push to the branch**: `git push origin feature/amazing-feature`
+8. **Submit a pull request**
 
-## ?? License
+### Code Standards
 
-[Add your license here]
+- **TypeScript**: All code must be written in TypeScript
+- **JSDoc**: All exported functions must have comprehensive JSDoc comments
+- **Linting**: Code must pass ESLint checks
+- **Type Safety**: No `any` types allowed
+- **Testing**: New features should include tests
 
-## ?? Support
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👤 Code Ownership
+
+### Repository
+
+- **GitHub Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
+- **Owner**: GenorTG
+- **License**: MIT
+
+### Code Ownership Rights
+
+All code in this repository is owned by **GenorTG** and contributors as specified in the LICENSE file.
+
+### Contributing
+
+When contributing to this project:
+- You retain copyright of your contributions
+- You grant GenorTG and the project maintainers a license to use your contributions
+- All contributions must comply with the MIT License
+
+### Attribution
+
+If you use this project, please:
+- Maintain attribution to the original authors
+- Include the LICENSE file
+- Credit the project in your documentation
+
+## 🆘 Support
 
 For issues, questions, or feature requests:
 
-- Open an issue on GitHub
-- Check existing documentation
-- Review API documentation
+- **GitHub Issues**: [https://github.com/GenorTG/Krapi/issues](https://github.com/GenorTG/Krapi/issues)
+- **Documentation**: See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) and [packages/krapi-sdk/README.md](./packages/krapi-sdk/README.md)
 
-## ?? Roadmap
+## 🗺️ Roadmap
 
 - [ ] GraphQL API support
 - [ ] WebSocket real-time updates
@@ -495,7 +502,14 @@ For issues, questions, or feature requests:
 - [ ] Multi-tenant SaaS mode
 - [ ] Database replication
 - [ ] Automated backup scheduling
+- [ ] Enhanced MCP tool capabilities
+
+## 🙏 Acknowledgments
+
+Built with ❤️ for developers who want control over their backend infrastructure.
 
 ---
 
-**Built with ?? for developers who want control over their backend infrastructure.**
+**Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)  
+**Owner**: GenorTG  
+**License**: MIT
