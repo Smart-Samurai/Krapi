@@ -1,5 +1,5 @@
 import { DatabaseService } from "@/services/database.service";
-import { CollectionField } from "@/types";
+import { CollectionField, BackendProject, FieldDefinition } from "@/types";
 
 /**
  * Context information for MCP tool execution
@@ -53,9 +53,11 @@ export class McpToolsService {
     args: { name: string; description?: string; project_url?: string }
   ) {
     if (ctx.scope !== "admin") throw new Error("Admin scope required");
-    const project = await this.db.createProject({
+    const projectData: Omit<
+      BackendProject,
+      "id" | "created_at" | "updated_at" | "storage_used" | "total_api_calls" | "last_api_call"
+    > = {
       name: args.name,
-      description: args.description || null,
       allowed_origins: [args.project_url || "localhost"],
       active: true,
       created_by: ctx.userId || "system",
@@ -74,8 +76,14 @@ export class McpToolsService {
         custom_headers: {},
         environment: "development" as const,
       },
-      api_key: `pk_${Math.random().toString(36).substr(2, 9)}`,
-    });
+    } as Omit<
+      BackendProject,
+      "id" | "created_at" | "updated_at" | "storage_used" | "total_api_calls" | "last_api_call"
+    >;
+    if (args.description !== undefined) {
+      projectData.description = args.description;
+    }
+    const project = await this.db.createProject(projectData);
     return project;
   }
 
@@ -132,11 +140,17 @@ export class McpToolsService {
     }
   ) {
     if (ctx.scope !== "admin") throw new Error("Admin scope required");
-    const updated = await this.db.updateProject(args.project_id, {
-      name: args.name,
-      description: args.description,
-      is_active: args.active,
-    });
+    const updateData: Partial<BackendProject> = {};
+    if (args.name !== undefined) {
+      updateData.name = args.name;
+    }
+    if (args.description !== undefined) {
+      updateData.description = args.description;
+    }
+    if (args.active !== undefined) {
+      updateData.active = args.active;
+    }
+    const updated = await this.db.updateProject(args.project_id, updateData);
     return updated;
   }
 
@@ -259,7 +273,7 @@ export class McpToolsService {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     return this.db.createCollection(
-      ctx.projectId,
+      ctx.projectId!,
       args.name,
       {
         description: args.description || "",
@@ -291,7 +305,7 @@ export class McpToolsService {
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    return this.db.getCollection(ctx.projectId, args.collection_name);
+    return this.db.getCollection(ctx.projectId!, args.collection_name);
   }
 
   /**
@@ -309,7 +323,7 @@ export class McpToolsService {
   async listCollections(ctx: ToolContext) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    return this.db.getProjectTableSchemas(ctx.projectId);
+    return this.db.getProjectTableSchemas(ctx.projectId!);
   }
 
   /**
@@ -340,16 +354,23 @@ export class McpToolsService {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     const collection = await this.db.getCollection(
-      ctx.projectId,
+      ctx.projectId!,
       args.collection_name
     );
     if (!collection) {
       throw new Error(`Collection '${args.collection_name}' not found`);
     }
-    return this.db.updateCollection(ctx.projectId, args.collection_name, {
-      description: args.description,
-      fields: args.fields,
-    });
+    const updateData: {
+      description?: string;
+      fields?: FieldDefinition[];
+    } = {};
+    if (args.description !== undefined) {
+      updateData.description = args.description;
+    }
+    if (args.fields !== undefined) {
+      updateData.fields = args.fields;
+    }
+    return this.db.updateCollection(ctx.projectId!, args.collection_name, updateData);
   }
 
   /**
@@ -373,7 +394,7 @@ export class McpToolsService {
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    await this.db.deleteCollection(ctx.projectId, args.collection_name);
+    await this.db.deleteCollection(ctx.projectId!, args.collection_name);
     return { success: true };
   }
 
@@ -400,7 +421,7 @@ export class McpToolsService {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     return this.db.createDocument(
-      ctx.projectId,
+      ctx.projectId!,
       args.collection_name,
       args.data,
       ctx.userId || "system"
@@ -472,13 +493,26 @@ export class McpToolsService {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     const offset = args.offset ?? ((args.page || 1) - 1) * (args.limit || 50);
-    return this.db.getDocuments(ctx.projectId, args.collection_name, {
+    const queryOptions: {
+      limit: number;
+      offset: number;
+      orderBy?: string;
+      order?: "asc" | "desc";
+      where?: Record<string, unknown>;
+    } = {
       limit: args.limit || 50,
       offset,
-      orderBy: args.order_by,
-      order: args.order,
-      where: args.where,
-    });
+    };
+    if (args.order_by !== undefined) {
+      queryOptions.orderBy = args.order_by;
+    }
+    if (args.order !== undefined) {
+      queryOptions.order = args.order;
+    }
+    if (args.where !== undefined) {
+      queryOptions.where = args.where;
+    }
+    return this.db.getDocuments(ctx.projectId, args.collection_name, queryOptions);
   }
 
   /**
@@ -549,11 +583,18 @@ export class McpToolsService {
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    const result = await this.db.getDocuments(ctx.projectId, args.collection_name, {
+    const queryOptions: {
+      limit: number;
+      offset: number;
+      where?: Record<string, unknown>;
+    } = {
       limit: 1,
       offset: 0,
-      where: args.where,
-    });
+    };
+    if (args.where !== undefined) {
+      queryOptions.where = args.where;
+    }
+    const result = await this.db.getDocuments(ctx.projectId, args.collection_name, queryOptions);
     return { count: result.total };
   }
 
@@ -585,7 +626,7 @@ export class McpToolsService {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     return this.db.updateDocument(
-      ctx.projectId,
+      ctx.projectId!,
       args.collection_name,
       args.document_id,
       args.data,
@@ -616,7 +657,7 @@ export class McpToolsService {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
     await this.db.deleteDocument(
-      ctx.projectId,
+      ctx.projectId!,
       args.collection_name,
       args.document_id
     );
@@ -651,7 +692,7 @@ export class McpToolsService {
     const results = await Promise.all(
       args.documents.map((doc) =>
         this.db.createDocument(
-          ctx.projectId,
+          ctx.projectId!,
           args.collection_name,
           doc,
           ctx.userId || "system"
@@ -689,7 +730,7 @@ export class McpToolsService {
     const results = await Promise.all(
       args.updates.map((update) =>
         this.db.updateDocument(
-          ctx.projectId,
+          ctx.projectId!,
           args.collection_name,
           update.document_id,
           update.data,
@@ -727,7 +768,7 @@ export class McpToolsService {
       throw new Error("Project scope required");
     const results = await Promise.all(
       args.document_ids.map((id) =>
-        this.db.deleteDocument(ctx.projectId, args.collection_name, id)
+        this.db.deleteDocument(ctx.projectId!, args.collection_name, id)
       )
     );
     return {
@@ -765,13 +806,16 @@ export class McpToolsService {
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    return this.db.createProjectUser({
-      project_id: ctx.projectId,
-      username: args.username,
-      email: args.email,
+    const userData: {
+      username: string;
+      email: string;
+      password: string;
+    } = {
+      username: args.username || "",
+      email: args.email || "",
       password: args.password,
-      metadata: args.metadata || {},
-    });
+    };
+    return this.db.createProjectUser(ctx.projectId!, userData);
   }
 
   /**
@@ -795,7 +839,7 @@ export class McpToolsService {
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    return this.db.getProjectUser(ctx.projectId, args.user_id);
+    return this.db.getProjectUser(ctx.projectId!, args.user_id);
   }
 
   /**
@@ -816,9 +860,11 @@ export class McpToolsService {
   async listUsers(ctx: ToolContext, args: { search?: string }) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    const result = await this.db.getProjectUsers(ctx.projectId, {
-      search: args.search,
-    });
+    const queryOptions: { search?: string } = {};
+    if (args.search !== undefined) {
+      queryOptions.search = args.search;
+    }
+    const result = await this.db.getProjectUsers(ctx.projectId!, queryOptions);
     return result;
   }
 
@@ -851,11 +897,21 @@ export class McpToolsService {
   ) {
     if (ctx.scope !== "project" || !ctx.projectId)
       throw new Error("Project scope required");
-    return this.db.updateProjectUser(ctx.projectId, args.user_id, {
-      username: args.username,
-      email: args.email,
-      metadata: args.metadata,
-    });
+    const updateData: {
+      username?: string;
+      email?: string;
+      metadata?: Record<string, unknown>;
+    } = {};
+    if (args.username !== undefined) {
+      updateData.username = args.username;
+    }
+    if (args.email !== undefined) {
+      updateData.email = args.email;
+    }
+    if (args.metadata !== undefined) {
+      updateData.metadata = args.metadata;
+    }
+    return this.db.updateProjectUser(ctx.projectId!, args.user_id, updateData);
   }
 
   /**

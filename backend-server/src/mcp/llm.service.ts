@@ -270,12 +270,13 @@ export class LlmService {
         // Look for JSON tool call format
         const jsonMatch = content.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[1]);
+          const parsed = JSON.parse(jsonMatch[1]) as { name?: string; arguments?: Record<string, unknown> };
           if (parsed && parsed.name) {
+            const toolName: string = parsed.name;
             toolCalls = [
               {
                 id: `ollama-tool-${Date.now()}`,
-                name: parsed.name,
+                name: toolName,
                 arguments: parsed.arguments || {},
               },
             ];

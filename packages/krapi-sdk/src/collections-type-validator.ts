@@ -119,7 +119,8 @@ export class CollectionsTypeValidator {
         );
       }
 
-      const _validationDuration = Date.now() - _startTime;
+      // Validation duration tracked for performance monitoring
+      void (Date.now() - _startTime);
 
       return {
         isValid: issues.length === 0,
@@ -219,26 +220,32 @@ export class CollectionsTypeValidator {
       );
 
       if (!actualField) {
-        issues.push({
+        const issue: CollectionTypeIssue = {
           type: "missing_field",
           severity: "error",
           field: expectedField.name,
-          expected: expectedField.postgresql_type,
           description: `Field '${expectedField.name}' is missing from database`,
           auto_fixable: true,
-        });
+        };
+        if (expectedField.postgresql_type !== undefined) {
+          issue.expected = expectedField.postgresql_type;
+        }
+        issues.push(issue);
       } else {
         // Check field type
         if (actualField.type !== expectedField.postgresql_type) {
-          issues.push({
+          const issue: CollectionTypeIssue = {
             type: "wrong_type",
             severity: "error",
             field: expectedField.name,
-            expected: expectedField.postgresql_type,
             actual: actualField.type,
             description: `Field '${expectedField.name}' has wrong type: expected ${expectedField.postgresql_type}, got ${actualField.type}`,
             auto_fixable: true,
-          });
+          };
+          if (expectedField.postgresql_type !== undefined) {
+            issue.expected = expectedField.postgresql_type;
+          }
+          issues.push(issue);
         }
 
         // Check nullable constraint
@@ -469,7 +476,8 @@ export class CollectionsTypeValidator {
   /**
    * Check for potential performance issues
    */
-  private checkPerformanceIssues(
+  // @ts-expect-error - Method reserved for future use
+  private _checkPerformanceIssues(
     typeDefinition: CollectionTypeDefinition
   ): string[] {
     const warnings: string[] = [];

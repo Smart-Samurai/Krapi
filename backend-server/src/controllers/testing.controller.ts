@@ -8,6 +8,7 @@ import {
   ApiResponse,
   BackendProjectSettings,
   BackendProject,
+  CreateBackendChangelogEntry,
 } from "@/types";
 
 /**
@@ -28,6 +29,7 @@ import {
  */
 export class TestingController {
   private db: DatabaseAdapterService;
+  // @ts-expect-error - Auth service reserved for future use
   private authService: AuthService;
 
   /**
@@ -138,18 +140,21 @@ export class TestingController {
       console.log("✅ [TESTING DEBUG] Project created successfully:", project.id);
 
       // Log the action
-      await this.db.createBackendChangelogEntry({
+      const changelogEntry: CreateBackendChangelogEntry = {
+        user_id: currentUser.id,
+        action: "created",
+        resource_type: "project",
+        resource_id: project.id,
+        changes: { name, test: true },
         project_id: project.id,
         entity_type: "project",
         entity_id: project.id,
-        action: "created",
-        changes: { name, test: true },
         performed_by: currentUser.id,
-        session_id: authReq.session?.id,
-        user_id: currentUser.id,
-        resource_type: "project",
-        resource_id: project.id,
-      });
+      };
+      if (authReq.session?.id !== undefined) {
+        changelogEntry.session_id = authReq.session.id;
+      }
+      await this.db.createBackendChangelogEntry(changelogEntry);
 
       // Create sample collections if requested
       if (withCollections) {
@@ -386,7 +391,15 @@ export class TestingController {
       const startTime = Date.now();
 
       // Test Suite 1: Project Operations
-      const projectSuite = {
+      const projectSuite: {
+        suite: string;
+        tests: Array<{
+          name: string;
+          passed: boolean;
+          duration: number;
+          error?: string;
+        }>;
+      } = {
         suite: "Project Operations",
         tests: [],
       };
@@ -429,7 +442,6 @@ export class TestingController {
           storage_used: 0,
           allowed_origins: ["localhost"],
           total_api_calls: 0,
-          last_api_call: undefined,
           rate_limit: 1000,
           rate_limit_window: 3600000,
         });
@@ -665,6 +677,13 @@ export class TestingController {
       }
 
       const { projectId } = req.params;
+      if (!projectId) {
+        res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        } as ApiResponse);
+        return;
+      }
 
       const project = await this.db.getProjectById(projectId);
       if (!project) {
@@ -693,6 +712,7 @@ export class TestingController {
         success: true,
         message: "Test project deleted successfully",
       } as ApiResponse);
+      return;
     } catch (error) {
       console.error("Error deleting test project:", error);
       res.status(500).json({
@@ -836,6 +856,13 @@ export class TestingController {
       }
 
       const { scenarioName } = req.params;
+      if (!scenarioName) {
+        res.status(400).json({
+          success: false,
+          error: "Scenario name is required",
+        } as ApiResponse);
+        return;
+      }
       const { options } = req.body;
 
       const results = await this.runTestScenario(scenarioName, options);
@@ -844,6 +871,7 @@ export class TestingController {
         success: true,
         data: results,
       } as ApiResponse);
+      return;
     } catch (error) {
       console.error("Error running test scenario:", error);
       res.status(500).json({

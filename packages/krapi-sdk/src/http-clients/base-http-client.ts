@@ -52,7 +52,7 @@ export class BaseHttpClient {
   protected baseUrl: string;
   protected apiKey?: string;
   protected sessionToken?: string;
-  protected httpClient: AxiosInstance;
+  protected httpClient!: AxiosInstance;
 
   /**
    * Create a new BaseHttpClient instance
@@ -76,7 +76,7 @@ export class BaseHttpClient {
    * await client.initializeClient();
    */
   async initializeClient() {
-    if (this.httpClient) return; // Already initialized
+    if (this.httpClient !== undefined) return; // Already initialized
 
     this.httpClient = axios.create({
       baseURL: `${this.baseUrl}/krapi/k1`,

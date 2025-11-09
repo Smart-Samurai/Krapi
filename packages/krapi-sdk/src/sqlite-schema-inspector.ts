@@ -207,8 +207,9 @@ export class SQLiteSchemaInspector {
       const countResult = await this.dbConnection.query(
         `SELECT COUNT(*) as count FROM ${tableName}`
       );
+      const firstRow = (countResult.rows || [])[0] as Record<string, unknown> | undefined;
       const rowCount = parseInt(
-        String((countResult.rows || [])[0]?.["count"] || 0)
+        String(firstRow?.["count"] || 0)
       );
 
       // SQLite doesn't have pg_size functions
@@ -263,7 +264,8 @@ export class SQLiteSchemaInspector {
       for (const field of notNullFields) {
         const checkSql = `SELECT COUNT(*) as count FROM ${tableName} WHERE ${field.name} IS NULL`;
         const result = await this.dbConnection.query(checkSql);
-        const count = parseInt(String((result.rows || [])[0]?.["count"] || 0));
+        const firstRow = (result.rows || [])[0] as Record<string, unknown> | undefined;
+        const count = parseInt(String(firstRow?.["count"] || 0));
         if (count > 0) {
           hasNullViolations = true;
           issues.push(`Column ${field.name} has ${count} NULL values but is marked as NOT NULL`);
@@ -284,7 +286,8 @@ export class SQLiteSchemaInspector {
             ) duplicates
           `;
           const result = await this.dbConnection.query(checkSql);
-          const count = parseInt(String((result.rows || [])[0]?.["count"] || 0));
+          const firstRow = (result.rows || [])[0] as Record<string, unknown> | undefined;
+        const count = parseInt(String(firstRow?.["count"] || 0));
           if (count > 0) {
             hasUniqueViolations = true;
             issues.push(`Index ${index.name} has ${count} duplicate values`);

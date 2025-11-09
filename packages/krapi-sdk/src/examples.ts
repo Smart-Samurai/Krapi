@@ -10,7 +10,7 @@
  * await frontendExample1(console);
  */
 import { DatabaseConnection, Logger } from "./core";
-import { krapi, KrapiWrapper } from "./krapi";
+import { krapi, KrapiWrapper, KrapiConfig } from "./krapi";
 
 /**
  * FRONTEND USAGE EXAMPLES
@@ -276,10 +276,13 @@ export async function frontendExample3(projectId: string, logger?: Logger) {
 // Example 4: Backend setup with database connection
 export async function backendExample1(databaseConnection: DatabaseConnection, logger?: Logger) {
   // Connect to KRAPI for backend use with database
-  await krapi.connect({
+  const config: KrapiConfig = {
     database: databaseConnection,
-    logger: logger || undefined,
-  });
+  };
+  if (logger !== undefined) {
+    config.logger = logger;
+  }
+  await krapi.connect(config);
 
   try {
     // Perform database health check
@@ -329,10 +332,13 @@ export async function backendExample2(
   logger?: Logger
 ) {
   // Connect to KRAPI for backend use with database
-  await krapi.connect({
+  const config: KrapiConfig = {
     database: databaseConnection,
-    logger: logger || undefined,
-  });
+  };
+  if (logger !== undefined) {
+    config.logger = logger;
+  }
+  await krapi.connect(config);
 
   try {
     // Create multiple collections with relationships
@@ -533,19 +539,25 @@ export class TaskManager {
 
   async getTasksByStatus(projectId: string, status: string) {
     return this.krapi.documents.getAll(projectId, "tasks", {
-      filter: { status },
+      filter: { status } as Record<string, unknown>,
     });
   }
 
   async completeTask(projectId: string, taskId: string, completedBy?: string) {
-    return this.krapi.documents.update(projectId, "tasks", taskId, {
+    const updateData: {
+      data: Record<string, unknown>;
+      updated_by?: string;
+    } = {
       data: {
         status: "completed",
         completed: true,
         completed_at: new Date().toISOString(),
       },
-      updated_by: completedBy,
-    });
+    };
+    if (completedBy !== undefined) {
+      updateData.updated_by = completedBy;
+    }
+    return this.krapi.documents.update(projectId, "tasks", taskId, updateData);
   }
 }
 
@@ -586,10 +598,13 @@ export async function useTaskManagerInBackend(
   logger?: Logger
 ) {
   // Connect to KRAPI for backend use with database
-  await krapi.connect({
+  const config: KrapiConfig = {
     database: databaseConnection,
-    logger: logger || undefined,
-  });
+  };
+  if (logger !== undefined) {
+    config.logger = logger;
+  }
+  await krapi.connect(config);
 
   const taskManager = new TaskManager(krapi);
 

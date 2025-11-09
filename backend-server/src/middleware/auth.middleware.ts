@@ -135,7 +135,8 @@ export const authenticate = async (
 
       // Get owner details
       let userId: string;
-      let _userType: "admin" | "project"; // Unused variable
+      // @ts-expect-error - User type reserved for future use
+      let _userType: "admin" | "project";
       let projectId: string | undefined;
 
       // Check if it's an admin API key (has no project_id) or project API key
@@ -185,7 +186,7 @@ export const authenticate = async (
 
       (req as AuthenticatedRequest).user = {
         id: userId,
-        project_id: projectId,
+        project_id: projectId || "",
         scopes: userScopes,
       };
       (req as AuthenticatedRequest).apiKey = apiKey;
@@ -241,7 +242,8 @@ export const authenticate = async (
 
       // Get owner details
       let userId: string;
-      let _userType: "admin" | "project"; // Unused variable
+      // @ts-expect-error - User type reserved for future use
+      let _userType: "admin" | "project";
       let projectId: string | undefined;
 
       // Check if it's an admin API key (has no project_id) or project API key
@@ -291,7 +293,7 @@ export const authenticate = async (
 
       (req as AuthenticatedRequest).user = {
         id: userId,
-        project_id: projectId,
+        project_id: projectId || "",
         scopes: userScopes,
       };
       (req as AuthenticatedRequest).apiKey = apiKey;
@@ -334,7 +336,7 @@ export const authenticate = async (
 
       (req as AuthenticatedRequest).user = {
         id: userId,
-        project_id: session.project_id,
+        project_id: session.project_id || "",
         scopes: userScopes,
       };
       (req as AuthenticatedRequest).session = session;

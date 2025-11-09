@@ -19,12 +19,12 @@ import { v4 as uuidv4 } from "uuid";
  */
 // Configure storage
 const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb) => {
+  destination: (_req: Request, _file: Express.Multer.File, cb) => {
     // You can customize the destination based on project or other criteria
     const uploadPath = path.join(process.cwd(), "uploads");
     cb(null, uploadPath);
   },
-  filename: (req: Request, file: Express.Multer.File, cb) => {
+  filename: (_req: Request, file: Express.Multer.File, cb) => {
     const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
     const ext = path.extname(file.originalname);
     const name = path.basename(file.originalname, ext);
@@ -44,7 +44,7 @@ const storage = multer.diskStorage({
  */
 // File filter to validate file types
 const fileFilter = (
-  req: Request,
+  _req: Request,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {

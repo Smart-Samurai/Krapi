@@ -8,6 +8,8 @@ import {
   StorageStats,
   AdminRole,
   AccessLevel,
+  UserRole,
+  UserStatus,
 } from "@krapi/sdk";
 
 import {
@@ -38,26 +40,34 @@ export class TypeMapper {
    * const sdkUser = TypeMapper.mapProjectUser(backendUser);
    */
   static mapProjectUser(backendUser: BackendProjectUser): ProjectUser {
-    return {
+    const role: UserRole = (backendUser.role || "user") as UserRole;
+    const status: UserStatus = (backendUser.status as UserStatus) || "active";
+    const user: ProjectUser = {
       id: backendUser.id,
       project_id: backendUser.project_id,
       username: backendUser.username || "",
       email: backendUser.email || "",
-      // Note: first_name and last_name are not available in ProjectUser interface
-      // is_verified is not available in ProjectUser interface
-      is_active: backendUser.is_active,
-      // Note: access_scopes is not available in ProjectUser interface
-      // Note: register_date is not available in ProjectUser interface
-      updated_at: backendUser.updated_at,
-      last_login: backendUser.last_login,
-      // Note: email_verified_at and phone_verified_at are not available in ProjectUser interface
-      // Note: custom_fields is not available in ProjectUser interface
-      role: "user",
-      permissions: backendUser.scopes || [],
-      metadata: backendUser.metadata || {},
-      login_count: 0,
+      role,
+      status,
       created_at: backendUser.created_at,
+      updated_at: backendUser.updated_at,
     };
+    if (backendUser.last_login !== undefined) {
+      user.last_login = backendUser.last_login;
+    }
+    if (backendUser.phone !== undefined) {
+      user.phone = backendUser.phone;
+    }
+    if (backendUser.is_verified !== undefined) {
+      user.is_verified = backendUser.is_verified;
+    }
+    if (backendUser.scopes !== undefined) {
+      user.scopes = backendUser.scopes;
+    }
+    if (backendUser.permissions !== undefined) {
+      user.permissions = backendUser.permissions;
+    }
+    return user;
   }
 
   /**
@@ -102,19 +112,22 @@ export class TypeMapper {
         sdkAccessLevel = AccessLevel.WRITE;
     }
 
-    return {
+    const adminUser: AdminUser = {
       id: backendUser.id,
       username: backendUser.username,
-      email: backendUser.email,
-      password_hash: backendUser.password_hash,
+      email: backendUser.email || "",
+      password_hash: backendUser.password_hash || "",
       role: sdkRole,
       access_level: sdkAccessLevel,
       permissions: backendUser.permissions.map((p) => p.toString()),
       active: backendUser.active,
       created_at: backendUser.created_at,
       updated_at: backendUser.updated_at,
-      last_login: backendUser.last_login,
     };
+    if (backendUser.last_login !== undefined) {
+      adminUser.last_login = backendUser.last_login;
+    }
+    return adminUser;
   }
 
   /**

@@ -142,20 +142,25 @@ export class CollectionsService {
       parsedData = row.data as Record<string, unknown>;
     }
 
-    return {
+    const document: Document = {
       id: row.id as string,
       collection_id: row.collection_id as string,
-      project_id: row.project_id as string | undefined,
+      project_id: (row.project_id as string) || "",
       data: parsedData,
       version: (row.version as number | undefined) || 1,
       is_deleted: (row.is_deleted as boolean | undefined) || false,
       created_at: row.created_at as string,
-      updated_at: row.updated_at as string | undefined,
+      updated_at: (row.updated_at as string) || row.created_at as string,
       created_by: (row.created_by as string | undefined) || "system",
       updated_by: (row.updated_by as string | undefined) || (row.created_by as string | undefined) || "system",
-      deleted_at: row.deleted_at as string | undefined,
-      deleted_by: row.deleted_by as string | undefined,
     };
+    if (row.deleted_at !== undefined && row.deleted_at !== null) {
+      (document as { deleted_at?: string }).deleted_at = row.deleted_at as string;
+    }
+    if (row.deleted_by !== undefined && row.deleted_by !== null) {
+      (document as { deleted_by?: string }).deleted_by = row.deleted_by as string;
+    }
+    return document;
   }
 
   /**
@@ -232,7 +237,7 @@ export class CollectionsService {
     );
 
     this.logger.info(
-      `Created collection "${collection.name}" with ${collection.fields.length} fields`
+      `Created collection "${collection.name}" with ${collection.schema.fields.length} fields`
     );
     return collection;
   }
@@ -2186,8 +2191,9 @@ export class CollectionsService {
       }
 
       const result = await this.db.query(sqlQuery, params);
-      return result.rows.map((row: Record<string, unknown>) => {
-        const data = row.data as Record<string, unknown>;
+      return (result.rows || [] as unknown[]).map((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        const data = rowData.data as Record<string, unknown>;
         return data as Record<string, unknown>;
       });
     } catch (error) {

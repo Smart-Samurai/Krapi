@@ -105,16 +105,21 @@ export class ChangelogService {
       }
 
       const entry = result.rows[0] as Record<string, unknown>;
-      return {
+      const changelogEntry: ChangelogEntry = {
         id: entry.id as string,
         entity_type: entry.entity_type as string,
         entity_id: entry.entity_id as string,
         action: entry.action as string,
         changes: entry.changes as Record<string, unknown>,
-        user_id: entry.user_id as string | undefined,
         timestamp: new Date(entry.timestamp as string),
-        metadata: entry.metadata as Record<string, unknown> | undefined,
       };
+      if (entry.user_id !== undefined && entry.user_id !== null) {
+        changelogEntry.user_id = entry.user_id as string;
+      }
+      if (entry.metadata !== undefined && entry.metadata !== null) {
+        changelogEntry.metadata = entry.metadata as Record<string, unknown>;
+      }
+      return changelogEntry;
     } catch (error) {
       this.logger.error("Failed to create changelog entry", { error, params });
       throw error;
@@ -190,16 +195,24 @@ export class ChangelogService {
 
       const result = await this.dbConnection.query(query, values);
 
-      return result.rows.map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        entity_type: row.entity_type as string,
-        entity_id: row.entity_id as string,
-        action: row.action as string,
-        changes: row.changes as Record<string, unknown>,
-        user_id: row.user_id as string | undefined,
-        timestamp: new Date(row.timestamp as string),
-        metadata: row.metadata as Record<string, unknown> | undefined,
-      }));
+      return (result.rows || [] as unknown[]).map((row: unknown): ChangelogEntry => {
+        const rowData = row as Record<string, unknown>;
+        const entry: ChangelogEntry = {
+          id: rowData.id as string,
+          entity_type: rowData.entity_type as string,
+          entity_id: rowData.entity_id as string,
+          action: rowData.action as string,
+          changes: rowData.changes as Record<string, unknown>,
+          timestamp: new Date(rowData.timestamp as string),
+        };
+        if (rowData.user_id !== undefined && rowData.user_id !== null) {
+          entry.user_id = rowData.user_id as string;
+        }
+        if (rowData.metadata !== undefined && rowData.metadata !== null) {
+          entry.metadata = rowData.metadata as Record<string, unknown>;
+        }
+        return entry;
+      });
     } catch (error) {
       this.logger.error("Failed to get changelog entries by entity", {
         error,
@@ -272,16 +285,24 @@ export class ChangelogService {
 
       const result = await this.dbConnection.query(query, values);
 
-      return result.rows.map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        entity_type: row.entity_type as string,
-        entity_id: row.entity_id as string,
-        action: row.action as string,
-        changes: row.changes as Record<string, unknown>,
-        user_id: row.user_id as string | undefined,
-        timestamp: new Date(row.timestamp as string),
-        metadata: row.metadata as Record<string, unknown> | undefined,
-      }));
+      return (result.rows || [] as unknown[]).map((row: unknown): ChangelogEntry => {
+        const rowData = row as Record<string, unknown>;
+        const entry: ChangelogEntry = {
+          id: rowData.id as string,
+          entity_type: rowData.entity_type as string,
+          entity_id: rowData.entity_id as string,
+          action: rowData.action as string,
+          changes: rowData.changes as Record<string, unknown>,
+          timestamp: new Date(rowData.timestamp as string),
+        };
+        if (rowData.user_id !== undefined && rowData.user_id !== null) {
+          entry.user_id = rowData.user_id as string;
+        }
+        if (rowData.metadata !== undefined && rowData.metadata !== null) {
+          entry.metadata = rowData.metadata as Record<string, unknown>;
+        }
+        return entry;
+      });
     } catch (error) {
       this.logger.error("Failed to get all changelog entries", {
         error,

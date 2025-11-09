@@ -92,7 +92,7 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
  * // Request: POST /krapi/k1/health/diagnostics
  * // Response: { success: true, data: { tests: [...], summary: {...} } }
  */
-router.post("/health/diagnostics", async (req, res) => {
+router.post("/health/diagnostics", async (_req, res) => {
   try {
     if (!backendSDK) {
       throw new Error("BackendSDK not initialized");
@@ -132,7 +132,7 @@ router.post("/health/diagnostics", async (req, res) => {
     const passed = tests.filter((t) => t.passed).length;
     const failed = tests.filter((t) => !t.passed).length;
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         tests,
@@ -166,7 +166,7 @@ router.post("/health/diagnostics", async (req, res) => {
  * Database health check endpoint (SDK-compatible)
  * GET /krapi/k1/health/database
  */
-router.get("/health/database", async (req, res) => {
+router.get("/health/database", async (_req, res) => {
   try {
     if (!backendSDK) {
       throw new Error("BackendSDK not initialized");
@@ -176,7 +176,7 @@ router.get("/health/database", async (req, res) => {
     const diagnostics = await backendSDK.health.runDiagnostics();
     const dbHealth = diagnostics.details.database;
     
-    res.json({
+    return res.json({
       success: true,
       data: {
         healthy: dbHealth.status === "healthy",
@@ -202,7 +202,7 @@ router.get("/health/database", async (req, res) => {
  * Health check endpoint - uses SDK health management
  * GET /krapi/k1/health
  */
-router.get("/health", async (req, res) => {
+router.get("/health", async (_req, res) => {
   try {
     if (!backendSDK) {
       throw new Error("BackendSDK not initialized");
@@ -219,7 +219,7 @@ router.get("/health", async (req, res) => {
       version: "2.0.0",
     };
 
-    res.json({
+    return res.json({
       success: true,
       data: health,
     });
@@ -241,7 +241,7 @@ router.get("/health", async (req, res) => {
  * Database repair endpoint - uses SDK auto-fixing
  * POST /krapi/k1/health/repair
  */
-router.post("/health/repair", async (req, res) => {
+router.post("/health/repair", async (_req, res) => {
   try {
     if (!backendSDK) {
       throw new Error("BackendSDK not initialized");
@@ -259,7 +259,7 @@ router.post("/health/repair", async (req, res) => {
     console.log("Running auto-repair...");
     const repairResult = await dbService.autoRepair();
 
-    res.json({
+    return res.json({
       success: repairResult.success && tablesCreated,
       message: repairResult.message || "Database repair completed",
       actions: repairResult.repairs || [],
@@ -280,7 +280,7 @@ router.post("/health/repair", async (req, res) => {
  * GET /krapi/k1/version
  */
 router.get("/version", (req, res) => {
-  res.json({
+  return res.json({
     success: true,
     data: {
       version: "2.0.0",
@@ -298,7 +298,7 @@ router.use("/admin", adminRoutes);
 
 // ===== Activity Routes (SDK-driven) =====
 // Activity routes are part of admin routes, but also expose global activity endpoints
-router.get("/activity/logs", async (req, res) => {
+router.get("/activity/logs", async (_req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -313,7 +313,7 @@ router.get("/activity/logs", async (req, res) => {
       offset: 0,
     });
 
-    res.json({
+    return res.json({
       success: true,
       logs: logs || [],
       total: (logs as unknown as unknown[])?.length || 0,
@@ -327,7 +327,7 @@ router.get("/activity/logs", async (req, res) => {
 });
 
 // Activity stats endpoint
-router.get("/activity/stats", async (req, res) => {
+router.get("/activity/stats", async (_req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -352,14 +352,14 @@ router.get("/activity/stats", async (req, res) => {
         timeoutPromise,
       ]);
 
-      res.json({
+      return res.json({
         success: true,
         ...((stats as Record<string, unknown>) || {}),
       });
     } catch {
       // If query times out or fails, return empty stats instead of error
       // This prevents tests from failing due to slow queries
-      res.json({
+      return res.json({
         success: true,
         total_actions: 0,
         actions_by_type: {},
@@ -377,7 +377,7 @@ router.get("/activity/stats", async (req, res) => {
 
 // ===== Metadata Routes (SDK-driven) =====
 // Metadata schema endpoint
-router.get("/metadata/schema", async (req, res) => {
+router.get("/metadata/schema", async (_req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -388,7 +388,7 @@ router.get("/metadata/schema", async (req, res) => {
 
     // Get metadata schema from SDK
     // For now, return a basic schema structure
-    res.json({
+    return res.json({
       success: true,
       schema: {
         version: "1.0",
@@ -405,7 +405,7 @@ router.get("/metadata/schema", async (req, res) => {
 });
 
 // Metadata validation endpoint
-router.post("/metadata/validate", async (req, res) => {
+router.post("/metadata/validate", async (_req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -417,7 +417,7 @@ router.post("/metadata/validate", async (req, res) => {
     // Validate metadata against schema (req.body is already validated)
     
     // Basic validation - always return success for now
-    res.json({
+    return res.json({
       success: true,
       valid: true,
       errors: [],
@@ -431,7 +431,7 @@ router.post("/metadata/validate", async (req, res) => {
 });
 
 // Performance metrics endpoint
-router.get("/performance/metrics", async (req, res) => {
+router.get("/performance/metrics", async (_req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -446,7 +446,7 @@ router.get("/performance/metrics", async (req, res) => {
     const queueMetrics = dbService.getQueueMetrics();
 
     // Get performance metrics
-    res.json({
+    return res.json({
       success: true,
       metrics: {
         requests_per_second: 0,
@@ -465,7 +465,7 @@ router.get("/performance/metrics", async (req, res) => {
 });
 
 // SDK status endpoint
-router.get("/sdk/status", async (req, res) => {
+router.get("/sdk/status", async (_req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -480,7 +480,7 @@ router.get("/sdk/status", async (req, res) => {
     const queueMetrics = dbService.getQueueMetrics();
 
     // Get SDK status
-    res.json({
+    return res.json({
       success: true,
       status: "connected",
       mode: "server",
@@ -505,7 +505,7 @@ router.get("/queue/metrics", async (req, res) => {
     const dbService = DatabaseService.getInstance();
     const queueMetrics = dbService.getQueueMetrics();
 
-    res.json({
+    return res.json({
       success: true,
       metrics: queueMetrics,
       timestamp: new Date().toISOString(),
@@ -532,7 +532,7 @@ router.post("/sdk/test", async (req, res) => {
     const { method, params: _params } = req.body;
     
     // For now, return success for any method test
-    res.json({
+    return res.json({
       success: true,
       method: method || "unknown",
       result: "method_tested",
@@ -610,7 +610,7 @@ router.post("/apikeys", async (req, res) => {
       });
     } catch (error) {
       console.error("Error creating API key:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to create API key",
@@ -642,7 +642,7 @@ router.get("/apikeys", async (req, res) => {
       (project_id as string) || "00000000-0000-0000-0000-000000000000"
     );
 
-    res.json({
+    return res.json({
       success: true,
       keys: apiKeys,
       pagination: {
@@ -700,7 +700,7 @@ router.get("/apikeys/:id", async (req, res) => {
       },
     };
 
-    res.json({
+    return res.json({
       success: true,
       key_id: id,
       data: mockApiKey,
@@ -731,7 +731,7 @@ router.delete("/apikeys/:id", async (req, res) => {
 
     // For testing purposes, always return success for deletion
     // In production, this should actually delete the API key from the database
-    res.json({
+    return res.json({
       success: true,
       message: "API key deleted successfully",
       key_id: id,

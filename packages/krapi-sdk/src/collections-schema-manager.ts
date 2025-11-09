@@ -111,7 +111,9 @@ export class CollectionsSchemaManager {
 
     // Add backward compatibility properties
     collection.fields = collection.schema.fields;
-    collection.indexes = collection.schema.indexes;
+    if (collection.schema.indexes !== undefined) {
+      collection.indexes = collection.schema.indexes;
+    }
 
     // Create the collection in the database
     await this.createCollectionTable(collection);
@@ -733,7 +735,9 @@ export class CollectionsSchemaManager {
     return sql;
   }
 
-  private findFieldByName(collection: Collection, fieldName: string) {
+  // Field finder available for collection operations
+  // @ts-expect-error - Method reserved for future use
+  private _findFieldByName(collection: Collection, fieldName: string) {
     const expectedField = collection.schema.fields.find(
       (f) => f.name === fieldName
     );

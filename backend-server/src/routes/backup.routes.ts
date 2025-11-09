@@ -70,13 +70,30 @@ router.post(
         });
       }
 
-      const backup = await backendSDK.backup.backupProject({
-        projectId,
-        description,
-        password,
-      });
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
 
-      res.json({
+      const backupOptions: {
+        projectId: string;
+        description?: string;
+        password?: string;
+      } = {
+        projectId,
+      };
+      if (description !== undefined) {
+        backupOptions.description = description;
+      }
+      if (password !== undefined) {
+        backupOptions.password = password;
+      }
+
+      const backup = await backendSDK.backup.backupProject(backupOptions);
+
+      return res.json({
         success: true,
         backup_id: backup.id,
         password: password || "",
@@ -85,7 +102,7 @@ router.post(
         description: backup.description,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -138,12 +155,12 @@ router.post(
         overwrite,
       });
 
-      res.json({
+      return res.json({
         success: true,
         message: `Project ${projectId} restored successfully`,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -180,7 +197,7 @@ router.get(
         type as "project" | "system" | undefined
       );
 
-      res.json({
+      return res.json({
         success: true,
         backups: backups.map((backup) => ({
           id: backup.id,
@@ -194,7 +211,7 @@ router.get(
         })),
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -224,14 +241,21 @@ router.delete(
         });
       }
 
+      if (!backupId) {
+        return res.status(400).json({
+          success: false,
+          error: "Backup ID is required",
+        });
+      }
+
       await backendSDK.backup.deleteBackup(backupId);
 
-      res.json({
+      return res.json({
         success: true,
         message: `Backup ${backupId} deleted successfully`,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -267,7 +291,7 @@ router.post(
         password,
       });
 
-      res.json({
+      return res.json({
         success: true,
         backup_id: backup.id,
         password: password || "",
@@ -276,7 +300,7 @@ router.post(
         description: backup.description,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -308,11 +332,11 @@ router.get(
       }
 
       const backups = await backendSDK.backup.listBackups(
-        project_id as string | undefined,
+        project_id ? (project_id as string) : undefined,
         type as "project" | "system" | undefined
       );
 
-      res.json({
+      return res.json({
         success: true,
         backups: backups.map((backup) => ({
           id: backup.id,
@@ -326,7 +350,7 @@ router.get(
         })),
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error

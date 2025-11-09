@@ -45,6 +45,7 @@ import { SystemService } from "./system-service";
 import { TestingService } from "./testing-service";
 import {
   FieldType,
+  FieldValidation,
   Collection,
   CollectionTypeDefinition,
   Document,
@@ -296,7 +297,7 @@ export class BackendSDK {
               name: keyData.name,
               type: keyData.type,
               scopes: keyData.scopes || [],
-              project_id: keyData.project_ids?.[0],
+              project_id: Array.isArray(keyData.project_ids) && keyData.project_ids.length > 0 ? keyData.project_ids[0] : undefined,
             },
           };
         } catch {
@@ -826,12 +827,19 @@ export class BackendSDK {
     }
   ) {
     // Convert options to CollectionsService format
-    const queryOptions: DocumentQueryOptions = {
-      limit: options?.limit,
-      offset: options?.offset,
-      sort_by: options?.orderBy,
-      sort_order: options?.order,
-    };
+    const queryOptions: DocumentQueryOptions = {};
+    if (options?.limit !== undefined) {
+      queryOptions.limit = options.limit;
+    }
+    if (options?.offset !== undefined) {
+      queryOptions.offset = options.offset;
+    }
+    if (options?.orderBy !== undefined) {
+      queryOptions.sort_by = options.orderBy;
+    }
+    if (options?.order !== undefined) {
+      queryOptions.sort_order = options.order;
+    }
 
     // Get documents using CollectionsService
     return this.collections.service.getDocuments(
@@ -997,14 +1005,21 @@ export class BackendSDK {
       offset?: number;
     }
   ): Promise<Document[]> {
+    const searchOptions: {
+      limit?: number;
+      offset?: number;
+    } = {};
+    if (query.limit !== undefined) {
+      searchOptions.limit = query.limit;
+    }
+    if (query.offset !== undefined) {
+      searchOptions.offset = query.offset;
+    }
     return this.collections.service.searchDocuments(
       projectId,
       collectionName,
       query.text || "",
-      {
-        limit: query.limit,
-        offset: query.offset,
-      }
+      searchOptions
     );
   }
 
@@ -1199,7 +1214,7 @@ export class BackendSDK {
    * const info = await sdk.getTableInfo('project-id', 'tasks');
    * console.log(info.columns, info.indexes);
    */
-  async getTableInfo(projectId: string, tableName: string) {
+  async getTableInfo(_projectId: string, tableName: string) {
     // Get table info using the schema inspector
     return this.collections.schemaInspector.getTableSchema(tableName);
   }
@@ -1264,30 +1279,69 @@ export class BackendSDK {
   private convertCollectionToTypeDefinition(
     collection: Collection
   ): CollectionTypeDefinition {
-    return {
+    const typeDef: CollectionTypeDefinition = {
       id: collection.id,
       name: collection.name,
-      description: collection.description,
       version: "1.0.0",
       schema: {
-        fields: collection.schema.fields.map((field) => ({
-          name: field.name,
-          type: field.type,
-          required: field.required,
-          unique: field.unique,
-          indexed: field.indexed || false,
-          default: field.default_value,
-          description: field.description,
-          validation: field.validation,
-          length: field.length,
-          precision: field.precision,
-          scale: field.scale,
-          nullable: field.nullable,
-          primary: field.primary,
-          postgresql_type: field.type,
-          typescript_type: field.type,
-          relation: field.relation,
-        })),
+        fields: collection.schema.fields.map((field) => {
+          const mappedField: {
+            name: string;
+            type: FieldType;
+            required: boolean;
+            unique: boolean;
+            indexed: boolean;
+            default?: unknown;
+            description?: string;
+            validation?: FieldValidation;
+            length?: number;
+            precision?: number;
+            scale?: number;
+            nullable?: boolean;
+            primary?: boolean;
+            postgresql_type?: FieldType;
+            typescript_type?: FieldType;
+            relation?: Record<string, unknown>;
+          } = {
+            name: field.name,
+            type: field.type,
+            required: field.required,
+            unique: field.unique,
+            indexed: field.indexed || false,
+          };
+          if (field.default_value !== undefined) {
+            mappedField.default = field.default_value;
+          }
+          if (field.description !== undefined) {
+            mappedField.description = field.description;
+          }
+          if (field.validation !== undefined) {
+            mappedField.validation = field.validation;
+          }
+          if (field.length !== undefined) {
+            mappedField.length = field.length;
+          }
+          if (field.precision !== undefined) {
+            mappedField.precision = field.precision;
+          }
+          if (field.scale !== undefined) {
+            mappedField.scale = field.scale;
+          }
+          if (field.nullable !== undefined) {
+            mappedField.nullable = field.nullable;
+          }
+          if (field.primary !== undefined) {
+            mappedField.primary = field.primary;
+          }
+          if (field.type !== undefined) {
+            mappedField.postgresql_type = field.type;
+            mappedField.typescript_type = field.type;
+          }
+          if (field.relation !== undefined) {
+            mappedField.relation = field.relation;
+          }
+          return mappedField;
+        }),
         indexes: (collection.schema.indexes || []).map((index) => ({
           name: index.name,
           fields: index.fields,
@@ -1303,24 +1357,64 @@ export class BackendSDK {
       updated_at: collection.updated_at,
       created_by: "system",
       project_id: collection.project_id,
-      fields: collection.schema.fields.map((field) => ({
-        name: field.name,
-        type: field.type,
-        required: field.required,
-        unique: field.unique,
-        indexed: field.indexed || false,
-        default: field.default_value,
-        description: field.description,
-        validation: field.validation,
-        length: field.length,
-        precision: field.precision,
-        scale: field.scale,
-        nullable: field.nullable,
-        primary: field.primary,
-        postgresql_type: field.type,
-        typescript_type: field.type,
-        relation: field.relation,
-      })),
+      fields: collection.schema.fields.map((field) => {
+        const mappedField: {
+          name: string;
+          type: FieldType;
+          required: boolean;
+          unique: boolean;
+          indexed: boolean;
+          default?: unknown;
+          description?: string;
+          validation?: FieldValidation;
+          length?: number;
+          precision?: number;
+          scale?: number;
+          nullable?: boolean;
+          primary?: boolean;
+          postgresql_type?: FieldType;
+          typescript_type?: FieldType;
+          relation?: Record<string, unknown>;
+        } = {
+          name: field.name,
+          type: field.type,
+          required: field.required,
+          unique: field.unique,
+          indexed: field.indexed || false,
+        };
+        if (field.default_value !== undefined) {
+          mappedField.default = field.default_value;
+        }
+        if (field.description !== undefined) {
+          mappedField.description = field.description;
+        }
+        if (field.validation !== undefined) {
+          mappedField.validation = field.validation;
+        }
+        if (field.length !== undefined) {
+          mappedField.length = field.length;
+        }
+        if (field.precision !== undefined) {
+          mappedField.precision = field.precision;
+        }
+        if (field.scale !== undefined) {
+          mappedField.scale = field.scale;
+        }
+        if (field.nullable !== undefined) {
+          mappedField.nullable = field.nullable;
+        }
+        if (field.primary !== undefined) {
+          mappedField.primary = field.primary;
+        }
+        if (field.type !== undefined) {
+          mappedField.postgresql_type = field.type;
+          mappedField.typescript_type = field.type;
+        }
+        if (field.relation !== undefined) {
+          mappedField.relation = field.relation;
+        }
+        return mappedField;
+      }),
       indexes: (collection.schema.indexes || []).map((index) => ({
         name: index.name,
         fields: index.fields,
@@ -1329,7 +1423,13 @@ export class BackendSDK {
       })),
       constraints: [],
       relations: [],
-      metadata: collection.metadata,
     };
+    if (collection.description !== undefined) {
+      typeDef.description = collection.description;
+    }
+    if (collection.metadata !== undefined) {
+      typeDef.metadata = collection.metadata;
+    }
+    return typeDef;
   }
 }

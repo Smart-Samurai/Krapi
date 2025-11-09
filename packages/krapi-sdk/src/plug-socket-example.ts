@@ -14,7 +14,7 @@
  * await serverExample(dbConnection, console);
  */
 import { DatabaseConnection, Logger } from "./core";
-import { krapi } from "./krapi";
+import { krapi, KrapiConfig } from "./krapi";
 
 /**
  * Business Logic Class - Works Identically in Both Environments
@@ -230,10 +230,13 @@ export async function serverExample(databaseConnection: DatabaseConnection, logg
   }
 
   // Connect to database directly
-  await krapi.connect({
+  const config: KrapiConfig = {
     database: databaseConnection,
-    logger: logger || undefined,
-  });
+  };
+  if (logger !== undefined) {
+    config.logger = logger;
+  }
+  await krapi.connect(config);
 
   if (logger) {
     logger.info(`Connected in ${krapi.getMode()} mode`);

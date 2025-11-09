@@ -44,6 +44,7 @@ const controller = new ProjectController();
 const collectionsController = new CollectionsController();
 
 // Initialize the BackendSDK - will be set from app.ts
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let _backendSDK: BackendSDK;
 
 /**
@@ -372,7 +373,7 @@ router.put(
 
       const success = await db.enableProjectUser(projectId, userId);
       if (success) {
-        res.json({
+        return res.json({
           success: true,
           message: "Project user enabled successfully",
         });
@@ -407,7 +408,7 @@ router.put(
 
       const success = await db.disableProjectUser(projectId, userId);
       if (success) {
-        res.json({
+        return res.json({
           success: true,
           message: "Project user disabled successfully",
         });
@@ -442,7 +443,7 @@ router.get(
 
       const status = await db.getProjectUserStatus(projectId, userId);
       if (status) {
-        res.json({
+        return res.json({
           success: true,
           data: status,
         });

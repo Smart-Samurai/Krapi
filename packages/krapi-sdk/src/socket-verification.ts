@@ -59,7 +59,9 @@ export class SocketVerification {
   private logger?: Logger;
 
   constructor(logger?: Logger) {
-    this.logger = logger;
+    if (logger !== undefined) {
+      this.logger = logger;
+    }
   }
 
   /**

@@ -314,15 +314,19 @@ export class PerformanceMonitor {
       const metric: PerformanceMetric = {
         id: `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         operation,
-        collection_name: collectionName,
         duration_ms: duration,
         memory_usage_mb: memoryUsed,
         cpu_usage_percent: cpuUsed,
         records_processed: 0, // This would need to be calculated based on the operation
         success: true,
-        metadata,
         timestamp: new Date(),
       };
+      if (collectionName !== undefined) {
+        metric.collection_name = collectionName;
+      }
+      if (metadata !== undefined) {
+        metric.metadata = metadata;
+      }
 
       await this.saveMetric(metric);
       this.metrics.push(metric);
@@ -337,16 +341,20 @@ export class PerformanceMonitor {
       const metric: PerformanceMetric = {
         id: `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         operation,
-        collection_name: collectionName,
         duration_ms: duration,
         memory_usage_mb: memoryUsed,
         cpu_usage_percent: cpuUsed,
         records_processed: 0,
         success: false,
         error_message: error instanceof Error ? error.message : "Unknown error",
-        metadata,
         timestamp: new Date(),
       };
+      if (collectionName !== undefined) {
+        metric.collection_name = collectionName;
+      }
+      if (metadata !== undefined) {
+        metric.metadata = metadata;
+      }
 
       await this.saveMetric(metric);
       this.metrics.push(metric);
@@ -412,7 +420,8 @@ export class PerformanceMonitor {
 
     await Promise.all(batchPromises);
 
-    const _monitoringResults = this.stopMonitoring();
+    // Monitoring results available for analysis
+    void this.stopMonitoring();
     const successfulOperations = results.filter((r) => r.success).length;
     const failedOperations = results.filter((r) => !r.success).length;
 
@@ -556,11 +565,14 @@ export class PerformanceMonitor {
         params
       );
 
-      const topSlowOperations = (slowOpsResult.rows || []).map(
-        (row: Record<string, unknown>) => ({
-          operation: row.operation_name as string,
-          avg_duration: parseFloat(row.avg_duration as string),
-        })
+      const topSlowOperations = (slowOpsResult.rows || [] as unknown[]).map(
+        (row: unknown) => {
+          const rowData = row as Record<string, unknown>;
+          return {
+          operation: rowData.operation_name as string,
+          avg_duration: parseFloat(rowData.avg_duration as string),
+        };
+        }
       );
 
       // Memory usage trend
@@ -576,11 +588,14 @@ export class PerformanceMonitor {
         params
       );
 
-      const memoryUsageTrend = (memoryResult.rows || []).map(
-        (row: Record<string, unknown>) => ({
-          date: row.date as string,
-          avg_memory: parseFloat(row.avg_memory as string),
-        })
+      const memoryUsageTrend = (memoryResult.rows || [] as unknown[]).map(
+        (row: unknown) => {
+          const rowData = row as Record<string, unknown>;
+          return {
+          date: rowData.date as string,
+          avg_memory: parseFloat(rowData.avg_memory as string),
+        };
+        }
       );
 
       // CPU usage trend
@@ -596,11 +611,14 @@ export class PerformanceMonitor {
         params
       );
 
-      const cpuUsageTrend = (cpuResult.rows || []).map(
-        (row: Record<string, unknown>) => ({
-          date: row.date as string,
-          avg_cpu: parseFloat(row.avg_cpu as string),
-        })
+      const cpuUsageTrend = (cpuResult.rows || [] as unknown[]).map(
+        (row: unknown) => {
+          const rowData = row as Record<string, unknown>;
+          return {
+          date: rowData.date as string,
+          avg_cpu: parseFloat(rowData.avg_cpu as string),
+        };
+        }
       );
 
       return {

@@ -73,12 +73,13 @@ export class DatabaseService {
   private isConnected = false;
   private connectionAttempts = 0;
   private maxConnectionAttempts = 10;
-  private migrationService: MigrationService;
+  private migrationService!: MigrationService;
   private readyPromise: Promise<void>;
   private readyResolve!: () => void;
   private readyReject!: (error: Error) => void;
   private lastHealthCheck: Date | null = null;
-  private healthCheckInterval = 300000; // 5 minutes - reduce frequency to avoid conflicts
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private _healthCheckInterval = 300000; // 5 minutes - reduce frequency to avoid conflicts
   private queue: DatabaseQueue;
   private queueInitialized = false;
 
@@ -580,7 +581,7 @@ export class DatabaseService {
       }
 
       // Re-initialize tables if needed
-      if (health.details?.missingTables?.length > 0) {
+      if (health.details?.missingTables && health.details.missingTables.length > 0) {
         console.log("Re-initializing missing tables...");
         if (process.env.NODE_ENV === "development") {
           await this.createEssentialTables();
@@ -1517,6 +1518,10 @@ export class DatabaseService {
       "SELECT * FROM admin_users WHERE id = $1",
       [adminId]
     );
+
+    if (!result.rows[0]) {
+      throw new Error("Failed to retrieve created admin user");
+    }
 
     return this.mapAdminUser(result.rows[0]);
   }
