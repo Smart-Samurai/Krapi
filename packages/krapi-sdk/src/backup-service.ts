@@ -258,8 +258,10 @@ export class BackupService {
         size: encrypted.length,
         encrypted: true,
         version: "2.0.0",
-        description: options.description,
       };
+      if (options.description !== undefined) {
+        backupMetadata.description = options.description;
+      }
 
       const backupFile = {
         metadata: backupMetadata,
@@ -455,16 +457,24 @@ export class BackupService {
 
       const result = await this.dbConnection.query(query, params);
 
-      return (result.rows || []).map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        project_id: (row.project_id as string) || undefined,
-        type: row.type as "project" | "system",
-        created_at: row.created_at as string,
-        size: row.size as number,
-        encrypted: row.encrypted as boolean,
-        version: (row.version as string) || "2.0.0",
-        description: row.description || undefined,
-      })) as BackupMetadata[];
+      return (result.rows || [] as unknown[]).map((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        const metadata: BackupMetadata = {
+          id: rowData.id as string,
+          type: rowData.type as "project" | "system",
+          created_at: rowData.created_at as string,
+          size: rowData.size as number,
+          encrypted: rowData.encrypted as boolean,
+          version: (rowData.version as string) || "2.0.0",
+        };
+        if (rowData.project_id !== undefined && rowData.project_id !== null) {
+          metadata.project_id = rowData.project_id as string;
+        }
+        if (rowData.description !== undefined && rowData.description !== null) {
+          metadata.description = rowData.description as string;
+        }
+        return metadata;
+      });
     } catch (error) {
       this.logger.error("Failed to list backups:", error);
       // If backups table doesn't exist, return empty array
@@ -558,7 +568,10 @@ export class BackupService {
         "SELECT id FROM projects WHERE is_active = 1"
       );
 
-      systemData.projects = projectsResult.rows.map((row: Record<string, unknown>) => row.id as string);
+      systemData.projects = (projectsResult.rows || [] as unknown[]).map((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        return rowData.id as string;
+      });
 
       // Serialize system data
       const jsonData = JSON.stringify(systemData);
@@ -581,8 +594,10 @@ export class BackupService {
         size: encrypted.length,
         encrypted: true,
         version: "2.0.0",
-        description: options.description,
       };
+      if (options.description !== undefined) {
+        backupMetadata.description = options.description;
+      }
 
       const backupFile = {
         metadata: backupMetadata,

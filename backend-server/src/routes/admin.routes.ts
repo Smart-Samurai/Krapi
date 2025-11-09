@@ -47,7 +47,7 @@ router.get(
   requireScopes({
     scopes: [Scope.ADMIN_READ],
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -95,8 +95,8 @@ router.get(
       }
 
       return res.json({ success: true, data: user });
-    } catch (error) {
-      res.status(500).json({
+    } catch (error: unknown) {
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to get admin user",
@@ -122,7 +122,7 @@ router.post(
       const user = await backendSDK.admin.createUser(userData);
       return res.status(201).json({ success: true, data: user });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -163,7 +163,7 @@ router.put(
 
       return res.json({ success: true, data: user });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -203,7 +203,7 @@ router.delete(
 
       return res.json({ success: true, message: "Admin user deleted successfully" });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -236,8 +236,8 @@ router.get(
       }
       const apiKeys = await backendSDK.admin.getUserApiKeys(userId);
       return res.json({ success: true, data: apiKeys });
-    } catch (error) {
-      res.status(500).json({
+    } catch (error: unknown) {
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -273,8 +273,8 @@ router.post(
         apiKeyData
       );
       return res.status(201).json({ success: true, data: apiKey });
-    } catch (error) {
-      res.status(500).json({
+    } catch (error: unknown) {
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -316,9 +316,9 @@ router.post(
         expires_at: expires_at || undefined,
       });
 
-      res.status(201).json({ success: true, data: apiKey });
+      return res.status(201).json({ success: true, data: apiKey });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -335,7 +335,7 @@ router.post(
   requireScopes({
     scopes: [Scope.MASTER],
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -344,9 +344,9 @@ router.post(
       }
 
       const apiKey = await backendSDK.admin.createMasterApiKey();
-      res.status(201).json({ success: true, data: apiKey });
-    } catch (error) {
-      res.status(500).json({
+      return res.status(201).json({ success: true, data: apiKey });
+    } catch (error: unknown) {
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -386,7 +386,7 @@ router.delete(
 
       return res.json({ success: true, message: "API key deleted successfully" });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to delete API key",
@@ -401,7 +401,7 @@ router.get(
   requireScopes({
     scopes: [Scope.ADMIN_READ],
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -411,8 +411,8 @@ router.get(
 
       const stats = await backendSDK.admin.getSystemStats();
       return res.json({ success: true, data: stats });
-    } catch (error) {
-      res.status(500).json({
+    } catch (error: unknown) {
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to get system stats",
@@ -427,7 +427,7 @@ router.get(
   requireScopes({
     scopes: [Scope.ADMIN_READ],
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -437,8 +437,8 @@ router.get(
 
       const health = await backendSDK.performHealthCheck();
       return res.json({ success: true, data: health });
-    } catch (error) {
-      res.status(500).json({
+    } catch (error: unknown) {
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -455,7 +455,7 @@ router.post(
   requireScopes({
     scopes: [Scope.MASTER],
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -473,7 +473,7 @@ router.post(
         actions: repairResult,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to repair database",
@@ -488,7 +488,7 @@ router.post(
   requireScopes({
     scopes: [Scope.ADMIN_READ],
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -499,7 +499,7 @@ router.post(
       const diagnostics = await backendSDK.health.runDiagnostics();
       return res.json({ success: true, data: diagnostics });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to run diagnostics",
@@ -537,7 +537,7 @@ router.put(
         });
       }
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -576,7 +576,7 @@ router.put(
         });
       }
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -615,7 +615,7 @@ router.get(
         });
       }
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -648,7 +648,7 @@ router.get(
 
       return res.json({ success: true, data: logs });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -678,7 +678,7 @@ router.post(
 
       return res.json({ success: true, data: loggedActivity });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to log activity",
@@ -706,7 +706,7 @@ router.get(
 
       return res.json({ success: true, data: result });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -739,7 +739,7 @@ router.get(
 
       return res.json({ success: true, ...stats });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error

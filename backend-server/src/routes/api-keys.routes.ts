@@ -75,12 +75,12 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
     // Use SDK for API key management
     const apiKeys = await backendSDK.apiKeys.getAll(projectId);
 
-    res.json({
+    return res.json({
       success: true,
       data: apiKeys,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get API keys",
     });
@@ -125,7 +125,7 @@ router.post("/", async (req: AuthenticatedRequest, res: Response) => {
     });
 
     // Transform response to match expected test format
-    res.json({
+    return res.json({
       success: true,
       data: {
         key_id: apiKey.id,
@@ -138,7 +138,7 @@ router.post("/", async (req: AuthenticatedRequest, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to create API key",
@@ -166,7 +166,7 @@ router.get("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // Transform response to match expected test format
-    res.json({
+    return res.json({
       success: true,
       data: {
         key_id: apiKey.id,
@@ -179,7 +179,7 @@ router.get("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get API key",
     });
@@ -206,12 +206,12 @@ router.put("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: apiKey,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to update API key",
@@ -238,12 +238,12 @@ router.delete("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: "API key deleted successfully",
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to delete API key",
@@ -272,12 +272,12 @@ router.post(
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: apiKey,
       });
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error

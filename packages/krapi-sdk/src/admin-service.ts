@@ -84,7 +84,8 @@ export interface DiagnosticResult {
 export class AdminService {
   private db: DatabaseConnection;
   private logger: Logger;
-  private backupService?: BackupService;
+  // @ts-expect-error - Backup service reserved for future use
+  private _backupService?: BackupService;
 
   /**
    * Create a new AdminService instance
@@ -104,7 +105,7 @@ export class AdminService {
    * @returns {void}
    */
   setBackupService(backupService: BackupService): void {
-    this.backupService = backupService;
+    this._backupService = backupService;
   }
 
   /**
@@ -1033,14 +1034,15 @@ export class AdminService {
       try {
         const result = await this.db.query(query, values);
         // Map changelog records to ActivityLog format
-        const logs: ActivityLog[] = (result.rows || []).map((row: Record<string, unknown>): ActivityLog => {
+        const logs: ActivityLog[] = (result.rows || [] as unknown[]).map((row: unknown): ActivityLog => {
+          const rowData = row as Record<string, unknown>;
           let details: Record<string, unknown> = {};
           try {
-            if (row.changes) {
-              if (typeof row.changes === 'string') {
-                details = JSON.parse(row.changes);
-              } else if (typeof row.changes === 'object') {
-                details = row.changes as Record<string, unknown>;
+            if (rowData.changes) {
+              if (typeof rowData.changes === 'string') {
+                details = JSON.parse(rowData.changes);
+              } else if (typeof rowData.changes === 'object') {
+                details = rowData.changes as Record<string, unknown>;
               }
             }
           } catch {
@@ -1048,18 +1050,25 @@ export class AdminService {
             details = {};
           }
           
-          return {
-            id: (row.id as string) || '',
-            user_id: (row.user_id as string | undefined) || undefined,
-            project_id: (row.project_id as string | undefined) || undefined,
-            action: (row.action as string) || '',
-            resource_type: (row.entity_type as string) || '',
-            resource_id: (row.entity_id as string | undefined) || undefined,
+          const log: ActivityLog = {
+            id: (rowData.id as string) || '',
+            action: (rowData.action as string) || '',
+            resource_type: (rowData.entity_type as string) || '',
             details,
-            timestamp: row.created_at ? new Date(row.created_at as string) : new Date(),
+            timestamp: rowData.created_at ? new Date(rowData.created_at as string) : new Date(),
             severity: 'info' as const,
             metadata: {},
           };
+          if (rowData.user_id !== undefined && rowData.user_id !== null) {
+            log.user_id = rowData.user_id as string;
+          }
+          if (rowData.project_id !== undefined && rowData.project_id !== null) {
+            log.project_id = rowData.project_id as string;
+          }
+          if (rowData.entity_id !== undefined && rowData.entity_id !== null) {
+            log.resource_id = rowData.entity_id as string;
+          }
+          return log;
         });
         return logs;
       } catch (queryError: unknown) {

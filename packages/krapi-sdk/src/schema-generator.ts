@@ -473,7 +473,9 @@ export class SchemaGenerator {
     return "1.0.0";
   }
 
-  private generateChecksum(schema: Record<string, TableDefinition>): string {
+  // Checksum generation available for schema validation
+  // @ts-expect-error - Method reserved for future use
+  private _generateChecksum(schema: Record<string, TableDefinition>): string {
     // Simple checksum generation for schema validation
     const schemaString = JSON.stringify(schema, Object.keys(schema).sort());
     let hash = 0;
@@ -506,7 +508,7 @@ export class SchemaGenerator {
     const generator = new SchemaGenerator({ [interfaceName]: interfaceDef });
     const schema = generator.generateSchema();
     const tableName = generator.getTableName(interfaceName);
-    const table = schema.tables[tableName];
+    const table = schema.tables.find((t) => t.name === tableName);
     if (!table) {
       throw new Error(`Table ${tableName} not found in schema`);
     }

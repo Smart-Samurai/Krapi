@@ -52,7 +52,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: false,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -64,13 +64,13 @@ router.get(
       const settings = await backendSDK.system.getSettings();
       const config = (settings as { email?: unknown })?.email || {};
 
-      res.json({
+      return res.json({
         success: true,
         data: config,
       });
     } catch (error) {
       console.error("Error getting email config:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email configuration",
       });
@@ -85,7 +85,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: false,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -134,7 +134,7 @@ router.post(
 
       // testEmailConfig returns { success: boolean; error?: string }
       // Format response to match expected structure
-      res.json({
+      return res.json({
         success: true, // Endpoint is working
         data: {
           success: result.success === true,
@@ -142,7 +142,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error testing email config:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to test email configuration",
       });
@@ -158,7 +158,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -167,15 +167,21 @@ router.get(
       }
 
       const { projectId } = req.params;
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
       const config = await backendSDK.email.getConfig(projectId);
 
-      res.json({
+      return res.json({
         success: true,
         data: config,
       });
     } catch (error) {
       console.error("Error getting email config:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email configuration",
       });
@@ -191,7 +197,7 @@ router.put(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -200,16 +206,22 @@ router.put(
       }
 
       const { projectId } = req.params;
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
       const configData = req.body;
       const config = await backendSDK.email.updateConfig(projectId, configData);
 
-      res.json({
+      return res.json({
         success: true,
         data: config,
       });
     } catch (error) {
       console.error("Error updating email config:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to update email configuration",
       });
@@ -225,7 +237,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -234,6 +246,12 @@ router.post(
       }
 
       const { projectId } = req.params;
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
       const { email } = req.body;
 
       if (!email) {
@@ -246,13 +264,13 @@ router.post(
 
       const result = await backendSDK.email.testConfig(projectId);
 
-      res.json({
+      return res.json({
         success: true,
         data: result,
       });
     } catch (error) {
       console.error("Error testing email config:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to test email configuration",
       });
@@ -268,7 +286,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -277,15 +295,21 @@ router.get(
       }
 
       const { projectId } = req.params;
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
       const templates = await backendSDK.email.getTemplates(projectId);
 
-      res.json({
+      return res.json({
         success: true,
         data: templates,
       });
     } catch (error) {
       console.error("Error getting email templates:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email templates",
       });
@@ -301,7 +325,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -310,6 +334,12 @@ router.get(
       }
 
       const { projectId: _projectId, templateId } = req.params;
+      if (!templateId) {
+        return res.status(400).json({
+          success: false,
+          error: "Template ID is required",
+        });
+      }
       const result = await backendSDK.email.getTemplate(templateId);
 
       if (!result) {
@@ -319,13 +349,13 @@ router.get(
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: result,
       });
     } catch (error) {
       console.error("Error getting email template:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email template",
       });
@@ -341,7 +371,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -374,7 +404,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error creating email template:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to create email template",
       });
@@ -390,7 +420,7 @@ router.put(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -399,6 +429,12 @@ router.put(
       }
 
       const { projectId: _projectId, templateId } = req.params;
+      if (!templateId) {
+        return res.status(400).json({
+          success: false,
+          error: "Template ID is required",
+        });
+      }
       const templateData = req.body;
 
       if (!templateData.name || !templateData.subject || !templateData.body) {
@@ -420,13 +456,13 @@ router.put(
         templateWithProject
       );
 
-      res.json({
+      return res.json({
         success: true,
         data: result,
       });
     } catch (error) {
       console.error("Error updating email template:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to update email template",
       });
@@ -442,7 +478,7 @@ router.delete(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -451,6 +487,12 @@ router.delete(
       }
 
       const { projectId: _projectId, templateId } = req.params;
+      if (!templateId) {
+        return res.status(400).json({
+          success: false,
+          error: "Template ID is required",
+        });
+      }
       const result = await backendSDK.email.deleteTemplate(templateId);
 
       if (!result) {
@@ -460,13 +502,13 @@ router.delete(
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         message: "Email template deleted successfully",
       });
     } catch (error) {
       console.error("Error deleting email template:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to delete email template",
       });
@@ -482,7 +524,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -491,6 +533,12 @@ router.post(
       }
 
       const { projectId } = req.params;
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
       const emailData = req.body;
 
       if (!emailData.to || !emailData.subject || !emailData.body) {
@@ -514,7 +562,7 @@ router.post(
         .toString(36)
         .substr(2, 9)}`;
 
-      res.json({
+      return res.json({
         success: true,
         email_id: emailId,
         data: {
@@ -523,7 +571,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error sending email:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to send email",
       });
@@ -539,7 +587,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -571,7 +619,7 @@ router.post(
         .toString(36)
         .substr(2, 9)}`;
 
-      res.json({
+      return res.json({
         success: true,
         email_id: emailId,
         status: "sent",
@@ -579,7 +627,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error sending global email:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to send email",
       });
@@ -595,7 +643,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -662,7 +710,7 @@ router.post(
         .toString(36)
         .substr(2, 9)}`;
 
-      res.json({
+      return res.json({
         success: true,
         email_id: bulkEmailId,
         batch_id: bulkEmailId, // Use the same ID for batch_id
@@ -676,11 +724,14 @@ router.post(
           failed_sends: errors.length,
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error sending bulk email:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        error: "Failed to send bulk email",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to send bulk email",
       });
     }
   }
@@ -694,7 +745,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -714,7 +765,7 @@ router.get(
 
       // For testing purposes, return a mock status
       // In a real implementation, this would query the database for the email status
-      res.json({
+      return res.json({
         success: true,
         email_id: emailId,
         status: "sent",
@@ -726,7 +777,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error getting email status:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email status",
       });
@@ -742,7 +793,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -773,7 +824,7 @@ router.get(
         },
       ];
 
-      res.json({
+      return res.json({
         success: true,
         emails: mockEmails,
         pagination: {
@@ -784,7 +835,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error listing sent emails:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to list sent emails",
       });
@@ -800,7 +851,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -851,7 +902,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error creating global email template:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to create email template",
       });
@@ -867,7 +918,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -904,7 +955,7 @@ router.get(
         },
       ];
 
-      res.json({
+      return res.json({
         success: true,
         templates: mockTemplates,
         pagination: {
@@ -915,7 +966,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error listing email templates:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to list email templates",
       });
@@ -931,7 +982,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -967,7 +1018,7 @@ router.post(
       const processedSubject = "Welcome to Test App!"; // Would be processed from template
       const processedBody = "Hello Test User, welcome to Test App!"; // Would be processed from template
 
-      res.json({
+      return res.json({
         success: true,
         email_id: emailId,
         status: "sent",
@@ -983,7 +1034,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error sending email from template:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to send email from template",
       });
@@ -999,7 +1050,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1022,13 +1073,13 @@ router.get(
         generated_at: new Date().toISOString(),
       };
 
-      res.json({
+      return res.json({
         success: true,
         ...mockAnalytics,
       });
     } catch (error) {
       console.error("Error getting email analytics:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email analytics",
       });
@@ -1044,7 +1095,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1067,7 +1118,7 @@ router.post(
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       const isValid = emailRegex.test(email);
 
-      res.json({
+      return res.json({
         success: true,
         valid: isValid,
         email,
@@ -1078,7 +1129,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error validating email address:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to validate email address",
       });
@@ -1094,7 +1145,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1125,7 +1176,7 @@ router.get(
         },
       ];
 
-      res.json({
+      return res.json({
         success: true,
         bounces: mockBounces,
         pagination: {
@@ -1136,7 +1187,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error getting email bounces:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get email bounces",
       });
@@ -1152,7 +1203,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (req, res) => {
+  async (_req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1176,7 +1227,7 @@ router.post(
         .toString(36)
         .substr(2, 9)}`;
 
-      res.json({
+      return res.json({
         success: true,
         message: "Email successfully unsubscribed",
         email,
@@ -1186,7 +1237,7 @@ router.post(
       });
     } catch (error) {
       console.error("Error handling email unsubscribe:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to handle email unsubscribe",
       });

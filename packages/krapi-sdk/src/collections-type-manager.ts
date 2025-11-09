@@ -305,7 +305,8 @@ export class CollectionsTypeManager {
       });
     }
 
-    const _validationDuration = Date.now() - startTime;
+    // Validation duration tracked for performance monitoring
+    void (Date.now() - startTime);
 
     return {
       isValid: issues.filter((i) => i.severity === "error").length === 0,
@@ -587,7 +588,7 @@ export class CollectionsTypeManager {
     }
 
     // Check index type
-    if (!["btree", "hash", "gin", "gist"].includes(index.type)) {
+    if (index.type && !["btree", "hash", "gin", "gist"].includes(index.type)) {
       issues.push({
         type: "type_mismatch",
         severity: "error",

@@ -27,11 +27,16 @@ const db = DatabaseService.getInstance();
  * const ctx = resolveContext(req, 'project', 'project-uuid');
  */
 function resolveContext(req: Request & { user?: { id: string } }, scope: 'admin' | 'project', projectId?: string): ToolContext {
-  return {
+  const context: ToolContext = {
     scope,
-    projectId,
-    userId: req.user?.id,
   };
+  if (projectId !== undefined) {
+    context.projectId = projectId;
+  }
+  if (req.user?.id !== undefined) {
+    context.userId = req.user.id;
+  }
+  return context;
 }
 
 /**
@@ -57,12 +62,15 @@ function getLlmConfig(req: Request): LlmConfig {
   if (!provider || !endpoint || !model) {
     throw new Error('provider, endpoint and model are required');
   }
-  return { 
-    provider: provider as 'openai' | 'lmstudio' | 'ollama', 
-    endpoint, 
-    apiKey, 
-    model 
+  const config: LlmConfig = {
+    provider: provider as 'openai' | 'lmstudio' | 'ollama',
+    endpoint,
+    model,
   };
+  if (apiKey !== undefined) {
+    config.apiKey = apiKey;
+  }
+  return config;
 }
 
 const adminToolSpecs = [
@@ -742,11 +750,19 @@ router.post('/models', async (req: Request, res: Response) => {
           headers,
           timeout: 10000,
         });
-        models = (response.data.data || []).map((m: { id: string; [key: string]: unknown }) => ({
-          id: m.id,
-          name: m.id,
-          ...m,
-        }));
+        models = (response.data.data || []).map((m: { id: string; [key: string]: unknown }) => {
+          const model: { id: string; name: string; [key: string]: unknown } = {
+            id: m.id,
+            name: m.id,
+          };
+          // Copy other properties except id and name to avoid overwriting
+          for (const [key, value] of Object.entries(m)) {
+            if (key !== 'id' && key !== 'name') {
+              model[key] = value;
+            }
+          }
+          return model;
+        });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return res.status(500).json({
@@ -764,21 +780,37 @@ router.post('/models', async (req: Request, res: Response) => {
             headers,
             timeout: 10000,
           });
-          models = (response.data.data || []).map((m: { id: string; [key: string]: unknown }) => ({
-            id: m.id,
-            name: m.id,
-            ...m,
-          }));
+          models = (response.data.data || []).map((m: { id: string; [key: string]: unknown }) => {
+            const model: { id: string; name: string; [key: string]: unknown } = {
+              id: m.id,
+              name: m.id,
+            };
+            // Copy other properties except id and name to avoid overwriting
+            for (const [key, value] of Object.entries(m)) {
+              if (key !== 'id' && key !== 'name') {
+                model[key] = value;
+              }
+            }
+            return model;
+          });
         } catch {
           // Fall back to Ollama native API
           const response = await axios.get(`${endpoint}/api/tags`, {
             timeout: 10000,
           });
-          models = (response.data.models || []).map((m: { name: string; [key: string]: unknown }) => ({
-            id: m.name,
-            name: m.name,
-            ...m,
-          }));
+          models = (response.data.models || []).map((m: { name: string; [key: string]: unknown }) => {
+            const model: { id: string; name: string; [key: string]: unknown } = {
+              id: m.name,
+              name: m.name,
+            };
+            // Copy other properties except id and name to avoid overwriting
+            for (const [key, value] of Object.entries(m)) {
+              if (key !== 'id' && key !== 'name') {
+                model[key] = value;
+              }
+            }
+            return model;
+          });
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -800,7 +832,7 @@ router.post('/models', async (req: Request, res: Response) => {
     });
   } catch (e: unknown) {
     const error = e instanceof Error ? e : new Error('Unknown error');
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || 'Failed to list models',
     });
@@ -1001,7 +1033,7 @@ router.post('/model-capabilities', async (req: Request, res: Response) => {
     });
   } catch (e: unknown) {
     const error = e instanceof Error ? e : new Error('Unknown error');
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message || 'Failed to check model capabilities',
     });
@@ -1052,7 +1084,7 @@ router.post('/admin/chat', requireScopes({ scopes: [Scope.ADMIN_READ], requireAl
     return res.json({ success: true, messages: updated });
   } catch (e: unknown) {
     const error = e instanceof Error ? e : new Error('Unknown error');
-    res.status(500).json({ success: false, error: error.message || 'MCP admin chat failed' });
+    return res.status(500).json({ success: false, error: error.message || 'MCP admin chat failed' });
   }
 });
 
@@ -1103,7 +1135,7 @@ router.post('/projects/:projectId/chat', requireScopes({ scopes: [Scope.PROJECTS
     return res.json({ success: true, messages: updated });
   } catch (e: unknown) {
     const error = e instanceof Error ? e : new Error('Unknown error');
-    res.status(500).json({ success: false, error: error.message || 'MCP project chat failed' });
+    return res.status(500).json({ success: false, error: error.message || 'MCP project chat failed' });
   }
 });
 

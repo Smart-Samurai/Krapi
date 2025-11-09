@@ -94,7 +94,7 @@ router.get(
         },
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: entries,
         pagination: {
@@ -106,7 +106,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error getting changelog:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get changelog entries",
       });
@@ -136,6 +136,13 @@ router.get(
         });
       }
 
+      if (!collectionName) {
+        return res.status(400).json({
+          success: false,
+          error: "Collection name is required",
+        });
+      }
+
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
       if (user_id) filters.user_id = user_id as string;
@@ -155,7 +162,7 @@ router.get(
         },
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: entries,
         pagination: {
@@ -167,7 +174,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error getting collection changelog:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get collection changelog entries",
       });
@@ -197,6 +204,13 @@ router.get(
         });
       }
 
+      if (!collectionName || !documentId) {
+        return res.status(400).json({
+          success: false,
+          error: "Collection name and document ID are required",
+        });
+      }
+
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
       if (user_id) filters.user_id = user_id as string;
@@ -216,7 +230,7 @@ router.get(
         },
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: entries,
         pagination: {
@@ -228,7 +242,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error getting document changelog:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get document changelog entries",
       });
@@ -258,6 +272,13 @@ router.get(
         });
       }
 
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+      }
+
       const filters: Record<string, string> = {};
       if (action_type) filters.action_type = action_type as string;
       if (start_date) filters.start_date = start_date as string;
@@ -276,7 +297,7 @@ router.get(
         },
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: entries,
         pagination: {
@@ -288,7 +309,7 @@ router.get(
       });
     } catch (error) {
       console.error("Error getting user activity:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get user activity",
       });
@@ -311,6 +332,13 @@ router.get(
       const { projectId } = req.params;
       const { period = "day", start_date, end_date, group_by } = req.query;
 
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
+
       const db = DatabaseService.getInstance();
 
       // This would need to be implemented in the database service
@@ -321,13 +349,13 @@ router.get(
         group_by: group_by as string,
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: stats,
       });
     } catch (error) {
       console.error("Error getting changelog statistics:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get changelog statistics",
       });
@@ -350,6 +378,13 @@ router.post(
       const { projectId } = req.params;
       const { format = "json", start_date, end_date, action_type, user_id, entity_type } = req.body;
 
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
+
       const db = DatabaseService.getInstance();
 
       // This would need to be implemented in the database service
@@ -362,13 +397,13 @@ router.post(
         entity_type,
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: exportResult,
       });
     } catch (error) {
       console.error("Error exporting changelog:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to export changelog",
       });
@@ -399,13 +434,13 @@ router.delete(
         entity_type,
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: purgeResult,
       });
     } catch (error) {
       console.error("Error purging changelog:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to purge changelog",
       });

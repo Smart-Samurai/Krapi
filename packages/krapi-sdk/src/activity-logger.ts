@@ -339,19 +339,22 @@ export class ActivityLogger {
         [...params, limit, offset]
       );
 
-      const logs = (logsResult.rows || []).map(
-        (row: Record<string, unknown>) => ({
-          ...row,
-          timestamp: new Date(row.timestamp as string),
+      const logs = (logsResult.rows || [] as unknown[]).map(
+        (row: unknown) => {
+          const rowData = row as Record<string, unknown>;
+          return {
+          ...rowData,
+          timestamp: new Date(rowData.timestamp as string),
           details:
-            typeof row.details === "string"
-              ? JSON.parse(row.details)
-              : row.details,
+            typeof rowData.details === "string"
+              ? JSON.parse(rowData.details)
+              : rowData.details,
           metadata:
-            typeof row.metadata === "string"
-              ? JSON.parse(row.metadata)
-              : row.metadata,
-        })
+            typeof rowData.metadata === "string"
+              ? JSON.parse(rowData.metadata)
+              : rowData.metadata,
+        };
+        }
       ) as ActivityLog[];
 
       return { logs, total };
@@ -457,9 +460,10 @@ export class ActivityLogger {
         params
       );
       const actions_by_type: Record<string, number> = {};
-      (typeResult.rows || []).forEach((row: Record<string, unknown>) => {
-        actions_by_type[row.action as string] = parseInt(
-          (row.count as string) || "0"
+      (typeResult.rows || [] as unknown[]).forEach((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        actions_by_type[rowData.action as string] = parseInt(
+          (rowData.count as string) || "0"
         );
       });
 
@@ -475,9 +479,10 @@ export class ActivityLogger {
         params
       );
       const actions_by_severity: Record<string, number> = {};
-      (severityResult.rows || []).forEach((row: Record<string, unknown>) => {
-        actions_by_severity[row.severity as string] = parseInt(
-          (row.count as string) || "0"
+      (severityResult.rows || [] as unknown[]).forEach((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        actions_by_severity[rowData.severity as string] = parseInt(
+          (rowData.count as string) || "0"
         );
       });
 
@@ -493,9 +498,10 @@ export class ActivityLogger {
         params
       );
       const actions_by_user: Record<string, number> = {};
-      (userResult.rows || []).forEach((row: Record<string, unknown>) => {
-        actions_by_user[row.user_id as string] = parseInt(
-          (row.count as string) || "0"
+      (userResult.rows || [] as unknown[]).forEach((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        actions_by_user[rowData.user_id as string] = parseInt(
+          (rowData.count as string) || "0"
         );
       });
 

@@ -282,7 +282,7 @@ export class CollectionsController {
         sanitizedId
       );
       const duplicateCollection = existingCollections.find(
-        (collection) => collection.name === name
+        (collection: { name: string }) => collection.name === name
       );
 
       if (duplicateCollection) {

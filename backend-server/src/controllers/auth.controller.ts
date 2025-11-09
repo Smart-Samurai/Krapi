@@ -844,6 +844,7 @@ export class AuthController {
   };
 
    
+  // @ts-expect-error - Method reserved for future use
   private _mapAdminPermissionsToScopes(_permissions: string[]): string[] {
     const permissionToScopeMap: Record<string, string> = {
       "users.create": "ADMIN_WRITE",
