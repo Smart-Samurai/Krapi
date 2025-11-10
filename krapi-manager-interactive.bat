@@ -110,15 +110,16 @@ if not exist ".env" (
 exit /b 0
 
 :install_dependencies
-echo [INFO] Installing dependencies...
+echo [INFO] Installing/updating dependencies...
 call :init_environment
+REM Always run install to update dependencies (especially SDK to latest)
 call %PACKAGE_MANAGER% install
 if !errorlevel! neq 0 (
     echo [ERROR] Failed to install dependencies
     pause
     exit /b 1
 )
-echo [SUCCESS] Dependencies installed
+echo [SUCCESS] Dependencies installed/updated
 exit /b 0
 
 :build_all

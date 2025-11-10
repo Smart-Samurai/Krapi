@@ -210,6 +210,7 @@ export default function CollectionsPage() {
   });
 
   const loadCollections = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchCollections({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
@@ -268,6 +269,12 @@ export default function CollectionsPage() {
         };
       });
 
+      if (!krapi) {
+        setError("KRAPI client not initialized");
+        toast.error("KRAPI client not initialized");
+        dispatch(endBusy());
+        return;
+      }
       const action = await dispatch(
         createCollection({
           projectId,
@@ -303,6 +310,10 @@ export default function CollectionsPage() {
 
   const handleUpdateCollection = async () => {
     if (!editingCollection) return;
+    if (!krapi) {
+      toast.error("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
@@ -345,6 +356,10 @@ export default function CollectionsPage() {
       return;
     }
 
+    if (!krapi) {
+      toast.error("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(

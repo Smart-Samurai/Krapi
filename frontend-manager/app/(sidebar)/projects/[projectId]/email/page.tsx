@@ -97,6 +97,7 @@ import {
 } from "@/store/emailSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
+import { toast } from "sonner";
 
 /**
  * Email Page Component
@@ -164,10 +165,12 @@ export default function EmailPage() {
   });
 
   const loadEmailConfigCb = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchEmailConfig({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
   const loadTemplatesCb = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchEmailTemplates({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
@@ -191,6 +194,10 @@ export default function EmailPage() {
   }, [emailConfig]);
 
   const handleSaveConfig = async () => {
+    if (!krapi) {
+      toast.error("KRAPI client not initialized");
+      return;
+    }
     try {
       setIsSaving(true);
       dispatch(beginBusy());
@@ -216,6 +223,10 @@ export default function EmailPage() {
   };
 
   const handleTestConfig = async () => {
+    if (!krapi) {
+      toast.error("KRAPI client not initialized");
+      return;
+    }
     try {
       setIsTesting(true);
       dispatch(beginBusy());
@@ -237,6 +248,10 @@ export default function EmailPage() {
   };
 
   const handleCreateTemplate = async () => {
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
@@ -261,6 +276,10 @@ export default function EmailPage() {
 
   const handleUpdateTemplate = async () => {
     if (!editingTemplate) return;
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
@@ -291,6 +310,10 @@ export default function EmailPage() {
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (!confirm("Are you sure you want to delete this template?")) return;
+    if (!krapi) {
+      toast.error("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(

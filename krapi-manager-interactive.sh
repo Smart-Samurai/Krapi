@@ -68,12 +68,13 @@ show_sdk_menu() {
 }
 
 install_dependencies() {
-    print_status "Installing dependencies..."
+    print_status "Installing/updating dependencies..."
     if [ ! -f ".env" ]; then
         $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
     fi
+    # Always run install to update dependencies (especially SDK to latest)
     $PACKAGE_MANAGER install
-    print_success "Dependencies installed"
+    print_success "Dependencies installed/updated"
 }
 
 build_all() {

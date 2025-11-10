@@ -1,8 +1,18 @@
 {
   "name": "@smartsamurai/krapi-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "KRAPI TypeScript SDK - Easy-to-use client SDK for connecting to self-hosted KRAPI servers (like Appwrite SDK)",
-  "keywords": ["krapi", "backend", "sdk", "api", "client", "self-hosted", "database", "collections", "documents"],
+  "keywords": [
+    "krapi",
+    "backend",
+    "sdk",
+    "api",
+    "client",
+    "self-hosted",
+    "database",
+    "collections",
+    "documents"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/GenorTG/Krapi.git",
@@ -40,8 +50,9 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "security-check": "npm audit --audit-level=moderate && npm outdated",
-    "prepublishOnly": "npm run security-check && npm run build && npm run type-check",
+    "security-check": "npm audit --audit-level=moderate",
+    "check-outdated": "node scripts/check-outdated.js",
+    "prepublishOnly": "npm run security-check && npm run check-outdated && npm run build && npm run type-check",
     "prepack": "npm run build"
   },
   "dependencies": {

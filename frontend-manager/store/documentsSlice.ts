@@ -34,12 +34,9 @@ export const fetchDocuments = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.documents.getAll(projectId, collectionId);
-      if (response.success && response.data) {
-        return { projectId, collectionId, documents: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to fetch documents");
-      }
+      // SDK getAll() returns Document[] directly, not wrapped in ApiResponse
+      const documents = await krapi.documents.getAll(projectId, collectionId);
+      return { projectId, collectionId, documents: Array.isArray(documents) ? documents : [] };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch documents"
@@ -68,16 +65,10 @@ export const createDocument = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.documents.create(
-        projectId,
-        collectionId,
-        data
-      );
-      if (response.success && response.data) {
-        return { projectId, collectionId, document: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to create document");
-      }
+      // SDK create() returns Document directly, not wrapped in ApiResponse
+      // SDK expects { data, created_by? } but we're passing just data, so wrap it
+      const document = await krapi.documents.create(projectId, collectionId, { data });
+      return { projectId, collectionId, document };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create document"
@@ -108,17 +99,10 @@ export const updateDocument = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.documents.update(
-        projectId,
-        collectionId,
-        id,
-        data
-      );
-      if (response.success && response.data) {
-        return { projectId, collectionId, document: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to update document");
-      }
+      // SDK update() returns Document directly, not wrapped in ApiResponse
+      // SDK expects { data, updated_by? } but we're passing just data, so wrap it
+      const document = await krapi.documents.update(projectId, collectionId, id, { data });
+      return { projectId, collectionId, document };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update document"
@@ -142,15 +126,12 @@ export const deleteDocument = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.documents.delete(
-        projectId,
-        collectionId,
-        id
-      );
-      if (response.success) {
+      // SDK delete() returns { success: boolean } directly, not wrapped in ApiResponse
+      const result = await krapi.documents.delete(projectId, collectionId, id);
+      if (result.success) {
         return { projectId, collectionId, id };
       } else {
-        return rejectWithValue(response.error || "Failed to delete document");
+        return rejectWithValue("Failed to delete document");
       }
     } catch (error: unknown) {
       return rejectWithValue(

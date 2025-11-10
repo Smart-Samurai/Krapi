@@ -30,53 +30,9 @@ export const fetchCollections = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // eslint-disable-next-line no-console
-      console.log("🔍 [REDUX DEBUG] Fetching collections for project:", projectId);
-      const response = await krapi.collections.getAll(projectId);
-      // eslint-disable-next-line no-console
-      console.log("🔍 [REDUX DEBUG] Collections getAll response:", response);
-      
-      // Handle different response formats
-      if (Array.isArray(response)) {
-        // eslint-disable-next-line no-console
-        console.log("✅ [REDUX DEBUG] Response is array, returning:", response.length, "collections");
-        return { projectId, collections: response };
-      }
-      
-      if (response && typeof response === "object") {
-        // Backend returns { success: true, collections: [...] }
-        if ("collections" in response && Array.isArray(response.collections)) {
-          // eslint-disable-next-line no-console
-          console.log("✅ [REDUX DEBUG] Response has collections array, returning:", response.collections.length, "collections");
-          return { projectId, collections: response.collections };
-        }
-        
-        // Alternative format: { success: true, data: [...] }
-        if ("data" in response && Array.isArray(response.data)) {
-          // eslint-disable-next-line no-console
-          console.log("✅ [REDUX DEBUG] Response has data array, returning:", response.data.length, "collections");
-          return { projectId, collections: response.data };
-        }
-        
-        // Check for ApiResponse format
-        if ("success" in response && "data" in response) {
-          const apiResponse = response as { success: boolean; data?: Collection[]; collections?: Collection[] };
-          if (apiResponse.success) {
-            const collections = apiResponse.collections || apiResponse.data || [];
-            // eslint-disable-next-line no-console
-            console.log("✅ [REDUX DEBUG] ApiResponse format, returning:", collections.length, "collections");
-            return { projectId, collections };
-          } else {
-            // eslint-disable-next-line no-console
-            console.error("❌ [REDUX DEBUG] ApiResponse failed:", (response as { error?: string }).error);
-            return rejectWithValue((response as { error?: string }).error || "Failed to fetch collections");
-          }
-        }
-      }
-      
-      // eslint-disable-next-line no-console
-      console.warn("⚠️ [REDUX DEBUG] Unexpected response format, returning empty array:", response);
-      return { projectId, collections: [] };
+      // SDK getAll() returns Collection[] directly, not wrapped in ApiResponse
+      const collections = await krapi.collections.getAll(projectId);
+      return { projectId, collections: Array.isArray(collections) ? collections : [] };
     } catch (error: unknown) {
       // eslint-disable-next-line no-console
       console.error("❌ [REDUX DEBUG] Exception fetching collections:", error);
@@ -110,44 +66,28 @@ export const createCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // eslint-disable-next-line no-console
-      console.log("🔍 [REDUX DEBUG] Creating collection:", { projectId, data });
-      const response = await krapi.collections.create(projectId, data);
-      // eslint-disable-next-line no-console
-      console.log("🔍 [REDUX DEBUG] Collection create response:", response);
-      
-      // If response is a Collection object directly (success case)
-      if (response && typeof response === "object" && "id" in response && "name" in response) {
-        // eslint-disable-next-line no-console
-        console.log("✅ [REDUX DEBUG] Response is Collection object, returning:", response.id);
-        return { projectId, collection: response as Collection };
-      }
-      
-      // If response has success/data structure
-      if (response && typeof response === "object" && "success" in response) {
-        const apiResponse = response as { success: boolean; data?: Collection; collection?: Collection; error?: string; issues?: string[] };
-        if (apiResponse.success && (apiResponse.data || apiResponse.collection)) {
-          const collection = apiResponse.collection || apiResponse.data;
-          // eslint-disable-next-line no-console
-          console.log("✅ [REDUX DEBUG] ApiResponse success, returning collection:", collection?.id);
-          return { projectId, collection: collection! };
-        } else {
-          // Extract detailed error message including validation issues
-          const errorMessage = apiResponse.error || "Failed to create collection";
-          const issues = apiResponse.issues;
-          const fullError = issues && issues.length > 0 
-            ? `${errorMessage}: ${issues.join(", ")}`
-            : errorMessage;
-          // eslint-disable-next-line no-console
-          console.error("❌ [REDUX DEBUG] Collection create failed:", fullError);
-          return rejectWithValue(fullError);
-        }
-      }
-      
-      // Fallback: assume response is a Collection
-      // eslint-disable-next-line no-console
-      console.warn("⚠️ [REDUX DEBUG] Unexpected response format, assuming Collection:", response);
-      return { projectId, collection: response as Collection };
+      // SDK create() returns Collection directly, not wrapped in ApiResponse
+      // Convert FieldDefinition[] to SDK format (validation needs to be Record<string, unknown>)
+      const sdkData = {
+        name: data.name,
+        description: data.description,
+        fields: data.fields.map((field) => ({
+          name: field.name,
+          type: field.type as string,
+          required: field.required,
+          unique: field.unique,
+          indexed: field.indexed,
+          default: field.default_value ?? field.default,
+          validation: field.validation ? (field.validation as Record<string, unknown>) : undefined,
+        })),
+        indexes: data.indexes?.map((idx) => ({
+          name: idx.name,
+          fields: idx.fields,
+          unique: idx.unique,
+        })),
+      };
+      const collection = await krapi.collections.create(projectId, sdkData);
+      return { projectId, collection };
     } catch (error: unknown) {
       // eslint-disable-next-line no-console
       console.error("❌ [REDUX DEBUG] Collection create exception:", error);
@@ -211,16 +151,50 @@ export const updateCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.collections.update(
+      // SDK update() returns Collection directly, not wrapped in ApiResponse
+      // Convert updates to SDK format (validation needs to be Record<string, unknown>)
+      const sdkUpdates: {
+        description?: string;
+        fields?: Array<{
+          name: string;
+          type: string;
+          required?: boolean;
+          unique?: boolean;
+          indexed?: boolean;
+          default?: unknown;
+          validation?: Record<string, unknown>;
+        }>;
+        indexes?: Array<{
+          name: string;
+          fields: string[];
+          unique?: boolean;
+        }>;
+      } = {};
+      if (updates.description !== undefined) sdkUpdates.description = updates.description;
+      if (updates.fields) {
+        sdkUpdates.fields = updates.fields.map((field) => ({
+          name: field.name,
+          type: field.type as string,
+          required: field.required,
+          unique: field.unique,
+          indexed: field.indexed,
+          default: field.default_value ?? field.default,
+          validation: field.validation ? (field.validation as Record<string, unknown>) : undefined,
+        }));
+      }
+      if (updates.indexes) {
+        sdkUpdates.indexes = updates.indexes.map((idx) => ({
+          name: idx.name,
+          fields: idx.fields,
+          unique: idx.unique,
+        }));
+      }
+      const collection = await krapi.collections.update(
         projectId,
         collectionId,
-        updates
+        sdkUpdates
       );
-      if (response.success && response.data) {
-        return { projectId, collection: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to update collection");
-      }
+      return { projectId, collection };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update collection"
@@ -236,15 +210,16 @@ export const deleteCollection = createAsyncThunk(
       projectId,
       collectionId,
       krapi,
-    }: { projectId: string; collectionId: string; krapi: typeof krapi },
+    }: { projectId: string; collectionId: string; krapi: KrapiWrapper },
     { getState: _getState, rejectWithValue }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.collections.delete(projectId, collectionId);
-      if (response.success) {
+      // SDK delete() returns { success: boolean } directly, not wrapped in ApiResponse
+      const result = await krapi.collections.delete(projectId, collectionId);
+      if (result.success) {
         return { projectId, collectionId };
       } else {
-        return rejectWithValue(response.error || "Failed to delete collection");
+        return rejectWithValue("Failed to delete collection");
       }
     } catch (error: unknown) {
       return rejectWithValue(
@@ -298,7 +273,7 @@ const collectionsSlice = createSlice({
       .addCase(
         fetchCollections.fulfilled,
         (state: CollectionsState, action) => {
-          const { projectId, collections } = action.payload;
+          const { projectId, collections } = action.payload as { projectId: string; collections: Collection[] };
           if (!state.byProjectId[projectId]) {
             state.byProjectId[projectId] = {
               items: [],
@@ -324,13 +299,13 @@ const collectionsSlice = createSlice({
           }
           state.byProjectId[projectId].loading = false;
           state.byProjectId[projectId].error =
-            action.payload || "Failed to fetch collections";
+            (action.payload as string) || "Failed to fetch collections";
         }
       )
       .addCase(
         createCollection.fulfilled,
         (state: CollectionsState, action) => {
-          const { projectId, collection } = action.payload;
+          const { projectId, collection } = action.payload as { projectId: string; collection: Collection };
           if (!state.byProjectId[projectId]) {
             state.byProjectId[projectId] = {
               items: [],
@@ -346,7 +321,7 @@ const collectionsSlice = createSlice({
       .addCase(
         updateCollection.fulfilled,
         (state: CollectionsState, action) => {
-          const { projectId, collection } = action.payload;
+          const { projectId, collection } = action.payload as { projectId: string; collection: Collection };
           if (state.byProjectId[projectId]) {
             const idx = state.byProjectId[projectId].items.findIndex(
               (c: Collection) => c.id === collection.id
@@ -364,7 +339,7 @@ const collectionsSlice = createSlice({
       .addCase(
         deleteCollection.fulfilled,
         (state: CollectionsState, action) => {
-          const { projectId, collectionId } = action.payload;
+          const { projectId, collectionId } = action.payload as { projectId: string; collectionId: string };
           if (state.byProjectId[projectId]) {
             state.byProjectId[projectId].items = state.byProjectId[
               projectId

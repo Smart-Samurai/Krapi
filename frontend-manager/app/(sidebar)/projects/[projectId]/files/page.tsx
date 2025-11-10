@@ -202,10 +202,12 @@ export default function FilesPage() {
   const [sortOrder] = useState<"asc" | "desc">("desc");
 
   const loadFilesCb = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchFiles({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
   const loadStorageStatsCb = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchStorageStats({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
@@ -229,6 +231,11 @@ export default function FilesPage() {
 
   const handleUpload = async (file: File) => {
     try {
+      if (!krapi) {
+        setError("KRAPI client not initialized");
+        setIsUploading(false);
+        return;
+      }
       setIsUploading(true);
       setUploadProgress(0);
       dispatch(beginBusy());
@@ -284,6 +291,10 @@ export default function FilesPage() {
 
   const handleDeleteFile = async (fileId: string) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(deleteFile({ projectId, fileId, krapi }));
@@ -327,6 +338,10 @@ export default function FilesPage() {
 
   const handleUpdateFile = async () => {
     if (!editingFile) return;
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
 
     try {
       dispatch(beginBusy());

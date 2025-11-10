@@ -67,6 +67,7 @@ export default function DashboardPage() {
   });
 
   const loadProjects = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchProjects({ krapi }));
   }, [dispatch, krapi]);
 

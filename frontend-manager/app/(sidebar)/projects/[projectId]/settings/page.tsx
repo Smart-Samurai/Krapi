@@ -116,6 +116,10 @@ export default function ProjectSettingsPage() {
   });
 
   const fetchProjectDetails = useCallback(() => {
+    if (!krapi) {
+      toast.error("KRAPI client not initialized");
+      return;
+    }
     dispatch(fetchProjectById({ id: projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
@@ -179,6 +183,11 @@ export default function ProjectSettingsPage() {
 
   const onSubmit = async (data: ProjectSettingsFormData) => {
     try {
+      if (!krapi) {
+        toast.error("KRAPI client not initialized");
+        dispatch(endBusy());
+        return;
+      }
       dispatch(beginBusy());
       const action = await dispatch(
         updateProject({

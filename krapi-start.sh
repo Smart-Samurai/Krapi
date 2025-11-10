@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# KRAPI Application Manager - Non-Interactive Mode
+# KRAPI Start Script - Non-Interactive Mode
 # Auto-installs, builds, and starts services automatically
 
-set -e
+# Don't use set -e as it can cause issues with error handling
+# We'll handle errors explicitly
 
 # Colors
 RED='\033[0;31m'
@@ -21,6 +22,7 @@ cd "$(dirname "$0")"
 # Check for package.json
 if [ ! -f "package.json" ]; then
     print_error "package.json not found. Please run from KRAPI root directory."
+    read -p "Press Enter to exit..."
     exit 1
 fi
 
@@ -31,11 +33,12 @@ elif command -v npm >/dev/null 2>&1; then
     PACKAGE_MANAGER="npm"
 else
     print_error "Neither npm nor pnpm found. Please install Node.js."
+    read -p "Press Enter to exit..."
     exit 1
 fi
 
 echo "========================================"
-echo "  KRAPI Application Manager"
+echo "  KRAPI Start Script"
 echo "  Non-Interactive Mode"
 echo "========================================"
 echo
@@ -52,7 +55,7 @@ if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
     echo "  --help, -h      - Show this help"
     echo
     echo "Default behavior:"
-    echo "  - Installs dependencies (if needed)"
+    echo "  - Installs/updates dependencies (always runs)"
     echo "  - Builds backend and frontend"
     echo "  - Starts services automatically"
     echo
@@ -65,14 +68,16 @@ if [ "$MODE" = "dev" ]; then
     echo
     
     # Install dependencies
-    print_status "Installing dependencies..."
+    print_status "Installing/updating dependencies..."
     if [ ! -f ".env" ]; then
         $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
     fi
-    if [ ! -d "node_modules" ]; then
-        $PACKAGE_MANAGER install
-    else
-        print_status "Dependencies already installed, skipping..."
+    # Always run install to update dependencies (especially SDK to latest)
+    if ! $PACKAGE_MANAGER install; then
+        print_error "Failed to install dependencies"
+        echo
+        read -p "Press Enter to exit..."
+        exit 1
     fi
     
     echo
@@ -81,7 +86,14 @@ if [ "$MODE" = "dev" ]; then
     echo "[INFO] Frontend: http://localhost:3498"
     echo "[INFO] Press Ctrl+C to stop"
     echo
-    $PACKAGE_MANAGER run dev:all
+    if ! $PACKAGE_MANAGER run dev:all; then
+        EXIT_CODE=$?
+        echo
+        print_error "Services stopped unexpectedly with exit code $EXIT_CODE"
+        read -p "Press Enter to exit..."
+        exit $EXIT_CODE
+    fi
+    read -p "Press Enter to exit..."
     exit 0
 fi
 
@@ -90,21 +102,28 @@ print_status "Auto-starting: Installing, building, and starting PRODUCTION mode.
 echo
 
 # Step 1: Install dependencies
-print_status "Step 1/3: Installing dependencies..."
+print_status "Step 1/3: Installing/updating dependencies..."
 if [ ! -f ".env" ]; then
     $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
 fi
-if [ ! -d "node_modules" ]; then
-    $PACKAGE_MANAGER install
-    print_success "Dependencies installed"
-else
-    print_status "Dependencies already installed, skipping..."
+# Always run install to update dependencies (especially SDK to latest)
+if ! $PACKAGE_MANAGER install; then
+    print_error "Failed to install dependencies"
+    echo
+    read -p "Press Enter to exit..."
+    exit 1
 fi
+print_success "Dependencies installed/updated"
 echo
 
 # Step 2: Build all
 print_status "Step 2/3: Building backend and frontend..."
-$PACKAGE_MANAGER run build:all
+if ! $PACKAGE_MANAGER run build:all; then
+    print_error "Build failed"
+    echo
+    read -p "Press Enter to exit..."
+    exit 1
+fi
 print_success "Build complete"
 echo
 
@@ -115,4 +134,12 @@ echo "[INFO] Frontend UI: http://localhost:3498"
 echo "[INFO] Database will be initialized automatically if missing"
 echo "[INFO] Press Ctrl+C to stop services"
 echo
-$PACKAGE_MANAGER run start:all
+if ! $PACKAGE_MANAGER run start:all; then
+    EXIT_CODE=$?
+    echo
+    print_error "Services stopped unexpectedly with exit code $EXIT_CODE"
+    read -p "Press Enter to exit..."
+    exit $EXIT_CODE
+fi
+read -p "Press Enter to exit..."
+exit 0

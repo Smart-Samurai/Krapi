@@ -145,6 +145,10 @@ export default function ProjectsPage() {
     dispatch(beginBusy());
     try {
       // Use Redux thunk with krapi instance
+      if (!krapi) {
+        toast.error("KRAPI client not initialized");
+        return;
+      }
       const action = await dispatch(fetchProjects({ krapi }));
       
       if (fetchProjects.rejected.match(action)) {

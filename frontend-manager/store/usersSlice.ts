@@ -34,16 +34,12 @@ export const fetchUsers = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.users.getAll(projectId, {
+      // SDK getAll() returns ProjectUser[] directly, not wrapped in ApiResponse
+      const users = await krapi.users.getAll(projectId, {
         search,
         limit: 200,
       });
-      if (response.success && response.data) {
-        // Use SDK data directly - no transformation needed
-        return { projectId, users: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to fetch users");
-      }
+      return { projectId, users: Array.isArray(users) ? users : [] };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch users"
@@ -72,20 +68,15 @@ export const createUser = createAsyncThunk(
     try {
       // Transform the data to match SDK expectations
       const userData = {
-        username: data.email.split("@")[0], // Generate username from email
+        username: data.email.split("@")[0] || "user", // Generate username from email, ensure it's never undefined
         email: data.email,
         password: Math.random().toString(36).slice(-8), // Generate random password
-        first_name: data.name?.split(" ")[0] || "",
-        last_name: data.name?.split(" ").slice(1).join(" ") || "",
+        role: data.role, // SDK expects role, not permissions
         permissions: data.role ? [data.role] : [], // Use SDK property name
       };
-      const response = await krapi.users.create(projectId, userData);
-      if (response.success && response.data) {
-        // Use SDK data directly - no transformation needed
-        return { projectId, user: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to create user");
-      }
+      // SDK create() returns ProjectUser directly, not wrapped in ApiResponse
+      const user = await krapi.users.create(projectId, userData);
+      return { projectId, user };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create user"
@@ -114,12 +105,27 @@ export const updateUser = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.users.update(projectId, userId, updates);
-      if (response.success && response.data) {
-        return { projectId, user: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to update user");
+      // SDK update() returns ProjectUser directly, not wrapped in ApiResponse
+      // Transform frontend updates format to SDK format
+      const sdkUpdates: {
+        username?: string;
+        email?: string;
+        first_name?: string;
+        last_name?: string;
+        role?: string;
+        permissions?: string[];
+        is_active?: boolean;
+        metadata?: Record<string, unknown>;
+      } = {};
+      if (updates.email) sdkUpdates.email = updates.email;
+      if (updates.role) sdkUpdates.role = updates.role;
+      if (updates.name) {
+        const nameParts = updates.name.split(" ");
+        sdkUpdates.first_name = nameParts[0] || "";
+        sdkUpdates.last_name = nameParts.slice(1).join(" ") || "";
       }
+      const user = await krapi.users.update(projectId, userId, sdkUpdates);
+      return { projectId, user };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update user"
@@ -138,11 +144,12 @@ export const deleteUser = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.users.delete(projectId, userId);
-      if (response.success) {
+      // SDK delete() returns { success: boolean } directly, not wrapped in ApiResponse
+      const result = await krapi.users.delete(projectId, userId);
+      if (result.success) {
         return { projectId, userId };
       } else {
-        return rejectWithValue(response.error || "Failed to delete user");
+        return rejectWithValue("Failed to delete user");
       }
     } catch (error: unknown) {
       return rejectWithValue(

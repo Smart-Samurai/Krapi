@@ -131,7 +131,8 @@ export default function UsersPage() {
   });
 
   const loadUsersCb = useCallback(() => {
-    dispatch(fetchUsers({ projectId, krapi }));
+    if (!krapi) return;
+    dispatch(fetchUsers({ projectId, krapi: krapi as import("@smartsamurai/krapi-sdk").KrapiWrapper }));
   }, [dispatch, projectId, krapi]);
 
   useEffect(() => {
@@ -139,6 +140,10 @@ export default function UsersPage() {
   }, [loadUsersCb]);
 
   const handleCreateUser = async () => {
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
@@ -186,6 +191,11 @@ export default function UsersPage() {
       };
       if (formData.password) updates.password = formData.password;
 
+      if (!krapi) {
+        setError("KRAPI client not initialized");
+        dispatch(endBusy());
+        return;
+      }
       const action = await dispatch(
         updateUser({ projectId, userId: editingUser.id, updates, krapi })
       );
@@ -226,6 +236,10 @@ export default function UsersPage() {
       return;
     }
 
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(deleteUser({ projectId, userId, krapi }));

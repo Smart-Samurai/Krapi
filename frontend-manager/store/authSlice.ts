@@ -9,9 +9,11 @@ import { toast } from "sonner";
 
 import type { AdminUser } from "@/lib/krapi";
 
+import type { AppDispatch, RootState } from "./index";
+
 // Types
 export interface AuthState {
-  user: (AdminUser & { scopes?: string[] }) | null;
+  user: (AdminUser & { scopes?: string[]; password_hash?: string }) | null;
   loading: boolean;
   error: string | null;
   sessionToken: string | null;
@@ -41,7 +43,8 @@ const getCookie = (name: string): string | null => {
       c = c.substring(1, c.length);
       if (!c) break;
     }
-    if (c && c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    if (c && c.indexOf(nameEQ) === 0)
+      return c.substring(nameEQ.length, c.length);
   }
   return null;
 };
@@ -49,7 +52,7 @@ const getCookie = (name: string): string | null => {
 // Async thunks
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
-  async ({ krapi }: { krapi: KrapiWrapper }, { dispatch: _dispatch }: { dispatch: unknown }) => {
+  async ({ krapi }: { krapi: KrapiWrapper }) => {
     const storedToken =
       getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
@@ -140,7 +143,7 @@ export const validateSession = createAsyncThunk(
   "auth/validateSession",
   async (
     { krapi, token: _token }: { krapi: KrapiWrapper; token: string },
-    { dispatch }: { dispatch: unknown }
+    thunkAPI
   ) => {
     try {
       const response = await krapi.auth.getCurrentUser();
@@ -162,11 +165,11 @@ export const validateSession = createAsyncThunk(
           scopes: userScopes,
         };
       } else {
-        dispatch(clearAuthData());
+        thunkAPI.dispatch(clearAuthData());
         throw new Error("Session validation failed");
       }
     } catch (_error) {
-      dispatch(clearAuthData());
+      thunkAPI.dispatch(clearAuthData());
       throw _error;
     }
   }
@@ -174,10 +177,7 @@ export const validateSession = createAsyncThunk(
 
 export const validateApiKey = createAsyncThunk(
   "auth/validateApiKey",
-  async (
-    { krapi, key }: { krapi: KrapiWrapper; key: string },
-    { dispatch }: { dispatch: unknown }
-  ) => {
+  async ({ krapi, key }: { krapi: KrapiWrapper; key: string }, thunkAPI) => {
     try {
       const response = await krapi.auth.adminApiLogin(key);
       if (response.success && response.data) {
@@ -195,11 +195,11 @@ export const validateApiKey = createAsyncThunk(
           sessionToken: response.data.session_token,
         };
       } else {
-        dispatch(clearAuthData());
+        thunkAPI.dispatch(clearAuthData());
         throw new Error("API key validation failed");
       }
     } catch (_error) {
-      dispatch(clearAuthData());
+      thunkAPI.dispatch(clearAuthData());
       throw _error;
     }
   }
@@ -213,9 +213,9 @@ export const login = createAsyncThunk(
       password,
       krapi,
     }: { username: string; password: string; krapi: KrapiWrapper },
-    { getState }: { getState: () => { auth: AuthState } }
+    { getState }
   ) => {
-    const state = getState() as { auth: AuthState };
+    const state = getState() as RootState;
     const { sessionToken } = state.auth;
 
     if (sessionToken) {
@@ -223,25 +223,33 @@ export const login = createAsyncThunk(
     }
 
     const response = await krapi.auth.adminLogin({ username, password });
-    
+
     // Log the full response for debugging
     // eslint-disable-next-line no-console
     console.log("🔍 Login response:", JSON.stringify(response, null, 2));
-    
+
     if (response.success && response.data) {
-      const userScopes = response.data.user?.scopes || response.data.scopes || [];
+      const userScopes = response.data.scopes || [];
 
       // Validate required fields
       if (!response.data.session_token) {
         // eslint-disable-next-line no-console
         console.error("❌ Missing session_token in response:", response);
-        throw new Error(`Login failed: Missing session token. Response: ${JSON.stringify(response)}`);
+        throw new Error(
+          `Login failed: Missing session token. Response: ${JSON.stringify(
+            response
+          )}`
+        );
       }
-      
+
       if (!response.data.user) {
         // eslint-disable-next-line no-console
         console.error("❌ Missing user in response:", response);
-        throw new Error(`Login failed: Missing user data. Response: ${JSON.stringify(response)}`);
+        throw new Error(
+          `Login failed: Missing user data. Response: ${JSON.stringify(
+            response
+          )}`
+        );
       }
 
       // Store in both localStorage and cookies
@@ -252,7 +260,7 @@ export const login = createAsyncThunk(
       krapi.auth.setSessionToken(response.data.session_token);
 
       return {
-        user: response.data.user,
+        user: response.data.user as AdminUser & { scopes?: string[] },
         scopes: userScopes,
         sessionToken: response.data.session_token,
       };
@@ -260,7 +268,9 @@ export const login = createAsyncThunk(
       const errorMsg = response.error || "Unknown error";
       // eslint-disable-next-line no-console
       console.error("❌ Login failed:", response);
-      throw new Error(`Login failed: ${errorMsg}. Response: ${JSON.stringify(response)}`);
+      throw new Error(
+        `Login failed: ${errorMsg}. Response: ${JSON.stringify(response)}`
+      );
     }
   }
 );
@@ -269,9 +279,9 @@ export const loginWithApiKey = createAsyncThunk(
   "auth/loginWithApiKey",
   async (
     { apiKey, krapi }: { apiKey: string; krapi: KrapiWrapper },
-    { getState }: { getState: () => { auth: AuthState } }
+    { getState }
   ) => {
-    const state = getState() as { auth: AuthState };
+    const state = getState() as RootState;
     const { sessionToken } = state.auth;
 
     if (sessionToken) {
@@ -291,7 +301,7 @@ export const loginWithApiKey = createAsyncThunk(
       krapi.auth.setSessionToken(response.data.session_token);
 
       return {
-        user: response.data.user,
+        user: response.data.user as AdminUser & { scopes?: string[] },
         scopes: userScopes,
         sessionToken: response.data.session_token,
         apiKey,
@@ -304,8 +314,8 @@ export const loginWithApiKey = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   "auth/logout",
-  async ({ krapi }: { krapi: KrapiWrapper }, { getState }: { getState: () => { auth: AuthState } }) => {
-    const state = getState() as { auth: AuthState };
+  async ({ krapi }: { krapi: KrapiWrapper }, { getState }) => {
+    const state = getState() as RootState;
     const { sessionToken } = state.auth;
 
     if (sessionToken) {
@@ -327,10 +337,6 @@ export const logout = createAsyncThunk(
     localStorage.removeItem("api_key");
     localStorage.removeItem("user_scopes");
     removeCookie("session_token");
-
-    if (krapi) {
-      krapi.clearAuth();
-    }
   }
 );
 
@@ -380,7 +386,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(initializeAuth.fulfilled, (state: AuthState, action) => {
-        state.user = action.payload.user;
+        state.user = action.payload.user as AdminUser & { scopes?: string[] };
         state.scopes = action.payload.scopes || [];
         state.sessionToken = action.payload.sessionToken || null;
         state.apiKey = action.payload.apiKey || null;
@@ -399,7 +405,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(validateSession.fulfilled, (state: AuthState, action) => {
-        state.user = action.payload.user;
+        state.user = action.payload.user as AdminUser & { scopes?: string[] };
         state.scopes = action.payload.scopes;
         state.loading = false;
         state.error = null;
@@ -415,7 +421,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(validateApiKey.fulfilled, (state: AuthState, action) => {
-        state.user = action.payload.user;
+        state.user = action.payload.user as AdminUser & { scopes?: string[] };
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
         state.loading = false;
@@ -432,7 +438,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(login.fulfilled, (state: AuthState, action) => {
-        state.user = action.payload.user;
+        state.user = action.payload.user as AdminUser & { scopes?: string[] };
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
         state.loading = false;
@@ -451,7 +457,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(loginWithApiKey.fulfilled, (state: AuthState, action) => {
-        state.user = action.payload.user;
+        state.user = action.payload.user as AdminUser & { scopes?: string[] };
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
         state.apiKey = action.payload.apiKey;

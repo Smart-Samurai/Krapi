@@ -13,6 +13,7 @@
  */
 "use client";
 
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 import { useCallback, useMemo } from "react";
 
 import { useReduxAuth } from "@/contexts/redux-auth-context";
@@ -97,10 +98,9 @@ export function useKrapi() {
       return null;
     }
 
-    return {
-      ...krapi,
-      // Add a helper method for wrapping API calls with error handling
+    // Type assertion: krapi is KrapiWrapper, and we're adding withAuthErrorHandling
+    return Object.assign(krapi as KrapiWrapper, {
       withAuthErrorHandling,
-    };
+    }) as KrapiWrapper & { withAuthErrorHandling: typeof withAuthErrorHandling };
   }, [krapi, withAuthErrorHandling]);
 }

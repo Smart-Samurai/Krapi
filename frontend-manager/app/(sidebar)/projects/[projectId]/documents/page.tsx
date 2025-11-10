@@ -146,11 +146,12 @@ export default function DocumentsPage() {
   });
 
   const loadCollections = useCallback(() => {
+    if (!krapi) return;
     dispatch(fetchCollections({ projectId, krapi }));
   }, [dispatch, projectId, krapi]);
 
   const loadDocuments = useCallback(() => {
-    if (!selectedCollection) return;
+    if (!selectedCollection || !krapi) return;
     dispatch(
       fetchDocuments({ projectId, collectionId: selectedCollection, krapi })
     );
@@ -172,6 +173,10 @@ export default function DocumentsPage() {
 
   const handleCreateDocument = async () => {
     if (!selectedCollection) return;
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
@@ -202,6 +207,10 @@ export default function DocumentsPage() {
 
   const handleUpdateDocument = async () => {
     if (!editingDocument) return;
+    if (!krapi) {
+      setError("KRAPI client not initialized");
+      return;
+    }
 
     try {
       dispatch(beginBusy());
@@ -240,6 +249,10 @@ export default function DocumentsPage() {
         "Are you sure you want to delete this document? This action cannot be undone."
       )
     ) {
+      return;
+    }
+    if (!krapi) {
+      setError("KRAPI client not initialized");
       return;
     }
 

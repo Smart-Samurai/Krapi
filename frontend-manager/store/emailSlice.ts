@@ -42,14 +42,9 @@ export const fetchEmailConfig = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.getConfig(projectId);
-      if (response.success && response.data) {
-        return { projectId, config: response.data };
-      } else {
-        return rejectWithValue(
-          response.error || "Failed to fetch email config"
-        );
-      }
+      // SDK getConfig() returns EmailConfig directly, not wrapped in ApiResponse
+      const config = await krapi.email.getConfig(projectId);
+      return { projectId, config };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch email config"
@@ -65,21 +60,45 @@ export const updateEmailConfig = createAsyncThunk(
       projectId,
       config,
       krapi,
-    }: { projectId: string; config: EmailConfig; krapi: typeof krapi },
+    }: { projectId: string; config: EmailConfig; krapi: KrapiWrapper },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.updateConfig(projectId, config);
-      if (response.success && response.data) {
-        return { projectId, config: response.data };
-      } else {
-        return rejectWithValue(
-          response.error || "Failed to update email config"
-        );
-      }
+      // SDK updateConfig() returns EmailConfig directly, not wrapped in ApiResponse
+      // SDK expects { provider: string; settings: Record<string, unknown> }
+      // EmailConfig has smtp_* properties, so we need to convert it
+      const emailConfig = config as unknown as {
+        smtp_host: string;
+        smtp_port: number;
+        smtp_user: string;
+        smtp_password: string;
+        smtp_secure: boolean;
+        from_email: string;
+        from_name: string;
+        reply_to?: string;
+        rate_limit?: number;
+        enabled: boolean;
+      };
+      const sdkConfig = {
+        provider: "smtp", // Default to smtp
+        settings: {
+          smtp_host: emailConfig.smtp_host,
+          smtp_port: emailConfig.smtp_port,
+          smtp_user: emailConfig.smtp_user,
+          smtp_password: emailConfig.smtp_password,
+          smtp_secure: emailConfig.smtp_secure,
+          from_email: emailConfig.from_email,
+          from_name: emailConfig.from_name,
+          ...(emailConfig.reply_to && { reply_to: emailConfig.reply_to }),
+          ...(emailConfig.rate_limit !== undefined && { rate_limit: emailConfig.rate_limit }),
+          enabled: emailConfig.enabled,
+        } as Record<string, unknown>,
+      };
+      const updatedConfig = await krapi.email.updateConfig(projectId, sdkConfig);
+      return { projectId, config: updatedConfig };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update email config"
@@ -95,18 +114,19 @@ export const testEmailConfig = createAsyncThunk(
       projectId,
       email,
       krapi,
-    }: { projectId: string; email: string; krapi: typeof krapi },
+    }: { projectId: string; email: string; krapi: KrapiWrapper },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.testConfig(projectId, email);
-      if (response.success) {
+      // SDK testConfig() returns { success: boolean, message?: string } directly, not wrapped in ApiResponse
+      const result = await krapi.email.testConfig(projectId, email);
+      if (result.success) {
         return { projectId, ok: true };
       } else {
-        return rejectWithValue(response.error || "Failed to test email config");
+        return rejectWithValue(result.message || "Failed to test email config");
       }
     } catch (error: unknown) {
       return rejectWithValue(
@@ -126,12 +146,9 @@ export const fetchEmailTemplates = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.getTemplates(projectId);
-      if (response.success && response.data) {
-        return { projectId, templates: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to fetch templates");
-      }
+      // SDK getTemplates() returns EmailTemplate[] directly, not wrapped in ApiResponse
+      const templates = await krapi.email.getTemplates(projectId);
+      return { projectId, templates: Array.isArray(templates) ? templates : [] };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch templates"
@@ -163,12 +180,9 @@ export const createEmailTemplate = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.createTemplate(projectId, data);
-      if (response.success && response.data) {
-        return { projectId, template: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to create template");
-      }
+      // SDK createTemplate() returns EmailTemplate directly, not wrapped in ApiResponse
+      const template = await krapi.email.createTemplate(projectId, data);
+      return { projectId, template };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create template"
@@ -202,16 +216,13 @@ export const updateEmailTemplate = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.updateTemplate(
+      // SDK updateTemplate() returns EmailTemplate directly, not wrapped in ApiResponse
+      const template = await krapi.email.updateTemplate(
         projectId,
         templateId,
         updates
       );
-      if (response.success && response.data) {
-        return { projectId, template: response.data };
-      } else {
-        return rejectWithValue(response.error || "Failed to update template");
-      }
+      return { projectId, template };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update template"
@@ -227,18 +238,19 @@ export const deleteEmailTemplate = createAsyncThunk(
       projectId,
       templateId,
       krapi,
-    }: { projectId: string; templateId: string; krapi: typeof krapi },
+    }: { projectId: string; templateId: string; krapi: KrapiWrapper },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      const response = await krapi.email.deleteTemplate(projectId, templateId);
-      if (response.success) {
+      // SDK deleteTemplate() returns { success: boolean } directly, not wrapped in ApiResponse
+      const result = await krapi.email.deleteTemplate(projectId, templateId);
+      if (result.success) {
         return { projectId, templateId };
       } else {
-        return rejectWithValue(response.error || "Failed to delete template");
+        return rejectWithValue("Failed to delete template");
       }
     } catch (error: unknown) {
       return rejectWithValue(
@@ -266,7 +278,7 @@ const emailSlice = createSlice({
         state.configByProjectId[projectId].error = null;
       })
       .addCase(fetchEmailConfig.fulfilled, (state: EmailState, action) => {
-        const { projectId, config } = action.payload;
+        const { projectId, config } = action.payload as { projectId: string; config: EmailConfig };
         state.configByProjectId[projectId] = {
           data: config,
           loading: false,
@@ -282,12 +294,12 @@ const emailSlice = createSlice({
         };
         state.configByProjectId[projectId].loading = false;
         state.configByProjectId[projectId].error =
-          action.payload || "Failed to fetch email config";
+          (action.payload as string) || "Failed to fetch email config";
       })
       .addCase(
         updateEmailConfig.fulfilled,
         (state: EmailState, action) => {
-          const { projectId, config } = action.payload;
+          const { projectId, config } = action.payload as { projectId: string; config: EmailConfig };
           state.configByProjectId[projectId] = {
             data: config,
             loading: false,
@@ -311,7 +323,7 @@ const emailSlice = createSlice({
       .addCase(
         fetchEmailTemplates.fulfilled,
         (state: EmailState, action) => {
-          const { projectId, templates } = action.payload;
+          const { projectId, templates } = action.payload as { projectId: string; templates: EmailTemplate[] };
           state.templatesByProjectId[projectId] = {
             items: templates,
             loading: false,
@@ -330,20 +342,20 @@ const emailSlice = createSlice({
           };
           state.templatesByProjectId[projectId].loading = false;
           state.templatesByProjectId[projectId].error =
-            action.payload || "Failed to fetch templates";
+            (action.payload as string) || "Failed to fetch templates";
         }
       )
       .addCase(
         createEmailTemplate.fulfilled,
         (state: EmailState, action) => {
-          const { projectId, template } = action.payload;
+          const { projectId, template } = action.payload as { projectId: string; template: EmailTemplate };
           state.templatesByProjectId[projectId]?.items.push(template);
         }
       )
       .addCase(
         updateEmailTemplate.fulfilled,
         (state: EmailState, action) => {
-          const { projectId, template } = action.payload;
+          const { projectId, template } = action.payload as { projectId: string; template: EmailTemplate };
           const bucket = state.templatesByProjectId[projectId];
           if (!bucket) return;
           bucket.items = bucket.items.map((t) =>
@@ -354,7 +366,7 @@ const emailSlice = createSlice({
       .addCase(
         deleteEmailTemplate.fulfilled,
         (state: EmailState, action) => {
-          const { projectId, templateId } = action.payload;
+          const { projectId, templateId } = action.payload as { projectId: string; templateId: string };
           const bucket = state.templatesByProjectId[projectId];
           if (!bucket) return;
           bucket.items = bucket.items.filter((t) => t.id !== templateId);
