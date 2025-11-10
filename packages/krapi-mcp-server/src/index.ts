@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { KrapiSDK } from '@krapi/sdk';
+import { KrapiSDK } from '@smartsamurai/krapi-sdk';
 import * as mcp from '@modelcontextprotocol/sdk';
 import { z } from 'zod';
 

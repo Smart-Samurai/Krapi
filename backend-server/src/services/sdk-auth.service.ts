@@ -1,4 +1,4 @@
-import { AuthService } from "@krapi/sdk";
+import { AuthService } from "@smartsamurai/krapi-sdk";
 
 /**
  * SDK Auth Service Wrapper

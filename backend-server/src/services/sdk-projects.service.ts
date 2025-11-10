@@ -1,4 +1,4 @@
-import { ProjectsService, ProjectSettings } from "@krapi/sdk";
+import { ProjectsService, ProjectSettings } from "@smartsamurai/krapi-sdk";
 
 /**
  * SDK Projects Service Wrapper

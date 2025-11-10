@@ -1,6 +1,6 @@
 {
-  "name": "@krapi/sdk",
-  "version": "2.0.0",
+  "name": "@smartsamurai/krapi-sdk",
+  "version": "0.1.0",
   "description": "KRAPI TypeScript SDK - Easy-to-use client SDK for connecting to self-hosted KRAPI servers (like Appwrite SDK)",
   "keywords": ["krapi", "backend", "sdk", "api", "client", "self-hosted", "database", "collections", "documents"],
   "repository": {

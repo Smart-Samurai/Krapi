@@ -12,6 +12,7 @@ import {
   SessionType,
   Scope,
   BackendSession,
+  CreateBackendChangelogEntry,
 } from "@/types";
 
 /**
@@ -38,15 +39,13 @@ export class AuthService {
   private db: DatabaseService;
   private jwtSecret: string;
   private jwtExpiresIn: string;
-  private sessionExpiresIn: number;
 
   private constructor() {
     this.db = DatabaseService.getInstance();
     this.jwtSecret = process.env.JWT_SECRET || "default-secret-change-this";
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || "7d";
-    this.sessionExpiresIn = this.parseSessionDuration(
-      process.env.SESSION_EXPIRES_IN || "1h"
-    );
+    // sessionExpiresIn is parsed but not currently used - kept for future use
+    void this.parseSessionDuration(process.env.SESSION_EXPIRES_IN || "1h");
   }
 
   /**
@@ -73,7 +72,7 @@ export class AuthService {
    */
   private parseSessionDuration(duration: string): number {
     const match = duration.match(/^(\d+)([hmd])$/);
-    if (!match) return 3600000; // Default 1 hour
+    if (!match || !match[1] || !match[2]) return 3600000; // Default 1 hour
 
     const value = parseInt(match[1]);
     const unit = match[2];
@@ -504,17 +503,22 @@ export class AuthService {
     projectId?: string,
     sessionId?: string
   ) {
-    await this.db.createChangelogEntry({
-      project_id: projectId,
+    const entry: CreateBackendChangelogEntry = {
       entity_type: "auth",
       entity_id: userId,
       action: "created",
       changes: { action },
       performed_by: userId,
-      session_id: sessionId,
       user_id: userId,
       resource_type: "auth",
       resource_id: userId,
-    });
+    };
+    if (projectId) {
+      entry.project_id = projectId;
+    }
+    if (sessionId) {
+      entry.session_id = sessionId;
+    }
+    await this.db.createChangelogEntry(entry);
   }
 }

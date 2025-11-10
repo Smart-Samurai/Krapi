@@ -16,14 +16,14 @@
  * @module routes/backup.routes
  */
 
-import { BackendSDK } from "@krapi/sdk";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response, Router } from "express";
 
 
 import { authenticate, requireScopes } from "../middleware/auth.middleware";
 import { Scope } from "../types";
 
-const router = Router({ mergeParams: true });
+const router: Router = Router({ mergeParams: true });
 
 // Apply authentication middleware to all backup routes
 router.use(authenticate);

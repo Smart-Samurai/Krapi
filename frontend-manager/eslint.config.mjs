@@ -1,5 +1,6 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+
 import { FlatCompat } from "@eslint/eslintrc";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,7 +11,6 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     ignores: [
       ".next/**/*",
@@ -24,6 +24,9 @@ const eslintConfig = [
       "postcss.config.*",
       "tailwind.config.*",
     ],
+  },
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
     rules: {
       // TypeScript-specific rules
       "@typescript-eslint/no-unused-vars": [
@@ -54,7 +57,7 @@ const eslintConfig = [
       "import/no-unresolved": [
         "error",
         {
-          ignore: ["^@krapi/"], // Allow workspace packages
+          ignore: ["^@krapi/", "^@smartsamurai/"], // Allow workspace packages
         },
       ],
       "import/no-cycle": "warn",

@@ -1,10 +1,12 @@
 import {
-  createSlice,
-  createAsyncThunk,
-  PayloadAction,
   ActionReducerMapBuilder,
+  createAsyncThunk,
+  createSlice,
+  PayloadAction,
 } from "@reduxjs/toolkit";
-import { Document } from "@/lib/krapi";
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
+
+import type { Document } from "@/lib/krapi";
 
 // Types
 export interface DocumentsState {
@@ -25,9 +27,9 @@ export const fetchDocuments = createAsyncThunk(
       projectId,
       collectionId,
       krapi,
-    }: { projectId: string; collectionId: string; krapi: any },
+    }: { projectId: string; collectionId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -58,10 +60,10 @@ export const createDocument = createAsyncThunk(
       projectId: string;
       collectionId: string;
       data: Record<string, unknown>;
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -98,10 +100,10 @@ export const updateDocument = createAsyncThunk(
       collectionId: string;
       id: string;
       data: Record<string, unknown>;
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -133,9 +135,9 @@ export const deleteDocument = createAsyncThunk(
       collectionId,
       id,
       krapi,
-    }: { projectId: string; collectionId: string; id: string; krapi: any },
+    }: { projectId: string; collectionId: string; id: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -183,7 +185,7 @@ const documentsSlice = createSlice({
       delete state.byKey[key];
     },
   },
-  extraReducers: (builder: ActionReducerMapBuilder<DocumentsState>) => {
+  extraReducers: (_builder: ActionReducerMapBuilder<DocumentsState>) => {
     // Temporarily disabled to fix build issues
     // builder
     //   .addCase(fetchDocuments.pending, (state: DocumentsState) => {

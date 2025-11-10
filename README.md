@@ -250,7 +250,7 @@ On first run, a default admin account is created:
 
 ```typescript
 // In your frontend or backend application
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 
 const krapi = new KrapiClient({
   endpoint: 'http://localhost:3470',

@@ -1,4 +1,4 @@
-import { EmailConfig, Project } from "@krapi/sdk";
+import { EmailConfig, Project } from "@smartsamurai/krapi-sdk";
 import nodemailer from "nodemailer";
 
 import { DatabaseService } from "./database.service";
@@ -289,15 +289,33 @@ export class EmailService {
 
   // Send email using EmailSendRequest format (for SDK compatibility)
   async sendEmailRequest(request: EmailSendRequest): Promise<boolean> {
+    const to = Array.isArray(request.to) ? request.to[0] : request.to;
+    if (!to) {
+      throw new Error("Recipient email is required");
+    }
     const result = await this.sendEmail(
       request.projectId,
-      Array.isArray(request.to) ? request.to[0] : request.to,
+      to,
       request.subject || "",
       request.body || "",
-      {
-        text: request.body, // Use body as text fallback
-        attachments: request.attachments || [],
-      }
+      (() => {
+        const options: {
+          text?: string;
+          attachments?: Array<{
+            filename?: string;
+            content?: string | Buffer;
+            path?: string;
+            contentType?: string;
+          }>;
+        } = {};
+        if (request.body) {
+          options.text = request.body;
+        }
+        if (request.attachments !== undefined) {
+          options.attachments = request.attachments;
+        }
+        return options;
+      })()
     );
     return result.success;
   }

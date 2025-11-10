@@ -1,10 +1,11 @@
 import {
-  createSlice,
-  createAsyncThunk,
-  PayloadAction,
   ActionReducerMapBuilder,
+  createAsyncThunk,
+  createSlice,
 } from "@reduxjs/toolkit";
-import { EmailConfig, EmailTemplate } from "@/lib/krapi";
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
+
+import type { EmailConfig, EmailTemplate } from "@/lib/krapi";
 
 // Types
 interface EmailStateBucket<T> {
@@ -34,9 +35,9 @@ const initialState: EmailState = {
 export const fetchEmailConfig = createAsyncThunk(
   "email/fetchConfig",
   async (
-    { projectId, krapi }: { projectId: string; krapi: any },
+    { projectId, krapi }: { projectId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -64,9 +65,9 @@ export const updateEmailConfig = createAsyncThunk(
       projectId,
       config,
       krapi,
-    }: { projectId: string; config: EmailConfig; krapi: any },
+    }: { projectId: string; config: EmailConfig; krapi: typeof krapi },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -94,9 +95,9 @@ export const testEmailConfig = createAsyncThunk(
       projectId,
       email,
       krapi,
-    }: { projectId: string; email: string; krapi: any },
+    }: { projectId: string; email: string; krapi: typeof krapi },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -118,9 +119,9 @@ export const testEmailConfig = createAsyncThunk(
 export const fetchEmailTemplates = createAsyncThunk(
   "email/fetchTemplates",
   async (
-    { projectId, krapi }: { projectId: string; krapi: any },
+    { projectId, krapi }: { projectId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -154,10 +155,10 @@ export const createEmailTemplate = createAsyncThunk(
         body: string;
         variables: string[];
       };
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -193,10 +194,10 @@ export const updateEmailTemplate = createAsyncThunk(
         body: string;
         variables: string[];
       }>;
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -226,9 +227,9 @@ export const deleteEmailTemplate = createAsyncThunk(
       projectId,
       templateId,
       krapi,
-    }: { projectId: string; templateId: string; krapi: any },
+    }: { projectId: string; templateId: string; krapi: typeof krapi },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -254,7 +255,7 @@ const emailSlice = createSlice({
   reducers: {},
   extraReducers: (builder: ActionReducerMapBuilder<EmailState>) => {
     builder
-      .addCase(fetchEmailConfig.pending, (state: EmailState, action: any) => {
+      .addCase(fetchEmailConfig.pending, (state: EmailState, action) => {
         const { projectId } = action.meta.arg;
         state.configByProjectId[projectId] ||= {
           data: null,
@@ -264,7 +265,7 @@ const emailSlice = createSlice({
         state.configByProjectId[projectId].loading = true;
         state.configByProjectId[projectId].error = null;
       })
-      .addCase(fetchEmailConfig.fulfilled, (state: EmailState, action: any) => {
+      .addCase(fetchEmailConfig.fulfilled, (state: EmailState, action) => {
         const { projectId, config } = action.payload;
         state.configByProjectId[projectId] = {
           data: config,
@@ -272,7 +273,7 @@ const emailSlice = createSlice({
           error: null,
         };
       })
-      .addCase(fetchEmailConfig.rejected, (state: EmailState, action: any) => {
+      .addCase(fetchEmailConfig.rejected, (state: EmailState, action) => {
         const { projectId } = action.meta.arg;
         state.configByProjectId[projectId] ||= {
           data: null,
@@ -285,7 +286,7 @@ const emailSlice = createSlice({
       })
       .addCase(
         updateEmailConfig.fulfilled,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId, config } = action.payload;
           state.configByProjectId[projectId] = {
             data: config,
@@ -296,7 +297,7 @@ const emailSlice = createSlice({
       )
       .addCase(
         fetchEmailTemplates.pending,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId } = action.meta.arg;
           state.templatesByProjectId[projectId] ||= {
             items: [],
@@ -309,7 +310,7 @@ const emailSlice = createSlice({
       )
       .addCase(
         fetchEmailTemplates.fulfilled,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId, templates } = action.payload;
           state.templatesByProjectId[projectId] = {
             items: templates,
@@ -320,7 +321,7 @@ const emailSlice = createSlice({
       )
       .addCase(
         fetchEmailTemplates.rejected,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId } = action.meta.arg;
           state.templatesByProjectId[projectId] ||= {
             items: [],
@@ -334,14 +335,14 @@ const emailSlice = createSlice({
       )
       .addCase(
         createEmailTemplate.fulfilled,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId, template } = action.payload;
           state.templatesByProjectId[projectId]?.items.push(template);
         }
       )
       .addCase(
         updateEmailTemplate.fulfilled,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId, template } = action.payload;
           const bucket = state.templatesByProjectId[projectId];
           if (!bucket) return;
@@ -352,7 +353,7 @@ const emailSlice = createSlice({
       )
       .addCase(
         deleteEmailTemplate.fulfilled,
-        (state: EmailState, action: any) => {
+        (state: EmailState, action) => {
           const { projectId, templateId } = action.payload;
           const bucket = state.templatesByProjectId[projectId];
           if (!bucket) return;

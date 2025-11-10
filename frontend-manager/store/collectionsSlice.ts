@@ -1,10 +1,12 @@
 import {
-  createSlice,
-  createAsyncThunk,
-  PayloadAction,
   ActionReducerMapBuilder,
+  createAsyncThunk,
+  createSlice,
+  PayloadAction,
 } from "@reduxjs/toolkit";
-import { Collection, CollectionField, CollectionIndex } from "@/lib/krapi";
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
+
+import type { Collection, CollectionField, CollectionIndex } from "@/lib/krapi";
 
 // Types
 interface CollectionsBucket {
@@ -21,19 +23,22 @@ export interface CollectionsState {
 export const fetchCollections = createAsyncThunk(
   "collections/fetchAll",
   async (
-    { projectId, krapi }: { projectId: string; krapi: any },
+    { projectId, krapi }: { projectId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
+      // eslint-disable-next-line no-console
       console.log("🔍 [REDUX DEBUG] Fetching collections for project:", projectId);
       const response = await krapi.collections.getAll(projectId);
+      // eslint-disable-next-line no-console
       console.log("🔍 [REDUX DEBUG] Collections getAll response:", response);
       
       // Handle different response formats
       if (Array.isArray(response)) {
+        // eslint-disable-next-line no-console
         console.log("✅ [REDUX DEBUG] Response is array, returning:", response.length, "collections");
         return { projectId, collections: response };
       }
@@ -41,12 +46,14 @@ export const fetchCollections = createAsyncThunk(
       if (response && typeof response === "object") {
         // Backend returns { success: true, collections: [...] }
         if ("collections" in response && Array.isArray(response.collections)) {
+          // eslint-disable-next-line no-console
           console.log("✅ [REDUX DEBUG] Response has collections array, returning:", response.collections.length, "collections");
           return { projectId, collections: response.collections };
         }
         
         // Alternative format: { success: true, data: [...] }
         if ("data" in response && Array.isArray(response.data)) {
+          // eslint-disable-next-line no-console
           console.log("✅ [REDUX DEBUG] Response has data array, returning:", response.data.length, "collections");
           return { projectId, collections: response.data };
         }
@@ -56,18 +63,22 @@ export const fetchCollections = createAsyncThunk(
           const apiResponse = response as { success: boolean; data?: Collection[]; collections?: Collection[] };
           if (apiResponse.success) {
             const collections = apiResponse.collections || apiResponse.data || [];
+            // eslint-disable-next-line no-console
             console.log("✅ [REDUX DEBUG] ApiResponse format, returning:", collections.length, "collections");
             return { projectId, collections };
           } else {
+            // eslint-disable-next-line no-console
             console.error("❌ [REDUX DEBUG] ApiResponse failed:", (response as { error?: string }).error);
             return rejectWithValue((response as { error?: string }).error || "Failed to fetch collections");
           }
         }
       }
       
+      // eslint-disable-next-line no-console
       console.warn("⚠️ [REDUX DEBUG] Unexpected response format, returning empty array:", response);
       return { projectId, collections: [] };
     } catch (error: unknown) {
+      // eslint-disable-next-line no-console
       console.error("❌ [REDUX DEBUG] Exception fetching collections:", error);
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch collections"
@@ -91,20 +102,23 @@ export const createCollection = createAsyncThunk(
         fields: CollectionField[];
         indexes?: CollectionIndex[];
       };
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
+      // eslint-disable-next-line no-console
       console.log("🔍 [REDUX DEBUG] Creating collection:", { projectId, data });
       const response = await krapi.collections.create(projectId, data);
+      // eslint-disable-next-line no-console
       console.log("🔍 [REDUX DEBUG] Collection create response:", response);
       
       // If response is a Collection object directly (success case)
       if (response && typeof response === "object" && "id" in response && "name" in response) {
+        // eslint-disable-next-line no-console
         console.log("✅ [REDUX DEBUG] Response is Collection object, returning:", response.id);
         return { projectId, collection: response as Collection };
       }
@@ -114,6 +128,7 @@ export const createCollection = createAsyncThunk(
         const apiResponse = response as { success: boolean; data?: Collection; collection?: Collection; error?: string; issues?: string[] };
         if (apiResponse.success && (apiResponse.data || apiResponse.collection)) {
           const collection = apiResponse.collection || apiResponse.data;
+          // eslint-disable-next-line no-console
           console.log("✅ [REDUX DEBUG] ApiResponse success, returning collection:", collection?.id);
           return { projectId, collection: collection! };
         } else {
@@ -123,15 +138,18 @@ export const createCollection = createAsyncThunk(
           const fullError = issues && issues.length > 0 
             ? `${errorMessage}: ${issues.join(", ")}`
             : errorMessage;
+          // eslint-disable-next-line no-console
           console.error("❌ [REDUX DEBUG] Collection create failed:", fullError);
           return rejectWithValue(fullError);
         }
       }
       
       // Fallback: assume response is a Collection
+      // eslint-disable-next-line no-console
       console.warn("⚠️ [REDUX DEBUG] Unexpected response format, assuming Collection:", response);
       return { projectId, collection: response as Collection };
     } catch (error: unknown) {
+      // eslint-disable-next-line no-console
       console.error("❌ [REDUX DEBUG] Collection create exception:", error);
       
       // Try to extract error details from axios error
@@ -166,6 +184,7 @@ export const createCollection = createAsyncThunk(
         ? `${errorMessage}: ${issues.join(", ")}`
         : errorMessage;
       
+      // eslint-disable-next-line no-console
       console.error("❌ [REDUX DEBUG] Full error details:", { errorMessage, issues, fullError });
       return rejectWithValue(fullError);
     }
@@ -184,10 +203,10 @@ export const updateCollection = createAsyncThunk(
       projectId: string;
       collectionId: string;
       updates: Partial<Collection>;
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -217,8 +236,8 @@ export const deleteCollection = createAsyncThunk(
       projectId,
       collectionId,
       krapi,
-    }: { projectId: string; collectionId: string; krapi: any },
-    { getState, rejectWithValue }: { getState: any; rejectWithValue: any }
+    }: { projectId: string; collectionId: string; krapi: typeof krapi },
+    { getState: _getState, rejectWithValue }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
       const response = await krapi.collections.delete(projectId, collectionId);
@@ -227,8 +246,10 @@ export const deleteCollection = createAsyncThunk(
       } else {
         return rejectWithValue(response.error || "Failed to delete collection");
       }
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Failed to delete collection");
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to delete collection"
+      );
     }
   }
 );
@@ -257,7 +278,7 @@ const collectionsSlice = createSlice({
     builder
       .addCase(
         fetchCollections.pending,
-        (state: CollectionsState, action: any) => {
+        (state: CollectionsState, action) => {
           // Initialize bucket if it doesn't exist
           if (!state.byProjectId[action.meta.arg.projectId]) {
             state.byProjectId[action.meta.arg.projectId] = {
@@ -276,7 +297,7 @@ const collectionsSlice = createSlice({
       )
       .addCase(
         fetchCollections.fulfilled,
-        (state: CollectionsState, action: any) => {
+        (state: CollectionsState, action) => {
           const { projectId, collections } = action.payload;
           if (!state.byProjectId[projectId]) {
             state.byProjectId[projectId] = {
@@ -292,7 +313,7 @@ const collectionsSlice = createSlice({
       )
       .addCase(
         fetchCollections.rejected,
-        (state: CollectionsState, action: any) => {
+        (state: CollectionsState, action) => {
           const projectId = action.meta.arg.projectId;
           if (!state.byProjectId[projectId]) {
             state.byProjectId[projectId] = {
@@ -308,7 +329,7 @@ const collectionsSlice = createSlice({
       )
       .addCase(
         createCollection.fulfilled,
-        (state: CollectionsState, action: any) => {
+        (state: CollectionsState, action) => {
           const { projectId, collection } = action.payload;
           if (!state.byProjectId[projectId]) {
             state.byProjectId[projectId] = {
@@ -324,7 +345,7 @@ const collectionsSlice = createSlice({
       )
       .addCase(
         updateCollection.fulfilled,
-        (state: CollectionsState, action: any) => {
+        (state: CollectionsState, action) => {
           const { projectId, collection } = action.payload;
           if (state.byProjectId[projectId]) {
             const idx = state.byProjectId[projectId].items.findIndex(
@@ -342,7 +363,7 @@ const collectionsSlice = createSlice({
       )
       .addCase(
         deleteCollection.fulfilled,
-        (state: CollectionsState, action: any) => {
+        (state: CollectionsState, action) => {
           const { projectId, collectionId } = action.payload;
           if (state.byProjectId[projectId]) {
             state.byProjectId[projectId].items = state.byProjectId[

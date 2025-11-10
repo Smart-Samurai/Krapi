@@ -1,246 +1,118 @@
 #!/bin/bash
 
-# KRAPI Application Manager
-# A comprehensive script to manage the KRAPI application
+# KRAPI Application Manager - Non-Interactive Mode
+# Auto-installs, builds, and starts services automatically
 
-set -e  # Exit on any error
+set -e
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+# Change to script directory
+cd "$(dirname "$0")"
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+# Check for package.json
+if [ ! -f "package.json" ]; then
+    print_error "package.json not found. Please run from KRAPI root directory."
+    exit 1
+fi
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Detect package manager
+if command -v pnpm >/dev/null 2>&1; then
+    PACKAGE_MANAGER="pnpm"
+elif command -v npm >/dev/null 2>&1; then
+    PACKAGE_MANAGER="npm"
+else
+    print_error "Neither npm nor pnpm found. Please install Node.js."
+    exit 1
+fi
 
-# Function to check if command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
+echo "========================================"
+echo "  KRAPI Application Manager"
+echo "  Non-Interactive Mode"
+echo "========================================"
+echo
 
-# Global package manager variable
-PACKAGE_MANAGER=""
+# Check command line argument
+MODE="${1:-prod}"
 
-# Function to detect package manager
-detect_package_manager() {
-    if [ -n "$PACKAGE_MANAGER" ]; then
-        return 0
-    fi
+if [ "$MODE" = "--help" ] || [ "$MODE" = "-h" ]; then
+    echo "Usage: $0 [MODE]"
+    echo
+    echo "Modes:"
+    echo "  prod (default)  - Start in PRODUCTION mode"
+    echo "  dev             - Start in DEVELOPMENT mode"
+    echo "  --help, -h      - Show this help"
+    echo
+    echo "Default behavior:"
+    echo "  - Installs dependencies (if needed)"
+    echo "  - Builds backend and frontend"
+    echo "  - Starts services automatically"
+    echo
+    echo "For interactive menu, use: ./krapi-manager-interactive.sh"
+    exit 0
+fi
+
+if [ "$MODE" = "dev" ]; then
+    print_status "Starting in DEVELOPMENT mode..."
+    echo
     
-    if command_exists pnpm; then
-        PACKAGE_MANAGER="pnpm"
-        export PACKAGE_MANAGER
-        print_success "Detected: pnpm (recommended)"
-    elif command_exists npm; then
-        PACKAGE_MANAGER="npm"
-        export PACKAGE_MANAGER
-        print_warning "Detected: npm (pnpm recommended for faster installs)"
+    # Install dependencies
+    print_status "Installing dependencies..."
+    if [ ! -f ".env" ]; then
+        $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
+    fi
+    if [ ! -d "node_modules" ]; then
+        $PACKAGE_MANAGER install
     else
-        print_error "Neither npm nor pnpm found. Please install Node.js first."
-        exit 1
-    fi
-}
-
-# Function to check prerequisites
-check_prerequisites() {
-    print_status "Checking prerequisites..."
-    
-    if ! command_exists node; then
-        print_error "Node.js is not installed. Please install Node.js first."
-        exit 1
+        print_status "Dependencies already installed, skipping..."
     fi
     
-    detect_package_manager
-    
-    if ! command_exists docker; then
-        print_warning "Docker is not installed. Some features may not work."
-    fi
-    
-    print_success "Prerequisites check completed"
-}
-
-# Function to initialize environment
-init_environment() {
-    print_status "Initializing environment configuration..."
-    
-    # Create .env from env.example if it doesn't exist
-    node scripts/init-env.js
-    
-    print_success "Environment configuration initialized"
-}
-
-# Function to install dependencies
-install_dependencies() {
-    print_status "Installing dependencies for all packages..."
-    
-    # Initialize environment first
-    init_environment
-    
-    # Use the unified install script from root package.json
-    detect_package_manager
-    $PACKAGE_MANAGER install
-    
-    print_success "All dependencies installed successfully"
-}
-
-# Function to run linting checks
-run_linting() {
-    print_status "Running linting checks..."
-    
-    # Use the unified linting script from root package.json
-    if ! $PACKAGE_MANAGER run lint:all; then
-        print_error "Linting checks failed! Please fix the issues before continuing."
-        exit 1
-    fi
-    
-    print_success "All linting checks passed"
-}
-
-# Function to run type checking
-run_type_checking() {
-    print_status "Running TypeScript type checks..."
-    
-    # Use the unified type checking script from root package.json
-    if ! $PACKAGE_MANAGER run type-check:all; then
-        print_error "Type checking failed! Please fix the type errors before continuing."
-        exit 1
-    fi
-    
-    print_success "All type checks passed"
-}
-
-# Function to start development mode
-start_dev_mode() {
-    print_status "Starting KRAPI in development mode..."
-    
-    # Check if Docker is running
-    if command_exists docker; then
-        print_status "Starting Docker services..."
-        $PACKAGE_MANAGER run docker:up
-    fi
-    
-    print_success "KRAPI development mode started!"
-    print_status "Backend API: http://localhost:3499"
-    print_status "Frontend UI: http://localhost:3498"
-    print_status "Press Ctrl+C to stop all services"
-    
-    # Use the unified development script from root package.json (includes SDK build)
+    echo
+    print_status "Starting development services..."
+    echo "[INFO] Backend: http://localhost:3470"
+    echo "[INFO] Frontend: http://localhost:3498"
+    echo "[INFO] Press Ctrl+C to stop"
+    echo
     $PACKAGE_MANAGER run dev:all
-}
+    exit 0
+fi
 
-# Function to start production mode
-start_production_mode() {
-    print_status "Starting KRAPI in production mode..."
-    
-    # Start Docker services
-    if command_exists docker; then
-        print_status "Starting Docker services..."
-        $PACKAGE_MANAGER run docker:up
-    fi
-    
-    print_success "KRAPI production mode started!"
-    print_status "Backend API: http://localhost:3499"
-    print_status "Frontend UI: http://localhost:3498"
-    print_status "Press Ctrl+C to stop all services"
-    
-    # Use the unified production script from root package.json (builds and starts)
-    $PACKAGE_MANAGER run start:all
-}
+# Default: Production mode
+print_status "Auto-starting: Installing, building, and starting PRODUCTION mode..."
+echo
 
-# Function to show help
-show_help() {
-    echo "KRAPI Application Manager"
-    echo ""
-    echo "Usage: $0 [COMMAND]"
-    echo ""
-    echo "Commands:"
-    echo "  dev           Start the application in development mode"
-    echo "  quick-dev     Start the application in development mode (skip linting/type checks)"
-    echo "  prod          Start the application in production mode"
-    echo "  install       Install all dependencies"
-    echo "  lint          Run linting checks"
-    echo "  type-check    Run TypeScript type checks"
-    echo "  health        Run comprehensive health checks (install + lint + type-check)"
-    echo "  help          Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  $0 dev        # Start development mode"
-    echo "  $0 prod       # Start production mode"
-    echo "  $0 health     # Run all health checks"
-}
+# Step 1: Install dependencies
+print_status "Step 1/3: Installing dependencies..."
+if [ ! -f ".env" ]; then
+    $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
+fi
+if [ ! -d "node_modules" ]; then
+    $PACKAGE_MANAGER install
+    print_success "Dependencies installed"
+else
+    print_status "Dependencies already installed, skipping..."
+fi
+echo
 
-# Function to run health checks
-run_health_checks() {
-    print_status "Running comprehensive health checks..."
-    
-    # Use the unified health check script from root package.json
-    if ! $PACKAGE_MANAGER run health; then
-        print_error "Health checks failed! Please fix the issues before continuing."
-        exit 1
-    fi
-    
-    print_success "All health checks passed! The application is ready to run."
-}
+# Step 2: Build all
+print_status "Step 2/3: Building backend and frontend..."
+$PACKAGE_MANAGER run build:all
+print_success "Build complete"
+echo
 
-# Main script logic
-main() {
-    case "${1:-help}" in
-        "dev")
-            check_prerequisites
-            install_dependencies
-            run_linting
-            run_type_checking
-            start_dev_mode
-            ;;
-        "quick-dev")
-            check_prerequisites
-            install_dependencies
-            start_dev_mode
-            ;;
-        "prod")
-            check_prerequisites
-            install_dependencies
-            run_linting
-            run_type_checking
-            start_production_mode
-            ;;
-        "install")
-            check_prerequisites
-            install_dependencies
-            ;;
-        "lint")
-            check_prerequisites
-            run_linting
-            ;;
-        "type-check")
-            check_prerequisites
-            run_type_checking
-            ;;
-        "health")
-            check_prerequisites
-            run_health_checks
-            ;;
-        "help"|*)
-            show_help
-            ;;
-    esac
-}
-
-# Run main function with all arguments
-main "$@"
+# Step 3: Start production
+print_status "Step 3/3: Starting production services..."
+echo "[INFO] Backend API: http://localhost:3470"
+echo "[INFO] Frontend UI: http://localhost:3498"
+echo "[INFO] Database will be initialized automatically if missing"
+echo "[INFO] Press Ctrl+C to stop services"
+echo
+$PACKAGE_MANAGER run start:all

@@ -1,4 +1,4 @@
-import { CollectionsService, FieldType } from "@krapi/sdk";
+import { CollectionsService, FieldType } from "@smartsamurai/krapi-sdk";
 
 /**
  * SDK Collections Service Wrapper
@@ -191,7 +191,7 @@ export class SDKCollectionsService {
    * });
    */
   async createCollection(
-    projectId: string,
+    _projectId: string,
     collectionData: {
       name: string;
       description?: string;
@@ -217,12 +217,34 @@ export class SDKCollectionsService {
       type: field.type as FieldType,
     }));
 
-    return await this.collectionsService.createCollection({
+    const createOptions: {
+      name: string;
+      description?: string;
+      fields: Array<{
+        name: string;
+        type: FieldType;
+        required?: boolean;
+        unique?: boolean;
+        indexed?: boolean;
+        default?: unknown;
+        description?: string;
+      }>;
+      indexes?: Array<{
+        name: string;
+        fields: string[];
+        unique?: boolean;
+      }>;
+    } = {
       name: collectionData.name,
-      description: collectionData.description,
       fields: fieldsWithProperTypes,
-      indexes: collectionData.indexes,
-    });
+    };
+    if (collectionData.description !== undefined) {
+      createOptions.description = collectionData.description;
+    }
+    if (collectionData.indexes !== undefined) {
+      createOptions.indexes = collectionData.indexes;
+    }
+    return await this.collectionsService.createCollection(createOptions);
   }
 
   async updateCollection(

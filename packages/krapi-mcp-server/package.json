@@ -15,7 +15,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@krapi/sdk": "workspace:*",
+    "@smartsamurai/krapi-sdk": "^0.1.0",
     "@modelcontextprotocol/sdk": "^0.6.1",
     "dotenv": "^16.5.0",
     "zod": "^3.25.76"

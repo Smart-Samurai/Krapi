@@ -1,4 +1,4 @@
-import { AdminRole, SessionType, Scope } from "@krapi/sdk";
+import { AdminRole, SessionType, Scope } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
 import { AuthService } from "../services/auth.service";

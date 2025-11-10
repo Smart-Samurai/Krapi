@@ -1,25 +1,10 @@
-import { BackendSDK } from "@krapi/sdk";
-import { Response } from "express";
-import type { Request as ExpressRequest } from "express";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
+import { Response as ExpressResponse } from "express";
 
-import { AuthenticatedRequest } from "@/types";
+import { ExtendedRequest } from "@/types";
 
-// Extend the AuthenticatedRequest interface to include app.locals.backendSDK
-// Explicitly include all Express Request properties to ensure TypeScript recognition
-type ExtendedRequest = ExpressRequest &
-  AuthenticatedRequest & {
-    // Explicitly redeclare Express Request properties that TypeScript needs
-    params: ExpressRequest["params"];
-    body: ExpressRequest["body"];
-    query: ExpressRequest["query"];
-    originalUrl: ExpressRequest["originalUrl"];
-    // Override app to add backendSDK to locals
-    app: ExpressRequest["app"] & {
-      locals: ExpressRequest["app"]["locals"] & {
-        backendSDK?: BackendSDK;
-      };
-    };
-  };
+// Type alias for Response to match Express's generic type
+type Response = ExpressResponse<unknown, Record<string, unknown>>;
 
 /**
  * Collections Controller

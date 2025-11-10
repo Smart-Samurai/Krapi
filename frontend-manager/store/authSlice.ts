@@ -1,11 +1,13 @@
 import {
-  createSlice,
-  createAsyncThunk,
-  PayloadAction,
   ActionReducerMapBuilder,
+  createAsyncThunk,
+  createSlice,
+  PayloadAction,
 } from "@reduxjs/toolkit";
-import { AdminUser } from "@/lib/krapi";
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 import { toast } from "sonner";
+
+import type { AdminUser } from "@/lib/krapi";
 
 // Types
 export interface AuthState {
@@ -19,7 +21,7 @@ export interface AuthState {
 }
 
 // Helper functions
-const setCookie = (name: string, value: string, days: number = 7) => {
+const setCookie = (name: string, value: string, days = 7) => {
   const expires = new Date();
   expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
@@ -30,7 +32,7 @@ const removeCookie = (name: string) => {
 };
 
 const getCookie = (name: string): string | null => {
-  const nameEQ = name + "=";
+  const nameEQ = `${name}=`;
   const ca = document.cookie.split(";");
   for (let i = 0; i < ca.length; i++) {
     let c = ca[i];
@@ -47,7 +49,7 @@ const getCookie = (name: string): string | null => {
 // Async thunks
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
-  async ({ krapi }: { krapi: any }, { dispatch }: { dispatch: any }) => {
+  async ({ krapi }: { krapi: KrapiWrapper }, { dispatch: _dispatch }: { dispatch: unknown }) => {
     const storedToken =
       getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
@@ -64,8 +66,9 @@ export const initializeAuth = createAsyncThunk(
           if (storedScopes) {
             try {
               userScopes = JSON.parse(storedScopes);
-            } catch (e) {
-              console.error("Failed to parse stored scopes:", e);
+            } catch (_e) {
+              // eslint-disable-next-line no-console
+              console.error("Failed to parse stored scopes:", _e);
             }
           }
 
@@ -81,7 +84,7 @@ export const initializeAuth = createAsyncThunk(
           removeCookie("session_token");
           return { user: null, scopes: [], sessionToken: null };
         }
-      } catch (error) {
+      } catch (_error) {
         // Session validation failed, clear stored data
         localStorage.removeItem("session_token");
         localStorage.removeItem("user_scopes");
@@ -111,7 +114,7 @@ export const initializeAuth = createAsyncThunk(
             apiKey: null,
           };
         }
-      } catch (error) {
+      } catch (_error) {
         // API key validation failed, clear stored data
         localStorage.removeItem("api_key");
         return {
@@ -136,8 +139,8 @@ export const initializeAuth = createAsyncThunk(
 export const validateSession = createAsyncThunk(
   "auth/validateSession",
   async (
-    { krapi, token }: { krapi: any; token: string },
-    { dispatch }: { dispatch: any }
+    { krapi, token: _token }: { krapi: KrapiWrapper; token: string },
+    { dispatch }: { dispatch: unknown }
   ) => {
     try {
       const response = await krapi.auth.getCurrentUser();
@@ -148,8 +151,9 @@ export const validateSession = createAsyncThunk(
         if (storedScopes) {
           try {
             userScopes = JSON.parse(storedScopes);
-          } catch (e) {
-            console.error("Failed to parse stored scopes:", e);
+          } catch (_e) {
+            // eslint-disable-next-line no-console
+            console.error("Failed to parse stored scopes:", _e);
           }
         }
 
@@ -161,9 +165,9 @@ export const validateSession = createAsyncThunk(
         dispatch(clearAuthData());
         throw new Error("Session validation failed");
       }
-    } catch (error) {
+    } catch (_error) {
       dispatch(clearAuthData());
-      throw error;
+      throw _error;
     }
   }
 );
@@ -171,8 +175,8 @@ export const validateSession = createAsyncThunk(
 export const validateApiKey = createAsyncThunk(
   "auth/validateApiKey",
   async (
-    { krapi, key }: { krapi: any; key: string },
-    { dispatch }: { dispatch: any }
+    { krapi, key }: { krapi: KrapiWrapper; key: string },
+    { dispatch }: { dispatch: unknown }
   ) => {
     try {
       const response = await krapi.auth.adminApiLogin(key);
@@ -194,9 +198,9 @@ export const validateApiKey = createAsyncThunk(
         dispatch(clearAuthData());
         throw new Error("API key validation failed");
       }
-    } catch (error) {
+    } catch (_error) {
       dispatch(clearAuthData());
-      throw error;
+      throw _error;
     }
   }
 );
@@ -208,8 +212,8 @@ export const login = createAsyncThunk(
       username,
       password,
       krapi,
-    }: { username: string; password: string; krapi: any },
-    { getState }: { getState: any }
+    }: { username: string; password: string; krapi: KrapiWrapper },
+    { getState }: { getState: () => { auth: AuthState } }
   ) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
@@ -221,6 +225,7 @@ export const login = createAsyncThunk(
     const response = await krapi.auth.adminLogin({ username, password });
     
     // Log the full response for debugging
+    // eslint-disable-next-line no-console
     console.log("🔍 Login response:", JSON.stringify(response, null, 2));
     
     if (response.success && response.data) {
@@ -228,11 +233,13 @@ export const login = createAsyncThunk(
 
       // Validate required fields
       if (!response.data.session_token) {
+        // eslint-disable-next-line no-console
         console.error("❌ Missing session_token in response:", response);
         throw new Error(`Login failed: Missing session token. Response: ${JSON.stringify(response)}`);
       }
       
       if (!response.data.user) {
+        // eslint-disable-next-line no-console
         console.error("❌ Missing user in response:", response);
         throw new Error(`Login failed: Missing user data. Response: ${JSON.stringify(response)}`);
       }
@@ -251,6 +258,7 @@ export const login = createAsyncThunk(
       };
     } else {
       const errorMsg = response.error || "Unknown error";
+      // eslint-disable-next-line no-console
       console.error("❌ Login failed:", response);
       throw new Error(`Login failed: ${errorMsg}. Response: ${JSON.stringify(response)}`);
     }
@@ -260,8 +268,8 @@ export const login = createAsyncThunk(
 export const loginWithApiKey = createAsyncThunk(
   "auth/loginWithApiKey",
   async (
-    { apiKey, krapi }: { apiKey: string; krapi: any },
-    { getState }: { getState: any }
+    { apiKey, krapi }: { apiKey: string; krapi: KrapiWrapper },
+    { getState }: { getState: () => { auth: AuthState } }
   ) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
@@ -296,7 +304,7 @@ export const loginWithApiKey = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   "auth/logout",
-  async ({ krapi }: { krapi: any }, { getState }: { getState: any }) => {
+  async ({ krapi }: { krapi: KrapiWrapper }, { getState }: { getState: () => { auth: AuthState } }) => {
     const state = getState() as { auth: AuthState };
     const { sessionToken } = state.auth;
 
@@ -308,8 +316,9 @@ export const logout = createAsyncThunk(
       if (sessionToken) {
         await krapi.auth.logout();
       }
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch (_error) {
+      // eslint-disable-next-line no-console
+      console.error("Logout error:", _error);
       // Don't throw error on logout failure, just clear local data
     }
 
@@ -370,7 +379,7 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(initializeAuth.fulfilled, (state: AuthState, action: any) => {
+      .addCase(initializeAuth.fulfilled, (state: AuthState, action) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes || [];
         state.sessionToken = action.payload.sessionToken || null;
@@ -378,7 +387,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.isInitialized = true;
       })
-      .addCase(initializeAuth.rejected, (state: AuthState, action: any) => {
+      .addCase(initializeAuth.rejected, (state: AuthState, action) => {
         state.loading = false;
         state.error = action.error.message || "Initialization failed";
         state.isInitialized = true;
@@ -389,13 +398,13 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(validateSession.fulfilled, (state: AuthState, action: any) => {
+      .addCase(validateSession.fulfilled, (state: AuthState, action) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.loading = false;
         state.error = null;
       })
-      .addCase(validateSession.rejected, (state: AuthState, action: any) => {
+      .addCase(validateSession.rejected, (state: AuthState, action) => {
         state.loading = false;
         state.error = action.error.message || "Session validation failed";
       })
@@ -405,14 +414,14 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(validateApiKey.fulfilled, (state: AuthState, action: any) => {
+      .addCase(validateApiKey.fulfilled, (state: AuthState, action) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
         state.loading = false;
         state.error = null;
       })
-      .addCase(validateApiKey.rejected, (state: AuthState, action: any) => {
+      .addCase(validateApiKey.rejected, (state: AuthState, action) => {
         state.loading = false;
         state.error = action.error.message || "API key validation failed";
       })
@@ -422,7 +431,7 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state: AuthState, action: any) => {
+      .addCase(login.fulfilled, (state: AuthState, action) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
@@ -430,7 +439,7 @@ const authSlice = createSlice({
         state.error = null;
         toast.success("Login successful");
       })
-      .addCase(login.rejected, (state: AuthState, action: any) => {
+      .addCase(login.rejected, (state: AuthState, action) => {
         state.loading = false;
         state.error = action.error.message || "Login failed";
         toast.error(action.error.message || "Invalid credentials");
@@ -441,7 +450,7 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(loginWithApiKey.fulfilled, (state: AuthState, action: any) => {
+      .addCase(loginWithApiKey.fulfilled, (state: AuthState, action) => {
         state.user = action.payload.user;
         state.scopes = action.payload.scopes;
         state.sessionToken = action.payload.sessionToken;
@@ -450,7 +459,7 @@ const authSlice = createSlice({
         state.error = null;
         toast.success("API key login successful");
       })
-      .addCase(loginWithApiKey.rejected, (state: AuthState, action: any) => {
+      .addCase(loginWithApiKey.rejected, (state: AuthState, action) => {
         state.loading = false;
         state.error = action.error.message || "API key login failed";
         toast.error(action.error.message || "Invalid API key");
@@ -468,7 +477,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = null;
       })
-      .addCase(logout.rejected, (state: AuthState, action: any) => {
+      .addCase(logout.rejected, (state: AuthState, action) => {
         state.loading = false;
         state.error = action.error.message || "Logout failed";
       });

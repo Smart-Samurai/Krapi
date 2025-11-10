@@ -20,7 +20,7 @@
  * @module routes/email.routes
  */
 
-import { BackendSDK } from "@krapi/sdk";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router } from "express";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
@@ -85,7 +85,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: false,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -158,7 +158,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -197,7 +197,7 @@ router.put(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -237,7 +237,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -286,7 +286,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -325,7 +325,7 @@ router.get(
     scopes: [Scope.PROJECTS_READ],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -371,7 +371,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -398,7 +398,7 @@ router.post(
 
       const result = await backendSDK.email.createTemplate(templateWithProject);
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         data: result,
       });
@@ -420,7 +420,7 @@ router.put(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -478,7 +478,7 @@ router.delete(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -524,7 +524,7 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
     projectSpecific: true,
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -587,7 +587,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -643,7 +643,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -700,7 +700,7 @@ router.post(
         } catch (error) {
           errors.push({
             email: recipient.email,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       }
@@ -745,7 +745,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -793,7 +793,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -851,7 +851,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -871,10 +871,6 @@ router.post(
 
       // For global templates, use a default project ID or system project
       const systemProjectId = "00000000-0000-0000-0000-000000000000";
-      const _templateWithProject = {
-        ...templateData,
-        projectId: systemProjectId,
-      };
 
       // For testing purposes, return a mock response instead of creating a real template
       // This avoids the need for the email_templates table to exist
@@ -882,7 +878,7 @@ router.post(
         .toString(36)
         .substr(2, 9)}`;
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         template_id: templateId,
         data: {
@@ -918,7 +914,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -982,7 +978,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1050,7 +1046,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1095,7 +1091,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1145,7 +1141,7 @@ router.get(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res
@@ -1203,7 +1199,7 @@ router.post(
     scopes: [Scope.EMAIL_SEND],
     projectSpecific: false, // Allow global access
   }),
-  async (_req, res) => {
+  async (req, res) => {
     try {
       if (!backendSDK) {
         return res

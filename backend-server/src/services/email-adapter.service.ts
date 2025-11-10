@@ -3,7 +3,7 @@ import {
   EmailSendRequest,
   EmailConfig,
   ApiResponse,
-} from "@krapi/sdk";
+} from "@smartsamurai/krapi-sdk";
 
 import { TypeMapper } from "../lib/type-mapper";
 
@@ -109,9 +109,13 @@ export class EmailAdapterService implements IEmailServiceBackend {
         };
       }
 
+      const to = Array.isArray(request.to) ? request.to[0] : request.to;
+      if (!to) {
+        return { success: false, error: "Recipient email is required" };
+      }
       const result = await this.emailService.sendEmail(
         projectId,
-        Array.isArray(request.to) ? request.to[0] : request.to,
+        to,
         request.subject || "",
         request.body || "",
         {
@@ -123,7 +127,8 @@ export class EmailAdapterService implements IEmailServiceBackend {
       if (result.success) {
         return { success: true };
       } else {
-        return { success: false, error: result.error };
+        const errorMessage = result.error || "Unknown error";
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
       console.error("Email send error:", error);

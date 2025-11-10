@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 // List of paths that don't require authentication
-const publicPaths = ["/login", "/api/auth", "/api/krapi"];
+const _publicPaths = ["/login", "/api/auth", "/api/krapi"];
 
-export function middleware(request: NextRequest) {
+export function middleware(_request: NextRequest) {
   // Temporarily disable middleware for testing
   return NextResponse.next();
 

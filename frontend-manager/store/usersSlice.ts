@@ -1,10 +1,11 @@
 import {
-  createSlice,
-  createAsyncThunk,
-  PayloadAction,
   ActionReducerMapBuilder,
+  createAsyncThunk,
+  createSlice,
 } from "@reduxjs/toolkit";
-import { ProjectUser } from "@/lib/krapi";
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
+
+import type { ProjectUser } from "@/lib/krapi";
 
 // Types
 interface UsersBucket {
@@ -26,9 +27,9 @@ const initialState: UsersState = {
 export const fetchUsers = createAsyncThunk(
   "users/fetchAll",
   async (
-    { projectId, search, krapi }: { projectId: string; search?: string; krapi: any },
+    { projectId, search, krapi }: { projectId: string; search?: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -61,10 +62,10 @@ export const createUser = createAsyncThunk(
     }: {
       projectId: string;
       data: { email: string; role?: string; name?: string };
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -105,10 +106,10 @@ export const updateUser = createAsyncThunk(
       projectId: string;
       userId: string;
       updates: Partial<{ email: string; role: string; name: string }>;
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -130,9 +131,9 @@ export const updateUser = createAsyncThunk(
 export const deleteUser = createAsyncThunk(
   "users/delete",
   async (
-    { projectId, userId, krapi }: { projectId: string; userId: string; krapi: any },
+    { projectId, userId, krapi }: { projectId: string; userId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -156,7 +157,7 @@ const usersSlice = createSlice({
   name: "users",
   initialState,
   reducers: {},
-  extraReducers: (builder: ActionReducerMapBuilder<UsersState>) => {
+  extraReducers: (_builder: ActionReducerMapBuilder<UsersState>) => {
     // Temporarily disabled to fix build issues
     // builder
     //   .addCase(fetchUsers.pending, (state: UsersState, action) => {

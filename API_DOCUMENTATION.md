@@ -733,7 +733,7 @@ GET /documents?sort={"age":"desc","name":"asc"}
 KRAPI provides a TypeScript SDK for easy integration:
 
 ```typescript
-import { KrapiSDK } from '@krapi/sdk';
+import { KrapiSDK } from '@smartsamurai/krapi-sdk';
 
 // Initialize SDK
 const krapi = await KrapiSDK.connect({

@@ -1,4 +1,4 @@
-import { FieldType } from "@krapi/sdk";
+import { FieldType } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
 import { AuthService } from "@/services/auth.service";

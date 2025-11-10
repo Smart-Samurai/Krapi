@@ -1,4 +1,4 @@
-import { krapi } from "@krapi/sdk";
+import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(

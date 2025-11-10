@@ -48,7 +48,7 @@ export interface QueueMetrics {
 
 export class DatabaseQueue {
   private static instance: DatabaseQueue;
-  private queue: QueueItem[] = [];
+  private queue: QueueItem<unknown>[] = [];
   private processing = false;
   private dbConnection: DatabaseConnection | null = null;
   private config: {
@@ -179,13 +179,13 @@ export class DatabaseQueue {
       if (this.config.enablePriority && priority > 0) {
         const insertIndex = this.queue.findIndex((q) => q.priority < priority);
         if (insertIndex === -1) {
-          this.queue.push(item);
+          this.queue.push(item as QueueItem<unknown>);
         } else {
-          this.queue.splice(insertIndex, 0, item);
+          this.queue.splice(insertIndex, 0, item as QueueItem<unknown>);
         }
       } else {
         // FIFO - add to end
-        this.queue.push(item);
+        this.queue.push(item as QueueItem<unknown>);
       }
 
       // Calculate wait time when processed

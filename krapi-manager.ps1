@@ -1,246 +1,123 @@
-# KRAPI Application Manager
-# A comprehensive PowerShell script to manage the KRAPI application
+# KRAPI Application Manager - Non-Interactive Mode
+# Auto-installs, builds, and starts services automatically
 
 param(
     [Parameter(Position=0)]
-    [ValidateSet("dev", "prod", "install", "lint", "type-check", "health", "help")]
-    [string]$Command = "help"
+    [ValidateSet("dev", "prod", "help")]
+    [string]$Mode = "prod"
 )
 
-# Set error action preference
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
-# Colors for output
-$Colors = @{
-    Red = "Red"
-    Green = "Green"
-    Yellow = "Yellow"
-    Blue = "Blue"
-    White = "White"
+# Colors
+function Write-Status { param([string]$Message) Write-Host "[INFO] $Message" -ForegroundColor Blue }
+function Write-Success { param([string]$Message) Write-Host "[SUCCESS] $Message" -ForegroundColor Green }
+function Write-Error { param([string]$Message) Write-Host "[ERROR] $Message" -ForegroundColor Red }
+
+# Change to script directory
+Set-Location $PSScriptRoot
+
+# Check for package.json
+if (-not (Test-Path "package.json")) {
+    Write-Error "package.json not found. Please run from KRAPI root directory."
+    exit 1
 }
 
-# Function to print colored output
-function Write-Status {
-    param([string]$Message)
-    Write-Host "[INFO] $Message" -ForegroundColor $Colors.Blue
-}
-
-function Write-Success {
-    param([string]$Message)
-    Write-Host "[SUCCESS] $Message" -ForegroundColor $Colors.Green
-}
-
-function Write-Warning {
-    param([string]$Message)
-    Write-Host "[WARNING] $Message" -ForegroundColor $Colors.Yellow
-}
-
-function Write-Error {
-    param([string]$Message)
-    Write-Host "[ERROR] $Message" -ForegroundColor $Colors.Red
-}
-
-# Function to check if command exists
-function Test-Command {
-    param([string]$CommandName)
-    try {
-        Get-Command $CommandName -ErrorAction Stop | Out-Null
-        return $true
-    }
-    catch {
-        return $false
-    }
-}
-
-# Function to check prerequisites
-function Test-Prerequisites {
-    Write-Status "Checking prerequisites..."
-    
-    if (-not (Test-Command "node")) {
-        Write-Error "Node.js is not installed. Please install Node.js first."
+# Detect package manager
+$PACKAGE_MANAGER = "pnpm"
+if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        $PACKAGE_MANAGER = "npm"
+    } else {
+        Write-Error "Neither npm nor pnpm found. Please install Node.js."
         exit 1
     }
-    
-    if (-not (Test-Command "pnpm")) {
-        Write-Error "pnpm is not installed. Please install pnpm first."
-        exit 1
-    }
-    
-    if (-not (Test-Command "docker")) {
-        Write-Warning "Docker is not installed. Some features may not work."
-    }
-    
-    Write-Success "Prerequisites check completed"
 }
 
-# Function to initialize environment
-function Initialize-Environment {
-    Write-Status "Initializing environment configuration..."
-    
-    # Create .env from env.example if it doesn't exist
-    node scripts/init-env.js
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to initialize environment"
-        exit 1
-    }
-    
-    Write-Success "Environment configuration initialized"
+Write-Host "========================================"
+Write-Host "  KRAPI Application Manager"
+Write-Host "  Non-Interactive Mode"
+Write-Host "========================================"
+Write-Host ""
+
+if ($Mode -eq "help") {
+    Write-Host "Usage: .\krapi-manager.ps1 [MODE]"
+    Write-Host ""
+    Write-Host "Modes:"
+    Write-Host "  prod (default)  - Start in PRODUCTION mode"
+    Write-Host "  dev             - Start in DEVELOPMENT mode"
+    Write-Host "  help            - Show this help"
+    Write-Host ""
+    Write-Host "Default behavior:"
+    Write-Host "  - Installs dependencies (if needed)"
+    Write-Host "  - Builds backend and frontend"
+    Write-Host "  - Starts services automatically"
+    Write-Host ""
+    Write-Host "For interactive menu, use: .\krapi-manager-interactive.ps1"
+    exit 0
 }
 
-# Function to install dependencies
-function Install-Dependencies {
-    Write-Status "Installing dependencies for all packages..."
+if ($Mode -eq "dev") {
+    Write-Status "Starting in DEVELOPMENT mode..."
+    Write-Host ""
     
-    # Initialize environment first
-    Initialize-Environment
+    # Install dependencies
+    Write-Status "Installing dependencies..."
+    if (-not (Test-Path ".env")) {
+        & $PACKAGE_MANAGER run init-env 2>&1 | Out-Null
+    }
+    if (-not (Test-Path "node_modules")) {
+        & $PACKAGE_MANAGER install
+    } else {
+        Write-Status "Dependencies already installed, skipping..."
+    }
     
-    # Use the unified install script from root package.json
-    pnpm run install:all
+    Write-Host ""
+    Write-Status "Starting development services..."
+    Write-Host "[INFO] Backend: http://localhost:3470"
+    Write-Host "[INFO] Frontend: http://localhost:3498"
+    Write-Host "[INFO] Press Ctrl+C to stop"
+    Write-Host ""
+    & $PACKAGE_MANAGER run dev:all
+    exit 0
+}
+
+# Default: Production mode
+Write-Status "Auto-starting: Installing, building, and starting PRODUCTION mode..."
+Write-Host ""
+
+# Step 1: Install dependencies
+Write-Status "Step 1/3: Installing dependencies..."
+if (-not (Test-Path ".env")) {
+    & $PACKAGE_MANAGER run init-env 2>&1 | Out-Null
+}
+if (-not (Test-Path "node_modules")) {
+    & $PACKAGE_MANAGER install
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to install dependencies"
         exit 1
     }
-    
-    Write-Success "All dependencies installed successfully"
+    Write-Success "Dependencies installed"
+} else {
+    Write-Status "Dependencies already installed, skipping..."
 }
+Write-Host ""
 
-# Function to run linting checks
-function Test-Linting {
-    Write-Status "Running linting checks..."
-    
-    # Use the unified linting script from root package.json
-    pnpm run lint:all
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Linting checks failed! Please fix the issues before continuing."
-        exit 1
-    }
-    
-    Write-Success "All linting checks passed"
+# Step 2: Build all
+Write-Status "Step 2/3: Building backend and frontend..."
+& $PACKAGE_MANAGER run build:all
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Build failed"
+    exit 1
 }
+Write-Success "Build complete"
+Write-Host ""
 
-# Function to run type checking
-function Test-TypeChecking {
-    Write-Status "Running TypeScript type checks..."
-    
-    # Use the unified type checking script from root package.json
-    pnpm run type-check:all
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Type checking failed! Please fix the type errors before continuing."
-        exit 1
-    }
-    
-    Write-Success "All type checks passed"
-}
-
-# Function to start development mode
-function Start-DevMode {
-    Write-Status "Starting KRAPI in development mode..."
-    
-    # Check if Docker is running
-    if (Test-Command "docker") {
-        Write-Status "Starting Docker services..."
-        pnpm run docker:up
-    }
-    
-    Write-Success "KRAPI development mode started!"
-    Write-Status "Backend will run on http://localhost:3470"
-    Write-Status "Frontend will run on http://localhost:3469"
-    Write-Status "Press Ctrl+C to stop all services"
-    
-    # Use the unified development script from root package.json
-    pnpm run dev:all
-}
-
-# Function to start production mode
-function Start-ProductionMode {
-    Write-Status "Starting KRAPI in production mode..."
-    
-    # Start Docker services
-    if (Test-Command "docker") {
-        Write-Status "Starting Docker services..."
-        pnpm run docker:up
-    }
-    
-    Write-Success "KRAPI production mode started!"
-    Write-Status "Backend will run on http://localhost:3470"
-    Write-Status "Frontend will run on http://localhost:3469"
-    Write-Status "Press Ctrl+C to stop all services"
-    
-    # Use the unified production script from root package.json (builds and starts)
-    pnpm run start:all
-}
-
-# Function to show help
-function Show-Help {
-    Write-Host "KRAPI Application Manager" -ForegroundColor $Colors.White
-    Write-Host ""
-    Write-Host "Usage: .\krapi-manager.ps1 [COMMAND]" -ForegroundColor $Colors.White
-    Write-Host ""
-    Write-Host "Commands:" -ForegroundColor $Colors.White
-    Write-Host "  dev           Start the application in development mode" -ForegroundColor $Colors.White
-    Write-Host "  prod          Start the application in production mode" -ForegroundColor $Colors.White
-    Write-Host "  install       Install all dependencies" -ForegroundColor $Colors.White
-    Write-Host "  lint          Run linting checks" -ForegroundColor $Colors.White
-    Write-Host "  type-check    Run TypeScript type checks" -ForegroundColor $Colors.White
-    Write-Host "  health        Run comprehensive health checks (install + lint + type-check)" -ForegroundColor $Colors.White
-    Write-Host "  help          Show this help message" -ForegroundColor $Colors.White
-    Write-Host ""
-    Write-Host "Examples:" -ForegroundColor $Colors.White
-    Write-Host "  .\krapi-manager.ps1 dev        # Start development mode" -ForegroundColor $Colors.White
-    Write-Host "  .\krapi-manager.ps1 prod       # Start production mode" -ForegroundColor $Colors.White
-    Write-Host "  .\krapi-manager.ps1 health     # Run all health checks" -ForegroundColor $Colors.White
-}
-
-# Function to run health checks
-function Test-Health {
-    Write-Status "Running comprehensive health checks..."
-    
-    # Use the unified health check script from root package.json
-    pnpm run health
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Health checks failed! Please fix the issues before continuing."
-        exit 1
-    }
-    
-    Write-Success "All health checks passed! The application is ready to run."
-}
-
-# Main script logic
-switch ($Command) {
-    "dev" {
-        Test-Prerequisites
-        Install-Dependencies
-        Test-Linting
-        Test-TypeChecking
-        Start-DevMode
-    }
-    "prod" {
-        Test-Prerequisites
-        Install-Dependencies
-        Test-Linting
-        Test-TypeChecking
-        Start-ProductionMode
-    }
-    "install" {
-        Test-Prerequisites
-        Install-Dependencies
-    }
-    "lint" {
-        Test-Prerequisites
-        Test-Linting
-    }
-    "type-check" {
-        Test-Prerequisites
-        Test-TypeChecking
-    }
-    "health" {
-        Test-Prerequisites
-        Test-Health
-    }
-    "help" {
-        Show-Help
-    }
-    default {
-        Show-Help
-    }
-}
+# Step 3: Start production
+Write-Status "Step 3/3: Starting production services..."
+Write-Host "[INFO] Backend API: http://localhost:3470"
+Write-Host "[INFO] Frontend UI: http://localhost:3498"
+Write-Host "[INFO] Database will be initialized automatically if missing"
+Write-Host "[INFO] Press Ctrl+C to stop services"
+Write-Host ""
+& $PACKAGE_MANAGER run start:all

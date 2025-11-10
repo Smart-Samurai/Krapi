@@ -1,4 +1,4 @@
-import { krapi } from "@krapi/sdk";
+import { krapi } from "@smartsamurai/krapi-sdk";
 
 // Initialize the SDK connection to the backend
 krapi

@@ -24,7 +24,7 @@
     "@krapi/error-handler": "file:../packages/krapi-error-handler",
     "@krapi/logger": "file:../packages/krapi-logger",
     "@krapi/monitor": "file:../packages/krapi-monitor",
-    "@krapi/sdk": "file:../packages/krapi-sdk",
+    "@smartsamurai/krapi-sdk": "^0.1.0",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^11.10.0",
@@ -55,13 +55,13 @@
     "@types/node": "^22.17.2",
     "@types/nodemailer": "^6.4.17",
     "@types/uuid": "^10.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.34.1",
-    "@typescript-eslint/parser": "^8.34.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
     "eslint": "^9.29.0",
     "eslint-plugin-import": "^2.32.0",
     "nodemon": "^3.1.10",
     "tsc-alias": "^1.8.10",
-    "typescript": "^5.9.2"
+    "typescript": "^5.8.3"
   },
   "tsc-alias": {
     "baseUrl": ".",

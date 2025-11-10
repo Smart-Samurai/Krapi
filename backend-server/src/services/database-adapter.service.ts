@@ -12,7 +12,8 @@ import {
   CollectionField,
   CollectionIndex,
   UserRole,
-} from "@krapi/sdk";
+  ApiKeyScope,
+} from "@smartsamurai/krapi-sdk";
 
 import { DatabaseService } from "./database.service";
 
@@ -214,13 +215,11 @@ export class DatabaseAdapterService {
       const apiCallsCount = 0;
 
       // Get last API call (this would need to be tracked in a separate table)
-      // For now, return undefined as this feature needs to be implemented
-      const lastApiCall = undefined;
+      // For now, omit this field as this feature needs to be implemented
 
-      return {
+      const stats: ProjectStats = {
         storage_used: storageUsed,
         api_calls_count: apiCallsCount,
-        last_api_call: lastApiCall,
         collections_count: collectionsCount,
         documents_count: documentsCount,
         users_count: usersCount,
@@ -231,13 +230,14 @@ export class DatabaseAdapterService {
         api_requests_today: 0, // Not implemented yet
         api_requests_month: 0, // Not implemented yet
       };
+      // last_api_call is omitted since it's not implemented yet
+      return stats;
     } catch (error) {
       console.error("Get project stats error:", error);
       // Return default stats on error
       return {
         storage_used: 0,
         api_calls_count: 0,
-        last_api_call: undefined,
         collections_count: 0,
         documents_count: 0,
         users_count: 0,
@@ -284,7 +284,7 @@ export class DatabaseAdapterService {
    */
   async updateProjectSettings(
     id: string,
-    settings: Partial<ProjectSettings>
+    settingsUpdate: Partial<ProjectSettings>
   ): Promise<ProjectSettings> {
     // Get current project settings
     const currentProject = await this.db.getProjectById(id);
@@ -293,7 +293,7 @@ export class DatabaseAdapterService {
     // Merge with current settings to ensure required properties are present
     const updatedSettings = {
       ...currentProject.settings,
-      ...settings,
+      ...settingsUpdate,
     };
 
     const project = await this.db.updateProject(id, {
@@ -304,7 +304,7 @@ export class DatabaseAdapterService {
     }
 
     // Convert BackendProjectSettings to ProjectSettings
-    return {
+    const projectSettings: ProjectSettings = {
       authentication_required:
         project.settings.authentication_required || false,
       cors_enabled: project.settings.cors_enabled || false,
@@ -314,10 +314,11 @@ export class DatabaseAdapterService {
       backup_enabled: project.settings.backup_enabled || false,
       max_file_size: project.settings.max_file_size || 10485760,
       allowed_file_types: project.settings.allowed_file_types || [],
-      webhook_url: undefined,
       custom_headers: project.settings.custom_headers || {},
       environment: project.settings.environment || "development",
     };
+    // webhook_url is omitted since it's not implemented yet
+    return projectSettings;
   }
 
   /**
@@ -394,14 +395,21 @@ export class DatabaseAdapterService {
     }
 
     try {
+      const createOptions: {
+        description?: string;
+        fields: CollectionField[];
+        indexes: CollectionIndex[];
+      } = {
+        fields: collection.fields || [],
+        indexes: collection.indexes || [],
+      };
+      if (collection.description !== undefined) {
+        createOptions.description = collection.description;
+      }
       const createdCollection = await this.db.createCollection(
         collection.project_id,
         collection.name,
-        {
-          description: collection.description,
-          fields: collection.fields || [],
-          indexes: collection.indexes || [],
-        },
+        createOptions,
         "system" // Use default creator since created_by doesn't exist in Collection type
       );
 
@@ -446,15 +454,29 @@ export class DatabaseAdapterService {
       }
 
       // Update the collection using the database service
+      const updateOptions: {
+        description?: string;
+        fields?: CollectionField[];
+        indexes?: CollectionIndex[];
+      } = {};
+      if (updates.description !== undefined) {
+        updateOptions.description = updates.description;
+      }
+      if (updates.fields !== undefined) {
+        updateOptions.fields = updates.fields;
+      }
+      if (updates.indexes !== undefined) {
+        updateOptions.indexes = updates.indexes;
+      }
       const updatedCollection = await this.db.updateCollection(
         collection.project_id,
         collection.name,
-        {
-          description: updates.description,
-          fields: updates.fields,
-          indexes: updates.indexes,
-        }
+        updateOptions
       );
+
+      if (!updatedCollection) {
+        throw new Error("Collection not found or update failed");
+      }
 
       // Map the result back to Collection type
       return {
@@ -653,11 +675,17 @@ export class DatabaseAdapterService {
     projectId: string,
     options?: QueryOptions
   ): Promise<BackendProjectUser[]> {
-    const result = await this.db.getProjectUsers(projectId, {
-      limit: options?.limit,
-      offset: options?.offset,
-      search: options?.search,
-    });
+    const queryOptions: QueryOptions = {};
+    if (options?.limit !== undefined) {
+      queryOptions.limit = options.limit;
+    }
+    if (options?.offset !== undefined) {
+      queryOptions.offset = options.offset;
+    }
+    if (options?.search !== undefined) {
+      queryOptions.search = options.search;
+    }
+    const result = await this.db.getProjectUsers(projectId, queryOptions);
 
     return result.users.map((user) => {
       const mappedUser = TypeMapper.mapProjectUser(user);
@@ -695,13 +723,23 @@ export class DatabaseAdapterService {
       throw new Error("Project ID, username, and email are required");
     }
 
-    const backendUser = await this.db.createProjectUser(user.project_id, {
+    const createUserOptions: {
+      username: string;
+      email: string;
+      password: string;
+      phone?: string;
+      scopes?: string[];
+    } = {
       username: user.username,
       email: user.email,
       password: (user as { password?: string }).password || "",
-      phone: (user as { phone?: string }).phone,
       scopes: (user as { access_scopes?: string[] }).access_scopes || [],
-    });
+    };
+    const phone = (user as { phone?: string }).phone;
+    if (phone !== undefined) {
+      createUserOptions.phone = phone;
+    }
+    const backendUser = await this.db.createProjectUser(user.project_id, createUserOptions);
 
     const mappedUser = TypeMapper.mapProjectUser(backendUser);
     return {
@@ -724,14 +762,30 @@ export class DatabaseAdapterService {
     }
 
     // Update user in database
-    const user = await this.db.updateProjectUser(existingUser.project_id, id, {
-      username: updates.username,
-      email: updates.email,
-      phone: (updates as { phone?: string }).phone,
-      scopes: (updates as { access_scopes?: string[] }).access_scopes,
-      metadata: (updates as { custom_fields?: Record<string, unknown> })
-        .custom_fields,
-    });
+    const updateUserOptions: Partial<BackendProjectUser> = {};
+    if (updates.username !== undefined) {
+      updateUserOptions.username = updates.username;
+    }
+    if (updates.email !== undefined) {
+      updateUserOptions.email = updates.email;
+    }
+    const phone = (updates as { phone?: string }).phone;
+    if (phone !== undefined) {
+      updateUserOptions.phone = phone;
+    }
+    const scopes = (updates as { access_scopes?: string[] }).access_scopes;
+    if (scopes !== undefined) {
+      updateUserOptions.scopes = scopes;
+    }
+    const metadata = (updates as { custom_fields?: Record<string, unknown> }).custom_fields;
+    if (metadata !== undefined) {
+      updateUserOptions.metadata = metadata;
+    }
+    const user = await this.db.updateProjectUser(existingUser.project_id, id, updateUserOptions);
+
+    if (!user) {
+      throw new Error("User update failed");
+    }
 
     const mappedUser = TypeMapper.mapProjectUser(user);
     return {
@@ -785,15 +839,35 @@ export class DatabaseAdapterService {
   }
 
   async createApiKey(key: Partial<BackendApiKey>): Promise<BackendApiKey> {
-    const result = await this.db.createApiKey({
-      name: key.name!,
-      scopes: key.scopes!,
-      project_id: key.project_id,
-      user_id: key.user_id!,
-      expires_at: key.expires_at,
-      rate_limit: key.rate_limit,
-      metadata: key.metadata,
-    });
+    if (!key.name || !key.scopes || !key.user_id) {
+      throw new Error("Name, scopes, and user_id are required");
+    }
+    const createKeyOptions: {
+      name: string;
+      scopes: ApiKeyScope[];
+      user_id: string;
+      project_id?: string;
+      expires_at?: string;
+      rate_limit?: number;
+      metadata?: Record<string, unknown>;
+    } = {
+      name: key.name,
+      scopes: key.scopes,
+      user_id: key.user_id,
+    };
+    if (key.project_id !== undefined) {
+      createKeyOptions.project_id = key.project_id;
+    }
+    if (key.expires_at !== undefined) {
+      createKeyOptions.expires_at = key.expires_at;
+    }
+    if (key.rate_limit !== undefined) {
+      createKeyOptions.rate_limit = key.rate_limit;
+    }
+    if (key.metadata !== undefined) {
+      createKeyOptions.metadata = key.metadata;
+    }
+    const result = await this.db.createApiKey(createKeyOptions);
     return result;
   }
 
@@ -802,6 +876,9 @@ export class DatabaseAdapterService {
     updates: Partial<BackendApiKey>
   ): Promise<BackendApiKey> {
     const result = await this.db.updateApiKey(id, updates);
+    if (!result) {
+      throw new Error("API key update failed");
+    }
     return result;
   }
 

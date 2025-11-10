@@ -1,10 +1,11 @@
 import {
-  createSlice,
-  createAsyncThunk,
-  PayloadAction,
   ActionReducerMapBuilder,
+  createAsyncThunk,
+  createSlice,
 } from "@reduxjs/toolkit";
-import {
+import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
+
+import type {
   FileInfo,
   StorageStats,
 } from "@/lib/krapi";
@@ -37,9 +38,9 @@ const initialState: StorageState = {
 export const fetchFiles = createAsyncThunk(
   "storage/fetchFiles",
   async (
-    { projectId, krapi }: { projectId: string; krapi: any },
+    { projectId, krapi }: { projectId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -61,9 +62,9 @@ export const fetchFiles = createAsyncThunk(
 export const fetchStorageStats = createAsyncThunk(
   "storage/fetchStats",
   async (
-    { projectId, krapi }: { projectId: string; krapi: any },
+    { projectId, krapi }: { projectId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -96,10 +97,10 @@ export const uploadFile = createAsyncThunk(
         | Blob
         | Buffer
         | { buffer: Buffer; originalname: string; mimetype: string };
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -134,10 +135,10 @@ export const updateFile = createAsyncThunk(
         metadata?: Record<string, unknown>;
         folder_id?: string | null;
       };
-      krapi: any;
+      krapi: KrapiWrapper;
     },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -159,9 +160,9 @@ export const updateFile = createAsyncThunk(
 export const deleteFile = createAsyncThunk(
   "storage/deleteFile",
   async (
-    { projectId, fileId, krapi }: { projectId: string; fileId: string; krapi: any },
+    { projectId, fileId, krapi }: { projectId: string; fileId: string; krapi: KrapiWrapper },
     {
-      getState,
+      getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
@@ -187,7 +188,7 @@ const storageSlice = createSlice({
   reducers: {},
   extraReducers: (builder: ActionReducerMapBuilder<StorageState>) => {
     builder
-      .addCase(fetchFiles.pending, (state: StorageState, action: any) => {
+      .addCase(fetchFiles.pending, (state: StorageState, action) => {
         const { projectId } = action.meta.arg;
         state.filesByProjectId[projectId] ||= {
           items: [],
@@ -197,7 +198,7 @@ const storageSlice = createSlice({
         state.filesByProjectId[projectId].loading = true;
         state.filesByProjectId[projectId].error = null;
       })
-      .addCase(fetchFiles.fulfilled, (state: StorageState, action: any) => {
+      .addCase(fetchFiles.fulfilled, (state: StorageState, action) => {
         const { projectId, files } = action.payload;
         state.filesByProjectId[projectId] = {
           items: files,
@@ -205,7 +206,7 @@ const storageSlice = createSlice({
           error: null,
         };
       })
-      .addCase(fetchFiles.rejected, (state: StorageState, action: any) => {
+      .addCase(fetchFiles.rejected, (state: StorageState, action) => {
         const { projectId } = action.meta.arg;
         state.filesByProjectId[projectId] ||= {
           items: [],
@@ -216,11 +217,11 @@ const storageSlice = createSlice({
         state.filesByProjectId[projectId].error =
           action.payload || "Failed to fetch files";
       })
-      .addCase(uploadFile.fulfilled, (state: StorageState, action: any) => {
+      .addCase(uploadFile.fulfilled, (state: StorageState, action) => {
         const { projectId, file } = action.payload;
         state.filesByProjectId[projectId]?.items.unshift(file);
       })
-      .addCase(updateFile.fulfilled, (state: StorageState, action: any) => {
+      .addCase(updateFile.fulfilled, (state: StorageState, action) => {
         const { projectId, file } = action.payload;
         const bucket = state.filesByProjectId[projectId];
         if (!bucket) return;
@@ -229,7 +230,7 @@ const storageSlice = createSlice({
           bucket.items[index] = file;
         }
       })
-      .addCase(deleteFile.fulfilled, (state: StorageState, action: any) => {
+      .addCase(deleteFile.fulfilled, (state: StorageState, action) => {
         const { projectId, fileId } = action.payload;
         const bucket = state.filesByProjectId[projectId];
         if (!bucket) return;
@@ -237,7 +238,7 @@ const storageSlice = createSlice({
       })
       .addCase(
         fetchStorageStats.pending,
-        (state: StorageState, action: any) => {
+        (state: StorageState, action) => {
           const { projectId } = action.meta.arg;
           state.statsByProjectId[projectId] ||= {
             data: null,
@@ -250,7 +251,7 @@ const storageSlice = createSlice({
       )
       .addCase(
         fetchStorageStats.fulfilled,
-        (state: StorageState, action: any) => {
+        (state: StorageState, action) => {
           const { projectId, stats } = action.payload;
           state.statsByProjectId[projectId] = {
             data: stats,
@@ -261,7 +262,7 @@ const storageSlice = createSlice({
       )
       .addCase(
         fetchStorageStats.rejected,
-        (state: StorageState, action: any) => {
+        (state: StorageState, action) => {
           const { projectId } = action.meta.arg;
           state.statsByProjectId[projectId] ||= {
             data: null,

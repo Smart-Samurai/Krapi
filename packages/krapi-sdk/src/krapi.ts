@@ -9,7 +9,7 @@
  * @module krapi
  * @example Client App Usage:
  * ```typescript
- * import { krapi } from '@krapi/sdk';
+ * import { krapi } from '@smartsamurai/krapi-sdk';
  * 
  * // Setup for client app
  * await krapi.connect({
@@ -25,7 +25,7 @@
  * 
  * @example Server App Usage:
  * ```typescript
- * import { krapi } from '@krapi/sdk';
+ * import { krapi } from '@smartsamurai/krapi-sdk';
  * 
  * // Setup for server app
  * await krapi.connect({

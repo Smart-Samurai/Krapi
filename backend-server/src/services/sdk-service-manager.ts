@@ -1,4 +1,4 @@
-import { BackendSDK, DatabaseConnection, Logger } from "@krapi/sdk";
+import { BackendSDK, DatabaseConnection, Logger } from "@smartsamurai/krapi-sdk";
 
 // Use the actual SDK types - AdminService.createUser expects AdminUser$1
 interface AdminUser$1 {

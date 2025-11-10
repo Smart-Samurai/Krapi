@@ -1,72 +1,60 @@
-import { KrapiWrapper } from "@krapi/sdk";
-import type {
-  ApiResponse,
-  PaginatedResponse,
-  AdminUser,
-  Project,
-  Collection,
-  Document,
-  ProjectUser,
-  Scope,
-  ProjectScope,
-} from "@krapi/sdk";
+import {
+  KrapiWrapper,
+  type AdminUser,
+  type Collection,
+  type Document,
+  type Project,
+  type ProjectScope,
+  type ProjectUser,
+  type Scope,
+} from "@smartsamurai/krapi-sdk";
 
 // Type assertions to ensure frontend is using SDK types correctly
 // This file will fail to compile if SDK types change in incompatible ways
 
 // Test that our API client returns the expected types
-async function typeChecks() {
+async function _typeChecks() {
   const sdk = new KrapiWrapper();
 
   // Auth types
-  const loginResponse = await sdk.auth.login("user", "pass");
+  await sdk.auth.login("user", "pass");
 
-  const currentUser = await sdk.auth.getCurrentUser();
-  // Type assertion for validation - SDK may return different type shape
-  const _currentUserCheck = currentUser;
+  await sdk.auth.getCurrentUser();
 
   // Project types
-  const projects = await sdk.projects.getAll();
-  const project = await sdk.projects.get("id");
-  const newProject = await sdk.projects.create({
+  await sdk.projects.getAll();
+  await sdk.projects.get("id");
+  await sdk.projects.create({
     name: "test",
     description: "test",
   });
-  // Type assertions for validation - SDK may return different type shape
-  const _projectCheck1 = project;
-  const _projectCheck2 = newProject;
 
   // Collection types
-  const collections = await sdk.collections.getAll("projectId");
-  const collection = await sdk.collections.get(
+  await sdk.collections.getAll("projectId");
+  await sdk.collections.get(
     "projectId",
     "name"
   );
-  // Type assertion for validation - SDK may return different type shape
-  const _collectionCheck = collection;
 
   // Document types
-  const documents = await sdk.documents.getAll("projectId", "collection");
-  const document = await sdk.documents.get(
+  await sdk.documents.getAll("projectId", "collection");
+  await sdk.documents.get(
     "projectId",
     "collection",
     "id"
   );
-  // Type assertion for validation - SDK may return different type shape
-  const _documentCheck = document;
 
   // User types
-  const users = await sdk.users.getAll("projectId");
-  const user = await sdk.users.get(
+  await sdk.users.getAll("projectId");
+  await sdk.users.get(
     "projectId",
     "userId"
   );
-  // Type assertion for validation - SDK may return different type shape
-  const _userCheck = user;
 
   // Session types
-  const sessionResponse = await sdk.auth.createSession("api_key");
+  await sdk.auth.createSession("api_key");
 
+  // eslint-disable-next-line no-console
   console.log("All type checks passed!");
 }
 
@@ -81,4 +69,5 @@ export type ValidatedSDKTypes = {
   ProjectScope: typeof ProjectScope;
 };
 
+// eslint-disable-next-line no-console
 console.log("SDK type validation script loaded successfully");

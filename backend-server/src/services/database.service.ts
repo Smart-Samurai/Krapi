@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
 
-import { ApiKeyScope, FieldType } from "@krapi/sdk";
+import { ApiKeyScope, FieldType } from "@smartsamurai/krapi-sdk";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
@@ -35,11 +35,11 @@ import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
 
 /**
  * Database Service
- * 
+ *
  * Singleton service that provides unified database access for KRAPI.
  * Manages both the main database (admin users, projects, sessions) and
  * project-specific databases (collections, documents, files).
- * 
+ *
  * Features:
  * - Multi-database architecture (main + per-project SQLite databases)
  * - Automatic table creation and schema management
@@ -47,27 +47,27 @@ import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
  * - Health checks and auto-repair functionality
  * - Migration support for schema updates
  * - Connection pooling and retry logic
- * 
+ *
  * The service uses a queue system to ensure database operations are executed
  * in order and with rate limiting to prevent database overload.
- * 
+ *
  * @class DatabaseService
  * @example
  * // Get singleton instance
  * const db = DatabaseService.getInstance();
- * 
+ *
  * // Wait for database to be ready
  * await db.waitForReady();
- * 
+ *
  * // Query main database
  * const result = await db.queryMain('SELECT * FROM admin_users');
- * 
+ *
  * // Query project database
  * const projectData = await db.queryProject('project-id', 'SELECT * FROM collections');
  */
 export class DatabaseService {
-  private adapter: SQLiteAdapter
-  private isInitializingTables = false;; // Keep for backward compatibility during migration
+  private adapter: SQLiteAdapter;
+  private isInitializingTables = false; // Keep for backward compatibility during migration
   private dbManager: MultiDatabaseManager;
   private static instance: DatabaseService;
   private isConnected = false;
@@ -78,8 +78,8 @@ export class DatabaseService {
   private readyResolve!: () => void;
   private readyReject!: (error: Error) => void;
   private lastHealthCheck: Date | null = null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private _healthCheckInterval = 300000; // 5 minutes - reduce frequency to avoid conflicts
+
+  // Health check interval removed - not currently used
   private queue: DatabaseQueue;
   private queueInitialized = false;
 
@@ -94,7 +94,8 @@ export class DatabaseService {
     this.queue = DatabaseQueue.getInstance();
 
     // Initialize multi-database manager
-    const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
+    const mainDbPath =
+      process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
     const projectsDbDir = process.env.PROJECTS_DB_DIR || undefined;
     this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
 
@@ -133,12 +134,12 @@ export class DatabaseService {
 
   /**
    * Get singleton instance of DatabaseService
-   * 
+   *
    * Creates a new instance if one doesn't exist, otherwise returns
    * the existing singleton instance.
-   * 
+   *
    * @returns {DatabaseService} The singleton DatabaseService instance
-   * 
+   *
    * @example
    * const db = DatabaseService.getInstance();
    */
@@ -151,14 +152,14 @@ export class DatabaseService {
 
   /**
    * Wait for database to be ready
-   * 
+   *
    * Returns a promise that resolves when the database has finished
    * initialization. This should be called before performing any
    * database operations to ensure the database is ready.
-   * 
+   *
    * @returns {Promise<void>} Promise that resolves when database is ready
    * @throws {Error} If database initialization fails
-   * 
+   *
    * @example
    * const db = DatabaseService.getInstance();
    * await db.waitForReady();
@@ -170,12 +171,12 @@ export class DatabaseService {
 
   /**
    * Get database connection adapter
-   * 
+   *
    * Returns the SQLite adapter for backward compatibility.
    * For new code, prefer using queryMain() or queryProject() methods.
-   * 
+   *
    * @returns {Promise<SQLiteAdapter>} The SQLite adapter instance
-   * 
+   *
    * @example
    * const adapter = await db.getConnection();
    * // Use adapter for direct database access
@@ -272,7 +273,9 @@ export class DatabaseService {
     for (const param of params) {
       if (
         typeof param === "string" &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(param)
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          param
+        )
       ) {
         return param;
       }
@@ -283,15 +286,15 @@ export class DatabaseService {
 
   /**
    * Execute a query on the main database
-   * 
+   *
    * Executes a SQL query on the main database (admin/app data).
    * Queries are queued for rate limiting and ordered execution.
-   * 
+   *
    * @param {string} sql - SQL query string
    * @param {unknown[]} [params] - Optional query parameters
    * @returns {Promise<{rows: Record<string, unknown>[], rowCount: number}>} Query results
    * @throws {Error} If database is not ready or query fails
-   * 
+   *
    * @example
    * const result = await db.query('SELECT * FROM admin_users WHERE id = $1', ['user-id']);
    * console.log(result.rows); // Array of matching rows
@@ -312,15 +315,15 @@ export class DatabaseService {
 
   /**
    * Query the main database
-   * 
+   *
    * Executes a SQL query on the main database (admin users, projects, sessions, etc.).
    * Queries are queued for rate limiting and ordered execution.
-   * 
+   *
    * @param {string} sql - SQL query string
    * @param {unknown[]} [params] - Optional query parameters
    * @returns {Promise<{rows: Record<string, unknown>[], rowCount: number}>} Query results
    * @throws {Error} If database is not ready or query fails
-   * 
+   *
    * @example
    * const result = await db.queryMain('SELECT * FROM projects WHERE active = $1', [true]);
    * const projects = result.rows;
@@ -340,17 +343,17 @@ export class DatabaseService {
   // Query project-specific database
   /**
    * Query a project-specific database
-   * 
+   *
    * Executes a SQL query on the database for a specific project.
    * Each project has its own SQLite database file containing collections,
    * documents, files, and project users.
-   * 
+   *
    * @param {string} projectId - The project ID
    * @param {string} sql - SQL query string
    * @param {unknown[]} [params] - Optional query parameters
    * @returns {Promise<{rows: Record<string, unknown>[], rowCount: number}>} Query results
    * @throws {Error} If projectId is missing or database is not ready
-   * 
+   *
    * @example
    * const result = await db.queryProject(
    *   'project-uuid',
@@ -377,12 +380,12 @@ export class DatabaseService {
 
   /**
    * Get queue metrics for monitoring
-   * 
+   *
    * Returns metrics about the database operation queue, including
    * pending operations, processing rate, and queue health.
-   * 
+   *
    * @returns {QueueMetrics} Queue metrics including pending count, processed count, etc.
-   * 
+   *
    * @example
    * const metrics = db.getQueueMetrics();
    * console.log(`Pending operations: ${metrics.pending}`);
@@ -394,13 +397,13 @@ export class DatabaseService {
 
   /**
    * Connect to the database
-   * 
+   *
    * Ensures the database is ready for operations. Implements the
    * DatabaseConnection interface for compatibility.
-   * 
+   *
    * @returns {Promise<void>} Promise that resolves when database is ready
    * @throws {Error} If database connection fails
-   * 
+   *
    * @example
    * await db.connect();
    */
@@ -410,12 +413,12 @@ export class DatabaseService {
 
   /**
    * Close database connection
-   * 
+   *
    * Closes all database connections and cleans up resources.
    * Implements the DatabaseConnection interface for compatibility.
-   * 
+   *
    * @returns {Promise<void>} Promise that resolves when connections are closed
-   * 
+   *
    * @example
    * await db.end();
    */
@@ -425,13 +428,13 @@ export class DatabaseService {
 
   /**
    * Run schema fixes and migrations
-   * 
+   *
    * Checks the database schema and applies any necessary fixes or migrations.
    * This ensures the database schema is up to date with the current codebase.
-   * 
+   *
    * @returns {Promise<void>} Promise that resolves when schema fixes are complete
    * @throws {Error} If schema fixes fail
-   * 
+   *
    * @example
    * await db.runSchemaFixes();
    */
@@ -446,12 +449,12 @@ export class DatabaseService {
 
   /**
    * Check if database is ready (non-blocking)
-   * 
+   *
    * Returns whether the database connection is established and ready.
    * This is a synchronous check - use waitForReady() for async waiting.
-   * 
+   *
    * @returns {boolean} True if database is ready, false otherwise
-   * 
+   *
    * @example
    * if (db.isReady()) {
    *   // Database is ready for operations
@@ -463,12 +466,12 @@ export class DatabaseService {
 
   /**
    * Check database health
-   * 
+   *
    * Performs a comprehensive health check of the database, including:
    * - Connection status
    * - Critical table existence
    * - Database accessibility
-   * 
+   *
    * @returns {Promise<Object>} Health check results
    * @returns {boolean} returns.healthy - Whether database is healthy
    * @returns {string} returns.message - Health status message
@@ -477,7 +480,7 @@ export class DatabaseService {
    * @returns {Date} [returns.details.lastCheck] - Timestamp of last health check
    * @returns {Object} [returns.details.connectionPool] - Connection pool statistics
    * @returns {string} [returns.details.error] - Error message if unhealthy
-   * 
+   *
    * @example
    * const health = await db.checkHealth();
    * if (!health.healthy) {
@@ -581,7 +584,10 @@ export class DatabaseService {
       }
 
       // Re-initialize tables if needed
-      if (health.details?.missingTables && health.details.missingTables.length > 0) {
+      if (
+        health.details?.missingTables &&
+        health.details.missingTables.length > 0
+      ) {
         console.log("Re-initializing missing tables...");
         if (process.env.NODE_ENV === "development") {
           await this.createEssentialTables();
@@ -712,7 +718,6 @@ export class DatabaseService {
       }
     }
   }
-
 
   private async initializeTables() {
     // Prevent recursive calls
@@ -878,7 +883,7 @@ export class DatabaseService {
         } catch {
           // Ignore errors if trigger doesn't exist
         }
-        
+
         // Create trigger (separate query)
         await this.dbManager.queryMain(`
           CREATE TRIGGER update_${table}_updated_at 
@@ -926,7 +931,7 @@ export class DatabaseService {
 
       // Seed default data after tables are created
       await this.seedDefaultData();
-      
+
       // Reset initialization flag after successful completion
       this.isInitializingTables = false;
     } catch (error) {
@@ -942,10 +947,14 @@ export class DatabaseService {
       // SQLite uses "CREATE TABLE IF NOT EXISTS" which prevents schema conflicts
       // If schema errors occur, they should be fixed manually or via migrations
       // We don't auto-delete tables on error to prevent data loss
-      
+
       // Log the error for manual investigation
-      console.error("Table initialization error occurred. Data is safe - tables were not dropped.");
-      console.error("If schema changes are needed, use migrations or manual database updates.");
+      console.error(
+        "Table initialization error occurred. Data is safe - tables were not dropped."
+      );
+      console.error(
+        "If schema changes are needed, use migrations or manual database updates."
+      );
 
       throw error;
     } finally {
@@ -1158,7 +1167,9 @@ export class DatabaseService {
             foundTables.push(table);
           }
         }
-        const tableCheckResult = { rows: foundTables.map((t) => ({ table_name: t })) };
+        const tableCheckResult = {
+          rows: foundTables.map((t) => ({ table_name: t })),
+        };
 
         const existingTables = tableCheckResult.rows.map(
           (row) => row.table_name
@@ -1195,7 +1206,10 @@ export class DatabaseService {
           ["admin"]
         );
 
-        if (adminResult.rows.length > 0 && (adminResult.rows[0] as { is_active: unknown })?.is_active) {
+        if (
+          adminResult.rows.length > 0 &&
+          (adminResult.rows[0] as { is_active: unknown })?.is_active
+        ) {
           checks.defaultAdmin = {
             status: true,
             message: "Default admin exists and is active",
@@ -1230,7 +1244,10 @@ export class DatabaseService {
           initResult.rows.length > 0 &&
           (initResult.rows[0] as { status: string })?.status === "success"
         ) {
-          const initRow = initResult.rows[0] as { status: string; details: unknown };
+          const initRow = initResult.rows[0] as {
+            status: string;
+            details: unknown;
+          };
           checks.initialization = {
             status: true,
             message: "Database properly initialized",
@@ -1283,7 +1300,11 @@ export class DatabaseService {
       const health = await this.performHealthCheck();
 
       // Fix missing tables (only if not already initializing)
-      if (!health.checks.tables.status && health.checks.tables.missing && !this.isInitializingTables) {
+      if (
+        !health.checks.tables.status &&
+        health.checks.tables.missing &&
+        !this.isInitializingTables
+      ) {
         console.log("Repairing: Creating missing tables...");
         await this.initializeTables();
         actions.push("Created missing tables");
@@ -1344,10 +1365,12 @@ export class DatabaseService {
   private async fixMissingColumns(): Promise<void> {
     try {
       // Check and add missing columns to sessions table (SQLite uses PRAGMA table_info) - main DB
-      const sessionColumns = await this.dbManager.queryMain(`PRAGMA table_info(sessions)`);
-      const existingSessionColumns = (sessionColumns.rows as Array<{ name: string }>).map(
-        (row) => row.name
+      const sessionColumns = await this.dbManager.queryMain(
+        `PRAGMA table_info(sessions)`
       );
+      const existingSessionColumns = (
+        sessionColumns.rows as Array<{ name: string }>
+      ).map((row) => row.name);
 
       // Add consumed column if it doesn't exist
       if (!existingSessionColumns.includes("consumed")) {
@@ -1368,10 +1391,12 @@ export class DatabaseService {
       }
 
       // Check and add missing columns to projects table - main DB
-      const projectColumns = await this.dbManager.queryMain(`PRAGMA table_info(projects)`);
-      const existingProjectColumns = (projectColumns.rows as Array<{ name: string }>).map(
-        (row) => row.name
+      const projectColumns = await this.dbManager.queryMain(
+        `PRAGMA table_info(projects)`
       );
+      const existingProjectColumns = (
+        projectColumns.rows as Array<{ name: string }>
+      ).map((row) => row.name);
 
       // Add is_active column if it doesn't exist
       if (!existingProjectColumns.includes("is_active")) {
@@ -1437,11 +1462,13 @@ export class DatabaseService {
       }
 
       // Check and add missing columns to admin_users table - main DB
-      const adminUserColumns = await this.dbManager.queryMain(`PRAGMA table_info(admin_users)`);
-
-      const existingAdminUserColumns = (adminUserColumns.rows as Array<{ name: string }>).map(
-        (row) => row.name
+      const adminUserColumns = await this.dbManager.queryMain(
+        `PRAGMA table_info(admin_users)`
       );
+
+      const existingAdminUserColumns = (
+        adminUserColumns.rows as Array<{ name: string }>
+      ).map((row) => row.name);
 
       // Add password_hash column if it doesn't exist (rename from password if needed)
       if (!existingAdminUserColumns.includes("password_hash")) {
@@ -1496,7 +1523,7 @@ export class DatabaseService {
       (data.password ? await bcrypt.hash(data.password, 10) : "");
 
     const adminId = uuidv4();
-    
+
     // Insert into main DB
     await this.dbManager.queryMain(
       `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, permissions, is_active) 
@@ -1533,7 +1560,8 @@ export class DatabaseService {
       [username]
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapAdminUser(row as Record<string, unknown>) : null;
   }
 
   async getAdminUserByEmail(email: string): Promise<AdminUser | null> {
@@ -1543,7 +1571,8 @@ export class DatabaseService {
       [email]
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapAdminUser(row as Record<string, unknown>) : null;
   }
 
   async getAdminUserById(id: string): Promise<AdminUser | null> {
@@ -1553,7 +1582,8 @@ export class DatabaseService {
       [id]
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapAdminUser(row as Record<string, unknown>) : null;
   }
 
   async getAdminUserByApiKey(apiKey: string): Promise<AdminUser | null> {
@@ -1563,7 +1593,8 @@ export class DatabaseService {
       [apiKey]
     );
 
-    return result.rows.length > 0 ? this.mapAdminUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapAdminUser(row as Record<string, unknown>) : null;
   }
 
   async getAllAdminUsers(): Promise<AdminUser[]> {
@@ -1654,9 +1685,7 @@ export class DatabaseService {
     values.push(id);
     // SQLite doesn't support RETURNING *, so update and query back separately
     await this.dbManager.queryMain(
-      `UPDATE admin_users SET ${fields.join(
-        ", "
-      )} WHERE id = $${paramCount}`,
+      `UPDATE admin_users SET ${fields.join(", ")} WHERE id = $${paramCount}`,
       values
     );
 
@@ -1753,7 +1782,7 @@ export class DatabaseService {
 
       // Generate project ID (SQLite doesn't support RETURNING *)
       const projectId = uuidv4();
-      
+
       // Insert into main database (project metadata)
       await this.dbManager.queryMain(
         `INSERT INTO projects (id, name, description, project_url, api_key, is_active, created_by, settings, owner_id) 
@@ -1784,7 +1813,9 @@ export class DatabaseService {
         [projectId]
       );
 
-      return this.mapProject(rows.rows[0] as unknown as Record<string, unknown>);
+      return this.mapProject(
+        rows.rows[0] as unknown as Record<string, unknown>
+      );
     } catch (error) {
       console.error("Failed to create project:", error);
       // Check if it's a schema issue (missing column)
@@ -1833,7 +1864,8 @@ export class DatabaseService {
       [apiKey]
     );
 
-    return result.rows.length > 0 ? this.mapProject(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapProject(row as Record<string, unknown>) : null;
   }
 
   async getAllProjects(): Promise<BackendProject[]> {
@@ -1841,7 +1873,9 @@ export class DatabaseService {
       const result = await this.dbManager.queryMain(
         `SELECT * FROM projects ORDER BY created_at DESC`
       );
-      return result.rows.map((row) => this.mapProject(row as unknown as Record<string, unknown>));
+      return result.rows.map((row) =>
+        this.mapProject(row as unknown as Record<string, unknown>)
+      );
     } catch (error) {
       console.error("Failed to get all projects:", error);
       // Attempt to fix the issue
@@ -1850,7 +1884,9 @@ export class DatabaseService {
       const result = await this.dbManager.queryMain(
         `SELECT * FROM projects ORDER BY created_at DESC`
       );
-      return result.rows.map((row) => this.mapProject(row as unknown as Record<string, unknown>));
+      return result.rows.map((row) =>
+        this.mapProject(row as unknown as Record<string, unknown>)
+      );
     }
   }
 
@@ -1898,9 +1934,7 @@ export class DatabaseService {
 
       // SQLite doesn't support RETURNING *, so update and query back separately
       await this.dbManager.queryMain(
-        `UPDATE projects SET ${updates.join(
-          ", "
-        )} WHERE id = $${paramCount}`,
+        `UPDATE projects SET ${updates.join(", ")} WHERE id = $${paramCount}`,
         values
       );
 
@@ -1924,10 +1958,10 @@ export class DatabaseService {
         await this.dbManager.queryProject(id, "DELETE FROM files", []);
         await this.dbManager.queryProject(id, "DELETE FROM changelog", []);
         await this.dbManager.queryProject(id, "DELETE FROM api_keys", []);
-        
+
         // Close project database connection
         await this.dbManager.closeProjectDb(id);
-        
+
         // Delete entire project folder (database.db + files/)
         const projectFolderPath = this.dbManager.getProjectFolderPath(id);
         const fs = await import("fs/promises");
@@ -1936,7 +1970,10 @@ export class DatabaseService {
           await fs.rm(projectFolderPath, { recursive: true, force: true });
           console.log(`✅ Deleted project folder: ${projectFolderPath}`);
         } catch (error) {
-          console.error(`⚠️ Error deleting project folder ${projectFolderPath}:`, error);
+          console.error(
+            `⚠️ Error deleting project folder ${projectFolderPath}:`,
+            error
+          );
           // Try to delete just the database file as fallback
           try {
             const projectDbPath = this.dbManager.getProjectDbPath(id);
@@ -2062,12 +2099,11 @@ export class DatabaseService {
     );
 
     // Map document to BackendProjectUser format
-    return {
+    const user: BackendProjectUser = {
       id: document.id,
       project_id: projectId,
       username: userData.username,
       email: userData.email,
-      phone: userData.phone,
       is_verified: userData.is_verified || false,
       scopes: userData.scopes || [],
       password: passwordHash, // Return hashed password
@@ -2078,6 +2114,10 @@ export class DatabaseService {
       is_active: true,
       login_count: 0,
     };
+    if (userData.phone !== undefined) {
+      user.phone = userData.phone;
+    }
+    return user;
   }
 
   async getProjectUser(
@@ -2091,13 +2131,18 @@ export class DatabaseService {
       [projectId, userId]
     );
 
-    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
   }
 
-  async getProjectUserById(_userId: string): Promise<BackendProjectUser | null> {
+  async getProjectUserById(
+    _userId: string
+  ): Promise<BackendProjectUser | null> {
     // Without projectId, we need to search all project databases
     // This is inefficient, so throw an error suggesting to use getProjectUser with projectId
-    throw new Error("getProjectUserById requires projectId. Use getProjectUser(projectId, userId) instead.");
+    throw new Error(
+      "getProjectUserById requires projectId. Use getProjectUser(projectId, userId) instead."
+    );
   }
 
   async getProjectUserByEmail(
@@ -2111,7 +2156,8 @@ export class DatabaseService {
       [projectId, email]
     );
 
-    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
   }
 
   async getProjectUserByUsername(
@@ -2127,7 +2173,8 @@ export class DatabaseService {
       [projectId, username]
     );
 
-    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
   }
 
   async getProjectUsers(
@@ -2234,7 +2281,8 @@ export class DatabaseService {
       [projectId, userId]
     );
 
-    return result.rows.length > 0 ? this.mapProjectUser(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
   }
 
   async deleteProjectUser(projectId: string, userId: string): Promise<boolean> {
@@ -2283,8 +2331,10 @@ export class DatabaseService {
       [projectId, userId]
     );
     if (result.rows.length === 0) return null;
-    
-    const permissions = JSON.parse(result.rows[0].permissions as string || "{}");
+
+    const row = result.rows[0];
+    if (!row) return null;
+    const permissions = JSON.parse((row.permissions as string) || "{}");
     return { is_active: permissions.is_active !== false };
   }
 
@@ -2375,7 +2425,11 @@ export class DatabaseService {
         [collectionId]
       );
 
-      return this.mapCollection(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("Collection not found");
+      }
+      return this.mapCollection(row as Record<string, unknown>);
     } catch (error) {
       // Check for duplicate collection name error (PostgreSQL error code 23505)
       if (
@@ -2414,7 +2468,10 @@ export class DatabaseService {
       for (const collectionSchema of defaultCollections) {
         try {
           // Check if collection already exists (shouldn't happen for new projects, but safe check)
-          const existing = await this.getCollection(projectId, collectionSchema.name);
+          const existing = await this.getCollection(
+            projectId,
+            collectionSchema.name
+          );
           if (existing) {
             console.log(
               `Default collection "${collectionSchema.name}" already exists in project ${projectId}, skipping`
@@ -2465,7 +2522,8 @@ export class DatabaseService {
       [projectId, collectionName]
     );
 
-    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapCollection(row as Record<string, unknown>) : null;
   }
 
   async getCollectionById(_collectionId: string): Promise<Collection | null> {
@@ -2473,7 +2531,9 @@ export class DatabaseService {
     // For now, we'll need projectId to be provided or search main DB for collection metadata
     // This is a limitation - we'd need to add a collections lookup table in main DB
     // For now, throw an error suggesting to use getCollection with projectId
-    throw new Error("getCollectionById requires projectId. Use getCollection(projectId, collectionName) instead.");
+    throw new Error(
+      "getCollectionById requires projectId. Use getCollection(projectId, collectionName) instead."
+    );
   }
 
   async getProjectCollections(projectId: string): Promise<Collection[]> {
@@ -2517,7 +2577,8 @@ export class DatabaseService {
       [projectId, collectionName]
     );
 
-    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapCollection(row as Record<string, unknown>) : null;
   }
 
   async deleteCollection(
@@ -2535,7 +2596,11 @@ export class DatabaseService {
       return false;
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const row = collectionResult.rows[0];
+    if (!row) {
+      return false;
+    }
+    const collectionId = row.id as string;
 
     // Delete all documents for this collection (CASCADE will handle this, but explicit is better)
     await this.dbManager.queryProject(
@@ -2561,7 +2626,9 @@ export class DatabaseService {
   ): Promise<{ documents: Document[]; total: number }> {
     // Collections are in project DBs - we need to search all projects
     // This is inefficient, so throw an error suggesting to use getDocuments with projectId
-    throw new Error("getDocumentsByCollection requires projectId. Use getDocuments(projectId, collectionName, options) instead.");
+    throw new Error(
+      "getDocumentsByCollection requires projectId. Use getDocuments(projectId, collectionName, options) instead."
+    );
   }
 
   // Table Schema Methods (keeping for backward compatibility) - collections are in project DBs
@@ -2599,7 +2666,11 @@ export class DatabaseService {
       [collectionId]
     );
 
-    return this.mapCollection(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Collection not found");
+    }
+    return this.mapCollection(row as Record<string, unknown>);
   }
 
   async getTableSchema(
@@ -2613,7 +2684,8 @@ export class DatabaseService {
       [projectId, tableName]
     );
 
-    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapCollection(row as Record<string, unknown>) : null;
   }
 
   async getProjectTableSchemas(projectId: string): Promise<Collection[]> {
@@ -2658,7 +2730,8 @@ export class DatabaseService {
       [projectId, tableName]
     );
 
-    return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapCollection(row as Record<string, unknown>) : null;
   }
 
   async deleteTableSchema(
@@ -2677,21 +2750,25 @@ export class DatabaseService {
       return false;
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const row = collectionResult.rows[0];
+    if (!row) {
+      return false;
+    }
+    const collectionId = row.id as string;
 
     // Delete all documents for this collection (from project DB)
-      await this.dbManager.queryProject(
-        projectId,
-        "DELETE FROM documents WHERE collection_id = $1",
-        [collectionId]
-      );
+    await this.dbManager.queryProject(
+      projectId,
+      "DELETE FROM documents WHERE collection_id = $1",
+      [collectionId]
+    );
 
-      // Delete the collection (from project DB)
-      const result = await this.dbManager.queryProject(
-        projectId,
-        "DELETE FROM collections WHERE project_id = $1 AND name = $2",
-        [projectId, tableName]
-      );
+    // Delete the collection (from project DB)
+    const result = await this.dbManager.queryProject(
+      projectId,
+      "DELETE FROM collections WHERE project_id = $1 AND name = $2",
+      [projectId, tableName]
+    );
 
     // SQLite auto-commits
     return (result.rowCount ?? 0) > 0;
@@ -2730,7 +2807,14 @@ export class DatabaseService {
       projectId,
       `INSERT INTO documents (id, collection_id, project_id, data, created_by, updated_by) 
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [documentId, collectionId, projectId, JSON.stringify(data), createdBy || "system", createdBy || "system"]
+      [
+        documentId,
+        collectionId,
+        projectId,
+        JSON.stringify(data),
+        createdBy || "system",
+        createdBy || "system",
+      ]
     );
 
     // Query back the inserted row (SQLite doesn't support RETURNING *)
@@ -2746,7 +2830,11 @@ export class DatabaseService {
       );
     }
 
-    return this.mapDocument(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Document not found");
+    }
+    return this.mapDocument(row as Record<string, unknown>);
   }
 
   async getDocument(
@@ -2765,7 +2853,11 @@ export class DatabaseService {
       return null;
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const collectionRow = collectionResult.rows[0];
+    if (!collectionRow) {
+      return null;
+    }
+    const collectionId = collectionRow.id as string;
 
     // Get document from project DB
     const result = await this.dbManager.queryProject(
@@ -2774,13 +2866,16 @@ export class DatabaseService {
       [documentId, collectionId]
     );
 
-    return result.rows.length > 0 ? this.mapDocument(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapDocument(row as Record<string, unknown>) : null;
   }
 
   async getDocumentById(_documentId: string): Promise<Document | null> {
     // Without projectId, we need to search all project databases
     // This is inefficient, so throw an error suggesting to use getDocument with projectId
-    throw new Error("getDocumentById requires projectId. Use getDocument(projectId, collectionName, documentId) instead.");
+    throw new Error(
+      "getDocumentById requires projectId. Use getDocument(projectId, collectionName, documentId) instead."
+    );
   }
 
   async getDocuments(
@@ -2813,7 +2908,11 @@ export class DatabaseService {
       return { documents: [], total: 0 };
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const collectionRow = collectionResult.rows[0];
+    if (!collectionRow) {
+      return { documents: [], total: 0 };
+    }
+    const collectionId = collectionRow.id as string;
 
     // Build WHERE clause using collection_id instead of collection_name
     let whereClause = "WHERE collection_id = $1";
@@ -2821,7 +2920,9 @@ export class DatabaseService {
 
     if (where && Object.keys(where).length > 0) {
       Object.entries(where).forEach(([key, value], _index) => {
-        whereClause += ` AND JSON_EXTRACT(data, '$.${key}') = $${params.length + 1}`;
+        whereClause += ` AND JSON_EXTRACT(data, '$.${key}') = $${
+          params.length + 1
+        }`;
         params.push(value);
       });
     }
@@ -2914,7 +3015,11 @@ export class DatabaseService {
       return null;
     }
 
-    return this.mapDocument(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Document not found");
+    }
+    return this.mapDocument(row as Record<string, unknown>);
   }
 
   async deleteDocument(
@@ -2933,7 +3038,11 @@ export class DatabaseService {
       return false;
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const row = collectionResult.rows[0];
+    if (!row) {
+      return false;
+    }
+    const collectionId = row.id as string;
 
     // Delete from project DB
     const result = await this.dbManager.queryProject(
@@ -2970,7 +3079,11 @@ export class DatabaseService {
       return [];
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const collectionRow = collectionResult.rows[0];
+    if (!collectionRow) {
+      return [];
+    }
+    const collectionId = collectionRow.id as string;
 
     let query = `SELECT * FROM documents WHERE collection_id = $1`;
     const params: unknown[] = [collectionId];
@@ -2990,7 +3103,9 @@ export class DatabaseService {
       }
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
     params.push(limit, offset);
 
     const result = await this.dbManager.queryProject(projectId, query, params);
@@ -3014,7 +3129,11 @@ export class DatabaseService {
       return 0;
     }
 
-    const collectionId = collectionResult.rows[0].id as string;
+    const collectionRow = collectionResult.rows[0];
+    if (!collectionRow) {
+      return 0;
+    }
+    const collectionId = collectionRow.id as string;
 
     const result = await this.dbManager.queryProject(
       projectId,
@@ -3032,7 +3151,9 @@ export class DatabaseService {
     // First get the table schema to get project_id and table_name (from project DB)
     // We need to search across all project databases, which is inefficient
     // For now, throw an error suggesting to use getDocuments with projectId and collectionName
-    throw new Error("getDocumentsByTable requires projectId. Use getDocuments(projectId, collectionName, options) instead.");
+    throw new Error(
+      "getDocumentsByTable requires projectId. Use getDocuments(projectId, collectionName, options) instead."
+    );
   }
 
   // File Methods (files are stored in project-specific databases)
@@ -3072,7 +3193,11 @@ export class DatabaseService {
       throw new Error(`Failed to retrieve created file with id ${fileId}`);
     }
 
-    const file = this.mapFile(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("File not found");
+    }
+    const file = this.mapFile(row as Record<string, unknown>);
     await this.updateProjectStats(projectId, data.size);
     return file;
   }
@@ -3081,16 +3206,19 @@ export class DatabaseService {
     // Without projectId, we need to search all project databases
     // This is inefficient, so we need to find the file across all projects
     const projectDbs = this.dbManager.listProjectDbs();
-    
+
     for (const projectId of projectDbs) {
       const result = await this.dbManager.queryProject(
         projectId,
         "SELECT * FROM files WHERE id = $1",
         [fileId]
       );
-      
+
       if (result.rows.length > 0) {
-        return this.mapFile(result.rows[0]);
+        const row = result.rows[0];
+        if (row) {
+          return this.mapFile(row as Record<string, unknown>);
+        }
       }
     }
 
@@ -3137,7 +3265,7 @@ export class DatabaseService {
   ): Promise<BackendSession> {
     // Generate session ID (SQLite doesn't support RETURNING *)
     const sessionId = uuidv4();
-    
+
     // Insert into main DB
     await this.dbManager.queryMain(
       `INSERT INTO sessions (id, token, user_id, project_id, type, scopes, metadata, created_at, expires_at, consumed, is_active) 
@@ -3148,8 +3276,8 @@ export class DatabaseService {
         data.user_id,
         data.project_id,
         data.type,
-        JSON.stringify(data.scopes || []), // SQLite stores arrays as JSON strings
-        JSON.stringify(data.metadata || {}), // SQLite stores objects as JSON strings
+        JSON.stringify(data.scopes ?? []), // SQLite stores arrays as JSON strings
+        JSON.stringify(data.metadata ?? {}), // SQLite stores objects as JSON strings
         data.created_at,
         data.expires_at,
         data.consumed ? 1 : 0, // SQLite uses INTEGER 1/0 for booleans
@@ -3163,7 +3291,11 @@ export class DatabaseService {
       [sessionId]
     );
 
-    return this.mapSession(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Failed to create session");
+    }
+    return this.mapSession(row as Record<string, unknown>);
   }
 
   async getSessionByToken(token: string): Promise<BackendSession | null> {
@@ -3178,7 +3310,10 @@ export class DatabaseService {
         "UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = $1",
         [result.rows[0]?.id as string]
       );
-      return this.mapSession(result.rows[0]);
+      const row = result.rows[0];
+      if (row) {
+        return this.mapSession(row as Record<string, unknown>);
+      }
     }
 
     return null;
@@ -3208,7 +3343,8 @@ export class DatabaseService {
       [token]
     );
 
-    return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapSession(row as Record<string, unknown>) : null;
   }
 
   async updateSession(
@@ -3255,7 +3391,8 @@ export class DatabaseService {
       [sessionId]
     );
 
-    return result.rows.length > 0 ? this.mapSession(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapSession(row as Record<string, unknown>) : null;
   }
 
   async createDefaultAdmin(): Promise<void> {
@@ -3329,7 +3466,9 @@ export class DatabaseService {
 
       const cleaned = result.rowCount ?? 0;
       if (cleaned > 0) {
-        console.log(`🧹 Invalidated ${cleaned} old sessions (older than 30 days)`);
+        console.log(
+          `🧹 Invalidated ${cleaned} old sessions (older than 30 days)`
+        );
       }
       return cleaned;
     } catch (error) {
@@ -3346,25 +3485,37 @@ export class DatabaseService {
     // Generate changelog entry ID (SQLite doesn't support RETURNING *)
     const entryId = uuidv4();
     const createdAt = new Date().toISOString();
-    
+
     // If no project_id, store in main database (for admin/system actions)
     if (!data.project_id) {
       // Store admin actions in a system activity log (using sessions table or create a separate table)
       // For now, skip storing admin-only actions in changelog since it's project-specific
       // Return a minimal entry for compatibility
-      return {
+      const entry: BackendChangelogEntry = {
         id: entryId,
-        project_id: null,
-        entity_type: data.entity_type,
-        entity_id: data.entity_id,
         action: data.action,
         changes: data.changes || {},
-        performed_by: data.performed_by || null,
-        session_id: data.session_id || null,
         created_at: createdAt,
-      } as BackendChangelogEntry;
+        user_id: data.user_id,
+        resource_type: data.resource_type,
+        resource_id: data.resource_id,
+      };
+      if (data.entity_type !== undefined) {
+        entry.entity_type = data.entity_type;
+      }
+      if (data.entity_id !== undefined) {
+        entry.entity_id = data.entity_id;
+      }
+      if (data.performed_by !== undefined && data.performed_by !== null) {
+        entry.performed_by = data.performed_by;
+      }
+      if (data.session_id !== undefined && data.session_id !== null) {
+        entry.session_id = data.session_id;
+      }
+      // project_id is omitted for admin-only actions
+      return entry;
     }
-    
+
     // Insert into project DB for project-specific actions
     await this.dbManager.queryProject(
       data.project_id,
@@ -3375,10 +3526,10 @@ export class DatabaseService {
         data.project_id,
         (data as { collection_id?: string }).collection_id || null,
         data.action,
-        data.entity_type,
-        data.entity_id,
+        data.entity_type ?? null,
+        data.entity_id ?? null,
         JSON.stringify(data.changes || {}), // SQLite stores objects as JSON strings
-        data.performed_by || null,
+        data.performed_by ?? null,
         createdAt,
       ]
     );
@@ -3390,7 +3541,11 @@ export class DatabaseService {
       [entryId]
     );
 
-    return this.mapChangelogEntry(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Failed to create changelog entry");
+    }
+    return this.mapChangelogEntry(row as Record<string, unknown>);
   }
 
   async getProjectChangelog(
@@ -3539,7 +3694,9 @@ export class DatabaseService {
         data.project_id ? "project" : "admin",
         data.user_id,
         JSON.stringify(data.scopes),
-        data.project_id ? JSON.stringify([data.project_id]) : JSON.stringify([]),
+        data.project_id
+          ? JSON.stringify([data.project_id])
+          : JSON.stringify([]),
         data.expires_at || null,
         data.rate_limit || null,
         JSON.stringify(data.metadata || {}),
@@ -3553,12 +3710,16 @@ export class DatabaseService {
       [apiKeyId]
     );
 
-    return this.mapApiKey(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Failed to create API key");
+    }
+    return this.mapApiKey(row as Record<string, unknown>);
   }
 
   async getApiKey(key: string): Promise<BackendApiKey | null> {
     await this.ensureReady();
-    
+
     // Try main DB first (admin/system keys)
     let result = await this.dbManager.queryMain(
       "SELECT * FROM api_keys WHERE key = $1 AND is_active = 1",
@@ -3568,22 +3729,29 @@ export class DatabaseService {
     // If not found in main DB, search project DBs
     if (result.rows.length === 0) {
       const projectDbs = this.dbManager.listProjectDbs();
-      for (const projectId of projectDbs) {
-        result = await this.dbManager.queryProject(
-          projectId,
-          "SELECT * FROM api_keys WHERE key = $1 AND is_active = 1",
-          [key]
-        );
-        if (result.rows.length > 0) break;
+      if (projectDbs) {
+        for (const projectId of projectDbs) {
+          result = await this.dbManager.queryProject(
+            projectId,
+            "SELECT * FROM api_keys WHERE key = $1 AND is_active = 1",
+            [key]
+          );
+          if (result.rows.length > 0) break;
+        }
       }
     }
 
     if (result.rows.length === 0) return null;
 
     // Update last_used_at (determine which DB based on where we found it)
-    const apiKey = result.rows[0];
-    const projectId = apiKey.project_ids ? JSON.parse(apiKey.project_ids as string)[0] : null;
-    
+    const apiKeyRow = result.rows[0];
+    if (!apiKeyRow) {
+      return null;
+    }
+    const projectId = apiKeyRow.project_ids
+      ? JSON.parse(apiKeyRow.project_ids as string)[0]
+      : null;
+
     if (projectId) {
       await this.dbManager.queryProject(
         projectId,
@@ -3597,7 +3765,11 @@ export class DatabaseService {
       );
     }
 
-    return this.mapApiKey(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("API key not found");
+    }
+    return this.mapApiKey(row as Record<string, unknown>);
   }
 
   async getApiKeysByOwner(ownerId: string): Promise<BackendApiKey[]> {
@@ -3616,17 +3788,26 @@ export class DatabaseService {
     data: Partial<BackendApiKey>
   ): Promise<BackendApiKey | null> {
     await this.ensureReady();
-    
+
     // First find which DB has this API key
     const apiKey = await this.getApiKeyById(id);
     if (!apiKey) return null;
 
-    const projectId = (apiKey as { project_ids?: string[] | string }).project_ids 
-      ? (Array.isArray((apiKey as { project_ids?: string[] | string }).project_ids) 
-          ? ((apiKey as { project_ids?: string[] | string }).project_ids as string[])[0] 
-          : JSON.parse((apiKey as { project_ids?: string[] | string }).project_ids as string)[0]) 
+    const projectId = (apiKey as { project_ids?: string[] | string })
+      .project_ids
+      ? Array.isArray(
+          (apiKey as { project_ids?: string[] | string }).project_ids
+        )
+        ? (
+            (apiKey as { project_ids?: string[] | string })
+              .project_ids as string[]
+          )[0]
+        : JSON.parse(
+            (apiKey as { project_ids?: string[] | string })
+              .project_ids as string
+          )[0]
       : apiKey.project_id || null;
-    
+
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramCount = 1;
@@ -3659,42 +3840,53 @@ export class DatabaseService {
         `UPDATE api_keys SET ${fields.join(", ")} WHERE id = $${paramCount}`,
         values
       );
-      
+
       // Query back from project DB
       const result = await this.dbManager.queryProject(
         projectId,
         "SELECT * FROM api_keys WHERE id = $1",
         [id]
       );
-      return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+      const row = result.rows[0];
+      return row ? this.mapApiKey(row as Record<string, unknown>) : null;
     } else {
       await this.dbManager.queryMain(
         `UPDATE api_keys SET ${fields.join(", ")} WHERE id = $${paramCount}`,
         values
       );
-      
+
       // Query back from main DB
       const result = await this.dbManager.queryMain(
         "SELECT * FROM api_keys WHERE id = $1",
         [id]
       );
-      return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+      const row = result.rows[0];
+      return row ? this.mapApiKey(row as Record<string, unknown>) : null;
     }
   }
 
   async deleteApiKey(id: string): Promise<boolean> {
     await this.ensureReady();
-    
+
     // First find which DB has this API key
     const apiKey = await this.getApiKeyById(id);
     if (!apiKey) return false;
 
-    const projectId = (apiKey as { project_ids?: string[] | string }).project_ids 
-      ? (Array.isArray((apiKey as { project_ids?: string[] | string }).project_ids) 
-          ? ((apiKey as { project_ids?: string[] | string }).project_ids as string[])[0] 
-          : JSON.parse((apiKey as { project_ids?: string[] | string }).project_ids as string)[0]) 
+    const projectId = (apiKey as { project_ids?: string[] | string })
+      .project_ids
+      ? Array.isArray(
+          (apiKey as { project_ids?: string[] | string }).project_ids
+        )
+        ? (
+            (apiKey as { project_ids?: string[] | string })
+              .project_ids as string[]
+          )[0]
+        : JSON.parse(
+            (apiKey as { project_ids?: string[] | string })
+              .project_ids as string
+          )[0]
       : apiKey.project_id || null;
-    
+
     if (projectId) {
       const result = await this.dbManager.queryProject(
         projectId,
@@ -3713,7 +3905,7 @@ export class DatabaseService {
 
   async getApiKeyById(id: string): Promise<BackendApiKey | null> {
     await this.ensureReady();
-    
+
     // Try main DB first
     let result = await this.dbManager.queryMain(
       "SELECT * FROM api_keys WHERE id = $1",
@@ -3733,7 +3925,8 @@ export class DatabaseService {
       }
     }
 
-    return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapApiKey(row as Record<string, unknown>) : null;
   }
 
   // Create project API key (project-specific keys go to project DB)
@@ -3777,7 +3970,11 @@ export class DatabaseService {
       [apiKeyId]
     );
 
-    return this.mapApiKey(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("API key not found");
+    }
+    return this.mapApiKey(row as Record<string, unknown>);
   }
 
   // Get project API keys (from project DB)
@@ -3808,7 +4005,11 @@ export class DatabaseService {
       );
 
       if (result.rows.length > 0) {
-        return this.mapApiKey(result.rows[0]);
+        const row = result.rows[0];
+        if (!row) {
+          throw new Error("API key not found");
+        }
+        return this.mapApiKey(row as Record<string, unknown>);
       }
     }
 
@@ -3879,7 +4080,9 @@ export class DatabaseService {
         apiKey.type,
         apiKey.user_id,
         JSON.stringify(apiKey.scopes),
-        apiKey.project_ids ? JSON.stringify(apiKey.project_ids) : JSON.stringify([]),
+        apiKey.project_ids
+          ? JSON.stringify(apiKey.project_ids)
+          : JSON.stringify([]),
         apiKey.created_at,
         apiKey.last_used_at || null,
         apiKey.active ? 1 : 0,
@@ -3892,7 +4095,11 @@ export class DatabaseService {
       [apiKeyId]
     );
 
-    return this.mapApiKey(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("API key not found");
+    }
+    return this.mapApiKey(row as Record<string, unknown>);
   }
 
   // Email Configuration Methods (project settings are in main DB)
@@ -3910,11 +4117,19 @@ export class DatabaseService {
       return null;
     }
 
-    const settings = typeof result.rows[0].settings === "string" 
-      ? JSON.parse(result.rows[0].settings as string)
-      : result.rows[0].settings;
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+    const settings =
+      typeof row.settings === "string"
+        ? JSON.parse(row.settings as string)
+        : row.settings;
 
-    return (settings as Record<string, unknown>)?.email_config as Record<string, unknown> | null;
+    return (settings as Record<string, unknown>)?.email_config as Record<
+      string,
+      unknown
+    > | null;
   }
 
   async updateEmailConfig(
@@ -3932,9 +4147,14 @@ export class DatabaseService {
       return null;
     }
 
-    const existingSettings = typeof existingResult.rows[0].settings === "string"
-      ? JSON.parse(existingResult.rows[0].settings as string)
-      : existingResult.rows[0].settings || {};
+    const existingRow = existingResult.rows[0];
+    if (!existingRow) {
+      return null;
+    }
+    const existingSettings =
+      typeof existingRow.settings === "string"
+        ? JSON.parse(existingRow.settings as string)
+        : existingRow.settings || {};
 
     // Update email config in settings
     const updatedSettings = {
@@ -4063,7 +4283,7 @@ export class DatabaseService {
     };
     const templateId = uuidv4();
     const createdAt = new Date().toISOString();
-    
+
     // Email templates are in main DB
     await this.dbManager.queryMain(
       `INSERT INTO email_templates (id, project_id, name, subject, body, variables, created_at, updated_at)
@@ -4085,7 +4305,11 @@ export class DatabaseService {
       "SELECT * FROM email_templates WHERE id = $1",
       [templateId]
     );
-    return result.rows[0];
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("Failed to create email template");
+    }
+    return row as Record<string, unknown>;
   }
 
   async updateEmailTemplate(
@@ -4100,7 +4324,7 @@ export class DatabaseService {
       body: string;
       variables?: string[];
     };
-    
+
     // Email templates are in main DB
     await this.dbManager.queryMain(
       `UPDATE email_templates 
@@ -4232,7 +4456,8 @@ export class DatabaseService {
        WHERE id = $1`,
       [keyId]
     );
-    return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapApiKey(row as Record<string, unknown>) : null;
   }
 
   async updateProjectApiKey(
@@ -4242,7 +4467,7 @@ export class DatabaseService {
   ): Promise<BackendApiKey | null> {
     await this.ensureReady();
     const { name, scopes, expires_at, status } = updates;
-    
+
     // Project API keys are in project DBs
     await this.dbManager.queryProject(
       projectId,
@@ -4264,7 +4489,8 @@ export class DatabaseService {
       "SELECT * FROM api_keys WHERE id = $1",
       [keyId]
     );
-    return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapApiKey(row as Record<string, unknown>) : null;
   }
 
   async regenerateApiKey(
@@ -4273,7 +4499,7 @@ export class DatabaseService {
   ): Promise<BackendApiKey | null> {
     await this.ensureReady();
     const newKey = `krapi_${uuidv4().replace(/-/g, "")}`;
-    
+
     // Project API keys are in project DBs
     await this.dbManager.queryProject(
       projectId,
@@ -4289,7 +4515,8 @@ export class DatabaseService {
       "SELECT * FROM api_keys WHERE id = $1",
       [keyId]
     );
-    return result.rows.length > 0 ? this.mapApiKey(result.rows[0]) : null;
+    const row = result.rows[0];
+    return row ? this.mapApiKey(row as Record<string, unknown>) : null;
   }
 
   // Get active sessions (sessions are in main DB)
@@ -4365,7 +4592,7 @@ export class DatabaseService {
 
   // Mapping functions
   private mapAdminUser(row: Record<string, unknown>): AdminUser {
-    return {
+    const user: AdminUser = {
       id: row.id as string,
       username: row.username as string,
       email: row.email as string,
@@ -4376,18 +4603,23 @@ export class DatabaseService {
       active: row.is_active as boolean,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-      last_login: row.last_login as string | undefined,
-      api_key: row.api_key as string | undefined,
       login_count: (row.login_count as number) || 0,
     };
+    const lastLogin = row.last_login as string | null | undefined;
+    if (lastLogin !== undefined && lastLogin !== null) {
+      user.last_login = lastLogin;
+    }
+    const apiKey = row.api_key as string | null | undefined;
+    if (apiKey !== undefined && apiKey !== null) {
+      user.api_key = apiKey;
+    }
+    return user;
   }
 
   private mapProject(row: Record<string, unknown>): BackendProject {
-    return {
+    const project: BackendProject = {
       id: row.id as string,
       name: row.name as string,
-      description: row.description as string | null,
-      project_url: row.project_url as string | null,
       api_key: row.api_key as string,
       settings: row.settings as BackendProjectSettings,
       created_by: row.created_by as string,
@@ -4398,44 +4630,74 @@ export class DatabaseService {
       storage_used: (row.storage_used as number) || 0,
       allowed_origins: (row.allowed_origins as string[]) || [],
       total_api_calls: (row.total_api_calls as number) || 0,
-      last_api_call: row.last_api_call as string | undefined,
-      // Additional properties that the backend expects
       is_active: row.is_active as boolean,
-      rate_limit: row.rate_limit as number | undefined,
-      rate_limit_window: row.rate_limit_window as number | undefined,
     };
+    const description = row.description as string | null | undefined;
+    if (description !== undefined && description !== null) {
+      project.description = description;
+    }
+    const projectUrl = row.project_url as string | null | undefined;
+    if (projectUrl !== undefined && projectUrl !== null) {
+      project.project_url = projectUrl;
+    }
+    const lastApiCall = row.last_api_call as string | null | undefined;
+    if (lastApiCall !== undefined && lastApiCall !== null) {
+      project.last_api_call = lastApiCall;
+    }
+    const rateLimit = row.rate_limit as number | null | undefined;
+    if (rateLimit !== undefined && rateLimit !== null) {
+      project.rate_limit = rateLimit;
+    }
+    const rateLimitWindow = row.rate_limit_window as number | null | undefined;
+    if (rateLimitWindow !== undefined && rateLimitWindow !== null) {
+      project.rate_limit_window = rateLimitWindow;
+    }
+    return project;
   }
 
   private mapProjectUser(row: Record<string, unknown>): BackendProjectUser {
-    return {
+    const user: BackendProjectUser = {
       id: row.id as string,
       project_id: row.project_id as string,
       username: row.username as string,
       email: row.email as string,
-      phone: row.phone as string | undefined,
       is_verified: row.is_verified as boolean,
       scopes: (row.scopes as string[]) || [],
-      password: row.password as string | undefined,
       permissions: (row.permissions as string[]) || [],
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-      last_login: row.last_login as string | undefined,
       status: (row.status as "active" | "inactive" | "suspended") || "active",
-      // Additional properties that the backend expects
       is_active: row.is_active as boolean,
       metadata: (row.metadata as Record<string, unknown>) || {},
-      // Additional properties for SDK compatibility
-      role: row.role as UserRole | undefined,
-      login_count: row.login_count as number | undefined,
     };
+    const phone = row.phone as string | null | undefined;
+    if (phone !== undefined && phone !== null) {
+      user.phone = phone;
+    }
+    const password = row.password as string | null | undefined;
+    if (password !== undefined && password !== null) {
+      user.password = password;
+    }
+    const lastLogin = row.last_login as string | null | undefined;
+    if (lastLogin !== undefined && lastLogin !== null) {
+      user.last_login = lastLogin;
+    }
+    const role = row.role as UserRole | null | undefined;
+    if (role !== undefined && role !== null) {
+      user.role = role;
+    }
+    const loginCount = row.login_count as number | null | undefined;
+    if (loginCount !== undefined && loginCount !== null) {
+      user.login_count = loginCount;
+    }
+    return user;
   }
 
   private mapCollection(row: Record<string, unknown>): Collection {
-    return {
+    const collection: Collection = {
       id: row.id as string,
       project_id: row.project_id as string,
       name: row.name as string,
-      description: row.description as string | undefined,
       fields: (row.fields as CollectionField[]) || [],
       indexes: (row.indexes as CollectionIndex[]) || [],
       created_at: row.created_at as string,
@@ -4453,6 +4715,11 @@ export class DatabaseService {
         enable_soft_delete: false,
       },
     };
+    const description = row.description as string | null | undefined;
+    if (description !== undefined && description !== null) {
+      collection.description = description;
+    }
+    return collection;
   }
 
   private mapDocument(row: Record<string, unknown>): Document {
@@ -4469,18 +4736,21 @@ export class DatabaseService {
       parsedData = row.data as Record<string, unknown>;
     }
 
-    return {
+    const createdBy = row.created_by as string | null | undefined;
+    const updatedBy = row.updated_by as string | null | undefined;
+    const document: Document = {
       id: row.id as string,
       project_id: row.project_id as string,
       collection_id: row.collection_id as string,
       data: parsedData,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-      created_by: row.created_by as string | undefined,
-      updated_by: row.updated_by as string | undefined,
+      created_by: createdBy || "system",
+      updated_by: updatedBy || "system",
       version: (row.version as number) || 1,
       is_deleted: (row.is_deleted as boolean) || false,
     };
+    return document;
   }
 
   private mapFile(row: Record<string, unknown>): FileRecord {
@@ -4500,59 +4770,101 @@ export class DatabaseService {
   }
 
   private mapSession(row: Record<string, unknown>): BackendSession {
-    return {
+    const session: BackendSession = {
       id: row.id as string,
       token: row.token as string,
       type: row.type as SessionType,
       user_id: row.user_id as string,
-      project_id: row.project_id as string | undefined,
       scopes: (row.scopes as Scope[]) || [],
       metadata: (row.metadata as Record<string, unknown>) || {},
       expires_at: row.expires_at as string,
       created_at: row.created_at as string,
-      last_used_at: row.last_used_at as string | undefined,
-      ip_address: row.ip_address as string | undefined,
-      user_agent: row.user_agent as string | undefined,
       is_active: row.is_active as boolean,
       consumed: !(row.is_active as boolean),
     };
+    const projectId = row.project_id as string | null | undefined;
+    if (projectId !== undefined && projectId !== null) {
+      session.project_id = projectId;
+    }
+    const lastUsedAt = row.last_used_at as string | null | undefined;
+    if (lastUsedAt !== undefined && lastUsedAt !== null) {
+      session.last_used_at = lastUsedAt;
+    }
+    const ipAddress = row.ip_address as string | null | undefined;
+    if (ipAddress !== undefined && ipAddress !== null) {
+      session.ip_address = ipAddress;
+    }
+    const userAgent = row.user_agent as string | null | undefined;
+    if (userAgent !== undefined && userAgent !== null) {
+      session.user_agent = userAgent;
+    }
+    return session;
   }
 
   private mapChangelogEntry(
     row: Record<string, unknown>
   ): BackendChangelogEntry {
-    return {
+    const entityType = row.entity_type as string | null | undefined;
+    const entityId = row.entity_id as string | null | undefined;
+    const performedBy = row.performed_by as string | null | undefined;
+    const entry: BackendChangelogEntry = {
       id: row.id as string,
-      project_id: row.project_id as string | undefined,
-      entity_type: row.entity_type as string,
-      entity_id: row.entity_id as string,
       action: row.action as string,
       changes: (row.changes as Record<string, unknown>) || {},
-      performed_by: row.performed_by as string,
-      session_id: row.session_id as string | undefined,
       created_at: row.created_at as string,
-      user_id: row.performed_by as string,
-      resource_type: row.entity_type as string,
-      resource_id: row.entity_id as string,
+      user_id: performedBy || "",
+      resource_type: entityType || "",
+      resource_id: entityId || "",
     };
+    const projectId = row.project_id as string | null | undefined;
+    if (projectId !== undefined && projectId !== null) {
+      entry.project_id = projectId;
+    }
+    if (entityType !== undefined && entityType !== null) {
+      entry.entity_type = entityType;
+    }
+    if (entityId !== undefined && entityId !== null) {
+      entry.entity_id = entityId;
+    }
+    if (performedBy !== undefined && performedBy !== null) {
+      entry.performed_by = performedBy;
+    }
+    const sessionId = row.session_id as string | null | undefined;
+    if (sessionId !== undefined && sessionId !== null) {
+      entry.session_id = sessionId;
+    }
+    return entry;
   }
 
   private mapApiKey(row: Record<string, unknown>): BackendApiKey {
-    return {
+    const apiKey: BackendApiKey = {
       id: row.id as string,
       key: row.key as string,
       name: row.name as string,
       scopes: (row.scopes as ApiKeyScope[]) || [],
-      project_id: row.project_id as string | undefined, // Use project_id from database
       user_id: row.user_id as string,
       status: row.is_active ? "active" : "inactive", // Map from is_active boolean
-      expires_at: row.expires_at as string | undefined,
-      last_used_at: row.last_used_at as string | undefined,
       created_at: row.created_at as string,
       usage_count: (row.usage_count as number) || 0,
-      rate_limit: row.rate_limit as number | undefined,
       metadata: (row.metadata as Record<string, unknown>) || {},
     };
+    const projectId = row.project_id as string | null | undefined;
+    if (projectId !== undefined && projectId !== null) {
+      apiKey.project_id = projectId;
+    }
+    const expiresAt = row.expires_at as string | null | undefined;
+    if (expiresAt !== undefined && expiresAt !== null) {
+      apiKey.expires_at = expiresAt;
+    }
+    const lastUsedAt = row.last_used_at as string | null | undefined;
+    if (lastUsedAt !== undefined && lastUsedAt !== null) {
+      apiKey.last_used_at = lastUsedAt;
+    }
+    const rateLimit = row.rate_limit as number | null | undefined;
+    if (rateLimit !== undefined && rateLimit !== null) {
+      apiKey.rate_limit = rateLimit;
+    }
+    return apiKey;
   }
 
   // Close connection pool
@@ -4561,7 +4873,9 @@ export class DatabaseService {
   }
 
   // Enhanced query method with retry logic
-  private async queryWithRetry<T = Record<string, unknown>>(
+  // Unused method - kept for future use
+  // @ts-expect-error - Unused method kept for future use
+  private async _queryWithRetry<T = Record<string, unknown>>(
     queryText: string,
     values?: unknown[],
     retries = 3
@@ -4647,7 +4961,13 @@ export class DatabaseService {
       "SELECT storage_used, api_calls_count, last_api_call FROM projects WHERE id = $1",
       [projectId]
     );
-    const project = projectResult.rows[0] as { storage_used?: number; api_calls_count?: number; last_api_call?: string } | undefined;
+    const project = projectResult.rows[0] as
+      | {
+          storage_used?: number;
+          api_calls_count?: number;
+          last_api_call?: string;
+        }
+      | undefined;
 
     return {
       totalDocuments,
@@ -4770,7 +5090,9 @@ export class DatabaseService {
       []
     );
 
-    const fileRow = filesResult.rows[0] as { count: unknown; total_size: unknown } | undefined;
+    const fileRow = filesResult.rows[0] as
+      | { count: unknown; total_size: unknown }
+      | undefined;
     const totalFiles = parseInt(String(fileRow?.count || 0));
     const totalSize = parseInt(String(fileRow?.total_size || 0));
 
@@ -4826,7 +5148,9 @@ export class DatabaseService {
         []
       );
 
-      const fileRow = filesResult.rows[0] as { count: unknown; total_size: unknown } | undefined;
+      const fileRow = filesResult.rows[0] as
+        | { count: unknown; total_size: unknown }
+        | undefined;
       const totalFiles = parseInt(String(fileRow?.count || 0));
       const totalSize = parseInt(String(fileRow?.total_size || 0));
 
@@ -4861,7 +5185,9 @@ export class DatabaseService {
         [projectId]
       );
 
-      const project = projectResult.rows[0] as { storage_used?: number } | undefined;
+      const project = projectResult.rows[0] as
+        | { storage_used?: number }
+        | undefined;
       const storageUsed = project?.storage_used || 0;
       // storage_limit doesn't exist in projects table - use default from settings
       const storageLimit = 1073741824; // 1GB default
@@ -4903,30 +5229,34 @@ export class DatabaseService {
       // Folders should be in project DBs
       // Note: Folders table will be added to project DB initialization when needed
       const folderId = uuidv4();
-      
+
       // Insert folder into project DB
-      await this.dbManager.queryProject(
-        data.project_id,
-        `INSERT INTO folders (id, project_id, name, parent_folder_id, metadata, created_by, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          folderId,
+      await this.dbManager
+        .queryProject(
           data.project_id,
-          data.name,
-          data.parent_folder_id || null,
-          data.metadata ? JSON.stringify(data.metadata) : null,
-          data.created_by,
-          data.created_at,
-        ]
-      ).catch(() => ({}));
+          `INSERT INTO folders (id, project_id, name, parent_folder_id, metadata, created_by, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            folderId,
+            data.project_id,
+            data.name,
+            data.parent_folder_id || null,
+            data.metadata ? JSON.stringify(data.metadata) : null,
+            data.created_by,
+            data.created_at,
+          ]
+        )
+        .catch(() => ({}));
 
       // Query back the inserted row
-      const insertedResult = await this.dbManager.queryProject(
-        data.project_id,
-        `SELECT id, project_id, name, parent_folder_id, metadata, created_by, created_at
+      const insertedResult = await this.dbManager
+        .queryProject(
+          data.project_id,
+          `SELECT id, project_id, name, parent_folder_id, metadata, created_by, created_at
          FROM folders WHERE id = $1`,
-        [folderId]
-      ).catch(() => ({ rows: [] }));
+          [folderId]
+        )
+        .catch(() => ({ rows: [] }));
 
       const row = insertedResult.rows[0] as {
         id: string;
@@ -4938,15 +5268,28 @@ export class DatabaseService {
         created_at: string;
       };
 
-      return {
+      const folder: {
+        id: string;
+        project_id: string;
+        name: string;
+        parent_folder_id?: string;
+        metadata?: Record<string, unknown>;
+        created_by: string;
+        created_at: string;
+      } = {
         id: row.id,
         project_id: row.project_id,
         name: row.name,
-        parent_folder_id: row.parent_folder_id || undefined,
-        metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
         created_by: row.created_by,
         created_at: row.created_at,
       };
+      if (row.parent_folder_id !== undefined && row.parent_folder_id !== null) {
+        folder.parent_folder_id = row.parent_folder_id;
+      }
+      if (row.metadata !== undefined && row.metadata !== null) {
+        folder.metadata = JSON.parse(row.metadata);
+      }
+      return folder;
     } catch (error) {
       console.error("Error creating folder:", error);
       throw error;
@@ -4978,22 +5321,22 @@ export class DatabaseService {
 
       // Folders should be in project DBs
       // Note: Folders table will be added to project DB initialization when needed
-      const result = await this.dbManager.queryProject(
-        projectId,
-        query,
-        params
-      ).catch(() => ({ rows: [] }));
-      
+      const result = await this.dbManager
+        .queryProject(projectId, query, params)
+        .catch(() => ({ rows: [] }));
+
       const folders = result.rows;
 
       if (options.include_files) {
         for (const folder of folders) {
           // Files are in project DBs - check metadata for folder_id
-          const filesResult = await this.dbManager.queryProject(
-            projectId,
-            "SELECT COUNT(*) as count FROM files WHERE JSON_EXTRACT(metadata, '$.folder_id') = $1",
-            [folder.id]
-          ).catch(() => ({ rows: [{ count: 0 }] }));
+          const filesResult = await this.dbManager
+            .queryProject(
+              projectId,
+              "SELECT COUNT(*) as count FROM files WHERE JSON_EXTRACT(metadata, '$.folder_id') = $1",
+              [folder.id]
+            )
+            .catch(() => ({ rows: [{ count: 0 }] }));
           folder.file_count = parseInt(String(filesResult.rows[0]?.count || 0));
         }
       }
@@ -5013,11 +5356,13 @@ export class DatabaseService {
       // Folders should be in project DBs
       // Note: Folders table will be added to project DB initialization when needed
       // Check if folder has files (check file metadata for folder_id)
-      const filesResult = await this.dbManager.queryProject(
-        projectId,
-        "SELECT COUNT(*) as count FROM files WHERE JSON_EXTRACT(metadata, '$.folder_id') = $1",
-        [folderId]
-      ).catch(() => ({ rows: [{ count: 0 }] }));
+      const filesResult = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT COUNT(*) as count FROM files WHERE JSON_EXTRACT(metadata, '$.folder_id') = $1",
+          [folderId]
+        )
+        .catch(() => ({ rows: [{ count: 0 }] }));
 
       if (parseInt(String(filesResult.rows[0]?.count || 0)) > 0) {
         throw new Error(
@@ -5026,11 +5371,13 @@ export class DatabaseService {
       }
 
       // Check if folder has subfolders
-      const subfoldersResult = await this.dbManager.queryProject(
-        projectId,
-        "SELECT COUNT(*) as count FROM folders WHERE parent_folder_id = $1",
-        [folderId]
-      ).catch(() => ({ rows: [{ count: 0 }] }));
+      const subfoldersResult = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT COUNT(*) as count FROM folders WHERE parent_folder_id = $1",
+          [folderId]
+        )
+        .catch(() => ({ rows: [{ count: 0 }] }));
 
       if (parseInt(String(subfoldersResult.rows[0]?.count || 0)) > 0) {
         throw new Error(
@@ -5039,11 +5386,13 @@ export class DatabaseService {
       }
 
       // Delete folder from project DB
-      await this.dbManager.queryProject(
-        projectId,
-        "DELETE FROM folders WHERE id = $1 AND project_id = $2",
-        [folderId, projectId]
-      ).catch(() => ({ rowCount: 0 }));
+      await this.dbManager
+        .queryProject(
+          projectId,
+          "DELETE FROM folders WHERE id = $1 AND project_id = $2",
+          [folderId, projectId]
+        )
+        .catch(() => ({ rowCount: 0 }));
     } catch (error) {
       console.error("Error deleting folder:", error);
       throw error;
@@ -5065,7 +5414,8 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return result.rows.length > 0 ? this.mapFile(result.rows[0]) : null;
+      const row = result.rows[0];
+      return row ? this.mapFile(row as Record<string, unknown>) : null;
     } catch (error) {
       console.error("Error getting file by ID:", error);
       throw error;
@@ -5102,7 +5452,7 @@ export class DatabaseService {
    * Bulk delete files
    */
   async bulkDeleteFiles(
-    projectId: string,
+    _projectId: string,
     fileIds: string[]
   ): Promise<{
     deleted: number;
@@ -5206,11 +5556,17 @@ export class DatabaseService {
             "SELECT metadata FROM files WHERE id = $1 AND project_id = $2",
             [fileId, projectId]
           );
-          
+
           if (existingFile.rows.length > 0) {
-            const existingMetadata = JSON.parse(existingFile.rows[0].metadata as string || "{}");
+            const existingRow = existingFile.rows[0];
+            if (!existingRow) {
+              throw new Error("File not found");
+            }
+            const existingMetadata = JSON.parse(
+              (existingRow.metadata as string) || "{}"
+            );
             const mergedMetadata = { ...existingMetadata, ...metadata };
-            
+
             await this.dbManager.queryProject(
               projectId,
               "UPDATE files SET metadata = $1 WHERE id = $2 AND project_id = $3",
@@ -5278,7 +5634,11 @@ export class DatabaseService {
         [newFileId]
       );
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error copying file:", error);
       throw error;
@@ -5326,9 +5686,7 @@ export class DatabaseService {
         projectId,
         `UPDATE files SET ${updates.join(
           ", "
-        )} WHERE id = $${paramCount} AND project_id = $${
-          paramCount + 1
-        }`,
+        )} WHERE id = $${paramCount} AND project_id = $${paramCount + 1}`,
         values
       );
 
@@ -5371,7 +5729,11 @@ export class DatabaseService {
         throw new Error("File not found");
       }
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error renaming file:", error);
       throw error;
@@ -5399,7 +5761,13 @@ export class DatabaseService {
       }
 
       // Merge metadata
-      const existingMetadata = JSON.parse(existingFile.rows[0].metadata as string || "{}");
+      const existingRow = existingFile.rows[0];
+      if (!existingRow) {
+        throw new Error("File not found");
+      }
+      const existingMetadata = JSON.parse(
+        (existingRow.metadata as string) || "{}"
+      );
       const mergedMetadata = { ...existingMetadata, ...metadata };
 
       // Update in project DB
@@ -5416,7 +5784,11 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error updating file metadata:", error);
       throw error;
@@ -5441,7 +5813,9 @@ export class DatabaseService {
       const newTags = [...new Set([...currentTags, ...tags])];
 
       // Get existing metadata first
-      const existingMetadata = JSON.parse((file.metadata ? JSON.stringify(file.metadata) : "{}") || "{}");
+      const existingMetadata = JSON.parse(
+        (file.metadata ? JSON.stringify(file.metadata) : "{}") || "{}"
+      );
       const updatedMetadata = { ...existingMetadata, tags: newTags };
 
       // Files are in project DBs
@@ -5458,7 +5832,11 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error adding file tags:", error);
       throw error;
@@ -5483,7 +5861,9 @@ export class DatabaseService {
       const newTags = currentTags.filter((tag) => !tags.includes(tag));
 
       // Get existing metadata first
-      const existingMetadata = JSON.parse((file.metadata ? JSON.stringify(file.metadata) : "{}") || "{}");
+      const existingMetadata = JSON.parse(
+        (file.metadata ? JSON.stringify(file.metadata) : "{}") || "{}"
+      );
       const updatedMetadata = { ...existingMetadata, tags: newTags };
 
       // Files are in project DBs
@@ -5500,7 +5880,11 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error removing file tags:", error);
       throw error;
@@ -5518,14 +5902,16 @@ export class DatabaseService {
       // File permissions should be in project DBs
       // Note: File permissions table will be added to project DB initialization when needed
       // For now, return empty array if table doesn't exist
-      const result = await this.dbManager.queryProject(
-        projectId,
-        `SELECT fp.*, u.user_id as username, u.email 
+      const result = await this.dbManager
+        .queryProject(
+          projectId,
+          `SELECT fp.*, u.user_id as username, u.email 
          FROM file_permissions fp 
          JOIN project_users u ON fp.user_id = u.id 
          WHERE fp.file_id = $1 AND fp.project_id = $2`,
-        [fileId, projectId]
-      ).catch(() => ({ rows: [] }));
+          [fileId, projectId]
+        )
+        .catch(() => ({ rows: [] }));
 
       return result.rows;
     } catch (error) {
@@ -5547,47 +5933,55 @@ export class DatabaseService {
       // File permissions should be in project DBs
       // Note: File permissions table will be added to project DB initialization when needed
       const permissionId = uuidv4();
-      
+
       // Check if permission already exists
-      const existing = await this.dbManager.queryProject(
-        projectId,
-        "SELECT id FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
-        [projectId, fileId, userId]
-      ).catch(() => ({ rows: [] }));
+      const existing = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT id FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
+          [projectId, fileId, userId]
+        )
+        .catch(() => ({ rows: [] }));
 
       if (existing.rows.length > 0) {
         // Update existing permission
-        await this.dbManager.queryProject(
-          projectId,
-          `UPDATE file_permissions 
+        await this.dbManager
+          .queryProject(
+            projectId,
+            `UPDATE file_permissions 
            SET permission = $1, granted_by = $2, granted_at = CURRENT_TIMESTAMP
            WHERE project_id = $3 AND file_id = $4 AND user_id = $5`,
-          [permission, "system", projectId, fileId, userId]
-        ).catch(() => ({}));
+            [permission, "system", projectId, fileId, userId]
+          )
+          .catch(() => ({}));
       } else {
         // Insert new permission
-        await this.dbManager.queryProject(
-          projectId,
-          `INSERT INTO file_permissions (id, project_id, file_id, user_id, permission, granted_by, granted_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            permissionId,
+        await this.dbManager
+          .queryProject(
             projectId,
-            fileId,
-            userId,
-            permission,
-            "system",
-            new Date().toISOString(),
-          ]
-        ).catch(() => ({}));
+            `INSERT INTO file_permissions (id, project_id, file_id, user_id, permission, granted_by, granted_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              permissionId,
+              projectId,
+              fileId,
+              userId,
+              permission,
+              "system",
+              new Date().toISOString(),
+            ]
+          )
+          .catch(() => ({}));
       }
 
       // Query back the permission
-      const result = await this.dbManager.queryProject(
-        projectId,
-        "SELECT * FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
-        [projectId, fileId, userId]
-      ).catch(() => ({ rows: [] }));
+      const result = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT * FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
+          [projectId, fileId, userId]
+        )
+        .catch(() => ({ rows: [] }));
 
       return result.rows[0] || {};
     } catch (error) {
@@ -5606,11 +6000,13 @@ export class DatabaseService {
   ): Promise<void> {
     try {
       // File permissions should be in project DBs
-      await this.dbManager.queryProject(
-        projectId,
-        "DELETE FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
-        [projectId, fileId, userId]
-      ).catch(() => ({ rowCount: 0 }));
+      await this.dbManager
+        .queryProject(
+          projectId,
+          "DELETE FROM file_permissions WHERE project_id = $1 AND file_id = $2 AND user_id = $3",
+          [projectId, fileId, userId]
+        )
+        .catch(() => ({ rowCount: 0 }));
     } catch (error) {
       console.error("Error revoking file permission:", error);
       throw error;
@@ -5627,11 +6023,13 @@ export class DatabaseService {
     try {
       // File versions should be in project DBs
       // Note: File versions table will be added to project DB initialization when needed
-      const result = await this.dbManager.queryProject(
-        projectId,
-        "SELECT * FROM file_versions WHERE project_id = $1 AND file_id = $2 ORDER BY version_number DESC",
-        [projectId, fileId]
-      ).catch(() => ({ rows: [] }));
+      const result = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT * FROM file_versions WHERE project_id = $1 AND file_id = $2 ORDER BY version_number DESC",
+          [projectId, fileId]
+        )
+        .catch(() => ({ rows: [] }));
 
       return result.rows;
     } catch (error) {
@@ -5652,38 +6050,43 @@ export class DatabaseService {
     try {
       // File versions should be in project DBs
       // Note: File versions table will be added to project DB initialization when needed
-      const versionResult = await this.dbManager.queryProject(
-        projectId,
-        "SELECT COALESCE(MAX(version_number), 0) + 1 as next_version FROM file_versions WHERE project_id = $1 AND file_id = $2",
-        [projectId, fileId]
-      ).catch(() => ({ rows: [{ next_version: 1 }] }));
+      const versionResult = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT COALESCE(MAX(version_number), 0) + 1 as next_version FROM file_versions WHERE project_id = $1 AND file_id = $2",
+          [projectId, fileId]
+        )
+        .catch(() => ({ rows: [{ next_version: 1 }] }));
 
-      const versionNumber = (versionResult.rows[0] as { next_version: unknown })?.next_version as number;
+      const versionNumber = (versionResult.rows[0] as { next_version: unknown })
+        ?.next_version as number;
       const versionId = uuidv4();
 
-      await this.dbManager.queryProject(
-        projectId,
-        `INSERT INTO file_versions (id, project_id, file_id, version_number, filename, path, size, uploaded_by, uploaded_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          versionId,
+      await this.dbManager
+        .queryProject(
           projectId,
-          fileId,
-          versionNumber,
-          file.originalname,
-          file.path,
-          file.size,
-          userId,
-          new Date().toISOString(),
-        ]
-      ).catch(() => ({}));
+          `INSERT INTO file_versions (id, project_id, file_id, version_number, filename, path, size, uploaded_by, uploaded_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            versionId,
+            projectId,
+            fileId,
+            versionNumber,
+            file.originalname,
+            file.path,
+            file.size,
+            userId,
+            new Date().toISOString(),
+          ]
+        )
+        .catch(() => ({}));
 
       // Query back the inserted row
-      const result = await this.dbManager.queryProject(
-        projectId,
-        "SELECT * FROM file_versions WHERE id = $1",
-        [versionId]
-      ).catch(() => ({ rows: [] }));
+      const result = await this.dbManager
+        .queryProject(projectId, "SELECT * FROM file_versions WHERE id = $1", [
+          versionId,
+        ])
+        .catch(() => ({ rows: [] }));
 
       return result.rows[0] || {};
     } catch (error) {
@@ -5702,11 +6105,13 @@ export class DatabaseService {
   ): Promise<FileRecord> {
     try {
       // File versions should be in project DBs
-      const version = await this.dbManager.queryProject(
-        projectId,
-        "SELECT * FROM file_versions WHERE id = $1 AND project_id = $2 AND file_id = $3",
-        [versionId, projectId, fileId]
-      ).catch(() => ({ rows: [] }));
+      const version = await this.dbManager
+        .queryProject(
+          projectId,
+          "SELECT * FROM file_versions WHERE id = $1 AND project_id = $2 AND file_id = $3",
+          [versionId, projectId, fileId]
+        )
+        .catch(() => ({ rows: [] }));
 
       if (version.rows.length === 0) {
         throw new Error("Version not found");
@@ -5717,9 +6122,12 @@ export class DatabaseService {
         projectId,
         "UPDATE files SET filename = $1, path = $2, size = $3 WHERE id = $4 AND project_id = $5",
         [
-          (version.rows[0] as { filename: string; path: string; size: number }).filename,
-          (version.rows[0] as { filename: string; path: string; size: number }).path,
-          (version.rows[0] as { filename: string; path: string; size: number }).size,
+          (version.rows[0] as { filename: string; path: string; size: number })
+            .filename,
+          (version.rows[0] as { filename: string; path: string; size: number })
+            .path,
+          (version.rows[0] as { filename: string; path: string; size: number })
+            .size,
           fileId,
           projectId,
         ]
@@ -5732,9 +6140,11 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return fileResult.rows.length > 0
-        ? this.mapFile(fileResult.rows[0] as unknown as Record<string, unknown>)
-        : null;
+      const row = fileResult.rows[0];
+      if (!row) {
+        throw new Error("File not found after restoration");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error restoring file version:", error);
       throw error;
@@ -5758,8 +6168,18 @@ export class DatabaseService {
       }
 
       // Merge metadata
-      const existingMetadata = JSON.parse(existingFile.rows[0].metadata as string || "{}");
-      const updatedMetadata = { ...existingMetadata, public: true, public_at: new Date().toISOString() };
+      const existingRow = existingFile.rows[0];
+      if (!existingRow) {
+        throw new Error("File not found");
+      }
+      const existingMetadata = JSON.parse(
+        (existingRow.metadata as string) || "{}"
+      );
+      const updatedMetadata = {
+        ...existingMetadata,
+        public: true,
+        public_at: new Date().toISOString(),
+      };
 
       // Files are in project DBs
       await this.dbManager.queryProject(
@@ -5775,7 +6195,11 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error making file public:", error);
       throw error;
@@ -5802,8 +6226,18 @@ export class DatabaseService {
       }
 
       // Merge metadata
-      const existingMetadata = JSON.parse(existingFile.rows[0].metadata as string || "{}");
-      const updatedMetadata = { ...existingMetadata, public: false, private_at: new Date().toISOString() };
+      const existingRow = existingFile.rows[0];
+      if (!existingRow) {
+        throw new Error("File not found");
+      }
+      const existingMetadata = JSON.parse(
+        (existingRow.metadata as string) || "{}"
+      );
+      const updatedMetadata = {
+        ...existingMetadata,
+        public: false,
+        private_at: new Date().toISOString(),
+      };
 
       // Files are in project DBs
       await this.dbManager.queryProject(
@@ -5819,7 +6253,11 @@ export class DatabaseService {
         [fileId, projectId]
       );
 
-      return this.mapFile(result.rows[0]);
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("File not found");
+      }
+      return this.mapFile(row as Record<string, unknown>);
     } catch (error) {
       console.error("Error making file private:", error);
       throw error;
@@ -5832,15 +6270,33 @@ export class DatabaseService {
   async resetProjectData(projectId: string): Promise<void> {
     try {
       // Delete all project-specific data from project DB
-      await this.dbManager.queryProject(projectId, "DELETE FROM documents", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM collections", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM files", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM folders", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM api_keys", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM project_users", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM file_permissions", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM file_versions", []).catch(() => ({}));
-      await this.dbManager.queryProject(projectId, "DELETE FROM changelog", []).catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM documents", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM collections", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM files", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM folders", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM api_keys", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM project_users", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM file_permissions", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM file_versions", [])
+        .catch(() => ({}));
+      await this.dbManager
+        .queryProject(projectId, "DELETE FROM changelog", [])
+        .catch(() => ({}));
 
       // Reset project stats in main DB
       await this.dbManager.queryMain(
@@ -5933,17 +6389,27 @@ export class DatabaseService {
           try {
             // PRAGMA doesn't support parameters - use string interpolation (table is validated)
             // Note: collections, documents, files are in project databases, not main
-            if (["collections", "documents", "files", "project_users", "changelog"].includes(table)) {
+            if (
+              [
+                "collections",
+                "documents",
+                "files",
+                "project_users",
+                "changelog",
+              ].includes(table)
+            ) {
               // These tables are in project databases, skip main DB check
               continue;
             }
-            
+
             await this.dbManager.connectMain();
             const result = await this.dbManager.queryMain(
               `PRAGMA table_info("${table}")`
             );
-            
-            const columnExists = result.rows.some((row) => (row as { name: string }).name === column);
+
+            const columnExists = result.rows.some(
+              (row) => (row as { name: string }).name === column
+            );
             if (!columnExists) {
               issues.push(`Missing column: ${table}.${column}`);
             }
@@ -6266,7 +6732,9 @@ export class DatabaseService {
       const byEntityType: Record<string, number> = {};
       entityTypeResult.rows.forEach((row) => {
         const typedRow = row as { entity_type: string; count: unknown };
-        byEntityType[typedRow.entity_type] = parseInt(String(typedRow.count || 0));
+        byEntityType[typedRow.entity_type] = parseInt(
+          String(typedRow.count || 0)
+        );
       });
 
       // Get timeline data (SQLite doesn't support DATE_TRUNC, use strftime instead) - from project DB
@@ -6410,7 +6878,8 @@ export class DatabaseService {
         throw new Error("project_id is required for purgeOldChangelog");
       }
 
-      let whereClause = "WHERE created_at < datetime('now', '-' || $1 || ' days')";
+      let whereClause =
+        "WHERE created_at < datetime('now', '-' || $1 || ' days')";
       const params: (number | string)[] = [options.older_than_days];
       let paramCount = 1;
 
@@ -6477,7 +6946,9 @@ export class DatabaseService {
         apiKey.type || "admin",
         apiKey.user_id,
         JSON.stringify(apiKey.scopes),
-        apiKey.project_ids ? JSON.stringify(apiKey.project_ids) : JSON.stringify([]),
+        apiKey.project_ids
+          ? JSON.stringify(apiKey.project_ids)
+          : JSON.stringify([]),
         apiKey.expires_at || null,
         apiKey.rate_limit || null,
         JSON.stringify(apiKey.metadata || {}),
@@ -6493,7 +6964,11 @@ export class DatabaseService {
       [apiKeyId]
     );
 
-    return this.mapApiKey(result.rows[0]);
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("API key not found");
+    }
+    return this.mapApiKey(row as Record<string, unknown>);
   }
 
   async getProjectsByOwner(_ownerId: string): Promise<BackendProject[]> {
@@ -6534,7 +7009,8 @@ export class DatabaseService {
         "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, collectionName]
       );
-      return result.rows.length > 0 ? this.mapCollection(result.rows[0]) : null;
+      const row = result.rows[0];
+      return row ? this.mapCollection(row as Record<string, unknown>) : null;
     } catch (error) {
       console.error("Error getting collection by name:", error);
       throw error;
@@ -6592,7 +7068,9 @@ export class DatabaseService {
         const tableExistsResult = await this.dbManager.queryMain(
           `SELECT name FROM sqlite_master WHERE type='table' AND name='admin_users'`
         );
-        const hasDataResult = await this.dbManager.queryMain(`SELECT COUNT(*) as count FROM admin_users LIMIT 1`);
+        const hasDataResult = await this.dbManager.queryMain(
+          `SELECT COUNT(*) as count FROM admin_users LIMIT 1`
+        );
         const tableExists = tableExistsResult.rows.length > 0;
         const hasData = parseInt(String(hasDataResult.rows[0]?.count || 0)) > 0;
         const result = { rows: [{ exists: tableExists && hasData ? 1 : 0 }] };
@@ -6664,7 +7142,7 @@ export class DatabaseService {
         )
       `);
 
-      // Note: collections, documents, project_users, files, changelog are now created 
+      // Note: collections, documents, project_users, files, changelog are now created
       // in project databases via initializeProjectDatabase() in MultiDatabaseManager
       // They should NOT be in the main database
 
@@ -6738,7 +7216,9 @@ export class DatabaseService {
       `);
 
       // Create default admin user if it doesn't exist
-      const adminCount = await this.dbManager.queryMain("SELECT COUNT(*) as count FROM admin_users");
+      const adminCount = await this.dbManager.queryMain(
+        "SELECT COUNT(*) as count FROM admin_users"
+      );
       if (parseInt(String(adminCount.rows[0]?.["count"] || 0)) === 0) {
         const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
         const defaultPassword =

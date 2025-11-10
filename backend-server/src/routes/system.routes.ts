@@ -13,7 +13,7 @@ import { Router } from "express";
 import SystemController from "../controllers/system.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
-const router = Router();
+const router: Router = Router();
 const controller = SystemController;
 
 // Apply authentication middleware to all system routes

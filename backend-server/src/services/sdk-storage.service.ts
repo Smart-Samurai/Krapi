@@ -1,4 +1,4 @@
-import { StorageService } from "@krapi/sdk";
+import { StorageService } from "@smartsamurai/krapi-sdk";
 
 /**
  * SDK Storage Service Wrapper

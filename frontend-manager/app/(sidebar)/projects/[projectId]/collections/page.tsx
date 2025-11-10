@@ -644,7 +644,7 @@ export default function CollectionsPage() {
                   <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
                       {`// Initialize KRAPI client (like Appwrite!)
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 
 const krapi = new KrapiClient({
   endpoint: 'http://localhost:3470',

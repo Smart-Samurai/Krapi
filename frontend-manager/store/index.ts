@@ -1,13 +1,13 @@
-import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import authReducer from "./authSlice";
-import uiReducer from "./uiSlice";
-import projectsReducer from "./projectsSlice";
+import { combineReducers, configureStore } from "@reduxjs/toolkit";
 
+import authReducer from "./authSlice";
 import collectionsReducer from "./collectionsSlice";
 import documentsReducer from "./documentsSlice";
-import usersReducer from "./usersSlice";
 import emailReducer from "./emailSlice";
+import projectsReducer from "./projectsSlice";
 import storageReducer from "./storageSlice";
+import uiReducer from "./uiSlice";
+import usersReducer from "./usersSlice";
 
 const rootReducer = combineReducers({
   auth: authReducer,

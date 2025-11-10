@@ -6,23 +6,20 @@
  */
 
 import type {
-  AdminUser,
-  Project,
-  Collection,
-  Document,
-  ProjectUser,
-  Session,
-  ApiKey,
-  ApiResponse,
-  PaginatedResponse,
-  Scope,
-  ProjectScope,
-  AdminRole,
   AccessLevel,
+  AdminRole,
+  AdminUser,
+  ApiResponse,
+  Collection,
   CollectionField,
+  Document,
   FieldType,
-  ProjectSettings
-} from '@krapi/sdk';
+  PaginatedResponse,
+  Project,
+  ProjectScope,
+  ProjectSettings,
+  Scope,
+} from '@smartsamurai/krapi-sdk';
 
 // Ensure our auth context types match SDK types
 export interface AuthContextUser extends AdminUser {
@@ -34,16 +31,37 @@ export type FrontendApiResponse<T> = ApiResponse<T>;
 export type FrontendPaginatedResponse<T> = PaginatedResponse<T>;
 
 // Type guards to ensure we're handling SDK types correctly
-export function isAdminUser(user: any): user is AdminUser {
-  return user && typeof user.id === 'string' && typeof user.username === 'string';
+export function isAdminUser(user: unknown): user is AdminUser {
+  return (
+    typeof user === "object" &&
+    user !== null &&
+    "id" in user &&
+    typeof (user as { id: unknown }).id === "string" &&
+    "username" in user &&
+    typeof (user as { username: unknown }).username === "string"
+  );
 }
 
-export function isProject(project: any): project is Project {
-  return project && typeof project.id === 'string' && typeof project.name === 'string';
+export function isProject(project: unknown): project is Project {
+  return (
+    typeof project === "object" &&
+    project !== null &&
+    "id" in project &&
+    typeof (project as { id: unknown }).id === "string" &&
+    "name" in project &&
+    typeof (project as { name: unknown }).name === "string"
+  );
 }
 
-export function isCollection(collection: any): collection is Collection {
-  return collection && typeof collection.name === 'string' && Array.isArray(collection.fields);
+export function isCollection(collection: unknown): collection is Collection {
+  return (
+    typeof collection === "object" &&
+    collection !== null &&
+    "name" in collection &&
+    typeof (collection as { name: unknown }).name === "string" &&
+    "fields" in collection &&
+    Array.isArray((collection as { fields: unknown }).fields)
+  );
 }
 
 // Ensure our form data types match what the SDK expects
@@ -63,7 +81,7 @@ export interface CreateUserFormData {
   email: string;
   name?: string;
   password?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Validate that our scope checks use the correct SDK enums
@@ -82,24 +100,22 @@ export interface ApiErrorResponse {
   success: false;
   error: string;
   code?: string;
-  details?: any;
+  details?: unknown;
 }
 
 // Compile-time checks that will fail if SDK types change
 type _AdminUserCheck = AdminUser extends { id: string; username: string; email: string } ? true : never;
 type _ProjectCheck = Project extends { id: string; name: string; api_key: string } ? true : never;
 type _CollectionCheck = Collection extends { name: string; fields: CollectionField[] } ? true : never;
-type _DocumentCheck = Document extends { id: string; data: Record<string, any> } ? true : never;
+type _DocumentCheck = Document extends { id: string; data: Record<string, unknown> } ? true : never;
 
-// Export a namespace with all validated types
-export namespace SDKTypes {
-  export type User = import('@krapi/sdk').AdminUser;
-  export type Project = import('@krapi/sdk').Project;
-  export type Collection = import('@krapi/sdk').Collection;
-  export type Document = import('@krapi/sdk').Document;
-  export type ProjectUser = import('@krapi/sdk').ProjectUser;
-  export type Session = import('@krapi/sdk').Session;
-  export type ApiKey = import('@krapi/sdk').ApiKey;
-  export type Response<T> = import('@krapi/sdk').ApiResponse<T>;
-  export type PaginatedResponse<T> = import('@krapi/sdk').PaginatedResponse<T>;
-}
+// Export types that match SDK types
+export type SDKUser = import('@smartsamurai/krapi-sdk').AdminUser;
+export type SDKProject = import('@smartsamurai/krapi-sdk').Project;
+export type SDKCollection = import('@smartsamurai/krapi-sdk').Collection;
+export type SDKDocument = import('@smartsamurai/krapi-sdk').Document;
+export type SDKProjectUser = import('@smartsamurai/krapi-sdk').ProjectUser;
+export type SDKSession = import('@smartsamurai/krapi-sdk').Session;
+export type SDKApiKey = import('@smartsamurai/krapi-sdk').ApiKey;
+export type SDKResponse<T> = import('@smartsamurai/krapi-sdk').ApiResponse<T>;
+export type SDKPaginatedResponse<T> = import('@smartsamurai/krapi-sdk').PaginatedResponse<T>;

@@ -56,7 +56,7 @@ export class ProjectAwareDbAdapter {
    * adapter.clearProjectContext();
    */
   clearProjectContext(): void {
-    this.context.projectId = undefined;
+    delete this.context.projectId;
   }
 
   /**
@@ -106,6 +106,7 @@ export class ProjectAwareDbAdapter {
       const projectIdMatches = sqlLower.matchAll(/project_id\s*=\s*\$(\d+)/gi);
       
       for (const match of projectIdMatches) {
+        if (!match[1]) continue;
         const paramIndex = parseInt(match[1], 10) - 1;
         if (
           paramIndex >= 0 &&
@@ -131,7 +132,7 @@ export class ProjectAwareDbAdapter {
       if (sqlLower.includes("insert into") && sqlLower.includes("project_id")) {
         // Extract column list: INSERT INTO table (col1, col2, project_id, col3)
         const columnListMatch = sqlLower.match(/insert\s+into\s+\w+\s*\(([^)]+)\)/i);
-        if (columnListMatch) {
+        if (columnListMatch && columnListMatch[1]) {
           const columns = columnListMatch[1].split(",").map(c => c.trim());
           const projectIdIndex = columns.findIndex(col => col === "project_id");
           

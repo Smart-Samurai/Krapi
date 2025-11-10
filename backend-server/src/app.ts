@@ -102,7 +102,7 @@ import path from "path";
 import KrapiErrorHandler from "@krapi/error-handler";
 import KrapiLogger from "@krapi/logger";
 import KrapiMonitor from "@krapi/monitor";
-import { BackendSDK } from "@krapi/sdk";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import compression from "compression";
 import cors from "cors";
 import dotenv from "dotenv";

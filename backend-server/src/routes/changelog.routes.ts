@@ -12,7 +12,7 @@
  * @module routes/changelog.routes
  */
 
-import { BackendSDK } from "@krapi/sdk";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router } from "express";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";

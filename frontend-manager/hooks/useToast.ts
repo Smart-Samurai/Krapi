@@ -65,6 +65,15 @@ export function useToast() {
   const [toasts, setToasts] = useState<ToastState[]>([]);
 
   /**
+   * Dismiss a specific toast by ID
+   * 
+   * @param id - Toast ID to dismiss
+   */
+  const dismiss = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  /**
    * Show a new toast notification
    * 
    * @param options - Toast configuration options
@@ -86,16 +95,7 @@ export function useToast() {
     setTimeout(() => {
       dismiss(id);
     }, newToast.duration);
-  }, []);
-
-  /**
-   * Dismiss a specific toast by ID
-   * 
-   * @param id - Toast ID to dismiss
-   */
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
+  }, [dismiss]);
 
   /**
    * Dismiss all active toasts

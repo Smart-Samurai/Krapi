@@ -17,7 +17,7 @@
  * // Backups will run automatically based on project settings
  */
 import KrapiLogger from "@krapi/logger";
-import type { BackendSDK } from "@krapi/sdk";
+import type { BackendSDK } from "@smartsamurai/krapi-sdk";
 
 import type { DatabaseService } from "./database.service";
 
@@ -182,10 +182,16 @@ export class BackupSchedulerService {
     const schedule: BackupSchedule = {
       projectId,
       frequency: automation.frequency,
-      time: automation.time,
-      day_of_week: automation.day_of_week,
-      day_of_month: automation.day_of_month,
     };
+    if (automation.time !== undefined) {
+      schedule.time = automation.time;
+    }
+    if (automation.day_of_week !== undefined) {
+      schedule.day_of_week = automation.day_of_week;
+    }
+    if (automation.day_of_month !== undefined) {
+      schedule.day_of_month = automation.day_of_month;
+    }
 
     // Calculate next backup time
     schedule.nextBackup = this.calculateNextBackup(schedule);
@@ -227,7 +233,7 @@ export class BackupSchedulerService {
       case "daily":
         if (schedule.time) {
           const [hours, minutes] = schedule.time.split(":").map(Number);
-          next.setHours(hours, minutes || 0, 0, 0);
+          next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
           
           // If time has passed today, schedule for tomorrow
           if (next <= now) {
@@ -249,14 +255,14 @@ export class BackupSchedulerService {
           let daysUntilTarget = (targetDay - currentDay + 7) % 7;
           if (daysUntilTarget === 0) {
             // Same day - check if time has passed
-            next.setHours(hours, minutes || 0, 0, 0);
+            next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
             if (next <= now) {
               daysUntilTarget = 7; // Schedule for next week
             }
           }
           
           next.setDate(next.getDate() + daysUntilTarget);
-          next.setHours(hours, minutes || 0, 0, 0);
+          next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
         } else {
           // Default to Sunday at midnight
           const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
@@ -272,7 +278,7 @@ export class BackupSchedulerService {
           const currentDay = now.getDate();
           
           next.setDate(targetDay);
-          next.setHours(hours, minutes || 0, 0, 0);
+          next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
           
           // If day has passed this month, schedule for next month
           if (next <= now || targetDay < currentDay) {
@@ -407,8 +413,9 @@ export class BackupSchedulerService {
 
         // Mark old ones for deletion
         for (let i = automation.max_backups; i < sorted.length; i++) {
-          if (!backupsToDelete.includes(sorted[i].id)) {
-            backupsToDelete.push(sorted[i].id);
+          const backup = sorted[i];
+          if (backup && !backupsToDelete.includes(backup.id)) {
+            backupsToDelete.push(backup.id);
           }
         }
       }

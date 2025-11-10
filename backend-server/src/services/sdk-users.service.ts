@@ -1,4 +1,4 @@
-import { UsersService } from "@krapi/sdk";
+import { UsersService } from "@smartsamurai/krapi-sdk";
 
 /**
  * SDK Users Service Wrapper

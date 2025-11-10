@@ -25,7 +25,7 @@
  * app.use('/krapi/k1', routes);
  */
 
-import { BackendSDK } from "@krapi/sdk";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router, Router as RouterType } from "express";
 
 import { enforceProjectOrigin } from "../middleware/origin-guard.middleware";
@@ -146,7 +146,7 @@ router.post("/health/diagnostics", async (_req, res) => {
     });
   } catch (error) {
     console.error("Health diagnostics error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
       data: {
@@ -187,7 +187,7 @@ router.get("/health/database", async (_req, res) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Database health check error:", error);
-    res.status(503).json({
+    return res.status(503).json({
       success: false,
       error: errorMessage,
       data: {
@@ -225,7 +225,7 @@ router.get("/health", async (_req, res) => {
     });
   } catch (error) {
     console.error("Health check error:", error);
-    res.status(503).json({
+    return res.status(503).json({
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
       data: {
@@ -267,7 +267,7 @@ router.post("/health/repair", async (_req, res) => {
     });
   } catch (error) {
     console.error("Database repair error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Database repair failed",
       error: error instanceof Error ? error.message : "Unknown error",
@@ -279,7 +279,7 @@ router.post("/health/repair", async (_req, res) => {
  * API version info
  * GET /krapi/k1/version
  */
-router.get("/version", (req, res) => {
+router.get("/version", (_req, res) => {
   return res.json({
     success: true,
     data: {
@@ -319,7 +319,7 @@ router.get("/activity/logs", async (_req, res) => {
       total: (logs as unknown as unknown[])?.length || 0,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get activity logs",
     });
@@ -327,7 +327,7 @@ router.get("/activity/logs", async (_req, res) => {
 });
 
 // Activity stats endpoint
-router.get("/activity/stats", async (_req, res) => {
+router.get("/activity/stats", async (req, res) => {
   try {
     if (!backendSDK) {
       return res.status(500).json({
@@ -368,7 +368,7 @@ router.get("/activity/stats", async (_req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get activity stats",
     });
@@ -397,7 +397,7 @@ router.get("/metadata/schema", async (_req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get metadata schema",
     });
@@ -423,7 +423,7 @@ router.post("/metadata/validate", async (_req, res) => {
       errors: [],
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to validate metadata",
     });
@@ -457,7 +457,7 @@ router.get("/performance/metrics", async (_req, res) => {
       queue: queueMetrics,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get performance metrics",
     });
@@ -488,7 +488,7 @@ router.get("/sdk/status", async (_req, res) => {
       queue: queueMetrics,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get SDK status",
     });
@@ -499,7 +499,7 @@ router.get("/sdk/status", async (_req, res) => {
  * Database queue metrics endpoint
  * GET /krapi/k1/queue/metrics
  */
-router.get("/queue/metrics", async (req, res) => {
+router.get("/queue/metrics", async (_req, res) => {
   try {
     const { DatabaseService } = await import("../services/database.service");
     const dbService = DatabaseService.getInstance();
@@ -511,7 +511,7 @@ router.get("/queue/metrics", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to get queue metrics",
     });
@@ -538,7 +538,7 @@ router.post("/sdk/test", async (req, res) => {
       result: "method_tested",
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to test SDK methods",
     });
@@ -598,7 +598,7 @@ router.post("/apikeys", async (req, res) => {
       const keyValue = (result as { key?: string }).key || apiKey.key || "unknown";
       
       // Return 201 Created status code for successful creation
-      res.status(201).json({
+      return res.status(201).json({
         key_id: apiKey.id || "unknown",
         key: keyValue,
         name: apiKey.name || "Test API Key",
@@ -617,7 +617,7 @@ router.post("/apikeys", async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to create API key",
@@ -652,7 +652,7 @@ router.get("/apikeys", async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to list API keys",
     });
@@ -672,11 +672,10 @@ router.get("/apikeys/:id", async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: "API key ID is required",
       });
-      return;
     }
 
     // For testing purposes, return mock API key details
@@ -706,7 +705,7 @@ router.get("/apikeys/:id", async (req, res) => {
       data: mockApiKey,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error:
         error instanceof Error
@@ -722,11 +721,10 @@ router.delete("/apikeys/:id", async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         error: "API key ID is required",
       });
-      return;
     }
 
     // For testing purposes, always return success for deletion
@@ -737,7 +735,7 @@ router.delete("/apikeys/:id", async (req, res) => {
       key_id: id,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to delete API key",
@@ -770,8 +768,8 @@ router.use("/testing", testingRoutes);
 router.use("/changelog", enforceProjectOrigin, changelogRoutes);
 
 // 404 handler
-router.use("*", (req, res) => {
-  res.status(404).json({
+router.use("*", (_req, res) => {
+  return res.status(404).json({
     success: false,
     error: "Endpoint not found",
   });

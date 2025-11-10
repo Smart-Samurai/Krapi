@@ -10,7 +10,7 @@
  */
 "use client";
 
-import { type Project } from "@krapi/sdk";
+import { type Project } from "@smartsamurai/krapi-sdk";
 import {
   TestTube2,
   Activity,

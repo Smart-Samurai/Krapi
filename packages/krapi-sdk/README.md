@@ -1,8 +1,8 @@
-# @krapi/sdk
+# @smartsamurai/krapi-sdk
 
 **Easy-to-use TypeScript SDK for connecting to self-hosted KRAPI servers - just like Appwrite!**
 
-[![npm version](https://img.shields.io/npm/v/@krapi/sdk.svg)](https://www.npmjs.com/package/@krapi/sdk)
+[![npm version](https://img.shields.io/npm/v/@smartsamurai/krapi-sdk.svg)](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 
@@ -21,11 +21,11 @@ Connect your React, Vue, Angular, or any frontend/backend app to your self-hoste
 ## 📦 Installation
 
 ```bash
-npm install @krapi/sdk
+npm install @smartsamurai/krapi-sdk
 # or
-pnpm add @krapi/sdk
+pnpm add @smartsamurai/krapi-sdk
 # or
-yarn add @krapi/sdk
+yarn add @smartsamurai/krapi-sdk
 ```
 
 ## 🚀 Quick Start
@@ -35,9 +35,9 @@ yarn add @krapi/sdk
 ```typescript
 // Easy import - just like Appwrite!
 // Option 1: Import from client subpath (recommended)
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 // Option 2: Import from main package (also works)
-// import { KrapiClient } from '@krapi/sdk';
+// import { KrapiClient } from '@smartsamurai/krapi-sdk';
 
 // Initialize client with your self-hosted KRAPI server
 const krapi = new KrapiClient({
@@ -279,7 +279,7 @@ const backups = await krapi.backup.list('project-id', 'project');
 
 ```tsx
 import { useEffect, useState } from 'react';
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 
 function App() {
   const [krapi] = useState(() => new KrapiClient({
@@ -314,7 +314,7 @@ function App() {
 // app/page.tsx
 'use client';
 
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
@@ -350,7 +350,7 @@ export default function Home() {
 ```vue
 <script setup>
 import { ref, onMounted } from 'vue';
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 
 const krapi = new KrapiClient({
   endpoint: import.meta.env.VITE_KRAPI_ENDPOINT || 'http://localhost:3470/krapi/k1',
@@ -380,7 +380,7 @@ onMounted(async () => {
 ### Server-Side Usage (Node.js)
 
 ```typescript
-import { BackendSDK } from '@krapi/sdk';
+import { BackendSDK } from '@smartsamurai/krapi-sdk';
 import { DatabaseService } from './your-database-service';
 
 // Initialize backend SDK with direct database access
@@ -435,7 +435,7 @@ For KRAPI maintainers - instructions for publishing this package to npm for exte
 ### Prerequisites
 
 1. **npm Account**: Create an account at [https://www.npmjs.com/signup](https://www.npmjs.com/signup)
-2. **npm Organization**: Create organization `@krapi` at [https://www.npmjs.com/org/create](https://www.npmjs.com/org/create)
+2. **npm Organization**: Create organization `smartsamurai` at [https://www.npmjs.com/org/create](https://www.npmjs.com/org/create)
 3. **Login**: `npm login` in your terminal
 
 ### Pre-Publishing Checklist
@@ -487,8 +487,8 @@ For KRAPI maintainers - instructions for publishing this package to npm for exte
    ```
 
 6. **Verify publication**:
-   - Visit [https://www.npmjs.com/package/@krapi/sdk](https://www.npmjs.com/package/@krapi/sdk)
-   - Test installation: `npm install @krapi/sdk` in a new project
+   - Visit [https://www.npmjs.com/package/@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+   - Test installation: `npm install @smartsamurai/krapi-sdk` in a new project
 
 ### Updating the Package
 
@@ -513,7 +513,7 @@ npm publish --access public
 - 🔒 **Security**: Always run `npm run security-check` before publishing
 - 🏗️ **Build**: Package auto-builds before publish (via `prepublishOnly` script)
 - 📝 **Types**: Package includes TypeScript definitions
-- 📦 **Scoped Package**: `@krapi/sdk` requires npm organization `@krapi`
+- 📦 **Scoped Package**: `@smartsamurai/krapi-sdk` requires npm organization `smartsamurai`
 - 🔄 **Alternative**: Use `krapi-sdk` (unscoped) if you don't want an organization
 
 ### Package Configuration
@@ -522,7 +522,7 @@ The package is configured in `package.json`:
 
 ```json
 {
-  "name": "@krapi/sdk",
+  "name": "@smartsamurai/krapi-sdk",
   "version": "2.0.0",
   "repository": {
     "type": "git",
@@ -543,13 +543,13 @@ The package is configured in `package.json`:
 External developers can install:
 
 ```bash
-npm install @krapi/sdk
+npm install @smartsamurai/krapi-sdk
 ```
 
 Then use it in their projects:
 
 ```typescript
-import { KrapiClient } from '@krapi/sdk/client';
+import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 
 const krapi = new KrapiClient({
   endpoint: 'https://their-krapi-server.com/krapi/k1',
@@ -598,7 +598,7 @@ For issues, questions, or feature requests:
 ## 🔗 Links
 
 - **Main Project**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
-- **NPM Package**: [https://www.npmjs.com/package/@krapi/sdk](https://www.npmjs.com/package/@krapi/sdk)
+- **NPM Package**: [https://www.npmjs.com/package/@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 - **Documentation**: See main project README for full documentation
 
 ---

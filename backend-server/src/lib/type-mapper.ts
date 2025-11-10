@@ -10,7 +10,7 @@ import {
   AccessLevel,
   UserRole,
   UserStatus,
-} from "@krapi/sdk";
+} from "@smartsamurai/krapi-sdk";
 
 import {
   BackendProjectUser,
@@ -42,32 +42,35 @@ export class TypeMapper {
   static mapProjectUser(backendUser: BackendProjectUser): ProjectUser {
     const role: UserRole = (backendUser.role || "user") as UserRole;
     const status: UserStatus = (backendUser.status as UserStatus) || "active";
-    const user: ProjectUser = {
+    const baseUser = {
       id: backendUser.id,
       project_id: backendUser.project_id,
       username: backendUser.username || "",
       email: backendUser.email || "",
-      role,
-      status,
+      role: role as UserRole,
+      status: status as UserStatus,
       created_at: backendUser.created_at,
       updated_at: backendUser.updated_at,
     };
+    
+    const optionalFields: Record<string, unknown> = {};
     if (backendUser.last_login !== undefined) {
-      user.last_login = backendUser.last_login;
+      optionalFields.last_login = backendUser.last_login;
     }
     if (backendUser.phone !== undefined) {
-      user.phone = backendUser.phone;
+      optionalFields.phone = backendUser.phone;
     }
     if (backendUser.is_verified !== undefined) {
-      user.is_verified = backendUser.is_verified;
+      optionalFields.is_verified = backendUser.is_verified;
     }
     if (backendUser.scopes !== undefined) {
-      user.scopes = backendUser.scopes;
+      optionalFields.scopes = backendUser.scopes;
     }
     if (backendUser.permissions !== undefined) {
-      user.permissions = backendUser.permissions;
+      optionalFields.permissions = backendUser.permissions;
     }
-    return user;
+    
+    return { ...baseUser, ...optionalFields } as unknown as ProjectUser;
   }
 
   /**

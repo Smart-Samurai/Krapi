@@ -25,8 +25,8 @@
  * 
  * @module routes/project.routes
  */
-import { BackendSDK } from "@krapi/sdk";
-import { Router, IRouter } from "express";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
+import { Router, IRouter, RequestHandler, Request, Response, NextFunction } from "express";
 
 import { CollectionsController } from "@/controllers/collections.controller";
 import { ProjectController } from "@/controllers/project.controller";
@@ -36,16 +36,25 @@ import {
   validationSchemas,
 } from "@/middleware/validation.middleware";
 import { DatabaseService } from "@/services/database.service";
-import { Scope } from "@/types";
+import { ExtendedRequest, Scope } from "@/types";
 
 const router: IRouter = Router();
 
 const controller = new ProjectController();
 const collectionsController = new CollectionsController();
 
+// Type-safe adapter to convert controller methods to Express RequestHandlers
+// This properly handles the ExtendedRequest type that controllers expect
+// Controllers use Response<unknown, Record<string, unknown>> but Express provides generic Response
+function asRequestHandler(
+  handler: (req: ExtendedRequest, res: Response<unknown, Record<string, unknown>>) => Promise<void>
+): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
+    handler(req as unknown as ExtendedRequest, res as Response<unknown, Record<string, unknown>>).catch(next);
+  };
+}
+
 // Initialize the BackendSDK - will be set from app.ts
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let _backendSDK: BackendSDK;
 
 /**
  * Initialize BackendSDK for project routes
@@ -56,7 +65,6 @@ let _backendSDK: BackendSDK;
  * @returns {void}
  */
 export const initializeProjectSDK = (sdk: BackendSDK) => {
-  _backendSDK = sdk;
   // Initialize the controller with the SDK instance for SDK-first architecture
   controller.setBackendSDK(sdk);
   // Initialize the collections controller with the SDK instance
@@ -149,7 +157,7 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getAllCollections.bind(collectionsController)
+  asRequestHandler(collectionsController.getAllCollections.bind(collectionsController))
 );
 
 // Get a specific collection by name
@@ -159,7 +167,7 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getCollectionByName.bind(collectionsController)
+  asRequestHandler(collectionsController.getCollectionByName.bind(collectionsController))
 );
 
 router.post(
@@ -168,7 +176,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.createCollection.bind(collectionsController)
+  asRequestHandler(collectionsController.createCollection.bind(collectionsController))
 );
 
 router.put(
@@ -177,7 +185,7 @@ router.put(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.updateCollection.bind(collectionsController)
+  asRequestHandler(collectionsController.updateCollection.bind(collectionsController))
 );
 
 router.delete(
@@ -186,7 +194,7 @@ router.delete(
     scopes: [Scope.COLLECTIONS_DELETE],
     projectSpecific: true,
   }),
-  collectionsController.deleteCollection.bind(collectionsController)
+  asRequestHandler(collectionsController.deleteCollection.bind(collectionsController))
 );
 
 router.post(
@@ -195,7 +203,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.validateCollectionSchema.bind(collectionsController)
+  asRequestHandler(collectionsController.validateCollectionSchema.bind(collectionsController))
 );
 
 // Collection statistics
@@ -205,7 +213,7 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getCollectionStatistics.bind(collectionsController)
+  asRequestHandler(collectionsController.getCollectionStatistics.bind(collectionsController))
 );
 
 // Document routes
@@ -215,7 +223,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.createDocument.bind(collectionsController)
+  asRequestHandler(collectionsController.createDocument.bind(collectionsController))
 );
 
 router.get(
@@ -224,7 +232,7 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.getDocuments.bind(collectionsController))
 );
 
 router.get(
@@ -233,7 +241,7 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.countDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.countDocuments.bind(collectionsController))
 );
 
 router.post(
@@ -242,7 +250,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.searchDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.searchDocuments.bind(collectionsController))
 );
 
 // Bulk document operations - MUST come before single document routes
@@ -252,7 +260,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.bulkCreateDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.bulkCreateDocuments.bind(collectionsController))
 );
 
 router.put(
@@ -261,7 +269,7 @@ router.put(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.bulkUpdateDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.bulkUpdateDocuments.bind(collectionsController))
 );
 
 router.post(
@@ -270,7 +278,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.bulkDeleteDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.bulkDeleteDocuments.bind(collectionsController))
 );
 
 // Document aggregation
@@ -280,7 +288,7 @@ router.post(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.aggregateDocuments.bind(collectionsController)
+  asRequestHandler(collectionsController.aggregateDocuments.bind(collectionsController))
 );
 
 // Single document operations - MUST come after bulk routes
@@ -290,7 +298,7 @@ router.get(
     scopes: [Scope.COLLECTIONS_READ],
     projectSpecific: true,
   }),
-  collectionsController.getDocumentById.bind(collectionsController)
+  asRequestHandler(collectionsController.getDocumentById.bind(collectionsController))
 );
 
 router.put(
@@ -299,7 +307,7 @@ router.put(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.updateDocument.bind(collectionsController)
+  asRequestHandler(collectionsController.updateDocument.bind(collectionsController))
 );
 
 router.delete(
@@ -308,7 +316,7 @@ router.delete(
     scopes: [Scope.COLLECTIONS_WRITE],
     projectSpecific: true,
   }),
-  collectionsController.deleteDocument.bind(collectionsController)
+  asRequestHandler(collectionsController.deleteDocument.bind(collectionsController))
 );
 
 router.get(
@@ -369,6 +377,12 @@ router.put(
   async (req, res) => {
     try {
       const { projectId, userId } = req.params;
+      if (!projectId || !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID and User ID are required",
+        });
+      }
       const db = DatabaseService.getInstance();
 
       const success = await db.enableProjectUser(projectId, userId);
@@ -378,13 +392,13 @@ router.put(
           message: "Project user enabled successfully",
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Project user not found",
         });
       }
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -404,6 +418,12 @@ router.put(
   async (req, res) => {
     try {
       const { projectId, userId } = req.params;
+      if (!projectId || !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID and User ID are required",
+        });
+      }
       const db = DatabaseService.getInstance();
 
       const success = await db.disableProjectUser(projectId, userId);
@@ -413,13 +433,13 @@ router.put(
           message: "Project user disabled successfully",
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Project user not found",
         });
       }
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error
@@ -439,6 +459,12 @@ router.get(
   async (req, res) => {
     try {
       const { projectId, userId } = req.params;
+      if (!projectId || !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID and User ID are required",
+        });
+      }
       const db = DatabaseService.getInstance();
 
       const status = await db.getProjectUserStatus(projectId, userId);
@@ -448,13 +474,13 @@ router.get(
           data: status,
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           error: "Project user not found",
         });
       }
     } catch (error) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error:
           error instanceof Error

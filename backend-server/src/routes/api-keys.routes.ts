@@ -1,34 +1,26 @@
 /**
  * API Keys Routes
- * 
+ *
  * Handles API key management for projects.
  * Base path: /krapi/k1/projects/:projectId/api-keys
- * 
+ *
  * Routes:
  * - GET / - Get all API keys for a project
  * - POST / - Create a new API key
  * - GET /:keyId - Get API key by ID
  * - PUT /:keyId - Update API key
  * - DELETE /:keyId - Delete API key
- * 
+ *
  * All routes require authentication and project access.
- * 
+ *
  * @module routes/api-keys.routes
  */
 
-import { BackendSDK } from "@krapi/sdk";
-import { Router, Request, Response } from "express";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
+import { Router } from "express";
 
 import { authenticateProject } from "@/middleware/auth.middleware";
 import { validateProjectAccess } from "@/middleware/validation.middleware";
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    type: string;
-    projectId?: string;
-  };
-}
 
 const router: Router = Router();
 
@@ -37,7 +29,7 @@ let backendSDK: BackendSDK;
 
 /**
  * Initialize BackendSDK for API keys routes
- * 
+ *
  * @param {BackendSDK} sdk - BackendSDK instance
  * @returns {void}
  */
@@ -46,22 +38,34 @@ export const initializeApiKeysSDK = (sdk: BackendSDK) => {
 };
 
 // Apply authentication middleware to all API key routes
-router.use(authenticateProject);
-router.use(validateProjectAccess);
+router.use(
+  authenticateProject as unknown as (
+    req: unknown,
+    res: unknown,
+    next: unknown
+  ) => unknown
+);
+router.use(
+  validateProjectAccess as unknown as (
+    req: unknown,
+    res: unknown,
+    next: unknown
+  ) => unknown
+);
 
 /**
  * Get all API keys for a project
- * 
+ *
  * GET /krapi/k1/projects/:projectId/api-keys
- * 
+ *
  * Retrieves all API keys for the specified project.
  * Requires authentication and project access.
- * 
+ *
  * @route GET /
  * @param {string} projectId - Project ID (from parent route)
  * @returns {Object} Array of API keys
  */
-router.get("/", async (req: AuthenticatedRequest, res: Response) => {
+router.get("/", async (req, res) => {
   try {
     const { projectId } = req.params as { projectId: string };
 
@@ -89,12 +93,12 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
 
 /**
  * Create a new API key for a project
- * 
+ *
  * POST /krapi/k1/projects/:projectId/api-keys
- * 
+ *
  * Creates a new API key for the project with specified permissions.
  * Requires authentication and project write access.
- * 
+ *
  * @route POST /
  * @param {string} projectId - Project ID (from parent route)
  * @body {string} name - API key name
@@ -103,7 +107,7 @@ router.get("/", async (req: AuthenticatedRequest, res: Response) => {
  * @body {string} [expires_at] - Expiration date (ISO string)
  * @returns {Object} Created API key with key string (shown only once)
  */
-router.post("/", async (req: AuthenticatedRequest, res: Response) => {
+router.post("/", async (req, res) => {
   try {
     const { projectId } = req.params as { projectId: string };
     const { name, description, permissions, expires_at } = req.body;
@@ -150,7 +154,7 @@ router.post("/", async (req: AuthenticatedRequest, res: Response) => {
  * GET /projects/:projectId/api-keys/:keyId
  * Get a specific API key
  */
-router.get("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
+router.get("/:keyId", async (req, res) => {
   try {
     const { projectId, keyId } = req.params as {
       projectId: string;
@@ -190,7 +194,7 @@ router.get("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
  * PUT /projects/:projectId/api-keys/:keyId
  * Update an API key
  */
-router.put("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
+router.put("/:keyId", async (req, res) => {
   try {
     const { projectId, keyId } = req.params as {
       projectId: string;
@@ -223,7 +227,7 @@ router.put("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
  * DELETE /projects/:projectId/api-keys/:keyId
  * Delete an API key
  */
-router.delete("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
+router.delete("/:keyId", async (req, res) => {
   try {
     const { projectId, keyId } = req.params as {
       projectId: string;
@@ -255,37 +259,32 @@ router.delete("/:keyId", async (req: AuthenticatedRequest, res: Response) => {
  * POST /projects/:projectId/api-keys/:keyId/regenerate
  * Regenerate an API key
  */
-router.post(
-  "/:keyId/regenerate",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { projectId, keyId } = req.params as {
-        projectId: string;
-        keyId: string;
-      };
-      const apiKey = await backendSDK.apiKeys.regenerate(projectId, keyId);
+router.post("/:keyId/regenerate", async (req, res) => {
+  try {
+    const { projectId, keyId } = req.params as {
+      projectId: string;
+      keyId: string;
+    };
+    const apiKey = await backendSDK.apiKeys.regenerate(projectId, keyId);
 
-      if (!apiKey) {
-        return res.status(404).json({
-          success: false,
-          error: "API key not found",
-        });
-      }
-
-      return res.json({
-        success: true,
-        data: apiKey,
-      });
-    } catch (error) {
-      return res.status(500).json({
+    if (!apiKey) {
+      return res.status(404).json({
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to regenerate API key",
+        error: "API key not found",
       });
     }
+
+    return res.json({
+      success: true,
+      data: apiKey,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to regenerate API key",
+    });
   }
-);
+});
 
 export default router;

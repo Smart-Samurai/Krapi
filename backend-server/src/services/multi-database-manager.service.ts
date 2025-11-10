@@ -424,6 +424,7 @@ export class MultiDatabaseManager {
     let match;
     
     while ((match = pgParamRegex.exec(sql)) !== null) {
+      if (!match[1]) continue;
       const paramIndex = parseInt(match[1], 10);
       if (!matches.includes(paramIndex)) {
         matches.push(paramIndex);

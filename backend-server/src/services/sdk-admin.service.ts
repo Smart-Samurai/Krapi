@@ -1,4 +1,4 @@
-import { AdminService } from "@krapi/sdk";
+import { AdminService } from "@smartsamurai/krapi-sdk";
 
 /**
  * Admin user type

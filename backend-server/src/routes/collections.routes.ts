@@ -11,25 +11,23 @@
  * @module routes/collections.routes
  * @deprecated Collections are handled by project routes - use /projects/:projectId/collections/* instead
  */
-import { BackendSDK } from "@krapi/sdk";
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router } from "express";
 
-const router = Router();
+const router: Router = Router();
 
 // Initialize the BackendSDK - will be set from app.ts
-let _backendSDK: BackendSDK;
 
 /**
  * Initialize BackendSDK for collections routes
  * 
  * Currently unused - collections are handled by project routes.
  * 
- * @param {BackendSDK} sdk - BackendSDK instance
+ * @param {BackendSDK} _sdk - BackendSDK instance
  * @returns {void}
  * @deprecated Collections are handled by project routes
  */
-export const initializeCollectionsSDK = (sdk: BackendSDK) => {
-  _backendSDK = sdk;
+export const initializeCollectionsSDK = (_sdk: BackendSDK) => {
   // Note: Collections are handled by project routes, not these routes
 };
 

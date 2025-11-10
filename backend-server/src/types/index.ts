@@ -6,7 +6,7 @@
  * @module types/index
  */
 // Re-export all types from the SDK to maintain compatibility
-export * from "@krapi/sdk";
+export * from "@smartsamurai/krapi-sdk";
 
 // Import specific types for proper extension
 import type {
@@ -19,7 +19,7 @@ import type {
   QueryOptions,
   ProjectStatus,
   UserRole,
-} from "@krapi/sdk";
+} from "@smartsamurai/krapi-sdk";
 import type { Request as ExpressRequest } from "express";
 
 /**
@@ -349,6 +349,17 @@ export type AuthenticatedRequest = ExpressRequest & {
   scope?: string;
   apiKey?: BackendApiKey;
   session?: BackendSession;
+}
+
+// Extended request type for controllers that need backendSDK in app.locals
+// This type properly extends Express Request to include middleware-added properties
+export type ExtendedRequest = AuthenticatedRequest & {
+  // Override app to add backendSDK to locals
+  app: ExpressRequest["app"] & {
+    locals: ExpressRequest["app"]["locals"] & {
+      backendSDK?: import("@smartsamurai/krapi-sdk").BackendSDK;
+    };
+  };
 }
 
 // Backend-specific scope requirement interface

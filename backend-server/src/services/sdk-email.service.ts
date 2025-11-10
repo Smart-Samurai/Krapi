@@ -1,4 +1,4 @@
-import { EmailService } from "@krapi/sdk";
+import { EmailService } from "@smartsamurai/krapi-sdk";
 
 /**
  * SDK Email Service Wrapper
@@ -81,17 +81,38 @@ export class SDKEmailService {
     }
   ): Promise<unknown> {
     // SDK expects: sendEmail(projectId, emailData: EmailRequest)
-    return await this.emailService.sendEmail({
+    const emailRequest: {
+      project_id: string;
+      to: string | string[];
+      subject: string;
+      body: string;
+      replyTo?: string;
+      cc?: string[];
+      bcc?: string[];
+      attachments?: Array<{
+        filename: string;
+        content: Buffer;
+        contentType: string;
+      }>;
+    } = {
       project_id: projectId,
       to: emailData.to,
       subject: emailData.subject,
       body: emailData.body,
-
-      replyTo: emailData.replyTo,
-      cc: emailData.cc,
-      bcc: emailData.bcc,
-      attachments: emailData.attachments,
-    });
+    };
+    if (emailData.replyTo !== undefined) {
+      emailRequest.replyTo = emailData.replyTo;
+    }
+    if (emailData.cc !== undefined) {
+      emailRequest.cc = emailData.cc;
+    }
+    if (emailData.bcc !== undefined) {
+      emailRequest.bcc = emailData.bcc;
+    }
+    if (emailData.attachments !== undefined) {
+      emailRequest.attachments = emailData.attachments;
+    }
+    return await this.emailService.sendEmail(emailRequest);
   }
 
   async sendTemplateEmail(

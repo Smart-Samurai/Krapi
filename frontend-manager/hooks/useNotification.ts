@@ -9,8 +9,8 @@
  * const { showSuccess, showError, notifications } = useNotification();
  * showSuccess('Operation completed!');
  */
-import { useState, useCallback } from "react";
 import { AxiosError } from "axios";
+import { useCallback, useState } from "react";
 
 /**
  * Notification Interface
@@ -189,6 +189,7 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
 
   const handleError = useCallback(
     (error: unknown, fallbackMessage = "An error occurred") => {
+      // eslint-disable-next-line no-console
       console.error("Error:", error);
 
       if (error instanceof AxiosError) {

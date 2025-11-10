@@ -42,10 +42,10 @@ import {
   Scope,
   ProjectScope,
   FieldType,
-} from "@krapi/sdk";
+} from "@smartsamurai/krapi-sdk";
 
 // Note: These functions are no longer needed since we're using the krapi singleton directly
-// The frontend should use the krapi singleton from @krapi/sdk instead
+// The frontend should use the krapi singleton from @smartsamurai/krapi-sdk instead
 
 // Re-export ALL SDK types and classes for frontend use
 export {

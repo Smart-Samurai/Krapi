@@ -11,14 +11,14 @@
  * 
  * Client App:
  * ```typescript
- * import { krapi } from '@krapi/sdk';
+ * import { krapi } from '@smartsamurai/krapi-sdk';
  * await krapi.connect({ endpoint: 'https://api.example.com/krapi/k1', apiKey: 'key' });
  * const project = await krapi.projects.create({ name: 'My Project' });
  * ```
  * 
  * Server App:
  * ```typescript
- * import { krapi } from '@krapi/sdk';
+ * import { krapi } from '@smartsamurai/krapi-sdk';
  * await krapi.connect({ database: dbConnection });
  * const project = await krapi.projects.create({ name: 'My Project' }); // Same method!
  * ```
@@ -27,16 +27,16 @@
  * - Individual services can be imported directly for fine-grained control
  * - Legacy SDKs are deprecated but still supported
  * 
- * @module @krapi/sdk
+ * @module @smartsamurai/krapi-sdk
  * @example
  * // Client usage
- * import { krapi } from '@krapi/sdk';
+ * import { krapi } from '@smartsamurai/krapi-sdk';
  * await krapi.connect({ endpoint: 'https://api.example.com/krapi/k1', apiKey: 'key' });
  * const projects = await krapi.projects.list();
  * 
  * @example
  * // Server usage
- * import { krapi } from '@krapi/sdk';
+ * import { krapi } from '@smartsamurai/krapi-sdk';
  * await krapi.connect({ database: dbConnection });
  * const projects = await krapi.projects.list();
  */
@@ -104,11 +104,11 @@ export { PerformanceMonitor } from "./performance-monitor";
 export { UsersService } from "./users-service";
 
 // Export unified client SDK (like Appwrite - easy to import!)
-// Import with: import { KrapiClient } from '@krapi/sdk/client'
-// Or for convenience: import { KrapiClient } from '@krapi/sdk'
+// Import with: import { KrapiClient } from '@smartsamurai/krapi-sdk/client'
+// Or for convenience: import { KrapiClient } from '@smartsamurai/krapi-sdk'
 export { KrapiClient, type KrapiClientConfig, type ApiResponse as ClientApiResponse } from "./client";
 export { default as Client } from "./client";
-// Also export from main entry point for convenience (can use '@krapi/sdk' instead of '@krapi/sdk/client')
+// Also export from main entry point for convenience (can use '@smartsamurai/krapi-sdk' instead of '@smartsamurai/krapi-sdk/client')
 
 // Export HTTP clients for granular frontend control
 export { AuthHttpClient } from "./http-clients/auth-http-client";

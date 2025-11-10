@@ -10,7 +10,7 @@
  * @module client
  * @example
  * ```typescript
- * import { KrapiClient } from '@krapi/sdk/client';
+ * import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
  * 
  * const krapi = new KrapiClient({
  *   endpoint: 'http://localhost:3470',

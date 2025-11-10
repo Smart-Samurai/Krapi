@@ -10,24 +10,24 @@
  */
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
-  useCallback,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+
+import { krapi, type AdminUser } from "@/lib/krapi";
 import {
+  clearAuthData,
   initializeAuth,
   login as loginAction,
   loginWithApiKey as loginWithApiKeyAction,
   logout as logoutAction,
-  clearAuthData,
 } from "@/store/authSlice";
-import type { AdminUser } from "@/lib/krapi";
-import { krapi } from "@/lib/krapi";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 
 /**
  * Auth Context Type
@@ -61,7 +61,7 @@ interface AuthContextType {
   scopes: string[];
   hasScope: (scope: string | string[]) => boolean;
   hasMasterAccess: () => boolean;
-  handleAuthError: (error: any) => void;
+  handleAuthError: (error: unknown) => void;
   isInitialized: boolean;
 }
 
@@ -97,12 +97,14 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const endpoint = process.env.NEXT_PUBLIC_API_URL?.replace('/krapi/k1', '') || 'http://localhost:3470';
           await krapi.connect({
-            endpoint: endpoint,
+            endpoint,
           });
+          // eslint-disable-next-line no-console
           console.log("✅ KRAPI SDK initialized in client mode");
           setSdkInitialized(true);
-        } catch (error) {
-          console.error("❌ Failed to initialize KRAPI SDK:", error);
+        } catch (_error) {
+          // eslint-disable-next-line no-console
+          console.error("❌ Failed to initialize KRAPI SDK:", _error);
           setSdkInitialized(true); // Set to true anyway to prevent infinite retries
         }
       };
@@ -128,21 +130,33 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle auth errors and redirect
   const handleAuthError = useCallback(
-    (error: any) => {
+    (error: unknown) => {
+      // eslint-disable-next-line no-console
       console.error("Authentication error:", error);
+
+      // Type guard for error objects
+      const errorObj = error as {
+        isAuthError?: boolean;
+        status?: number;
+        response?: { status?: number };
+        message?: string;
+        isApiError?: boolean;
+      };
 
       // Check if it's an authentication error
       const isAuthError =
-        error?.isAuthError === true ||
-        error?.status === 401 ||
-        error?.response?.status === 401 ||
-        error?.message?.includes("Unauthorized") ||
-        error?.message?.includes("Invalid token") ||
-        error?.message?.includes("Token expired") ||
-        error?.message?.includes("expired") ||
-        error?.message?.includes("Invalid") ||
-        error?.message?.includes("log in again") ||
-        error?.isApiError === true;
+        errorObj?.isAuthError === true ||
+        errorObj?.status === 401 ||
+        errorObj?.response?.status === 401 ||
+        (typeof errorObj?.message === "string" && (
+          errorObj.message.includes("Unauthorized") ||
+          errorObj.message.includes("Invalid token") ||
+          errorObj.message.includes("Token expired") ||
+          errorObj.message.includes("expired") ||
+          errorObj.message.includes("Invalid") ||
+          errorObj.message.includes("log in again")
+        )) ||
+        errorObj?.isApiError === true;
 
       if (isAuthError) {
         // Clear auth data
@@ -152,7 +166,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         const currentPath = window.location.pathname;
         if (currentPath !== "/login" && currentPath !== "/") {
           const loginUrl = `/login?from=${encodeURIComponent(currentPath)}`;
-          router.push(loginUrl as any);
+          router.push(loginUrl);
         }
         return true; // Indicates that auth error was handled
       }
@@ -166,15 +180,21 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const error = event.reason;
+      const errorObj = error as {
+        isAuthError?: boolean;
+        status?: number;
+        response?: { status?: number };
+        message?: string;
+      };
       if (error && (
-        error.isAuthError === true ||
-        error.status === 401 ||
-        error.response?.status === 401 ||
-        (typeof error.message === 'string' && (
-          error.message.includes('expired') ||
-          error.message.includes('Invalid') ||
-          error.message.includes('Unauthorized') ||
-          error.message.includes('log in again')
+        errorObj.isAuthError === true ||
+        errorObj.status === 401 ||
+        errorObj.response?.status === 401 ||
+        (typeof errorObj.message === 'string' && (
+          errorObj.message.includes('expired') ||
+          errorObj.message.includes('Invalid') ||
+          errorObj.message.includes('Unauthorized') ||
+          errorObj.message.includes('log in again')
         ))
       )) {
         event.preventDefault(); // Prevent default error logging
@@ -192,7 +212,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (username: string, password: string) => {
       try {
-        const result = await dispatch(
+        await dispatch(
           loginAction({ username, password, krapi })
         ).unwrap();
 
@@ -200,7 +220,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         const urlParams = new URLSearchParams(window.location.search);
         const from = urlParams.get("from") || "/dashboard";
         window.location.href = from;
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (handleAuthError(error)) {
           return; // Error was handled, don't continue
         }
@@ -214,7 +234,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithApiKey = useCallback(
     async (apiKey: string) => {
       try {
-        const result = await dispatch(
+        await dispatch(
           loginWithApiKeyAction({ apiKey, krapi })
         ).unwrap();
 
@@ -222,7 +242,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         const urlParams = new URLSearchParams(window.location.search);
         const from = urlParams.get("from") || "/dashboard";
         window.location.href = from;
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (handleAuthError(error)) {
           return; // Error was handled, don't continue
         }
@@ -237,8 +257,9 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await dispatch(logoutAction({ krapi })).unwrap();
       router.push("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch (_error) {
+      // eslint-disable-next-line no-console
+      console.error("Logout error:", _error);
       // Don't throw error on logout failure, just clear local data
       dispatch(clearAuthData());
       router.push("/login");
@@ -275,7 +296,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         login,
         loginWithApiKey,
         logout,
-        krapi: krapi,
+        krapi,
         sessionToken,
         apiKey,
         scopes,

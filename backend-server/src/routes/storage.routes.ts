@@ -23,7 +23,7 @@ import { Scope } from "@/types";
 
 // Use mergeParams: true to merge params from parent route
 // This allows accessing :projectId from parent route /projects/:projectId/storage
-const router = Router({ mergeParams: true });
+const router: Router = Router({ mergeParams: true });
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -70,7 +70,7 @@ router.post(
         .toString(36)
         .substr(2, 9)}`;
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         file_id: fileId,
         filename: req.file.originalname,
@@ -82,11 +82,11 @@ router.post(
       });
     } catch (error) {
       console.error("File upload error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to upload file",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" && error instanceof Error ? error.message : undefined,
       });
     }
   }
@@ -129,14 +129,14 @@ router.get(
       );
       res.setHeader("Content-Length", buffer.length);
 
-      res.send(buffer);
+      return res.send(buffer);
     } catch (error) {
       console.error("File download error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to download file",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" && error instanceof Error ? error.message : undefined,
       });
     }
   }
@@ -156,7 +156,7 @@ router.get(
 
       // For now, return mock metadata
       // In a real implementation, this would retrieve actual file metadata
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         file_id: fileId,
         filename: "mock-file.txt",
@@ -169,11 +169,11 @@ router.get(
       });
     } catch (error) {
       console.error("File metadata error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get file metadata",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" && error instanceof Error ? error.message : undefined,
       });
     }
   }
@@ -237,7 +237,7 @@ router.get(
       const quota = settings.storage_limit || 1073741824; // 1GB default
       const storageUsed = stats.storageUsed || 0;
       
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: {
           total_files: stats.totalFiles || 0,
@@ -248,7 +248,7 @@ router.get(
       });
     } catch (error) {
       console.error("Get storage info error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get storage info",
         details:
@@ -302,13 +302,13 @@ router.get(
       // Get storage statistics
       const stats = await db.getStorageStatistics(projectId);
       
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: stats,
       });
     } catch (error) {
       console.error("Get storage stats error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to get storage stats",
         details:
@@ -344,7 +344,7 @@ router.get(
 
       // For now, return mock file list
       // In a real implementation, this would retrieve actual files for the project
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         project_id: projectId,
         files: [
@@ -369,11 +369,11 @@ router.get(
       });
     } catch (error) {
       console.error("List files error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to list files",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" && error instanceof Error ? error.message : undefined,
       });
     }
   }
@@ -393,18 +393,18 @@ router.delete(
 
       // For now, just return success
       // In a real implementation, this would actually delete the file
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: "File deleted successfully",
         file_id: fileId,
       });
     } catch (error) {
       console.error("Delete file error:", error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: "Failed to delete file",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development" && error instanceof Error ? error.message : undefined,
       });
     }
   }

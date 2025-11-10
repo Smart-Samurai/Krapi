@@ -7,7 +7,7 @@
  * @module utils/default-collections
  */
 
-import { FieldType } from "@krapi/sdk";
+import { FieldType } from "@smartsamurai/krapi-sdk";
 
 import { CollectionField, CollectionIndex } from "@/types";
 

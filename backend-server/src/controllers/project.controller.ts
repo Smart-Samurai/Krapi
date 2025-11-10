@@ -1,4 +1,4 @@
-import { BackendSDK, ProjectSettings } from "@krapi/sdk";
+import { BackendSDK, ProjectSettings } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
 import { DatabaseService } from "@/services/database.service";
