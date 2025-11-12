@@ -2,6 +2,13 @@
 
 Complete API reference for KRAPI backend database and file storage solution.
 
+## 🔗 Links
+
+- **📦 NPM Package**: [@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+- **🏢 GitHub Organization**: [Smart-Samurai](https://github.com/Smart-Samurai)
+- **👤 Author**: [GenorTG](https://github.com/GenorTG)
+- **📚 Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
+
 ## Base URL
 
 ```
@@ -747,3 +754,9 @@ const documents = await krapi.collections.documents.list('project-id', 'collecti
 ```
 
 For complete SDK documentation, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
+
+**Additional Resources:**
+- 📦 [NPM Package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+- 🏢 [GitHub Organization](https://github.com/Smart-Samurai)
+- 👤 [Author GitHub](https://github.com/GenorTG)
+- 📚 [Repository](https://github.com/GenorTG/Krapi)

@@ -41,6 +41,7 @@ import {
   PageLayout,
   PageHeader,
   ActionButton,
+  CodeSnippet,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -348,6 +349,11 @@ export default function DocumentsPage() {
         description="Manage documents in your collections"
         action={
           <div className="flex items-center gap-2">
+            <CodeSnippet
+              context="documents"
+              projectId={projectId}
+              collectionName={currentCollection?.name}
+            />
             <Dialog
               open={isCreateDialogOpen}
               onOpenChange={setIsCreateDialogOpen}

@@ -44,6 +44,7 @@ import {
   PageHeader,
   ActionButton,
   EmptyState,
+  CodeSnippet,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -452,6 +453,7 @@ export default function CollectionsPage() {
         description="Manage your project's data collections and their fields"
         action={
           <div className="flex items-center gap-2">
+            <CodeSnippet context="collections" projectId={projectId} />
             <Dialog
               open={isCreateDialogOpen}
               onOpenChange={setIsCreateDialogOpen}

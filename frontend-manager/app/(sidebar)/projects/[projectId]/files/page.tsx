@@ -53,6 +53,7 @@ import {
   PageHeader,
   ActionButton,
   EmptyState,
+  CodeSnippet,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -491,6 +492,7 @@ export default function FilesPage() {
         description="Manage your project's file storage"
         action={
           <div className="flex items-center gap-2">
+            <CodeSnippet context="storage" projectId={projectId} />
             <input
               ref={fileInputRef}
               type="file"

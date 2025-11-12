@@ -34,6 +34,7 @@ import {
   FormDialog,
   PageLayout,
   ActionButton,
+  CodeSnippet,
 } from "@/components/common";
 import { ScopeGuard, ScopeIndicator } from "@/components/scope-guard";
 import { Badge } from "@/components/ui/badge";
@@ -279,6 +280,7 @@ export default function ProjectsPage() {
         description="Manage your KRAPI projects"
         action={
           <>
+            <CodeSnippet context="projects" />
             <ScopeIndicator
               scopes={[Scope.PROJECTS_READ, Scope.PROJECTS_WRITE]}
             />

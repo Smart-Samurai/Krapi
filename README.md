@@ -1,10 +1,18 @@
-# KRAPI - Self-Hosted Backend Database and File Storage Solution
+# Krapi Server - Self-Hosted Backend Database and File Storage Solution
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![npm](https://img.shields.io/npm/v/@smartsamurai/krapi-sdk)](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 
-**KRAPI** is a comprehensive, self-hosted backend solution that provides database, file storage, user management, and API capabilities for your applications. Perfect for developers who want to focus on their frontend and app logic while using KRAPI as their backend infrastructure.
+**Krapi Server** is a comprehensive, self-hosted backend solution that provides database, file storage, user management, and API capabilities for your applications. Perfect for developers who want to focus on their frontend and app logic while using Krapi Server as their backend infrastructure.
+
+## 🔗 Links
+
+- **📦 NPM Package**: [@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+- **🏢 GitHub Organization**: [Smart-Samurai](https://github.com/Smart-Samurai)
+- **👤 Author**: [GenorTG](https://github.com/GenorTG)
+- **📚 Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
 
 ## 📋 Table of Contents
 
@@ -97,6 +105,17 @@ Before installing KRAPI, ensure you have the following installed on your system:
 
 - **Linux/macOS**: Bash shell (comes pre-installed)
 - **Windows**: PowerShell 5.1+ or Windows Terminal (or use `krapi-manager.bat`)
+
+## 🌐 Hosting & Deployment
+
+Krapi Server can be hosted in various ways:
+
+- **Local Development**: Run on your local machine
+- **Network Access**: Expose to your local network
+- **Custom Domain**: Deploy with your own domain
+- **Cloud Hosting**: Deploy on VPS, Railway, Render, Fly.io, etc.
+
+For complete hosting instructions, see **[HOSTING.md](./HOSTING.md)**.
 
 ## 🚀 Installation
 
@@ -262,6 +281,13 @@ const projects = await krapi.projects.list();
 const documents = await krapi.collections.documents.list('project-id', 'collection-name');
 ```
 
+**Install the SDK:**
+```bash
+npm install @smartsamurai/krapi-sdk
+# or
+pnpm add @smartsamurai/krapi-sdk
+```
+
 For complete SDK documentation, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
 
 ## 📚 Documentation
@@ -273,6 +299,11 @@ For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.m
 ### SDK Documentation
 
 For SDK usage and examples, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
+
+**Quick Links:**
+- 📦 [NPM Package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+- 🏢 [GitHub Organization](https://github.com/Smart-Samurai)
+- 👤 [Author GitHub](https://github.com/GenorTG)
 
 ### Development Documentation
 
@@ -461,7 +492,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Repository
 
 - **GitHub Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)
-- **Owner**: GenorTG
+- **GitHub Organization**: [Smart-Samurai](https://github.com/Smart-Samurai)
+- **Author**: [GenorTG](https://github.com/GenorTG)
+- **NPM Package**: [@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 - **License**: MIT
 
 ### Code Ownership Rights
@@ -488,6 +521,8 @@ For issues, questions, or feature requests:
 
 - **GitHub Issues**: [https://github.com/GenorTG/Krapi/issues](https://github.com/GenorTG/Krapi/issues)
 - **Documentation**: See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) and the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+- **GitHub Organization**: [Smart-Samurai](https://github.com/Smart-Samurai)
+- **Author**: [GenorTG](https://github.com/GenorTG)
 
 ## 🗺️ Roadmap
 
@@ -506,5 +541,7 @@ Built with ❤️ for developers who want control over their backend infrastruct
 ---
 
 **Repository**: [https://github.com/GenorTG/Krapi](https://github.com/GenorTG/Krapi)  
-**Owner**: GenorTG  
+**GitHub Organization**: [Smart-Samurai](https://github.com/Smart-Samurai)  
+**Author**: [GenorTG](https://github.com/GenorTG)  
+**NPM Package**: [@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)  
 **License**: MIT

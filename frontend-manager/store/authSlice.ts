@@ -7,9 +7,10 @@ import {
 import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 import { toast } from "sonner";
 
+import type { RootState } from "./index";
+
 import type { AdminUser } from "@/lib/krapi";
 
-import type { RootState } from "./index";
 
 // Types
 export interface AuthState {

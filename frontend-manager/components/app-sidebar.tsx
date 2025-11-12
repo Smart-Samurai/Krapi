@@ -29,6 +29,7 @@ import { usePathname } from "next/navigation";
 import React from "react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { HelpMenu } from "@/components/help-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -135,11 +136,14 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <div className="flex items-center justify-between px-2">
-          <ThemeToggle />
+        <div className="flex flex-col gap-2 px-2">
+          <div className="flex items-center justify-between">
+            <HelpMenu />
+            <ThemeToggle />
+          </div>
           <button
             onClick={logout}
-            className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-left"
           >
             Logout
           </button>
@@ -264,11 +268,14 @@ function ProjectSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <div className="flex items-center justify-between px-2">
-          <ThemeToggle />
+        <div className="flex flex-col gap-2 px-2">
+          <div className="flex items-center justify-between">
+            <HelpMenu />
+            <ThemeToggle />
+          </div>
           <button
             onClick={logout}
-            className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-left"
           >
             Logout
           </button>

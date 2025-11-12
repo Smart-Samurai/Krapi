@@ -58,6 +58,8 @@ const securitySettingsSchema = z.object({
   passwordRequireNumbers: z.boolean(),
   passwordRequireSymbols: z.boolean(),
   maxLoginAttempts: z.number().min(3).max(10),
+  networkInterface: z.enum(["localhost", "0.0.0.0"]),
+  allowedOrigins: z.string().optional(),
 });
 
 const emailSettingsSchema = z.object({
@@ -138,6 +140,8 @@ export default function SettingsPage() {
               passwordRequireNumbers: true,
               passwordRequireSymbols: false,
               maxLoginAttempts: 5,
+              networkInterface: "localhost",
+              allowedOrigins: "",
             },
             email: {
               smtpHost: "smtp.gmail.com",
@@ -475,6 +479,49 @@ export default function SettingsPage() {
                       label="Require Symbols"
                       type="checkbox"
                       description="Passwords must contain at least one special character"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-base font-semibold mb-4">
+                    Network & Access Control
+                  </h3>
+
+                  {settings.security.networkInterface === "0.0.0.0" && (
+                    <InfoBlock variant="warning" className="mb-4">
+                      <p className="font-semibold">⚠️ Security Warning</p>
+                      <p>
+                        Listening on 0.0.0.0 exposes your server to all network interfaces. 
+                        Make sure you have:
+                      </p>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Proper firewall rules configured</li>
+                        <li>HTTPS enabled for production</li>
+                        <li>Strong authentication enabled</li>
+                        <li>Allowed Origins configured below</li>
+                      </ul>
+                    </InfoBlock>
+                  )}
+
+                  <div className="space-y-4">
+                    <FormField
+                      name="networkInterface"
+                      label="Network Interface"
+                      type="select"
+                      options={[
+                        { value: "localhost", label: "localhost (Local Only)" },
+                        { value: "0.0.0.0", label: "0.0.0.0 (All Interfaces)" },
+                      ]}
+                      description="Network interface to listen on. Use 0.0.0.0 to allow network access (requires restart and proper security configuration)"
+                    />
+
+                    <FormField
+                      name="allowedOrigins"
+                      label="Allowed Origins (CORS)"
+                      type="text"
+                      description="Comma-separated list of allowed origins (e.g., https://yourdomain.com,https://app.yourdomain.com). Leave empty to allow all origins."
+                      placeholder="https://yourdomain.com,https://app.yourdomain.com"
                     />
                   </div>
                 </div>

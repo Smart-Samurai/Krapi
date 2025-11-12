@@ -28,6 +28,7 @@ import {
   PageHeader,
   ActionButton,
   EmptyState,
+  CodeSnippet,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -304,12 +305,14 @@ export default function UsersPage() {
         title="Users"
         description="Manage project users and their access permissions"
         action={
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <ActionButton variant="add" icon={Plus}>
-                Create User
-              </ActionButton>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <CodeSnippet context="users" projectId={projectId} />
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <ActionButton variant="add" icon={Plus}>
+                  Create User
+                </ActionButton>
+              </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
@@ -457,7 +460,8 @@ export default function UsersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      }
+          </div>
+        }
       />
 
       {error && (

@@ -47,6 +47,7 @@ import {
   PageHeader,
   ActionButton,
   EmptyState,
+  CodeSnippet,
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -407,6 +408,7 @@ export default function ApiKeysPage() {
         description="Manage API keys for programmatic access to your project"
         action={
           <div className="flex items-center gap-2">
+            <CodeSnippet context="api-keys" projectId={projectId} />
             <Dialog
               open={isCreateDialogOpen}
               onOpenChange={setIsCreateDialogOpen}

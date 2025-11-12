@@ -10,6 +10,9 @@
  */
 import React from "react";
 
+import { Form } from "./Form";
+import { FormField } from "./FormField";
+
 import { Button } from "@/components/ui/button";
 import {
   userRegistrationSchema,
@@ -20,8 +23,6 @@ import {
   type UserLoginFormData,
 } from "@/lib/forms";
 
-import { Form } from "./Form";
-import { FormField } from "./FormField";
 
 /**
  * Example Form Props
