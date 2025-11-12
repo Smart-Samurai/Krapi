@@ -2125,14 +2125,36 @@ export class DatabaseService {
     userId: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const result = await this.dbManager.queryProject(
-      projectId,
-      "SELECT * FROM project_users WHERE project_id = $1 AND id = $2",
-      [projectId, userId]
-    );
+    // Project users are stored in the "users" collection as documents
+    const document = await this.getDocument(projectId, "users", userId);
+    if (!document) {
+      return null;
+    }
 
-    const row = result.rows[0];
-    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
+    // Map document data to BackendProjectUser format
+    const userData = document.data as Record<string, unknown>;
+    const user: BackendProjectUser = {
+      id: document.id,
+      project_id: projectId,
+      username: (userData.username as string) || "",
+      email: (userData.email as string) || "",
+      is_verified: userData.confirmation_state === "confirmed",
+      scopes: (userData.scopes as string[]) || [],
+      permissions: [],
+      created_at: document.created_at,
+      updated_at: document.updated_at,
+      status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      is_active: userData.is_active !== false,
+      login_count: (userData.login_count as number) || 0,
+      role: (((userData.role as string) || "user") as unknown) as UserRole,
+    };
+    if (userData.phone) {
+      user.phone = userData.phone as string;
+    }
+    if (userData.password) {
+      user.password = userData.password as string;
+    }
+    return user;
   }
 
   async getProjectUserById(
@@ -2150,31 +2172,87 @@ export class DatabaseService {
     email: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const result = await this.dbManager.queryProject(
-      projectId,
-      "SELECT * FROM project_users WHERE project_id = $1 AND email = $2",
-      [projectId, email]
-    );
+    // Project users are stored in the "users" collection as documents
+    const result = await this.getDocuments(projectId, "users", {
+      limit: 1,
+      where: { email },
+    });
 
-    const row = result.rows[0];
-    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
+    if (result.documents.length === 0) {
+      return null;
+    }
+
+    const document = result.documents[0];
+    if (!document) {
+      return null;
+    }
+    const userData = document.data as Record<string, unknown>;
+    const user: BackendProjectUser = {
+      id: document.id,
+      project_id: projectId,
+      username: (userData.username as string) || "",
+      email: (userData.email as string) || "",
+      is_verified: userData.confirmation_state === "confirmed",
+      scopes: (userData.scopes as string[]) || [],
+      permissions: [],
+      created_at: document.created_at,
+      updated_at: document.updated_at,
+      status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      is_active: userData.is_active !== false,
+      login_count: (userData.login_count as number) || 0,
+      role: (((userData.role as string) || "user") as unknown) as UserRole,
+    };
+    if (userData.phone) {
+      user.phone = userData.phone as string;
+    }
+    if (userData.password) {
+      user.password = userData.password as string;
+    }
+    return user;
   }
 
   async getProjectUserByUsername(
     projectId: string,
     username: string
   ): Promise<BackendProjectUser | null> {
-    // Project users table uses user_id and email, not username
-    // This method may need to be adjusted based on the actual schema
     await this.ensureReady();
-    const result = await this.dbManager.queryProject(
-      projectId,
-      "SELECT * FROM project_users WHERE project_id = $1 AND user_id = $2",
-      [projectId, username]
-    );
+    // Project users are stored in the "users" collection as documents
+    const result = await this.getDocuments(projectId, "users", {
+      limit: 1,
+      where: { username },
+    });
 
-    const row = result.rows[0];
-    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
+    if (result.documents.length === 0) {
+      return null;
+    }
+
+    const document = result.documents[0];
+    if (!document) {
+      return null;
+    }
+    const userData = document.data as Record<string, unknown>;
+    const user: BackendProjectUser = {
+      id: document.id,
+      project_id: projectId,
+      username: (userData.username as string) || "",
+      email: (userData.email as string) || "",
+      is_verified: userData.confirmation_state === "confirmed",
+      scopes: (userData.scopes as string[]) || [],
+      permissions: [],
+      created_at: document.created_at,
+      updated_at: document.updated_at,
+      status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      is_active: userData.is_active !== false,
+      login_count: (userData.login_count as number) || 0,
+      role: (((userData.role as string) || "user") as unknown) as UserRole,
+    };
+    if (userData.phone) {
+      user.phone = userData.phone as string;
+    }
+    if (userData.password) {
+      user.password = userData.password as string;
+    }
+    return user;
   }
 
   async getProjectUsers(
@@ -2184,34 +2262,55 @@ export class DatabaseService {
     await this.ensureReady();
     const { limit = 100, offset = 0, search } = options;
 
-    let whereClause = "WHERE project_id = $1";
-    const params: unknown[] = [projectId];
-    let paramCount = 1;
+    // Project users are stored in the "users" collection as documents
+    // Note: search functionality would need to be implemented differently
+    // For now, we'll get all users and filter in memory if search is provided
+    const result = await this.getDocuments(projectId, "users", {
+      limit,
+      offset,
+      orderBy: "created_at",
+      order: "desc",
+    });
 
+    let users = result.documents.map((document) => {
+      const userData = document.data as Record<string, unknown>;
+      const user: BackendProjectUser = {
+        id: document.id,
+        project_id: projectId,
+        username: (userData.username as string) || "",
+        email: (userData.email as string) || "",
+        is_verified: userData.confirmation_state === "confirmed",
+        scopes: (userData.scopes as string[]) || [],
+        permissions: [],
+        created_at: document.created_at,
+        updated_at: document.updated_at,
+        status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+        is_active: userData.is_active !== false,
+        login_count: (userData.login_count as number) || 0,
+        role: (((userData.role as string) || "user") as unknown) as UserRole,
+      };
+      if (userData.phone) {
+        user.phone = userData.phone as string;
+      }
+      if (userData.password) {
+        user.password = userData.password as string;
+      }
+      return user;
+    });
+
+    // Filter by search if provided
     if (search) {
-      whereClause += ` AND (email LIKE $${++paramCount} OR user_id LIKE $${paramCount})`;
-      params.push(`%${search}%`);
+      const searchLower = search.toLowerCase();
+      users = users.filter(
+        (user) =>
+          user.email.toLowerCase().includes(searchLower) ||
+          user.username.toLowerCase().includes(searchLower)
+      );
     }
 
-    // Get total count (from project DB)
-    const countResult = await this.dbManager.queryProject(
-      projectId,
-      `SELECT COUNT(*) as count FROM project_users ${whereClause}`,
-      params
-    );
-
-    // Get paginated results (from project DB)
-    const result = await this.dbManager.queryProject(
-      projectId,
-      `SELECT * FROM project_users ${whereClause} 
-       ORDER BY created_at DESC 
-       LIMIT $${++paramCount} OFFSET $${++paramCount}`,
-      [...params, limit, offset]
-    );
-
     return {
-      users: result.rows.map((row) => this.mapProjectUser(row)),
-      total: parseInt(String(countResult.rows[0]?.count || 0)),
+      users,
+      total: search ? users.length : result.total,
     };
   }
 
@@ -2221,79 +2320,98 @@ export class DatabaseService {
     updates: Partial<BackendProjectUser>
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    const fields: string[] = [];
-    const values: unknown[] = [];
-    let paramCount = 1;
+    
+    // Get current user document
+    const currentUser = await this.getProjectUser(projectId, userId);
+    if (!currentUser) {
+      return null;
+    }
 
+    // Get the document to update its data
+    const document = await this.getDocument(projectId, "users", userId);
+    if (!document) {
+      return null;
+    }
+
+    const userData = document.data as Record<string, unknown>;
+    const updatedData: Record<string, unknown> = { ...userData };
+
+    // Map BackendProjectUser updates to document data format
     if (updates.username !== undefined) {
-      fields.push(`username = $${paramCount++}`);
-      values.push(updates.username);
+      updatedData.username = updates.username;
     }
     if (updates.email !== undefined) {
-      fields.push(`email = $${paramCount++}`);
-      values.push(updates.email);
+      updatedData.email = updates.email;
     }
     if (updates.password !== undefined) {
       const hashedPassword = await bcrypt.hash(updates.password, 10);
-      fields.push(`password_hash = $${paramCount++}`);
-      values.push(hashedPassword);
+      updatedData.password = hashedPassword;
     }
     if (updates.phone !== undefined) {
-      fields.push(`phone = $${paramCount++}`);
-      values.push(updates.phone);
+      updatedData.phone = updates.phone;
     }
     if (updates.is_verified !== undefined) {
-      fields.push(`is_verified = $${paramCount++}`);
-      values.push(updates.is_verified);
-      if (updates.is_verified && updates.email) {
-        fields.push(`email_verified_at = CURRENT_TIMESTAMP`);
+      updatedData.confirmation_state = updates.is_verified ? "confirmed" : "not_confirmed";
+      if (updates.is_verified) {
+        updatedData.email_verified_at = new Date().toISOString();
       }
     }
     if (updates.is_active !== undefined) {
-      fields.push(`is_active = $${paramCount++}`);
-      values.push(updates.is_active);
+      updatedData.is_active = updates.is_active;
     }
     if (updates.scopes !== undefined) {
-      fields.push(`scopes = $${paramCount++}`);
-      values.push(updates.scopes);
+      updatedData.scopes = updates.scopes;
     }
     if (updates.metadata !== undefined) {
-      fields.push(`metadata = $${paramCount++}`);
-      values.push(updates.metadata);
+      updatedData.metadata = updates.metadata;
+    }
+    if (updates.role !== undefined) {
+      updatedData.role = updates.role;
     }
 
-    if (fields.length === 0) return this.getProjectUser(projectId, userId);
-
-    values.push(projectId, userId);
-    // Update in project DB
-    await this.dbManager.queryProject(
+    // Update the document
+    const updatedDocument = await this.updateDocument(
       projectId,
-      `UPDATE project_users 
-       SET ${fields.join(", ")} 
-       WHERE project_id = $${paramCount} AND id = $${paramCount + 1}`,
-      values
+      "users",
+      userId,
+      updatedData,
+      "system"
     );
 
-    // Query back the updated row
-    const result = await this.dbManager.queryProject(
-      projectId,
-      `SELECT * FROM project_users WHERE project_id = $1 AND id = $2`,
-      [projectId, userId]
-    );
+    if (!updatedDocument) {
+      return null;
+    }
 
-    const row = result.rows[0];
-    return row ? this.mapProjectUser(row as Record<string, unknown>) : null;
+    // Map back to BackendProjectUser format
+    const updatedUserData = updatedDocument.data as Record<string, unknown>;
+    const user: BackendProjectUser = {
+      id: updatedDocument.id,
+      project_id: projectId,
+      username: (updatedUserData.username as string) || "",
+      email: (updatedUserData.email as string) || "",
+      is_verified: updatedUserData.confirmation_state === "confirmed",
+      scopes: (updatedUserData.scopes as string[]) || [],
+      permissions: [],
+      created_at: updatedDocument.created_at,
+      updated_at: updatedDocument.updated_at,
+      status: (updatedUserData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      is_active: updatedUserData.is_active !== false,
+      login_count: (updatedUserData.login_count as number) || 0,
+      role: (((updatedUserData.role as string) || "user") as unknown) as UserRole,
+    };
+    if (updatedUserData.phone) {
+      user.phone = updatedUserData.phone as string;
+    }
+    if (updatedUserData.password) {
+      user.password = updatedUserData.password as string;
+    }
+    return user;
   }
 
   async deleteProjectUser(projectId: string, userId: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.dbManager.queryProject(
-      projectId,
-      "DELETE FROM project_users WHERE project_id = $1 AND id = $2",
-      [projectId, userId]
-    );
-
-    return (result.rowCount ?? 0) > 0;
+    // Project users are stored in the "users" collection as documents
+    return await this.deleteDocument(projectId, "users", userId);
   }
 
   // Project user account management methods
@@ -4655,38 +4773,41 @@ export class DatabaseService {
     return project;
   }
 
-  private mapProjectUser(row: Record<string, unknown>): BackendProjectUser {
+  // Note: This method is kept for backward compatibility but is no longer used
+  // since project users are now stored as documents in the "users" collection
+  // @ts-expect-error - Unused method kept for backward compatibility
+  private mapProjectUser(_row: Record<string, unknown>): BackendProjectUser {
     const user: BackendProjectUser = {
-      id: row.id as string,
-      project_id: row.project_id as string,
-      username: row.username as string,
-      email: row.email as string,
-      is_verified: row.is_verified as boolean,
-      scopes: (row.scopes as string[]) || [],
-      permissions: (row.permissions as string[]) || [],
-      created_at: row.created_at as string,
-      updated_at: row.updated_at as string,
-      status: (row.status as "active" | "inactive" | "suspended") || "active",
-      is_active: row.is_active as boolean,
-      metadata: (row.metadata as Record<string, unknown>) || {},
+      id: _row.id as string,
+      project_id: _row.project_id as string,
+      username: _row.username as string,
+      email: _row.email as string,
+      is_verified: _row.is_verified as boolean,
+      scopes: (_row.scopes as string[]) || [],
+      permissions: (_row.permissions as string[]) || [],
+      created_at: _row.created_at as string,
+      updated_at: _row.updated_at as string,
+      status: (_row.status as "active" | "inactive" | "suspended") || "active",
+      is_active: _row.is_active as boolean,
+      metadata: (_row.metadata as Record<string, unknown>) || {},
     };
-    const phone = row.phone as string | null | undefined;
+    const phone = _row.phone as string | null | undefined;
     if (phone !== undefined && phone !== null) {
       user.phone = phone;
     }
-    const password = row.password as string | null | undefined;
+    const password = _row.password as string | null | undefined;
     if (password !== undefined && password !== null) {
       user.password = password;
     }
-    const lastLogin = row.last_login as string | null | undefined;
+    const lastLogin = _row.last_login as string | null | undefined;
     if (lastLogin !== undefined && lastLogin !== null) {
       user.last_login = lastLogin;
     }
-    const role = row.role as UserRole | null | undefined;
+    const role = _row.role as UserRole | null | undefined;
     if (role !== undefined && role !== null) {
       user.role = role;
     }
-    const loginCount = row.login_count as number | null | undefined;
+    const loginCount = _row.login_count as number | null | undefined;
     if (loginCount !== undefined && loginCount !== null) {
       user.login_count = loginCount;
     }

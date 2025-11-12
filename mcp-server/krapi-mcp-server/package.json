@@ -1,6 +1,6 @@
 {
   "name": "@krapi/mcp-server",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "description": "KRAPI MCP Server exposing project/database tools for LLM tool-calling (OpenAI/Ollama)",
   "main": "dist/index.js",

@@ -38,7 +38,7 @@ export async function POST(
     // Call the backend directly
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const response = await fetch(
-      `${backendUrl}/krapi/k1/users/${projectId}/users`,
+      `${backendUrl}/krapi/k1/projects/${projectId}/users`,
       {
         method: "POST",
         headers: {
@@ -60,7 +60,9 @@ export async function POST(
       );
     }
 
-    const user = await response.json();
+    const backendResponse = await response.json();
+    // Backend returns { success: true, data: user }, extract just the user data
+    const user = backendResponse.data || backendResponse;
     return NextResponse.json({ success: true, data: user }, { status: 201 });
   } catch (error) {
     
@@ -105,7 +107,7 @@ export async function GET(
     // Call the backend directly
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const response = await fetch(
-      `${backendUrl}/krapi/k1/users/${projectId}/users`,
+      `${backendUrl}/krapi/k1/projects/${projectId}/users`,
       {
         method: "GET",
         headers: {
@@ -126,8 +128,14 @@ export async function GET(
       );
     }
 
-    const users = await response.json();
-    return NextResponse.json(users);
+    const backendData = await response.json();
+    // Backend returns { success: true, data: users[] } or just users[]
+    // Ensure consistent response format
+    if (backendData.success !== undefined) {
+      return NextResponse.json(backendData);
+    } else {
+      return NextResponse.json({ success: true, data: backendData });
+    }
   } catch (error) {
     
     return NextResponse.json(

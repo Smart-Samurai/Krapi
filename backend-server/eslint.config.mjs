@@ -12,7 +12,7 @@ const tsconfigRootDir = resolve(__dirname);
 export default [
   eslint.configs.recommended,
   {
-    ignores: ["dist/**", "node_modules/**", "start.js", "scripts/**"],
+    ignores: ["dist/**", "node_modules/**", "packages/**", "start.js", "scripts/**"],
   },
   {
     files: ["**/*.js"],

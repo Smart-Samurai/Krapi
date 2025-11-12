@@ -51,25 +51,14 @@ krapi-manager-interactive.bat
 2. **Build all** - Builds backend and frontend (SDK excluded)
 3. **Start development mode** - Starts app in development mode
 4. **Start production mode** - Starts app in production mode
-5. **SDK Management** - Submenu for SDK operations:
-   - Check SDK status (local vs npm)
-   - Link local SDK (for debugging)
-   - Unlink SDK (use npm package)
-   - Build SDK
-   - Check SDK (lint + type-check)
+5. **SDK Management** - SDK information (SDK is now in separate repository)
 6. **Run health checks** - Full health check (install + lint + type-check + build)
 7. **Stop services** - Instructions for stopping services
 8. **Exit** - Close the manager
 
-### SDK Management Submenu
+### SDK Management
 
-When you select option 5, you get access to SDK-specific operations:
-
-- **Check SDK status** - Shows which packages use local vs npm SDK
-- **Link local SDK** - Switches all packages to use local SDK from `packages/krapi-sdk`
-- **Unlink SDK** - Switches all packages back to npm package
-- **Build SDK** - Builds the SDK (required after linking)
-- **Check SDK** - Runs lint and type-check on SDK
+The SDK (`@smartsamurai/krapi-sdk`) is now maintained in a separate Git repository and is installed automatically via npm. All packages use the npm version.
 
 ## Non-Interactive Mode
 
@@ -114,37 +103,20 @@ krapi-manager.bat --dev        # Development mode
 
 ### How Manager Scripts Handle SDK
 
-1. **By default** - All scripts use the npm package (`@smartsamurai/krapi-sdk@^0.1.0`)
+1. **SDK from npm** - All scripts use the npm package (`@smartsamurai/krapi-sdk@latest`)
 2. **No SDK building** - SDK is not built during main app builds
-3. **SDK management** - Available via interactive menu option 5
+3. **Automatic installation** - SDK is installed automatically when running `pnpm install` or `npm install`
 
-### When to Use Local SDK
+### SDK Development
 
-Use the interactive menu's SDK Management option when:
-- Debugging SDK issues
-- Developing new SDK features
-- Testing SDK changes before publishing
+The SDK is maintained in a separate Git repository. To develop or modify the SDK:
 
-### Workflow Example
-
-```bash
-# 1. Start interactive manager
-./krapi-manager-interactive.sh
-
-# 2. Select option 5 (SDK Management)
-
-# 3. Select option 2 (Link local SDK)
-
-# 4. Go back to main menu, select option 5 again
-
-# 5. Select option 4 (Build SDK)
-
-# 6. Select option 3 (Start development mode)
-
-# 7. Test your SDK changes
-
-# 8. When done, go to SDK Management → option 3 (Unlink SDK)
-```
+1. Clone the separate SDK repository
+2. Make your changes
+3. Build and test the SDK
+4. Publish to npm: `npm publish --access public`
+5. Update the version in this monorepo's `package.json` files if needed
+6. Run `pnpm install` to get the latest version
 
 ## Differences from Old Scripts
 
@@ -156,11 +128,7 @@ Use the interactive menu's SDK Management option when:
 
 2. **SDK is npm dependency**
    - Old: SDK was built locally
-   - New: SDK installed from npm
-
-3. **SDK management added**
-   - New: Interactive menu option for SDK operations
-   - New: Scripts to link/unlink local SDK
+   - New: SDK installed from npm (separate repository)
 
 ### What Stayed the Same
 
@@ -193,9 +161,9 @@ Use the interactive menu's SDK Management option when:
 
 ### SDK Not Found
 
-- Check SDK status: `pnpm run sdk:status`
-- If using local SDK, make sure it's built: `pnpm run sdk:build`
-- If using npm, reinstall: `pnpm install`
+- Reinstall dependencies: `pnpm install`
+- Check that `@smartsamurai/krapi-sdk` is in your `package.json` files
+- Verify npm registry access
 
 ## Best Practices
 
@@ -209,13 +177,9 @@ Use the interactive menu's SDK Management option when:
    ./krapi-manager-interactive.sh
    ```
 
-3. **Default to npm package**
-   - Only link local SDK when actively debugging
-   - Always unlink before committing
-
-4. **Check SDK status**
-   - Use `pnpm run sdk:status` to verify mode
-   - Or use interactive menu option 5 → option 1
+3. **SDK from npm only**
+   - SDK is always from npm package
+   - No local linking available (SDK is in separate repository)
 
 ## Examples
 
@@ -231,22 +195,14 @@ Use the interactive menu's SDK Management option when:
 # 3. Start services
 ```
 
-### Example 2: Debugging SDK
+### Example 2: Using Updated SDK
 
 ```bash
-# Start interactive manager
-./krapi-manager-interactive.sh
+# If SDK was updated on npm, update it:
+pnpm install
 
-# Menu → 5 (SDK Management)
-# SDK Menu → 2 (Link local SDK)
-# SDK Menu → 4 (Build SDK)
-# Main Menu → 3 (Start development)
-
-# Make changes in packages/krapi-sdk/src/
-# Rebuild: SDK Menu → 4
-# Test changes
-
-# When done: SDK Menu → 3 (Unlink SDK)
+# Then start development
+./krapi-manager.sh dev
 ```
 
 ### Example 3: Development Mode
@@ -262,11 +218,11 @@ Use the interactive menu's SDK Management option when:
 
 ## Summary
 
-- **Interactive scripts** - Menu-based, full control, SDK management
+- **Interactive scripts** - Menu-based, full control
 - **Non-interactive scripts** - Auto-start, fast, production-ready
-- **SDK excluded** from main builds (uses npm package)
-- **SDK management** available via interactive menu
+- **SDK excluded** from main builds (uses npm package from separate repository)
+- **SDK always from npm** - No local SDK development in this repository
 - **Same functionality** as before, just better organized
 
-For SDK development details, see `SDK_DEVELOPMENT.md`.
+The SDK is maintained in a separate Git repository and published to npm as `@smartsamurai/krapi-sdk`.
 

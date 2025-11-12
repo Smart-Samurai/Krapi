@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import type { AdminUser } from "@/lib/krapi";
 
-import type { AppDispatch, RootState } from "./index";
+import type { RootState } from "./index";
 
 // Types
 export interface AuthState {

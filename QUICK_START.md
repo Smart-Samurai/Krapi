@@ -26,45 +26,19 @@ This will:
 
 **SDK is automatically installed from npm** - no building needed!
 
-## For Debugging SDK
+## SDK Development
 
-Use the interactive manager:
+The SDK (`@smartsamurai/krapi-sdk`) is maintained in a separate Git repository. To develop or modify the SDK:
 
-**Windows:**
-```bash
-krapi-manager-interactive.bat
-```
-
-**Linux/Mac:**
-```bash
-./krapi-manager-interactive.sh
-```
-
-**PowerShell:**
-```powershell
-.\krapi-manager-interactive.ps1
-```
-
-Then:
-1. Select option **5** (SDK Management)
-2. Select option **2** (Link local SDK)
-3. Select option **4** (Build SDK)
-4. Go back, select option **3** (Start development)
-5. Make changes in `packages/krapi-sdk/src/`
-6. Rebuild SDK when needed
-7. When done: SDK Menu → option **3** (Unlink SDK)
-
-## Check SDK Status
-
-```bash
-pnpm run sdk:status
-```
-
-Shows which packages use local vs npm SDK.
+1. Clone the separate SDK repository
+2. Make your changes
+3. Build and test the SDK
+4. Publish to npm: `npm publish --access public`
+5. Update this monorepo: `pnpm install`
 
 ## Documentation
 
-- **SDK_DEVELOPMENT.md** - Complete SDK development guide
 - **MANAGER_SCRIPTS.md** - Manager scripts documentation
-- **packages/krapi-sdk/DEVELOPMENT.md** - SDK-specific development guide
+- **API_DOCUMENTATION.md** - API documentation
+- **[@smartsamurai/krapi-sdk](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)** - SDK npm package
 

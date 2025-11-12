@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 import {
   PageLayout,
@@ -97,7 +98,6 @@ import {
 } from "@/store/emailSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
-import { toast } from "sonner";
 
 /**
  * Email Page Component

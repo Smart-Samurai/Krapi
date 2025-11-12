@@ -1,6 +1,6 @@
 {
   "name": "krapi-comprehensive-test-suite",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Comprehensive test suite for KRAPI Backend-as-a-Service",
   "main": "comprehensive-unified-test.js",
   "type": "module",

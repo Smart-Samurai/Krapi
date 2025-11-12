@@ -746,4 +746,4 @@ const projects = await krapi.projects.list();
 const documents = await krapi.collections.documents.list('project-id', 'collection-name');
 ```
 
-For complete SDK documentation, see the SDK README in `packages/krapi-sdk/`.
+For complete SDK documentation, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).

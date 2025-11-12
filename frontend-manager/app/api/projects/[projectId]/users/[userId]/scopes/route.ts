@@ -57,7 +57,7 @@ export async function PUT(
 
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const response = await fetch(
-      `${backendUrl}/krapi/k1/users/${projectId}/users/${userId}/scopes`,
+      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}/scopes`,
       {
         method: "PUT",
         headers: {
@@ -94,4 +94,3 @@ export async function PUT(
     );
   }
 }
-

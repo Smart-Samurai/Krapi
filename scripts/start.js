@@ -59,13 +59,7 @@ class KrapiManager {
     // Build logger package
     await this.runCommand(
       "pnpm run build",
-      path.join(__dirname, "..", "packages", "krapi-logger")
-    );
-
-    // Build SDK package
-    await this.runCommand(
-      "pnpm run build",
-      path.join(__dirname, "..", "packages", "krapi-sdk")
+      path.join(__dirname, "..", "backend-server", "packages", "krapi-logger")
     );
 
     // Build backend

@@ -17,6 +17,7 @@ import {
   SubmitHandler,
   UseFormProps,
 } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 /**
@@ -63,23 +64,8 @@ export function Form<T extends z.ZodSchema>({
   formProps,
 }: FormProps<T>) {
   const methods = useForm<z.infer<T>>({
-    resolver: async (values, _context, _options) => {
-      const result = schema.safeParse(values);
-      if (result.success) {
-        return { values: result.data, errors: {} };
-      }
-      return {
-        values: {},
-        errors: result.error.errors.reduce((acc, error) => {
-          const path = error.path.join(".");
-          acc[path] = {
-            type: error.code,
-            message: error.message,
-          };
-          return acc;
-        }, {} as Record<string, { type: string; message: string }>),
-      };
-    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(schema as any),
     defaultValues: defaultValues as z.infer<T> | undefined,
     ...formProps,
   });

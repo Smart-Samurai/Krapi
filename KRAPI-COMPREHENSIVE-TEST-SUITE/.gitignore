@@ -27,6 +27,7 @@ coverage/
 # Test results
 test-results/
 test-output/
+test-logs/
 *.test.log
 
 # IDE files

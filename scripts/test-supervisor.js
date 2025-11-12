@@ -76,10 +76,9 @@ async function testSupervisor() {
     "krapi-logger",
     "krapi-error-handler",
     "krapi-monitor",
-    "krapi-sdk",
   ];
   for (const pkg of packages) {
-    const packagePath = path.join(__dirname, "..", "packages", pkg, "dist");
+    const packagePath = path.join(__dirname, "..", "backend-server", "packages", pkg, "dist");
     try {
       const fs = require("fs");
       if (fs.existsSync(packagePath)) {

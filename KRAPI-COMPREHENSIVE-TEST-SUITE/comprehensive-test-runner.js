@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import axios from "axios";
 import fs from "fs";
+import { rm, readdir } from "fs/promises";
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -167,6 +168,90 @@ class ComprehensiveTestRunner {
     return "npm";
   }
 
+  async updateDependencies() {
+    this.log("📦 Updating all dependencies to latest versions...", "INFO");
+    
+    // Detect package manager
+    const packageManager = await this.detectPackageManager();
+    
+    // Update dependencies in root
+    this.log("   Updating root dependencies...", "INFO");
+    const rootUpdateResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "pnpm update" 
+        : "npm update"
+    );
+    if (!rootUpdateResult.success) {
+      this.log(`   ⚠️  Root dependency update had issues: ${rootUpdateResult.stderr}`, "WARNING");
+    } else {
+      this.log("   ✅ Root dependencies updated", "SUCCESS");
+    }
+    
+    // Install dependencies in root (to get latest SDK)
+    this.log("   Installing root dependencies...", "INFO");
+    const rootInstallResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "pnpm install" 
+        : "npm install"
+    );
+    if (!rootInstallResult.success) {
+      throw new Error(`Failed to install root dependencies: ${rootInstallResult.stderr}`);
+    }
+    this.log("   ✅ Root dependencies installed", "SUCCESS");
+    
+    // Update dependencies in backend-server
+    this.log("   Updating backend dependencies...", "INFO");
+    const backendUpdateResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "cd backend-server && pnpm update" 
+        : "cd backend-server && npm update"
+    );
+    if (!backendUpdateResult.success) {
+      this.log(`   ⚠️  Backend dependency update had issues: ${backendUpdateResult.stderr}`, "WARNING");
+    } else {
+      this.log("   ✅ Backend dependencies updated", "SUCCESS");
+    }
+    
+    // Install dependencies in backend-server
+    this.log("   Installing backend dependencies...", "INFO");
+    const backendInstallResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "cd backend-server && pnpm install" 
+        : "cd backend-server && npm install"
+    );
+    if (!backendInstallResult.success) {
+      throw new Error(`Failed to install backend dependencies: ${backendInstallResult.stderr}`);
+    }
+    this.log("   ✅ Backend dependencies installed", "SUCCESS");
+    
+    // Update dependencies in frontend-manager
+    this.log("   Updating frontend dependencies...", "INFO");
+    const frontendUpdateResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "cd frontend-manager && pnpm update" 
+        : "cd frontend-manager && npm update"
+    );
+    if (!frontendUpdateResult.success) {
+      this.log(`   ⚠️  Frontend dependency update had issues: ${frontendUpdateResult.stderr}`, "WARNING");
+    } else {
+      this.log("   ✅ Frontend dependencies updated", "SUCCESS");
+    }
+    
+    // Install dependencies in frontend-manager
+    this.log("   Installing frontend dependencies...", "INFO");
+    const frontendInstallResult = await this.runCommand(
+      packageManager === "pnpm" 
+        ? "cd frontend-manager && pnpm install" 
+        : "cd frontend-manager && npm install"
+    );
+    if (!frontendInstallResult.success) {
+      throw new Error(`Failed to install frontend dependencies: ${frontendInstallResult.stderr}`);
+    }
+    this.log("   ✅ Frontend dependencies installed", "SUCCESS");
+    
+    this.log("✅ All dependencies updated and installed", "SUCCESS");
+  }
+
   async buildServices() {
     this.log("🔨 Building all services...", "INFO");
 
@@ -240,8 +325,78 @@ class ComprehensiveTestRunner {
     this.log("✅ All services built successfully", "SUCCESS");
   }
 
+  async cleanupDatabaseFiles() {
+    this.log("🧹 Cleaning up database files from previous test runs...", "INFO");
+    try {
+      const backendDataDir = join(this.projectRoot, "backend-server", "data");
+
+      if (!fs.existsSync(backendDataDir)) {
+        this.log("   No database directory found, skipping cleanup", "INFO");
+        return;
+      }
+
+      // Clean up main database files
+      const mainDbFiles = [
+        "krapi_main.db",
+        "krapi_main.db-wal",
+        "krapi_main.db-shm",
+        "krapi.db",
+        "krapi.db-wal",
+        "krapi.db-shm",
+      ];
+
+      let deletedCount = 0;
+      for (const dbFile of mainDbFiles) {
+        const dbPath = join(backendDataDir, dbFile);
+        if (fs.existsSync(dbPath)) {
+          try {
+            await rm(dbPath, { force: true });
+            deletedCount++;
+            this.log(`   ✅ Deleted ${dbFile}`, "SUCCESS");
+          } catch (error) {
+            this.log(`   ⚠️  Could not delete ${dbFile}: ${error.message}`, "WARNING");
+          }
+        }
+      }
+
+      // Clean up project databases
+      const projectsDir = join(backendDataDir, "projects");
+      if (fs.existsSync(projectsDir)) {
+        try {
+          const projectDirs = await readdir(projectsDir, { withFileTypes: true });
+          for (const projectDir of projectDirs) {
+            if (projectDir.isDirectory()) {
+              const projectPath = join(projectsDir, projectDir.name);
+              try {
+                await rm(projectPath, { recursive: true, force: true });
+                deletedCount++;
+                this.log(`   ✅ Deleted project database: ${projectDir.name}`, "SUCCESS");
+              } catch (error) {
+                this.log(`   ⚠️  Could not delete project ${projectDir.name}: ${error.message}`, "WARNING");
+              }
+            }
+          }
+        } catch (error) {
+          this.log(`   ⚠️  Could not read projects directory: ${error.message}`, "WARNING");
+        }
+      }
+
+      if (deletedCount > 0) {
+        this.log(`✅ Database cleanup complete (deleted ${deletedCount} file(s)/directory(ies))`, "SUCCESS");
+      } else {
+        this.log("✅ No database files found to clean up", "SUCCESS");
+      }
+    } catch (error) {
+      this.log(`⚠️  Database cleanup warning: ${error.message}`, "WARNING");
+      // Don't throw - continue with tests even if cleanup fails
+    }
+  }
+
   async startServices() {
     this.log("🚀 Starting services...", "INFO");
+
+    // Clean up database files before starting services
+    await this.cleanupDatabaseFiles();
 
     // Detect package manager
     const packageManager = await this.detectPackageManager();
@@ -489,6 +644,9 @@ class ComprehensiveTestRunner {
 
       // Setup Docker environment
       await this.setupDockerEnvironment();
+
+      // Update all dependencies to latest versions (including SDK)
+      await this.updateDependencies();
 
       // Build all services
       await this.buildServices();

@@ -1,6 +1,6 @@
 {
   "name": "@krapi/monitor",
-  "version": "2.0.0",
+  "version": "0.0.1",
   "description": "KRAPI System Monitor - Built-in health checks and monitoring",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,7 +27,7 @@
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
-    "@krapi/logger": "^2.0.0",
-    "@krapi/error-handler": "^2.0.0"
+    "@krapi/logger": "^0.0.1",
+    "@krapi/error-handler": "^0.0.1"
   }
 }

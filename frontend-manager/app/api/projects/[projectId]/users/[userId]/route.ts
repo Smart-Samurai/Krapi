@@ -48,7 +48,7 @@ export async function GET(
 
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const response = await fetch(
-      `${backendUrl}/krapi/k1/users/${projectId}/users/${userId}`,
+      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}`,
       {
         method: "GET",
         headers: {
@@ -69,8 +69,14 @@ export async function GET(
       );
     }
 
-    const user = await response.json();
-    return NextResponse.json(user);
+    const backendData = await response.json();
+    // Backend returns { success: true, data: user } or just user
+    // Ensure consistent response format
+    if (backendData.success !== undefined) {
+      return NextResponse.json(backendData);
+    } else {
+      return NextResponse.json({ success: true, data: backendData });
+    }
   } catch (error) {
     return NextResponse.json(
       {
@@ -127,7 +133,7 @@ export async function PUT(
 
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const response = await fetch(
-      `${backendUrl}/krapi/k1/users/${projectId}/users/${userId}`,
+      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}`,
       {
         method: "PUT",
         headers: {
@@ -149,8 +155,14 @@ export async function PUT(
       );
     }
 
-    const user = await response.json();
-    return NextResponse.json(user);
+    const backendData = await response.json();
+    // Backend returns { success: true, data: user } or just user
+    // Ensure consistent response format
+    if (backendData.success !== undefined) {
+      return NextResponse.json(backendData);
+    } else {
+      return NextResponse.json({ success: true, data: backendData });
+    }
   } catch (error) {
     return NextResponse.json(
       {
@@ -205,7 +217,7 @@ export async function DELETE(
 
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
     const response = await fetch(
-      `${backendUrl}/krapi/k1/users/${projectId}/users/${userId}`,
+      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}`,
       {
         method: "DELETE",
         headers: {

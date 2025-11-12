@@ -559,7 +559,8 @@ router.use(
 );
 
 // ===== User Management Routes (SDK-driven) =====
-router.use("/users", enforceProjectOrigin, usersRoutes);
+// Users routes are nested under /projects/:projectId/users
+router.use("/projects", enforceProjectOrigin, usersRoutes);
 
 // ===== API Keys Routes (SDK-driven) =====
 router.use("/api-keys", enforceProjectOrigin, apiKeysRoutes);

@@ -262,7 +262,7 @@ const projects = await krapi.projects.list();
 const documents = await krapi.collections.documents.list('project-id', 'collection-name');
 ```
 
-See [`packages/krapi-sdk/README.md`](./packages/krapi-sdk/README.md) for complete SDK documentation.
+For complete SDK documentation, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
 
 ## 📚 Documentation
 
@@ -272,7 +272,7 @@ For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.m
 
 ### SDK Documentation
 
-For SDK usage and examples, see [packages/krapi-sdk/README.md](./packages/krapi-sdk/README.md).
+For SDK usage and examples, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
 
 ### Development Documentation
 
@@ -371,11 +371,6 @@ Krapi/
 │   ├── components/          # React components
 │   └── lib/                 # Frontend utilities
 ├── packages/
-│   ├── krapi-sdk/           # Core SDK (shared by frontend/backend)
-│   │   ├── src/
-│   │   │   ├── services/    # SDK services
-│   │   │   └── types/       # Shared types
-│   │   └── dist/            # Compiled SDK
 │   ├── krapi-logger/        # Logging package
 │   ├── krapi-error-handler/ # Error handling package
 │   └── krapi-monitor/       # Monitoring package
@@ -492,7 +487,7 @@ If you use this project, please:
 For issues, questions, or feature requests:
 
 - **GitHub Issues**: [https://github.com/GenorTG/Krapi/issues](https://github.com/GenorTG/Krapi/issues)
-- **Documentation**: See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) and [packages/krapi-sdk/README.md](./packages/krapi-sdk/README.md)
+- **Documentation**: See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) and the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 
 ## 🗺️ Roadmap
 
