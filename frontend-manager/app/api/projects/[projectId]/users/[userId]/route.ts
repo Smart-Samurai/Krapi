@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken } from "@/app/api/lib/sdk-client";
+import { getAuthToken, serverSdk } from "@/app/api/lib/sdk-client";
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -46,38 +46,68 @@ export async function GET(
       );
     }
 
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // Use SDK instead of direct fetch
+    serverSdk.auth.setSessionToken(authToken);
+    const user = await serverSdk.users.get(projectId, userId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
+    return NextResponse.json({ success: true, data: user });
+  } catch (error) {
+    // Check if it's an Axios error with a status code
+    if (
+      error &&
+      typeof error === "object" &&
+      "response" in error &&
+      error.response &&
+      typeof error.response === "object" &&
+      "status" in error.response &&
+      typeof error.response.status === "number"
+    ) {
+      const status = error.response.status as number;
+      const response = error.response as { status: number; data?: { error?: string; success?: boolean } };
+      const errorData = response.data;
+      
       return NextResponse.json(
         {
           success: false,
-          error: errorData.error || "Failed to fetch project user",
+          error: errorData?.error || (error instanceof Error ? error.message : "Failed to fetch project user"),
         },
-        { status: response.status }
+        { status }
       );
     }
-
-    const backendData = await response.json();
-    // Backend returns { success: true, data: user } or just user
-    // Ensure consistent response format
-    if (backendData.success !== undefined) {
-      return NextResponse.json(backendData);
-    } else {
-      return NextResponse.json({ success: true, data: backendData });
+    
+    // Check if error has a status property directly (SDK might set this)
+    if (
+      error &&
+      typeof error === "object" &&
+      "status" in error &&
+      typeof error.status === "number"
+    ) {
+      const status = error.status as number;
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch project user";
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        },
+        { status }
+      );
     }
-  } catch (error) {
+    
+    // Check error message for status code hints (e.g., "not found" = 404)
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      if (errorMessage.includes("not found") || errorMessage.includes("does not exist")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: error.message,
+          },
+          { status: 404 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       {
         success: false,
@@ -131,38 +161,11 @@ export async function PUT(
 
     const userData = await request.json();
 
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      }
-    );
+    // Use SDK instead of direct fetch
+    serverSdk.auth.setSessionToken(authToken);
+    const user = await serverSdk.users.update(projectId, userId, userData);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to update project user",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendData = await response.json();
-    // Backend returns { success: true, data: user } or just user
-    // Ensure consistent response format
-    if (backendData.success !== undefined) {
-      return NextResponse.json(backendData);
-    } else {
-      return NextResponse.json({ success: true, data: backendData });
-    }
+    return NextResponse.json({ success: true, data: user });
   } catch (error) {
     return NextResponse.json(
       {
@@ -215,31 +218,11 @@ export async function DELETE(
       );
     }
 
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // Use SDK instead of direct fetch
+    serverSdk.auth.setSessionToken(authToken);
+    await serverSdk.users.delete(projectId, userId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to delete project user",
-        },
-        { status: response.status }
-      );
-    }
-
-    const result = await response.json();
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, message: "User deleted successfully" });
   } catch (error) {
     return NextResponse.json(
       {

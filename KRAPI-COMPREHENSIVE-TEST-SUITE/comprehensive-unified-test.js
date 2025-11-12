@@ -1601,9 +1601,15 @@ class ComprehensiveTestSuite {
         );
         throw new Error("Should have failed with duplicate email");
       } catch (error) {
+        // Log error details for debugging
+        if (error.response) {
+          console.log(`   ⚠️  Duplicate user error - Status: ${error.response.status}, Data:`, error.response.data);
+        } else {
+          console.log(`   ⚠️  Duplicate user error - No response property:`, error);
+        }
         this.assert(
           error.response && error.response.status === 409,
-          "Should return 409 for duplicate email"
+          `Should return 409 for duplicate email, got ${error.response?.status || 'no status'}`
         );
       }
     });
@@ -1637,9 +1643,15 @@ class ComprehensiveTestSuite {
         );
         throw new Error("Should have failed with 404");
       } catch (error) {
+        // Log error details for debugging
+        if (error.response) {
+          console.log(`   ⚠️  Get deleted user error - Status: ${error.response.status}, Data:`, error.response.data);
+        } else {
+          console.log(`   ⚠️  Get deleted user error - No response property:`, error);
+        }
         this.assert(
-          error.response.status === 404,
-          "Should return 404 for deleted user"
+          error.response && error.response.status === 404,
+          `Should return 404 for deleted user, got ${error.response?.status || 'no status'}`
         );
       }
     });

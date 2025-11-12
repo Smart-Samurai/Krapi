@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken } from "@/app/api/lib/sdk-client";
+import { getAuthToken, serverSdk } from "@/app/api/lib/sdk-client";
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -55,32 +55,14 @@ export async function PUT(
       );
     }
 
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/users/${userId}/scopes`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ scopes }),
-      }
-    );
+    // Use SDK instead of direct fetch
+    // Update user with permissions field set to scopes
+    serverSdk.auth.setSessionToken(authToken);
+    const user = await serverSdk.users.update(projectId, userId, {
+      permissions: scopes,
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to update user scopes",
-        },
-        { status: response.status }
-      );
-    }
-
-    const result = await response.json();
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, data: user });
   } catch (error) {
     return NextResponse.json(
       {

@@ -31,7 +31,7 @@ importers:
     dependencies:
       '@smartsamurai/krapi-sdk':
         specifier: latest
-        version: 0.1.6
+        version: 0.1.10
       axios:
         specifier: ^1.11.0
         version: 1.13.1
@@ -59,7 +59,7 @@ importers:
         version: link:packages/krapi-monitor
       '@smartsamurai/krapi-sdk':
         specifier: latest
-        version: 0.1.6
+        version: 0.1.10
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -295,8 +295,8 @@ importers:
         specifier: ^2.10.1
         version: 2.10.1(react-redux@9.2.0(@types/react@19.2.3)(react@19.2.0)(redux@5.0.1))(react@19.2.0)
       '@smartsamurai/krapi-sdk':
-        specifier: latest
-        version: 0.1.6
+        specifier: 0.1.10
+        version: 0.1.10
       axios:
         specifier: ^1.13.2
         version: 1.13.2
@@ -1517,8 +1517,8 @@ packages:
   '@rushstack/eslint-patch@1.15.0':
     resolution: {integrity: sha512-ojSshQPKwVvSMR8yT2L/QtUkV5SXi/IfDiJ4/8d6UbTPjiHVmxZzUAzGD8Tzks1b9+qQkZa0isUOvYObedITaw==}
 
-  '@smartsamurai/krapi-sdk@0.1.6':
-    resolution: {integrity: sha512-ADcCpjWkvz2A9ZCalCwl8eIr6iK3kL7DvTe3cuHx9+g2pYMZJtq4yGN6QvKoyOmnRmoahu3FJ/+gp1EiOjOwlQ==}
+  '@smartsamurai/krapi-sdk@0.1.10':
+    resolution: {integrity: sha512-WV+imQTL199wUxhrlk8DroAHrjHt/CyQ0BeQ5Ay3Nt+YregvqnNhzXjOJdlvKsJF3ohpo6I9Guzx6hGP8L4HfA==}
 
   '@smithy/abort-controller@4.2.5':
     resolution: {integrity: sha512-j7HwVkBw68YW8UmFRcjZOmssE77Rvk0GWAIN1oFBhsaovQmZWYCIcGa9/pwRB0ExI8Sk9MWNALTjftjHZea7VA==}
@@ -2137,8 +2137,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.8.26:
-    resolution: {integrity: sha512-73lC1ugzwoaWCLJ1LvOgrR5xsMLTqSKIEoMHVtL9E/HNk0PXtTM76ZIm84856/SF7Nv8mPZxKoBsgpm0tR1u1Q==}
+  baseline-browser-mapping@2.8.27:
+    resolution: {integrity: sha512-2CXFpkjVnY2FT+B6GrSYxzYf65BJWEqz5tIRHCvNsZZ2F3CmsCB37h8SpYgKG7y9C4YAeTipIPWG7EmFmhAeXA==}
     hasBin: true
 
   basic-auth@2.0.1:
@@ -5626,7 +5626,7 @@ snapshots:
 
   '@rushstack/eslint-patch@1.15.0': {}
 
-  '@smartsamurai/krapi-sdk@0.1.6':
+  '@smartsamurai/krapi-sdk@0.1.10':
     dependencies:
       axios: 1.13.2
       bcryptjs: 3.0.3
@@ -6444,7 +6444,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.8.26: {}
+  baseline-browser-mapping@2.8.27: {}
 
   basic-auth@2.0.1:
     dependencies:
@@ -6508,7 +6508,7 @@ snapshots:
 
   browserslist@4.28.0:
     dependencies:
-      baseline-browser-mapping: 2.8.26
+      baseline-browser-mapping: 2.8.27
       caniuse-lite: 1.0.30001754
       electron-to-chromium: 1.5.250
       node-releases: 2.0.27
