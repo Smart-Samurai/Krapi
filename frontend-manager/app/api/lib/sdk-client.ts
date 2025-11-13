@@ -1,13 +1,39 @@
 import { krapi } from "@smartsamurai/krapi-sdk";
 
-// Initialize the SDK connection to the backend
+// Initialize the SDK connection to the backend with enhanced features
+// Note: Server-side code can connect directly to backend (port 3470)
+// The SDK will automatically handle path normalization and provide warnings if needed
+const connectConfig: any = {
+  endpoint: process.env.KRAPI_BACKEND_URL || "http://localhost:3470",
+  apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
+  // Enable retry logic for better reliability (if SDK supports it)
+  retry: {
+    enabled: true,
+    maxRetries: 3,
+    retryDelay: 1000, // 1 second
+    retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+  },
+};
+
 krapi
-  .connect({
-    endpoint: process.env.KRAPI_BACKEND_URL || "http://localhost:3470",
-    apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
+  .connect(connectConfig)
+  .then(async () => {
+    // Perform health check after connection (if SDK supports it)
+    try {
+      if (typeof (krapi as any).healthCheck === 'function') {
+        const isHealthy = await (krapi as any).healthCheck();
+        if (!isHealthy) {
+          console.warn("⚠️ SDK health check failed - connection may be unstable");
+        } else {
+          console.log("✅ SDK connected and healthy");
+        }
+      }
+    } catch (error) {
+      console.warn("⚠️ SDK health check error:", error);
+    }
   })
-  .catch((_error: unknown) => {
-    // Failed to connect SDK to backend
+  .catch((error: unknown) => {
+    console.error("❌ Failed to connect SDK to backend:", error);
   });
 
 // Export the configured SDK instance

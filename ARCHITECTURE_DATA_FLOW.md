@@ -18,17 +18,37 @@ Krapi Server follows a **"Plug and Socket"** architecture where:
 import { krapi } from "@smartsamurai/krapi-sdk";
 
 // Initialize SDK with API key
+// IMPORTANT: Use the FRONTEND URL (port 3498), not the backend URL
 await krapi.connect({
-  endpoint: "https://your-krapi-instance.com", // Your Krapi Server URL
+  endpoint: "https://your-krapi-instance.com", // Frontend URL (port 3498)
   apiKey: "krapi_xxxxxxxxxxxxxxxxxxxx", // API key from Krapi Server
 });
 ```
 
+**⚠️ CRITICAL: URL Configuration**
+
+**External clients MUST connect to the FRONTEND URL (port 3498), NOT the backend URL (port 3470).**
+
+- ✅ **Correct**: `https://your-krapi-instance.com` (frontend, port 3498)
+- ✅ **Correct**: `http://localhost:3498` (local development, frontend)
+- ❌ **Wrong**: `https://your-krapi-instance.com:3470` (backend port)
+- ❌ **Wrong**: `http://localhost:3470` (backend port)
+
+**Why?** The frontend acts as a proxy and handles:
+
+- CORS configuration
+- Request routing
+- Authentication forwarding
+- Error handling
+
+The backend (port 3470) is only accessible internally and should not be exposed directly to external clients.
+
 **What Happens:**
 
-1. SDK stores the endpoint and API key
-2. SDK is ready to make authenticated requests
-3. All subsequent calls use this configuration
+1. SDK stores the endpoint (frontend URL) and API key
+2. SDK makes requests to: `{endpoint}/api/krapi/k1/...`
+3. Frontend receives requests and proxies them to the backend
+4. SDK is ready to make authenticated requests
 
 ### 2. Making API Calls
 
@@ -57,7 +77,8 @@ const projects = await krapi.projects.list();
          │
          │ HTTP POST/GET with:
          │ - Authorization: Bearer <api-key>
-         │ - Endpoint: https://your-krapi-instance.com/krapi/k1/projects
+         │ - Endpoint: https://your-krapi-instance.com/api/krapi/k1/projects
+         │ (Note: SDK automatically appends /api/krapi/k1/ to the base endpoint)
          ▼
 ┌─────────────────┐
 │  Krapi Frontend │
@@ -120,8 +141,8 @@ const projects = await krapi.projects.list();
 
 3. **Frontend receives request:**
 
-   - Next.js route handler at `/api/krapi/k1/projects`
-   - Proxies to backend: `http://localhost:3470/krapi/k1/projects`
+   - Next.js route handler at `/api/krapi/k1/projects` (frontend port 3498)
+   - Proxies to backend: `http://localhost:3470/krapi/k1/projects` (internal)
 
 4. **Backend processes request:**
 
@@ -270,8 +291,9 @@ krapi.storage.delete(projectId, fileId); // DELETE /krapi/k1/projects/:id/storag
 2. **Use in Your Application:**
 
    ```typescript
+   // Use the FRONTEND URL (port 3498), not the backend URL
    await krapi.connect({
-     endpoint: "https://your-krapi-instance.com",
+     endpoint: "https://your-krapi-instance.com", // Frontend URL
      apiKey: "krapi_xxxxxxxxxxxxxxxxxxxx",
    });
    ```
@@ -326,8 +348,9 @@ npm install @smartsamurai/krapi-sdk
 // 2. Initialize
 import { krapi } from '@smartsamurai/krapi-sdk';
 
+// Use the FRONTEND URL (port 3498), not the backend URL (port 3470)
 await krapi.connect({
-  endpoint: 'https://your-krapi-instance.com',
+  endpoint: 'https://your-krapi-instance.com', // Frontend URL
   apiKey: 'your-api-key-here'
 });
 

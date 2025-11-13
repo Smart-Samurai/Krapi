@@ -6,11 +6,18 @@
  */
 
 export const CONFIG = {
-  // Base URLs for testing - MUST go through frontend
-  FRONTEND_URL: "http://localhost:3498",
+  // ⚠️ IMPORTANT: All tests simulate external third-party applications
+  // ALL requests MUST go through the FRONTEND (port 3498), NOT directly to backend (port 3470)
+  // This simulates how real external apps would connect to Krapi Server
+  
+  // Frontend URL - This is what external apps should use
+  FRONTEND_URL: "http://localhost:3498", // ✅ Use this for all SDK connections
   FRONTEND_API_URL: "http://localhost:3498/api", // Frontend API endpoints
-  BACKEND_URL: "http://localhost:3498/api", // Frontend API endpoints (not proxy)
-  DIRECT_BACKEND_URL: "http://localhost:3470", // Direct backend URL for health checks
+  
+  // Backend URL - DO NOT USE in tests (only for internal server-side code)
+  // Tests should NEVER connect directly to backend - always go through frontend
+  BACKEND_URL: "http://localhost:3470", // ⚠️ Internal only - not for external clients
+  DIRECT_BACKEND_URL: "http://localhost:3470", // ⚠️ Internal only - not for external clients
 
   // Test credentials
   ADMIN_CREDENTIALS: {

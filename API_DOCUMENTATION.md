@@ -11,12 +11,25 @@ Complete API reference for KRAPI backend database and file storage solution.
 
 ## Base URL
 
+**⚠️ Important for External Clients**: If you're using the SDK from an external application, connect to the **Frontend URL (port 3498)**, not the backend URL. See [SDK Usage](#sdk-usage) below.
+
+### Backend API Base URL (Internal/Direct Access)
+
 ```
 Development: http://localhost:3470
+Production: https://your-domain.com:3470
+```
+
+**Note**: The backend URL (port 3470) is for direct API access or server-side integrations. External client applications should use the Frontend URL (port 3498) via the SDK.
+
+### Frontend URL (External Clients)
+
+```
+Development: http://localhost:3498
 Production: https://your-domain.com
 ```
 
-All API endpoints are prefixed with `/krapi/k1`
+All API endpoints are prefixed with `/api/krapi/k1` when accessed through the frontend.
 
 ## Authentication
 
@@ -740,11 +753,11 @@ GET /documents?sort={"age":"desc","name":"asc"}
 KRAPI provides a TypeScript SDK for easy integration:
 
 ```typescript
-import { KrapiSDK } from '@smartsamurai/krapi-sdk';
+import { krapi } from '@smartsamurai/krapi-sdk';
 
-// Initialize SDK
-const krapi = await KrapiSDK.connect({
-  endpoint: 'http://localhost:3470',
+// Initialize SDK - Use FRONTEND URL for external applications
+await krapi.connect({
+  endpoint: 'http://localhost:3498', // ✅ Frontend URL (port 3498) for external clients
   apiKey: 'your-api-key'
 });
 
@@ -753,7 +766,15 @@ const projects = await krapi.projects.list();
 const documents = await krapi.collections.documents.list('project-id', 'collection-name');
 ```
 
+**⚠️ URL Configuration for External Clients**:
+- ✅ **Use Frontend URL**: `http://localhost:3498` (development) or `https://your-domain.com` (production)
+- ❌ **Don't use Backend URL**: `http://localhost:3470` - This is for internal/server-side use only
+
+The SDK automatically handles path normalization and will append `/api/krapi/k1` if needed.
+
 For complete SDK documentation, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
+
+For detailed architecture and connection guidance, see [ARCHITECTURE_DATA_FLOW.md](./ARCHITECTURE_DATA_FLOW.md).
 
 **Additional Resources:**
 - 📦 [NPM Package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)

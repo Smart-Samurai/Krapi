@@ -50,6 +50,7 @@
     "health": "npm run install:all && npm run lint:all && npm run type-check:all && npm run build:all",
     "dev:cleanup": "docker stop krapi-dev-postgres && docker rm krapi-dev-postgres && docker network rm krapi-dev-network",
     "test:comprehensive": "cd KRAPI-COMPREHENSIVE-TEST-SUITE && npm run test:comprehensive",
+    "test:one-click": "cd KRAPI-COMPREHENSIVE-TEST-SUITE && npm run test:one-click",
     "start:unified": "node scripts/start.js start",
     "stop:unified": "node scripts/start.js stop",
     "status:unified": "node scripts/start.js status",

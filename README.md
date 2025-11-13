@@ -252,8 +252,21 @@ pnpm run start:all
 
 Once started, access the application at:
 
-- **Frontend UI**: http://localhost:3498
-- **Backend API**: http://localhost:3470
+- **Frontend UI**: http://localhost:3498 (for web interface and external client connections)
+- **Backend API**: http://localhost:3470 (internal only, not for external clients)
+
+### Connection Guide
+
+**For External Applications:**
+- ✅ Connect to **Frontend URL** (port 3498): `http://localhost:3498` or `https://your-domain.com`
+- ✅ The frontend proxies requests to the backend automatically
+- ✅ Handles CORS, authentication, and routing
+
+**For Internal/Server-Side Code:**
+- ✅ Can connect directly to **Backend URL** (port 3470) for faster access
+- ✅ Use when building custom API layers (see [NEXTJS_API_ROUTES.md](./NEXTJS_API_ROUTES.md))
+
+**⚠️ Important**: External client applications should **always** use the Frontend URL (port 3498), never the Backend URL (port 3470).
 
 ### Default Admin Account
 
@@ -267,19 +280,38 @@ On first run, a default admin account is created:
 
 ### Using the SDK
 
-```typescript
-// In your frontend or backend application
-import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
+#### For External Client Applications
 
-const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
-  apiKey: 'your-api-key'
+**⚠️ CRITICAL: Always connect to the FRONTEND URL (port 3498), NOT the backend URL (port 3470).**
+
+```typescript
+// In your external application (web app, mobile app, etc.)
+import { krapi } from '@smartsamurai/krapi-sdk';
+
+// Connect to the FRONTEND URL (port 3498)
+await krapi.connect({
+  endpoint: 'https://your-krapi-instance.com', // Frontend URL (port 3498)
+  apiKey: 'your-api-key-here'
 });
 
 // Use it - no custom API calls needed!
 const projects = await krapi.projects.list();
 const documents = await krapi.collections.documents.list('project-id', 'collection-name');
 ```
+
+**Why the Frontend URL?**
+- The frontend (port 3498) acts as a proxy and handles CORS, routing, and authentication
+- The backend (port 3470) is internal-only and should not be exposed to external clients
+- The SDK automatically appends `/api/krapi/k1/` to your endpoint URL
+
+**✨ Enhanced SDK Features:**
+The SDK now includes automatic endpoint validation, health checks, retry logic, and improved error messages. All features are documented in the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
+
+**URL Examples:**
+- ✅ **Correct**: `https://your-krapi-instance.com` (frontend, port 3498)
+- ✅ **Correct**: `http://localhost:3498` (local development, frontend)
+- ❌ **Wrong**: `https://your-krapi-instance.com:3470` (backend port)
+- ❌ **Wrong**: `http://localhost:3470` (backend port)
 
 **Install the SDK:**
 ```bash
@@ -288,17 +320,38 @@ npm install @smartsamurai/krapi-sdk
 pnpm add @smartsamurai/krapi-sdk
 ```
 
-For complete SDK documentation, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
+For complete SDK documentation and architecture details, see:
+- [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
+- [ARCHITECTURE_DATA_FLOW.md](./ARCHITECTURE_DATA_FLOW.md) - Complete architecture and data flow documentation
 
 ## 📚 Documentation
 
+### Getting Started
+
+- **[ARCHITECTURE_DATA_FLOW.md](./ARCHITECTURE_DATA_FLOW.md)** - Complete architecture overview, data flow, and connection guide
+  - How external clients connect to Krapi Server
+  - URL configuration (frontend vs backend)
+  - Authentication and API key usage
+  - Complete integration examples
+
 ### API Documentation
 
-For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
+- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - Complete REST API reference
+  - All available endpoints
+  - Request/response formats
+  - Authentication methods
+  - Error handling
+
+### Integration Guides
+
+- **[NEXTJS_API_ROUTES.md](./NEXTJS_API_ROUTES.md)** - Using Krapi SDK in Next.js API routes
+  - Creating custom API layers
+  - Server-side integration patterns
+  - Authentication handling
 
 ### SDK Documentation
 
-For SDK usage and examples, see the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
+- **[@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)** - Official SDK documentation with all features and usage examples
 
 **Quick Links:**
 - 📦 [NPM Package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
@@ -308,7 +361,6 @@ For SDK usage and examples, see the [@smartsamurai/krapi-sdk npm package](https:
 ### Development Documentation
 
 - [JSDoc Template Guide](./JSDOC_TEMPLATE.md) - Standards for code documentation
-- [Documentation Status](./DOCUMENTATION_STATUS.md) - Current documentation progress
 - [Architecture Documentation](./backend-server/src/ARCHITECTURE_USERS.md) - User architecture details
 - [Project Structure](./backend-server/src/PROJECT_FOLDER_STRUCTURE.md) - Project organization
 

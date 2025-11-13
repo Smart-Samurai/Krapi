@@ -95,16 +95,42 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     if (!sdkInitialized) {
       const initSdk = async () => {
         try {
-          const endpoint = process.env.NEXT_PUBLIC_API_URL?.replace('/krapi/k1', '') || 'http://localhost:3470';
-          await krapi.connect({
+          // Frontend should connect to frontend URL (port 3498)
+          // SDK will automatically append /api/krapi/k1 and validate the endpoint
+          const endpoint = process.env.NEXT_PUBLIC_API_URL?.replace('/krapi/k1', '') || 'http://localhost:3498';
+          const connectConfig: any = {
             endpoint,
-          });
-          // eslint-disable-next-line no-console
-          console.log("✅ KRAPI SDK initialized in client mode");
+            // Enable retry logic for better reliability (if SDK supports it)
+            retry: {
+              enabled: true,
+              maxRetries: 3,
+              retryDelay: 1000, // 1 second
+              retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+            },
+          };
+          await krapi.connect(connectConfig);
+          
+          // Perform health check after connection (if SDK supports it)
+          try {
+            if (typeof (krapi as any).healthCheck === 'function') {
+              const isHealthy = await (krapi as any).healthCheck();
+              if (!isHealthy) {
+                // eslint-disable-next-line no-console
+                console.warn("⚠️ SDK health check failed - connection may be unstable");
+              } else {
+                // eslint-disable-next-line no-console
+                console.log("✅ KRAPI SDK initialized in client mode and healthy");
+              }
+            }
+          } catch (healthError) {
+            // eslint-disable-next-line no-console
+            console.warn("⚠️ SDK health check error:", healthError);
+          }
+          
           setSdkInitialized(true);
-        } catch (_error) {
+        } catch (error) {
           // eslint-disable-next-line no-console
-          console.error("❌ Failed to initialize KRAPI SDK:", _error);
+          console.error("❌ Failed to initialize KRAPI SDK:", error);
           setSdkInitialized(true); // Set to true anyway to prevent infinite retries
         }
       };

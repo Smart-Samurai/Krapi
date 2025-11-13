@@ -7,7 +7,32 @@ const API_BASE_URL = process.env.KRAPI_BASE_URL || 'http://localhost:3470';
 const API_KEY = process.env.KRAPI_API_KEY || '';
 
 function createClient(): KrapiSDK {
-  return new KrapiSDK({ baseUrl: API_BASE_URL, apiKey: API_KEY });
+  // MCP server connects directly to backend (port 3470) - this is correct for server-side code
+  // SDK will automatically handle path normalization and provide warnings if needed
+  const client = new KrapiSDK({ 
+    baseUrl: API_BASE_URL, 
+    apiKey: API_KEY,
+    // Enable retry logic for better reliability
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      retryDelay: 1000, // 1 second
+      retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+    },
+  });
+  
+  // Perform health check after creation (async, don't block)
+  client.healthCheck().then((isHealthy) => {
+    if (!isHealthy) {
+      console.warn('⚠️ MCP Server: SDK health check failed - connection may be unstable');
+    } else {
+      console.log('✅ MCP Server: SDK connected and healthy');
+    }
+  }).catch((error) => {
+    console.warn('⚠️ MCP Server: SDK health check error:', error);
+  });
+  
+  return client;
 }
 
 // Zod schemas for tool inputs
