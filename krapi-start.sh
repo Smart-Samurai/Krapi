@@ -26,13 +26,14 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-# Detect package manager
+# Detect package manager - KRAPI requires pnpm (uses pnpm workspaces)
 if command -v pnpm >/dev/null 2>&1; then
     PACKAGE_MANAGER="pnpm"
-elif command -v npm >/dev/null 2>&1; then
-    PACKAGE_MANAGER="npm"
 else
-    print_error "Neither npm nor pnpm found. Please install Node.js."
+    print_error "pnpm is required but not found. Please install pnpm:"
+    print_error "  npm install -g pnpm"
+    print_error "  or visit: https://pnpm.io/installation"
+    echo
     read -p "Press Enter to exit..."
     exit 1
 fi

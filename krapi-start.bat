@@ -31,7 +31,7 @@ if not exist "package.json" (
     exit /b 1
 )
 
-REM Detect package manager
+REM Detect package manager - KRAPI requires pnpm (uses pnpm workspaces)
 set "PACKAGE_MANAGER="
 where pnpm >nul 2>&1
 if !errorlevel! equ 0 (
@@ -39,13 +39,10 @@ if !errorlevel! equ 0 (
     goto :package_detected
 )
 
-where npm >nul 2>&1
-if !errorlevel! equ 0 (
-    set "PACKAGE_MANAGER=npm"
-    goto :package_detected
-)
-
-echo [ERROR] Neither npm nor pnpm found. Please install Node.js.
+echo [ERROR] pnpm is required but not found. Please install pnpm:
+echo [ERROR]   npm install -g pnpm
+echo [ERROR]   or visit: https://pnpm.io/installation
+echo.
 pause
 exit /b 1
 
