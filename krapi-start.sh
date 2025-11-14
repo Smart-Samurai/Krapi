@@ -31,17 +31,29 @@ NPMRC_BACKUP=""
 if command -v pnpm >/dev/null 2>&1; then
     PACKAGE_MANAGER="pnpm"
     echo "[INFO] Using pnpm (preferred)"
-    # Restore .npmrc if it was backed up
+    # Restore pnpm files if they were backed up
     if [ -f ".npmrc.pnpm" ]; then
         mv .npmrc.pnpm .npmrc 2>/dev/null || true
+    fi
+    if [ -f "pnpm-workspace.yaml.bak" ]; then
+        mv pnpm-workspace.yaml.bak pnpm-workspace.yaml 2>/dev/null || true
     fi
 elif command -v npm >/dev/null 2>&1; then
     PACKAGE_MANAGER="npm"
     echo "[INFO] Using npm (pnpm not found, npm will work but pnpm is recommended)"
-    # Backup .npmrc if it exists (contains pnpm-specific configs that npm can't parse)
+    # Backup pnpm-specific files that npm can't handle
     if [ -f ".npmrc" ]; then
         mv .npmrc .npmrc.pnpm 2>/dev/null || true
         echo "[INFO] Temporarily disabled .npmrc (contains pnpm-specific configs)"
+    fi
+    if [ -f "pnpm-workspace.yaml" ]; then
+        mv pnpm-workspace.yaml pnpm-workspace.yaml.bak 2>/dev/null || true
+        echo "[INFO] Temporarily disabled pnpm-workspace.yaml (npm uses package.json workspaces)"
+    fi
+    # Clean node_modules if they exist (may have been created by pnpm, causing conflicts)
+    if [ -d "node_modules" ]; then
+        echo "[INFO] Cleaning existing node_modules to avoid pnpm/npm conflicts..."
+        rm -rf node_modules 2>/dev/null || true
     fi
 else
     print_error "Neither npm nor pnpm found. Please install Node.js."
@@ -49,10 +61,15 @@ else
     exit 1
 fi
 
-# Cleanup function to restore .npmrc on exit
+# Cleanup function to restore pnpm files on exit
 cleanup_npmrc() {
-    if [ "$PACKAGE_MANAGER" = "npm" ] && [ -f ".npmrc.pnpm" ]; then
-        mv .npmrc.pnpm .npmrc 2>/dev/null || true
+    if [ "$PACKAGE_MANAGER" = "npm" ]; then
+        if [ -f ".npmrc.pnpm" ]; then
+            mv .npmrc.pnpm .npmrc 2>/dev/null || true
+        fi
+        if [ -f "pnpm-workspace.yaml.bak" ]; then
+            mv pnpm-workspace.yaml.bak pnpm-workspace.yaml 2>/dev/null || true
+        fi
     fi
 }
 trap cleanup_npmrc EXIT INT TERM
