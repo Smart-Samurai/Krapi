@@ -31,18 +31,32 @@ if not exist "package.json" (
     exit /b 1
 )
 
-REM Detect package manager - KRAPI requires pnpm (uses pnpm workspaces)
+REM Detect package manager (prefer pnpm, fallback to npm)
 set "PACKAGE_MANAGER="
 where pnpm >nul 2>&1
 if !errorlevel! equ 0 (
     set "PACKAGE_MANAGER=pnpm"
+    echo [INFO] Using pnpm (preferred)
+    REM Restore .npmrc if it was backed up
+    if exist ".npmrc.pnpm" (
+        move /Y .npmrc.pnpm .npmrc >nul 2>&1
+    )
     goto :package_detected
 )
 
-echo [ERROR] pnpm is required but not found. Please install pnpm:
-echo [ERROR]   npm install -g pnpm
-echo [ERROR]   or visit: https://pnpm.io/installation
-echo.
+where npm >nul 2>&1
+if !errorlevel! equ 0 (
+    set "PACKAGE_MANAGER=npm"
+    echo [INFO] Using npm (pnpm not found, npm will work but pnpm is recommended)
+    REM Backup .npmrc if it exists (contains pnpm-specific configs that npm can't parse)
+    if exist ".npmrc" (
+        move /Y .npmrc .npmrc.pnpm >nul 2>&1
+        echo [INFO] Temporarily disabled .npmrc (contains pnpm-specific configs)
+    )
+    goto :package_detected
+)
+
+echo [ERROR] Neither npm nor pnpm found. Please install Node.js.
 pause
 exit /b 1
 
@@ -77,6 +91,8 @@ echo [INFO] Step 2/5: Installing/updating dependencies...
 call :install_dependencies
 if !errorlevel! neq 0 (
     echo [ERROR] Dependency installation failed
+    REM Restore .npmrc on error
+    if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
     echo.
     pause
     exit /b 1
@@ -88,6 +104,8 @@ echo [INFO] Step 3/5: Building backend and frontend...
 call :build_all
 if !errorlevel! neq 0 (
     echo [ERROR] Build failed
+    REM Restore .npmrc on error
+    if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
     echo.
     pause
     exit /b 1
@@ -103,6 +121,8 @@ echo [INFO] Press Ctrl+C to stop services
 echo.
 call :start_prod
 set START_EXIT_CODE=!errorlevel!
+REM Restore .npmrc after completion
+if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
 if !START_EXIT_CODE! neq 0 (
     echo.
     echo [ERROR] Services stopped unexpectedly with exit code !START_EXIT_CODE!
@@ -119,6 +139,8 @@ call :init_environment
 call :install_dependencies
 if !errorlevel! neq 0 (
     echo [ERROR] Installation failed
+    REM Restore .npmrc on error
+    if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
     echo.
     pause
     exit /b 1
@@ -131,6 +153,8 @@ echo [INFO] Press Ctrl+C to stop services
 echo.
 call :start_dev
 set START_EXIT_CODE=!errorlevel!
+REM Restore .npmrc after completion
+if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
 if !START_EXIT_CODE! neq 0 (
     echo.
     echo [ERROR] Services stopped unexpectedly with exit code !START_EXIT_CODE!
@@ -186,6 +210,8 @@ echo [INFO] Installing/updating dependencies...
 call %PACKAGE_MANAGER% install
 if !errorlevel! neq 0 (
     echo [ERROR] Failed to install dependencies
+    REM Restore .npmrc on error
+    if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
     exit /b 1
 )
 echo [SUCCESS] Dependencies installed/updated
@@ -196,6 +222,8 @@ call :stop_running_services
 call %PACKAGE_MANAGER% run build:all
 if !errorlevel! neq 0 (
     echo [ERROR] Build failed
+    REM Restore .npmrc on error
+    if "%PACKAGE_MANAGER%"=="npm" if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
     exit /b 1
 )
 echo [SUCCESS] Build complete

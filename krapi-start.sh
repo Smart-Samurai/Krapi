@@ -26,17 +26,36 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-# Detect package manager - KRAPI requires pnpm (uses pnpm workspaces)
+# Detect package manager (prefer pnpm, fallback to npm)
+NPMRC_BACKUP=""
 if command -v pnpm >/dev/null 2>&1; then
     PACKAGE_MANAGER="pnpm"
+    echo "[INFO] Using pnpm (preferred)"
+    # Restore .npmrc if it was backed up
+    if [ -f ".npmrc.pnpm" ]; then
+        mv .npmrc.pnpm .npmrc 2>/dev/null || true
+    fi
+elif command -v npm >/dev/null 2>&1; then
+    PACKAGE_MANAGER="npm"
+    echo "[INFO] Using npm (pnpm not found, npm will work but pnpm is recommended)"
+    # Backup .npmrc if it exists (contains pnpm-specific configs that npm can't parse)
+    if [ -f ".npmrc" ]; then
+        mv .npmrc .npmrc.pnpm 2>/dev/null || true
+        echo "[INFO] Temporarily disabled .npmrc (contains pnpm-specific configs)"
+    fi
 else
-    print_error "pnpm is required but not found. Please install pnpm:"
-    print_error "  npm install -g pnpm"
-    print_error "  or visit: https://pnpm.io/installation"
-    echo
+    print_error "Neither npm nor pnpm found. Please install Node.js."
     read -p "Press Enter to exit..."
     exit 1
 fi
+
+# Cleanup function to restore .npmrc on exit
+cleanup_npmrc() {
+    if [ "$PACKAGE_MANAGER" = "npm" ] && [ -f ".npmrc.pnpm" ]; then
+        mv .npmrc.pnpm .npmrc 2>/dev/null || true
+    fi
+}
+trap cleanup_npmrc EXIT INT TERM
 
 echo "========================================"
 echo "  KRAPI Start Script"
@@ -78,6 +97,7 @@ if [ "$MODE" = "dev" ]; then
     # Always run install to update dependencies (especially SDK to latest)
     if ! $PACKAGE_MANAGER install; then
         print_error "Failed to install dependencies"
+        cleanup_npmrc
         echo
         read -p "Press Enter to exit..."
         exit 1
@@ -93,9 +113,14 @@ if [ "$MODE" = "dev" ]; then
         EXIT_CODE=$?
         echo
         print_error "Services stopped unexpectedly with exit code $EXIT_CODE"
+        cleanup_npmrc
+        echo
         read -p "Press Enter to exit..."
         exit $EXIT_CODE
     fi
+    
+    # Restore .npmrc before exiting normally
+    cleanup_npmrc
     read -p "Press Enter to exit..."
     exit 0
 fi
@@ -125,6 +150,7 @@ echo
 print_status "Step 2/4: Building backend and frontend..."
 if ! $PACKAGE_MANAGER run build:all; then
     print_error "Build failed"
+    cleanup_npmrc
     echo
     read -p "Press Enter to exit..."
     exit 1
@@ -143,8 +169,13 @@ if ! $PACKAGE_MANAGER run start:all; then
     EXIT_CODE=$?
     echo
     print_error "Services stopped unexpectedly with exit code $EXIT_CODE"
+    cleanup_npmrc
+    echo
     read -p "Press Enter to exit..."
     exit $EXIT_CODE
 fi
+
+# Restore .npmrc before exiting normally
+cleanup_npmrc
 read -p "Press Enter to exit..."
 exit 0
