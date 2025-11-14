@@ -158,6 +158,10 @@ const monitor = KrapiMonitor.getInstance({
 // Create Express app
 const app: Express = express();
 
+// Trust proxy - required when behind reverse proxy (Nginx, NPM, etc.)
+// This allows Express to correctly read X-Forwarded-* headers
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet());
 
@@ -169,11 +173,23 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((origin) =>
   "http://localhost:3498", // Frontend default port
   "http://localhost:3000", // Alternative frontend port
 ];
+
+// When behind a reverse proxy (NPM, Nginx, etc.), allow all origins
+// The reverse proxy handles security, and we trust it via trust proxy setting
+// Default is true (most deployments use a reverse proxy for internet access)
+// Only set to false if explicitly disabled (BEHIND_PROXY=false)
+// Production mode always enables proxy mode
+const isBehindProxy = process.env.NODE_ENV === "production" || process.env.BEHIND_PROXY !== "false";
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
+        return callback(null, true);
+      }
+      // When behind a reverse proxy, allow all origins (proxy handles security)
+      if (isBehindProxy) {
         return callback(null, true);
       }
       if (allowedOrigins.includes(origin)) {
@@ -221,10 +237,33 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Rate limiting
+// When behind a proxy, use a custom key generator that uses X-Forwarded-For header
 const generalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"), // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000"), // Increased from 100 to 1000
   message: "Too many requests from this IP, please try again later.",
+  // Use X-Forwarded-For header when behind proxy, fallback to req.ip
+  keyGenerator: (req) => {
+    // When trust proxy is enabled, req.ip will use X-Forwarded-For
+    // But we need to explicitly handle it for rate limiting
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded && typeof forwarded === 'string') {
+      // X-Forwarded-For can contain multiple IPs, take the first one
+      const firstIp = forwarded.split(',')[0];
+      if (firstIp) {
+        return firstIp.trim();
+      }
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  },
+  // Disable trust proxy validation since we handle it manually
+  validate: {
+    trustProxy: false, // Tell rate limiter we're handling proxy detection ourselves
+  },
+  // Skip rate limiting for health checks
+  skip: (req) => {
+    return req.path === '/krapi/k1/health' || req.path === '/health';
+  },
 });
 
 app.use("/krapi/k1", generalLimiter);

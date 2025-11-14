@@ -85,7 +85,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { FieldType, type Collection, type CollectionField } from "@/lib/krapi";
+import { FieldType, type FieldTypeType, type Collection, type CollectionField } from "@/lib/krapi";
 import {
   fetchCollections,
   createCollection,
@@ -106,7 +106,7 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
  */
 // Common field type icons - only include the most commonly used types for UI
 const fieldTypeIcons: Partial<
-  Record<FieldType, React.ComponentType<{ className?: string }>>
+  Record<FieldTypeType, React.ComponentType<{ className?: string }>>
 > = {
   [FieldType.string]: Type,
   [FieldType.text]: FileText,
@@ -149,7 +149,7 @@ const fieldTypeIcons: Partial<
  * @constant {Record<FieldType, string>}
  */
 // Field type labels for display
-const fieldTypeLabels: Record<FieldType, string> = {
+const fieldTypeLabels: Record<FieldTypeType, string> = {
   [FieldType.string]: "String",
   [FieldType.text]: "Text (Long)",
   [FieldType.number]: "Number",
@@ -188,7 +188,6 @@ export default function CollectionsPage() {
   }
   const router = useRouter();
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector(
     (s) => s.collections.byProjectId[projectId]
@@ -211,9 +210,8 @@ export default function CollectionsPage() {
   });
 
   const loadCollections = useCallback(() => {
-    if (!krapi) return;
-    dispatch(fetchCollections({ projectId, krapi }));
-  }, [dispatch, projectId, krapi]);
+    dispatch(fetchCollections({ projectId }));
+  }, [dispatch, projectId]);
 
   useEffect(() => {
     loadCollections();
@@ -270,12 +268,6 @@ export default function CollectionsPage() {
         };
       });
 
-      if (!krapi) {
-        setError("KRAPI client not initialized");
-        toast.error("KRAPI client not initialized");
-        dispatch(endBusy());
-        return;
-      }
       const action = await dispatch(
         createCollection({
           projectId,
@@ -284,7 +276,6 @@ export default function CollectionsPage() {
             description: formData.description.trim() || undefined,
             fields: cleanedFields,
           },
-          krapi,
         })
       );
       if (createCollection.fulfilled.match(action)) {
@@ -311,10 +302,6 @@ export default function CollectionsPage() {
 
   const handleUpdateCollection = async () => {
     if (!editingCollection) return;
-    if (!krapi) {
-      toast.error("KRAPI client not initialized");
-      return;
-    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
@@ -325,7 +312,6 @@ export default function CollectionsPage() {
             description: formData.description,
             fields: formData.fields,
           },
-          krapi,
         })
       );
       if (updateCollection.fulfilled.match(action)) {
@@ -357,14 +343,10 @@ export default function CollectionsPage() {
       return;
     }
 
-    if (!krapi) {
-      toast.error("KRAPI client not initialized");
-      return;
-    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        deleteCollection({ projectId, collectionId, krapi })
+        deleteCollection({ projectId, collectionId })
       );
       if (deleteCollection.fulfilled.match(action)) {
         loadCollections();
@@ -385,19 +367,17 @@ export default function CollectionsPage() {
   };
 
   const addField = () => {
+    const newField: CollectionField & { _tempId?: string } = {
+      name: "",
+      type: FieldType.string as unknown as CollectionField["type"],
+      required: false,
+      unique: false,
+      indexed: false,
+      _tempId: `field-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    };
     setFormData((prev) => ({
       ...prev,
-      fields: [
-        ...prev.fields,
-        {
-          name: "",
-          type: FieldType.string,
-          required: false,
-          unique: false,
-          indexed: false,
-          _tempId: `field-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        },
-      ],
+      fields: [...prev.fields, newField],
     }));
   };
 
@@ -408,7 +388,7 @@ export default function CollectionsPage() {
     }));
   };
 
-  const updateField = (index: number, field: Partial<CollectionField>) => {
+  const updateField = (index: number, field: Partial<CollectionField & { _tempId?: string }>) => {
     setFormData((prev) => ({
       ...prev,
       fields: prev.fields.map((f, i) => (i === index ? { ...f, ...field } : f)),
@@ -532,9 +512,9 @@ export default function CollectionsPage() {
                               }}
                             />
                             <Select
-                              value={field.type}
-                              onValueChange={(value: FieldType) =>
-                                updateField(_index, { type: value })
+                              value={(field.type || (FieldType.string as string)) as string}
+                              onValueChange={(value: string) =>
+                                updateField(_index, { type: value as CollectionField["type"] })
                               }
                             >
                               <SelectTrigger>
@@ -544,7 +524,7 @@ export default function CollectionsPage() {
                                 {Object.entries(fieldTypeLabels).map(
                                   ([value, label]) => {
                                     const Icon =
-                                      fieldTypeIcons[value as FieldType] ||
+                                      fieldTypeIcons[value as FieldTypeType] ||
                                       Type;
                                     return (
                                       <SelectItem key={value} value={value}>
@@ -1019,9 +999,9 @@ response = requests.delete(
                           }}
                         />
                         <Select
-                          value={field.type}
-                          onValueChange={(value: FieldType) =>
-                            updateField(_index, { type: value })
+                          value={(field.type || FieldType.string) as string}
+                          onValueChange={(value: string) =>
+                            updateField(_index, { type: value as CollectionField["type"] })
                           }
                         >
                           <SelectTrigger>
@@ -1031,7 +1011,7 @@ response = requests.delete(
                             {Object.entries(fieldTypeLabels).map(
                               ([value, label]) => {
                                 const Icon =
-                                  fieldTypeIcons[value as FieldType] || Type;
+                                  fieldTypeIcons[value as FieldTypeType] || Type;
                                 return (
                                   <SelectItem key={value} value={value}>
                                     <div className="flex items-center gap-2">

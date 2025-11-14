@@ -1,6 +1,5 @@
+import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
-
-import { krapi } from "@/lib/krapi";
 
 /**
  * Project user login

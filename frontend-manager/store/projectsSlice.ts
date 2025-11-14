@@ -4,9 +4,19 @@ import {
   createSlice,
   PayloadAction,
 } from "@reduxjs/toolkit";
-import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 
 import type { Project } from "@/lib/krapi";
+
+// Helper to get auth token from cookies/localStorage
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const cookies = document.cookie.split(";");
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === "session_token" && value) return value;
+  }
+  return localStorage.getItem("session_token");
+}
 
 // Types
 export interface ProjectsState {
@@ -20,19 +30,33 @@ export interface ProjectsState {
 export const fetchProjects = createAsyncThunk(
   "projects/fetchAll",
   async (
-    { krapi }: { krapi: KrapiWrapper },
+    _args: Record<string, never> = {},
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK getAll() returns Project[] directly, not wrapped in ApiResponse
-      const projects = await krapi.projects.getAll();
-      return Array.isArray(projects) ? projects : [];
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch("/api/projects", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to fetch projects" }));
+        return rejectWithValue(error.error || "Failed to fetch projects");
+      }
+
+      const result = await response.json();
+      return result.success ? (result.data || result.projects || []) : [];
     } catch (error: unknown) {
-      // eslint-disable-next-line no-console
-      console.error("❌ [REDUX DEBUG] Exception in fetchProjects:", error);
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch projects"
       );
@@ -43,16 +67,32 @@ export const fetchProjects = createAsyncThunk(
 export const fetchProjectById = createAsyncThunk(
   "projects/fetchById",
   async (
-    { id, krapi }: { id: string; krapi: KrapiWrapper },
+    { id }: { id: string },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK get() returns Project directly, not wrapped in ApiResponse
-      const project = await krapi.projects.get(id);
-      return project;
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch(`/api/projects/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to fetch project" }));
+        return rejectWithValue(error.error || "Failed to fetch project");
+      }
+
+      const result = await response.json();
+      return result.success ? (result.data || result.project) : null;
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch project"
@@ -66,14 +106,12 @@ export const createProject = createAsyncThunk(
   async (
     {
       data,
-      krapi,
     }: {
       data: {
         name: string;
         description?: string;
         settings?: Record<string, unknown>;
       };
-      krapi: KrapiWrapper;
     },
     {
       getState: _getState,
@@ -81,9 +119,27 @@ export const createProject = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK create() returns Project directly, not wrapped in ApiResponse
-      const project = await krapi.projects.create(data);
-      return project;
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to create project" }));
+        return rejectWithValue(error.error || "Failed to create project");
+      }
+
+      const result = await response.json();
+      return result.success ? (result.data || result.project) : null;
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create project"
@@ -98,22 +154,38 @@ export const updateProject = createAsyncThunk(
     {
       id,
       updates,
-      krapi,
-    }: { id: string; updates: Partial<Project>; krapi: KrapiWrapper },
+    }: { id: string; updates: Partial<Project> },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK update() returns Project directly, not wrapped in ApiResponse
-      const project = await krapi.projects.update(id, updates);
-      return project;
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch(`/api/projects/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to update project" }));
+        return rejectWithValue(error.error || "Failed to update project");
+      }
+
+      const result = await response.json();
+      return result.success ? (result.data || result.project) : null;
     } catch (error: unknown) {
-      // eslint-disable-next-line no-console
-      console.error("❌ [REDUX DEBUG] Exception in updateProject:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      return rejectWithValue(`Failed to update project: ${errorMessage}`);
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update project"
+      );
     }
   }
 );

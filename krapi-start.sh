@@ -67,11 +67,13 @@ if [ "$MODE" = "dev" ]; then
     print_status "Starting in DEVELOPMENT mode..."
     echo
     
+    # Initialize environment files
+    # Always run init-env to create missing files or merge new variables from env.example
+    print_status "Initializing environment files..."
+    $PACKAGE_MANAGER run init-env 2>&1 || true
+    
     # Install dependencies
     print_status "Installing/updating dependencies..."
-    if [ ! -f ".env" ]; then
-        $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
-    fi
     # Always run install to update dependencies (especially SDK to latest)
     if ! $PACKAGE_MANAGER install; then
         print_error "Failed to install dependencies"
@@ -101,11 +103,13 @@ fi
 print_status "Auto-starting: Installing, building, and starting PRODUCTION mode..."
 echo
 
+# Step 0: Initialize environment files
+print_status "Step 0/4: Initializing environment files..."
+# Always run init-env to create missing files or merge new variables from env.example
+$PACKAGE_MANAGER run init-env 2>&1 || true
+
 # Step 1: Install dependencies
-print_status "Step 1/3: Installing/updating dependencies..."
-if [ ! -f ".env" ]; then
-    $PACKAGE_MANAGER run init-env >/dev/null 2>&1 || true
-fi
+print_status "Step 1/4: Installing/updating dependencies..."
 # Always run install to update dependencies (especially SDK to latest)
 if ! $PACKAGE_MANAGER install; then
     print_error "Failed to install dependencies"
@@ -117,7 +121,7 @@ print_success "Dependencies installed/updated"
 echo
 
 # Step 2: Build all
-print_status "Step 2/3: Building backend and frontend..."
+print_status "Step 2/4: Building backend and frontend..."
 if ! $PACKAGE_MANAGER run build:all; then
     print_error "Build failed"
     echo
@@ -128,7 +132,7 @@ print_success "Build complete"
 echo
 
 # Step 3: Start production
-print_status "Step 3/3: Starting production services..."
+print_status "Step 3/4: Starting production services..."
 echo "[INFO] Backend API: http://localhost:3470"
 echo "[INFO] Frontend UI: http://localhost:3498"
 echo "[INFO] Database will be initialized automatically if missing"

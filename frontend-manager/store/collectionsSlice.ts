@@ -4,9 +4,19 @@ import {
   createSlice,
   PayloadAction,
 } from "@reduxjs/toolkit";
-import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 
 import type { Collection, CollectionField, CollectionIndex } from "@/lib/krapi";
+
+// Helper to get auth token from cookies/localStorage
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const cookies = document.cookie.split(";");
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === "session_token" && value) return value;
+  }
+  return localStorage.getItem("session_token");
+}
 
 // Types
 interface CollectionsBucket {
@@ -23,19 +33,33 @@ export interface CollectionsState {
 export const fetchCollections = createAsyncThunk(
   "collections/fetchAll",
   async (
-    { projectId, krapi }: { projectId: string; krapi: KrapiWrapper },
+    { projectId }: { projectId: string },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK getAll() returns Collection[] directly, not wrapped in ApiResponse
-      const collections = await krapi.collections.getAll(projectId);
-      return { projectId, collections: Array.isArray(collections) ? collections : [] };
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/collections`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to fetch collections" }));
+        return rejectWithValue(error.error || "Failed to fetch collections");
+      }
+
+      const result = await response.json();
+      return { projectId, collections: result.success ? (result.data || []) : [] };
     } catch (error: unknown) {
-      // eslint-disable-next-line no-console
-      console.error("❌ [REDUX DEBUG] Exception fetching collections:", error);
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch collections"
       );
@@ -49,7 +73,6 @@ export const createCollection = createAsyncThunk(
     {
       projectId,
       data,
-      krapi,
     }: {
       projectId: string;
       data: {
@@ -58,7 +81,6 @@ export const createCollection = createAsyncThunk(
         fields: CollectionField[];
         indexes?: CollectionIndex[];
       };
-      krapi: KrapiWrapper;
     },
     {
       getState: _getState,
@@ -66,8 +88,12 @@ export const createCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK create() returns Collection directly, not wrapped in ApiResponse
-      // Convert FieldDefinition[] to SDK format (validation needs to be Record<string, unknown>)
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      // Convert fields to SDK format
       const sdkData = {
         name: data.name,
         description: data.description,
@@ -77,8 +103,8 @@ export const createCollection = createAsyncThunk(
           required: field.required,
           unique: field.unique,
           indexed: field.indexed,
-          default: field.default_value ?? field.default,
-          validation: field.validation ? (field.validation as Record<string, unknown>) : undefined,
+          default: (field as { default_value?: unknown; default?: unknown }).default_value ?? (field as { default_value?: unknown; default?: unknown }).default,
+          validation: (field as { validation?: Record<string, unknown> }).validation,
         })),
         indexes: data.indexes?.map((idx) => ({
           name: idx.name,
@@ -86,47 +112,32 @@ export const createCollection = createAsyncThunk(
           unique: idx.unique,
         })),
       };
-      const collection = await krapi.collections.create(projectId, sdkData);
-      return { projectId, collection };
-    } catch (error: unknown) {
-      // eslint-disable-next-line no-console
-      console.error("❌ [REDUX DEBUG] Collection create exception:", error);
-      
-      // Try to extract error details from axios error
-      let errorMessage = "Failed to create collection";
-      let issues: string[] = [];
-      
-      if (error && typeof error === "object") {
-        // Check for axios error with response data
-        const axiosError = error as {
-          response?: {
-            data?: {
-              error?: string;
-              message?: string;
-              issues?: string[];
-            };
-            status?: number;
-          };
-          message?: string;
-        };
-        
-        if (axiosError.response?.data) {
-          errorMessage = axiosError.response.data.error || axiosError.response.data.message || errorMessage;
-          issues = axiosError.response.data.issues || [];
-        } else if (axiosError.message) {
-          errorMessage = axiosError.message;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
+
+      const response = await fetch(`/api/projects/${projectId}/collections`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(sdkData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to create collection" }));
+        const errorData = error.error || error.message || "Failed to create collection";
+        const issues = error.issues || [];
+        const fullError = issues.length > 0 
+          ? `${errorData}: ${issues.join(", ")}`
+          : errorData;
+        return rejectWithValue(fullError);
       }
-      
-      const fullError = issues.length > 0 
-        ? `${errorMessage}: ${issues.join(", ")}`
-        : errorMessage;
-      
-      // eslint-disable-next-line no-console
-      console.error("❌ [REDUX DEBUG] Full error details:", { errorMessage, issues, fullError });
-      return rejectWithValue(fullError);
+
+      const result = await response.json();
+      return { projectId, collection: result.success ? result.data : null };
+    } catch (error: unknown) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to create collection"
+      );
     }
   }
 );
@@ -138,12 +149,10 @@ export const updateCollection = createAsyncThunk(
       projectId,
       collectionId,
       updates,
-      krapi,
     }: {
       projectId: string;
       collectionId: string;
       updates: Partial<Collection>;
-      krapi: KrapiWrapper;
     },
     {
       getState: _getState,
@@ -151,8 +160,12 @@ export const updateCollection = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK update() returns Collection directly, not wrapped in ApiResponse
-      // Convert updates to SDK format (validation needs to be Record<string, unknown>)
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      // Convert updates to SDK format
       const sdkUpdates: {
         description?: string;
         fields?: Array<{
@@ -178,8 +191,8 @@ export const updateCollection = createAsyncThunk(
           required: field.required,
           unique: field.unique,
           indexed: field.indexed,
-          default: field.default_value ?? field.default,
-          validation: field.validation ? (field.validation as Record<string, unknown>) : undefined,
+          default: (field as { default_value?: unknown; default?: unknown }).default_value ?? (field as { default_value?: unknown; default?: unknown }).default,
+          validation: (field as { validation?: Record<string, unknown> }).validation,
         }));
       }
       if (updates.indexes) {
@@ -189,12 +202,23 @@ export const updateCollection = createAsyncThunk(
           unique: idx.unique,
         }));
       }
-      const collection = await krapi.collections.update(
-        projectId,
-        collectionId,
-        sdkUpdates
-      );
-      return { projectId, collection };
+
+      const response = await fetch(`/api/projects/${projectId}/collections/${collectionId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(sdkUpdates),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to update collection" }));
+        return rejectWithValue(error.error || "Failed to update collection");
+      }
+
+      const result = await response.json();
+      return { projectId, collection: result.success ? result.data : null };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update collection"
@@ -209,13 +233,29 @@ export const deleteCollection = createAsyncThunk(
     {
       projectId,
       collectionId,
-      krapi,
-    }: { projectId: string; collectionId: string; krapi: KrapiWrapper },
+    }: { projectId: string; collectionId: string },
     { getState: _getState, rejectWithValue }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK delete() returns { success: boolean } directly, not wrapped in ApiResponse
-      const result = await krapi.collections.delete(projectId, collectionId);
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/collections/${collectionId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to delete collection" }));
+        return rejectWithValue(error.error || "Failed to delete collection");
+      }
+
+      const result = await response.json();
       if (result.success) {
         return { projectId, collectionId };
       } else {

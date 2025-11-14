@@ -3,9 +3,19 @@ import {
   createAsyncThunk,
   createSlice,
 } from "@reduxjs/toolkit";
-import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 
 import type { ProjectUser } from "@/lib/krapi";
+
+// Helper to get auth token from cookies/localStorage
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const cookies = document.cookie.split(";");
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === "session_token" && value) return value;
+  }
+  return localStorage.getItem("session_token");
+}
 
 // Types
 interface UsersBucket {
@@ -27,19 +37,39 @@ const initialState: UsersState = {
 export const fetchUsers = createAsyncThunk(
   "users/fetchAll",
   async (
-    { projectId, search, krapi }: { projectId: string; search?: string; krapi: KrapiWrapper },
+    { projectId, search }: { projectId: string; search?: string },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK getAll() returns ProjectUser[] directly, not wrapped in ApiResponse
-      const users = await krapi.users.getAll(projectId, {
-        search,
-        limit: 200,
-      });
-      return { projectId, users: Array.isArray(users) ? users : [] };
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const searchParams = new URLSearchParams();
+      if (search) searchParams.set("search", search);
+      searchParams.set("limit", "200");
+
+      const response = await fetch(
+        `/api/projects/${projectId}/users?${searchParams.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to fetch users" }));
+        return rejectWithValue(error.error || "Failed to fetch users");
+      }
+
+      const result = await response.json();
+      return { projectId, users: result.success ? (result.data || []) : [] };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch users"
@@ -54,11 +84,9 @@ export const createUser = createAsyncThunk(
     {
       projectId,
       data,
-      krapi,
     }: {
       projectId: string;
       data: { email: string; role?: string; name?: string };
-      krapi: KrapiWrapper;
     },
     {
       getState: _getState,
@@ -66,17 +94,36 @@ export const createUser = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
       // Transform the data to match SDK expectations
       const userData = {
-        username: data.email.split("@")[0] || "user", // Generate username from email, ensure it's never undefined
+        username: data.email.split("@")[0] || "user",
         email: data.email,
-        password: Math.random().toString(36).slice(-8), // Generate random password
-        role: data.role, // SDK expects role, not permissions
-        permissions: data.role ? [data.role] : [], // Use SDK property name
+        password: Math.random().toString(36).slice(-8),
+        role: data.role,
+        permissions: data.role ? [data.role] : [],
       };
-      // SDK create() returns ProjectUser directly, not wrapped in ApiResponse
-      const user = await krapi.users.create(projectId, userData);
-      return { projectId, user };
+
+      const response = await fetch(`/api/projects/${projectId}/users`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to create user" }));
+        return rejectWithValue(error.error || "Failed to create user");
+      }
+
+      const result = await response.json();
+      return { projectId, user: result.success ? result.data : null };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create user"
@@ -92,12 +139,10 @@ export const updateUser = createAsyncThunk(
       projectId,
       userId,
       updates,
-      krapi,
     }: {
       projectId: string;
       userId: string;
       updates: Partial<{ email: string; role: string; name: string }>;
-      krapi: KrapiWrapper;
     },
     {
       getState: _getState,
@@ -105,7 +150,11 @@ export const updateUser = createAsyncThunk(
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK update() returns ProjectUser directly, not wrapped in ApiResponse
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
       // Transform frontend updates format to SDK format
       const sdkUpdates: {
         username?: string;
@@ -124,8 +173,23 @@ export const updateUser = createAsyncThunk(
         sdkUpdates.first_name = nameParts[0] || "";
         sdkUpdates.last_name = nameParts.slice(1).join(" ") || "";
       }
-      const user = await krapi.users.update(projectId, userId, sdkUpdates);
-      return { projectId, user };
+
+      const response = await fetch(`/api/projects/${projectId}/users/${userId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(sdkUpdates),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to update user" }));
+        return rejectWithValue(error.error || "Failed to update user");
+      }
+
+      const result = await response.json();
+      return { projectId, user: result.success ? result.data : null };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update user"
@@ -137,15 +201,32 @@ export const updateUser = createAsyncThunk(
 export const deleteUser = createAsyncThunk(
   "users/delete",
   async (
-    { projectId, userId, krapi }: { projectId: string; userId: string; krapi: KrapiWrapper },
+    { projectId, userId }: { projectId: string; userId: string },
     {
       getState: _getState,
       rejectWithValue,
     }: { getState: unknown; rejectWithValue: (value: string) => unknown }
   ) => {
     try {
-      // SDK delete() returns { success: boolean } directly, not wrapped in ApiResponse
-      const result = await krapi.users.delete(projectId, userId);
+      const token = getAuthToken();
+      if (!token) {
+        return rejectWithValue("Authentication required");
+      }
+
+      const response = await fetch(`/api/projects/${projectId}/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to delete user" }));
+        return rejectWithValue(error.error || "Failed to delete user");
+      }
+
+      const result = await response.json();
       if (result.success) {
         return { projectId, userId };
       } else {

@@ -20,7 +20,19 @@
  */
 "use client";
 
-import { type ApiKey } from "@smartsamurai/krapi-sdk";
+// Local type definition for ApiKey (to avoid importing SDK in client)
+type ApiKey = {
+  id: string;
+  name: string;
+  project_id: string;
+  key?: string;
+  scopes: string[];
+  is_active: boolean;
+  expires_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, unknown>;
+};
 import {
   Plus,
   Edit,
@@ -89,7 +101,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useKrapi } from "@/lib/hooks/useKrapi";
+// Helper to get auth token
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  const cookies = document.cookie.split(";");
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === "session_token" && value) return value;
+  }
+  return localStorage.getItem("session_token");
+}
 import { ProjectScope } from "@/lib/krapi";
 
 /**
@@ -133,7 +154,6 @@ export default function ApiKeysPage() {
     throw new Error("Project ID is required");
   }
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
 
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -159,45 +179,75 @@ export default function ApiKeysPage() {
   });
 
   const loadApiKeys = useCallback(async () => {
-    if (!krapi?.apiKeys) return;
+    const token = getAuthToken();
+    if (!token) {
+      setError("Authentication required");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await krapi.apiKeys.getAll(projectId);
-      // The getAll method now returns the data array directly
-      if (Array.isArray(result)) {
-        setApiKeys(result as unknown as ApiKey[]);
+      const response = await fetch(`/api/krapi/k1/apikeys?project_id=${projectId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch API keys");
+      }
+
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        setApiKeys(result.data as ApiKey[]);
       } else {
         setError("Invalid response format");
       }
     } catch {
       setError("An error occurred while loading API keys");
-      // Error logged for debugging
     } finally {
       setIsLoading(false);
     }
-  }, [krapi, projectId]);
+  }, [projectId]);
 
   useEffect(() => {
-    if (krapi) {
-      loadApiKeys();
-    }
-  }, [krapi, loadApiKeys]);
+    loadApiKeys();
+  }, [loadApiKeys]);
 
   const handleCreateApiKey = async () => {
-    if (!krapi?.apiKeys) return;
+    const token = getAuthToken();
+    if (!token) {
+      setError("Authentication required");
+      return;
+    }
 
     try {
-      const result = await krapi.apiKeys.create(projectId, {
-        name: formData.name,
-        scopes: formData.scopes,
-        expires_at: formData.expires_at || undefined,
-        metadata: formData.metadata,
+      const response = await fetch(`/api/krapi/k1/apikeys`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          name: formData.name,
+          scopes: formData.scopes,
+          expires_at: formData.expires_at || undefined,
+          metadata: formData.metadata,
+        }),
       });
 
-      if (result) {
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to create API key" }));
+        setError(error.error || "Failed to create API key");
+        return;
+      }
+
+      const result = await response.json();
+      if (result.success) {
         setIsCreateDialogOpen(false);
         setFormData({
           name: "",
@@ -211,23 +261,43 @@ export default function ApiKeysPage() {
       }
     } catch {
       setError("An error occurred while creating API key");
-      // Error logged for debugging
     }
   };
 
   const handleUpdateApiKey = async () => {
-    if (!krapi?.apiKeys || !editingApiKey) return;
+    if (!editingApiKey) return;
+
+    const token = getAuthToken();
+    if (!token) {
+      setError("Authentication required");
+      return;
+    }
 
     try {
-      const result = await krapi.apiKeys.update(projectId, editingApiKey.id, {
-        name: formData.name,
-        scopes: formData.scopes,
-        expires_at: formData.expires_at || undefined,
-        is_active: editingApiKey.is_active,
-        metadata: formData.metadata,
+      const response = await fetch(`/api/krapi/k1/apikeys/${editingApiKey.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          name: formData.name,
+          scopes: formData.scopes,
+          expires_at: formData.expires_at || undefined,
+          is_active: editingApiKey.is_active,
+          metadata: formData.metadata,
+        }),
       });
 
-      if (result) {
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to update API key" }));
+        setError(error.error || "Failed to update API key");
+        return;
+      }
+
+      const result = await response.json();
+      if (result.success) {
         setIsEditDialogOpen(false);
         setEditingApiKey(null);
         setFormData({
@@ -242,12 +312,15 @@ export default function ApiKeysPage() {
       }
     } catch {
       setError("An error occurred while updating API key");
-      // Error logged for debugging
     }
   };
 
   const handleDeleteApiKey = async (keyId: string) => {
-    if (!krapi?.apiKeys) return;
+    const token = getAuthToken();
+    if (!token) {
+      setError("Authentication required");
+      return;
+    }
 
     if (
       !confirm(
@@ -258,7 +331,21 @@ export default function ApiKeysPage() {
     }
 
     try {
-      const result = await krapi.apiKeys.delete(projectId, keyId);
+      const response = await fetch(`/api/krapi/k1/apikeys/${keyId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to delete API key" }));
+        setError(error.error || "Failed to delete API key");
+        return;
+      }
+
+      const result = await response.json();
       if (result.success) {
         loadApiKeys();
       } else {
@@ -266,12 +353,15 @@ export default function ApiKeysPage() {
       }
     } catch {
       setError("An error occurred while deleting API key");
-      // Error logged for debugging
     }
   };
 
   const handleRegenerateApiKey = async (keyId: string) => {
-    if (!krapi?.apiKeys) return;
+    const token = getAuthToken();
+    if (!token) {
+      setError("Authentication required");
+      return;
+    }
 
     if (
       !confirm(
@@ -282,15 +372,29 @@ export default function ApiKeysPage() {
     }
 
     try {
-      const result = await krapi.apiKeys.regenerate(projectId, keyId);
-      if (result) {
+      const response = await fetch(`/api/krapi/k1/apikeys/${keyId}/regenerate`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to regenerate API key" }));
+        setError(error.error || "Failed to regenerate API key");
+        return;
+      }
+
+      const result = await response.json();
+      if (result.success) {
         loadApiKeys();
       } else {
         setError("Failed to regenerate API key");
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : "An error occurred while regenerating API key");
-      // Error logged for debugging
     }
   };
 
@@ -322,12 +426,12 @@ export default function ApiKeysPage() {
     setIsEditDialogOpen(true);
   };
 
-  const isExpired = (expiresAt?: string) => {
+  const isExpired = (expiresAt?: string | null) => {
     if (!expiresAt) return false;
     return new Date(expiresAt) < new Date();
   };
 
-  const isExpiringSoon = (expiresAt?: string) => {
+  const isExpiringSoon = (expiresAt?: string | null) => {
     if (!expiresAt) return false;
     const expiryDate = new Date(expiresAt);
     const now = new Date();
@@ -783,13 +887,15 @@ headers_with_key = {
                         <div className="flex items-center gap-2">
                           <code className="text-base bg-muted px-2 py-1 rounded">
                             {showApiKey === apiKey.id
-                              ? apiKey.key
-                              : `${apiKey.key.substring(
-                                  0,
-                                  8
-                                )}...${apiKey.key.substring(
-                                  apiKey.key.length - 4
-                                )}`}
+                              ? apiKey.key || "N/A"
+                              : apiKey.key
+                                ? `${apiKey.key.substring(
+                                    0,
+                                    8
+                                  )}...${apiKey.key.substring(
+                                    apiKey.key.length - 4
+                                  )}`
+                                : "N/A"}
                           </code>
                           <Button
                             variant="ghost"
@@ -809,7 +915,11 @@ headers_with_key = {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => copyApiKey(apiKey.key)}
+                            onClick={() => {
+                              if (apiKey.key) {
+                                copyApiKey(apiKey.key);
+                              }
+                            }}
                           >
                             <Copy className="h-4 w-4" />
                           </Button>

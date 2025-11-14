@@ -45,12 +45,20 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     const backendResponse = await response.json();
 
-    // Wrap response to match test expectations: { success: true, projects: [...] }
+    // Wrap response to match expected format: { success: true, projects: [...] }
     if (backendResponse.success && Array.isArray(backendResponse.data)) {
       return NextResponse.json({
         success: true,
         projects: backendResponse.data,
         pagination: backendResponse.pagination,
+      });
+    }
+
+    // If backend returns array directly
+    if (Array.isArray(backendResponse)) {
+      return NextResponse.json({
+        success: true,
+        projects: backendResponse,
       });
     }
 
@@ -119,12 +127,23 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const backendResponse = await response.json();
 
-    // Wrap response to match test expectations: { success: true, project: ... }
+    // Wrap response to match expected format: { success: true, project: ... }
     if (backendResponse.success && backendResponse.data) {
       return NextResponse.json(
         {
           success: true,
           project: backendResponse.data,
+        },
+        { status: 201 }
+      );
+    }
+
+    // If backend returns project directly
+    if (backendResponse.id) {
+      return NextResponse.json(
+        {
+          success: true,
+          project: backendResponse,
         },
         { status: 201 }
       );

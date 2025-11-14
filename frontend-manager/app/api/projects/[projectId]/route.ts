@@ -64,10 +64,10 @@ export async function GET(
       );
     }
 
-    const project = await response.json();
+    const backendResponse = await response.json();
 
     // Check if the response has the expected structure
-    if (!project || typeof project !== "object") {
+    if (!backendResponse || typeof backendResponse !== "object") {
       
       return NextResponse.json(
         { success: false, error: "Invalid response format from backend" },
@@ -75,18 +75,21 @@ export async function GET(
       );
     }
 
-    if (!project.data) {
+    // Backend returns { success: true, data: project } or project directly
+    const projectData = backendResponse.data || backendResponse;
+    
+    if (!projectData || !projectData.id) {
       
       return NextResponse.json(
-        { success: false, error: "Backend response missing data property" },
+        { success: false, error: "Backend response missing project data" },
         { status: 500 }
       );
     }
 
-    // Wrap response to match test expectations: { success: true, project: ... }
+    // Wrap response to match expected format: { success: true, project: ... }
     return NextResponse.json({
       success: true,
-      project: project.data,
+      project: projectData,
     });
   } catch (error) {
     return NextResponse.json(
@@ -134,10 +137,10 @@ export async function PUT(
 
     const project = await authenticatedSdk.projects.update(projectId, updates);
     
-    // Wrap response to match test expectations: { success: true, project: ... }
+    // Wrap response to match expected format: { success: true, project: ... }
     return NextResponse.json({
       success: true,
-      project,
+      project: project,
     });
   } catch (error) {
     return NextResponse.json(

@@ -15,7 +15,16 @@
  */
 "use client";
 
-import { type Project } from "@smartsamurai/krapi-sdk";
+// Local type definition to avoid importing SDK in client
+type Project = {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  settings?: Record<string, unknown>;
+};
 import React, { useState, useEffect, useCallback } from "react";
 import { FiInfo } from "react-icons/fi";
 

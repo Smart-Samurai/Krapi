@@ -93,10 +93,9 @@ export default function ProjectDetailPage() {
   });
 
   const loadData = useCallback(() => {
-    if (!krapi) return;
-    dispatch(fetchProjectById({ id: projectId, krapi }));
-    dispatch(fetchCollections({ projectId, krapi }));
-  }, [dispatch, projectId, krapi]);
+    dispatch(fetchProjectById({ id: projectId }));
+    dispatch(fetchCollections({ projectId }));
+  }, [dispatch, projectId]);
 
   useEffect(() => {
     loadData();

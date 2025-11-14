@@ -4,7 +4,6 @@ import {
   createSlice,
   PayloadAction,
 } from "@reduxjs/toolkit";
-import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 import { toast } from "sonner";
 
 import type { RootState } from "./index";
@@ -53,17 +52,27 @@ const getCookie = (name: string): string | null => {
 // Async thunks
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
-  async ({ krapi }: { krapi: KrapiWrapper }) => {
+  async (_args: Record<string, never> = {}) => {
     const storedToken =
       getCookie("session_token") || localStorage.getItem("session_token");
     const storedApiKey = localStorage.getItem("api_key");
 
     if (storedToken) {
-      krapi.auth.setSessionToken(storedToken);
-      // Validate session
+      // Validate session via API route
       try {
-        const response = await krapi.auth.getCurrentUser();
-        if (response.success && response.data) {
+        const response = await fetch("/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${storedToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error("Session invalid");
+        }
+        
+        const result = await response.json();
+        if (result.success && result.user) {
           const storedScopes = localStorage.getItem("user_scopes");
           let userScopes: string[] = [];
 
@@ -77,7 +86,7 @@ export const initializeAuth = createAsyncThunk(
           }
 
           return {
-            user: { ...response.data, scopes: userScopes },
+            user: { ...result.user, scopes: userScopes },
             scopes: userScopes,
             sessionToken: storedToken,
           };
@@ -96,16 +105,27 @@ export const initializeAuth = createAsyncThunk(
         return { user: null, scopes: [], sessionToken: null };
       }
     } else if (storedApiKey) {
-      krapi.auth.setApiKey(storedApiKey);
-      // Validate API key
+      // Validate API key via API route
       try {
-        const response = await krapi.auth.adminApiLogin(storedApiKey);
-        if (response.success && response.data) {
-          const userScopes = response.data.user.scopes || [];
+        const response = await fetch("/api/auth/sessions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ api_key: storedApiKey }),
+        });
+        
+        if (!response.ok) {
+          throw new Error("API key invalid");
+        }
+        
+        const result = await response.json();
+        if (result.success && result.user) {
+          const userScopes = result.user.scopes || [];
           return {
-            user: response.data.user,
+            user: result.user,
             scopes: userScopes,
-            sessionToken: response.data.session_token,
+            sessionToken: result.session_token,
             apiKey: storedApiKey,
           };
         } else {
@@ -143,12 +163,24 @@ export const initializeAuth = createAsyncThunk(
 export const validateSession = createAsyncThunk(
   "auth/validateSession",
   async (
-    { krapi, token: _token }: { krapi: KrapiWrapper; token: string },
+    { token }: { token: string },
     thunkAPI
   ) => {
     try {
-      const response = await krapi.auth.getCurrentUser();
-      if (response.success && response.data) {
+      const response = await fetch("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error("Session invalid");
+      }
+      
+      const result = await response.json();
+      const responseData = result.success ? { success: true, data: result.user } : result;
+      if (responseData.success && responseData.data) {
         const storedScopes = localStorage.getItem("user_scopes");
         let userScopes: string[] = [];
 
@@ -162,7 +194,7 @@ export const validateSession = createAsyncThunk(
         }
 
         return {
-          user: { ...response.data, scopes: userScopes },
+          user: { ...responseData.data, scopes: userScopes },
           scopes: userScopes,
         };
       } else {
@@ -178,22 +210,33 @@ export const validateSession = createAsyncThunk(
 
 export const validateApiKey = createAsyncThunk(
   "auth/validateApiKey",
-  async ({ krapi, key }: { krapi: KrapiWrapper; key: string }, thunkAPI) => {
+  async ({ key }: { key: string }, thunkAPI) => {
     try {
-      const response = await krapi.auth.adminApiLogin(key);
-      if (response.success && response.data) {
-        const userScopes = response.data.user.scopes || [];
+      const response = await fetch("/api/auth/sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ api_key: key }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("API key invalid");
+      }
+      
+      const result = await response.json();
+      if (result.success && result.session_token && result.user) {
+        const userScopes = result.user.scopes || [];
 
         // Store in both localStorage and cookies
-        localStorage.setItem("session_token", response.data.session_token);
-        setCookie("session_token", response.data.session_token);
+        localStorage.setItem("session_token", result.session_token);
+        setCookie("session_token", result.session_token);
         localStorage.setItem("user_scopes", JSON.stringify(userScopes));
-        krapi.auth.setSessionToken(response.data.session_token);
 
         return {
-          user: response.data.user,
+          user: result.user,
           scopes: userScopes,
-          sessionToken: response.data.session_token,
+          sessionToken: result.session_token,
         };
       } else {
         thunkAPI.dispatch(clearAuthData());
@@ -212,66 +255,40 @@ export const login = createAsyncThunk(
     {
       username,
       password,
-      krapi,
-    }: { username: string; password: string; krapi: KrapiWrapper },
-    { getState }
+    }: { username: string; password: string },
+    { getState: _getState }
   ) => {
-    const state = getState() as RootState;
-    const { sessionToken } = state.auth;
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, password }),
+    });
 
-    if (sessionToken) {
-      krapi.auth.setSessionToken(sessionToken);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "Login failed" }));
+      throw new Error(error.error || "Login failed");
     }
 
-    const response = await krapi.auth.adminLogin({ username, password });
+    const responseData = await response.json();
 
-    // Log the full response for debugging
-    // eslint-disable-next-line no-console
-    console.log("🔍 Login response:", JSON.stringify(response, null, 2));
-
-    if (response.success && response.data) {
-      const userScopes = response.data.scopes || [];
-
-      // Validate required fields
-      if (!response.data.session_token) {
-        // eslint-disable-next-line no-console
-        console.error("❌ Missing session_token in response:", response);
-        throw new Error(
-          `Login failed: Missing session token. Response: ${JSON.stringify(
-            response
-          )}`
-        );
-      }
-
-      if (!response.data.user) {
-        // eslint-disable-next-line no-console
-        console.error("❌ Missing user in response:", response);
-        throw new Error(
-          `Login failed: Missing user data. Response: ${JSON.stringify(
-            response
-          )}`
-        );
-      }
+    if (responseData.success && responseData.session_token && responseData.user) {
+      const userScopes = responseData.scopes || [];
 
       // Store in both localStorage and cookies
-      localStorage.setItem("session_token", response.data.session_token);
-      setCookie("session_token", response.data.session_token);
+      localStorage.setItem("session_token", responseData.session_token);
+      setCookie("session_token", responseData.session_token);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
-      krapi.auth.setSessionToken(response.data.session_token);
-
       return {
-        user: response.data.user as AdminUser & { scopes?: string[] },
+        user: responseData.user as AdminUser & { scopes?: string[] },
         scopes: userScopes,
-        sessionToken: response.data.session_token,
+        sessionToken: responseData.session_token,
       };
     } else {
-      const errorMsg = response.error || "Unknown error";
-      // eslint-disable-next-line no-console
-      console.error("❌ Login failed:", response);
-      throw new Error(
-        `Login failed: ${errorMsg}. Response: ${JSON.stringify(response)}`
-      );
+      const errorMsg = responseData.error || "Unknown error";
+      throw new Error(`Login failed: ${errorMsg}`);
     }
   }
 );
@@ -279,32 +296,37 @@ export const login = createAsyncThunk(
 export const loginWithApiKey = createAsyncThunk(
   "auth/loginWithApiKey",
   async (
-    { apiKey, krapi }: { apiKey: string; krapi: KrapiWrapper },
-    { getState }
+    { apiKey }: { apiKey: string },
+    { getState: _getState }
   ) => {
-    const state = getState() as RootState;
-    const { sessionToken } = state.auth;
+    const response = await fetch("/api/auth/sessions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
 
-    if (sessionToken) {
-      krapi.auth.setSessionToken(sessionToken);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "API key login failed" }));
+      throw new Error(error.error || "API key login failed");
     }
 
-    const response = await krapi.auth.adminApiLogin(apiKey);
-    if (response.success && response.data) {
-      const userScopes = response.data.user.scopes || [];
+    const responseData = await response.json();
+
+    if (responseData.success && responseData.session_token && responseData.user) {
+      const userScopes = responseData.user.scopes || [];
 
       // Store in both localStorage and cookies
-      localStorage.setItem("session_token", response.data.session_token);
-      setCookie("session_token", response.data.session_token);
+      localStorage.setItem("session_token", responseData.session_token);
+      setCookie("session_token", responseData.session_token);
       localStorage.setItem("api_key", apiKey);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
-      krapi.auth.setSessionToken(response.data.session_token);
-
       return {
-        user: response.data.user as AdminUser & { scopes?: string[] },
+        user: responseData.user as AdminUser & { scopes?: string[] },
         scopes: userScopes,
-        sessionToken: response.data.session_token,
+        sessionToken: responseData.session_token,
         apiKey,
       };
     } else {
@@ -315,17 +337,19 @@ export const loginWithApiKey = createAsyncThunk(
 
 export const logout = createAsyncThunk(
   "auth/logout",
-  async ({ krapi }: { krapi: KrapiWrapper }, { getState }) => {
+  async (_args: Record<string, never> = {}, { getState }) => {
     const state = getState() as RootState;
     const { sessionToken } = state.auth;
 
-    if (sessionToken) {
-      krapi.auth.setSessionToken(sessionToken);
-    }
-
     try {
       if (sessionToken) {
-        await krapi.auth.logout();
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        });
       }
     } catch (_error) {
       // eslint-disable-next-line no-console

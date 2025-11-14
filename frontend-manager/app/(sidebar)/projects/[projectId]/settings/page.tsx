@@ -116,12 +116,8 @@ export default function ProjectSettingsPage() {
   });
 
   const fetchProjectDetails = useCallback(() => {
-    if (!krapi) {
-      toast.error("KRAPI client not initialized");
-      return;
-    }
-    dispatch(fetchProjectById({ id: projectId, krapi }));
-  }, [dispatch, projectId, krapi]);
+    dispatch(fetchProjectById({ id: projectId }));
+  }, [dispatch, projectId]);
 
   const fetchProjectSettings = useCallback(async () => {
     try {
@@ -197,7 +193,6 @@ export default function ProjectSettingsPage() {
             description: data.description,
             active: data.is_active,
           } as Partial<Project>,
-          krapi,
         })
       );
       if (updateProject.fulfilled.match(action)) {

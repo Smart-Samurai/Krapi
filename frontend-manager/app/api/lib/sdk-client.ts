@@ -3,7 +3,18 @@ import { krapi } from "@smartsamurai/krapi-sdk";
 // Initialize the SDK connection to the backend with enhanced features
 // Note: Server-side code can connect directly to backend (port 3470)
 // The SDK will automatically handle path normalization and provide warnings if needed
-const connectConfig: any = {
+interface ConnectConfig {
+  endpoint: string;
+  apiKey: string;
+  retry?: {
+    enabled: boolean;
+    maxRetries: number;
+    retryDelay: number;
+    retryableStatusCodes: number[];
+  };
+}
+
+const connectConfig: ConnectConfig = {
   endpoint: process.env.KRAPI_BACKEND_URL || "http://localhost:3470",
   apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
   // Enable retry logic for better reliability (if SDK supports it)
@@ -20,19 +31,26 @@ krapi
   .then(async () => {
     // Perform health check after connection (if SDK supports it)
     try {
-      if (typeof (krapi as any).healthCheck === 'function') {
-        const isHealthy = await (krapi as any).healthCheck();
+       
+      const krapiWithHealthCheck = krapi as typeof krapi & { healthCheck?: () => Promise<boolean> };
+      if (typeof krapiWithHealthCheck.healthCheck === 'function') {
+        const isHealthy = await krapiWithHealthCheck.healthCheck();
+         
         if (!isHealthy) {
+          // eslint-disable-next-line no-console
           console.warn("⚠️ SDK health check failed - connection may be unstable");
         } else {
+          // eslint-disable-next-line no-console
           console.log("✅ SDK connected and healthy");
         }
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn("⚠️ SDK health check error:", error);
     }
   })
   .catch((error: unknown) => {
+    // eslint-disable-next-line no-console
     console.error("❌ Failed to connect SDK to backend:", error);
   });
 

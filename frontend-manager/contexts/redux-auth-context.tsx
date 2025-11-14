@@ -19,7 +19,7 @@ import React, {
   useState,
 } from "react";
 
-import { krapi, type AdminUser } from "@/lib/krapi";
+import type { AdminUser, KrapiWrapper } from "@/lib/krapi";
 import {
   clearAuthData,
   initializeAuth,
@@ -55,7 +55,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   loginWithApiKey: (apiKey: string) => Promise<void>;
   logout: () => Promise<void>;
-  krapi: typeof krapi;
+  krapi: KrapiWrapper | null;
   sessionToken: string | null;
   apiKey: string | null;
   scopes: string[];
@@ -90,69 +90,21 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   const { user, loading, error, sessionToken, apiKey, scopes, isInitialized } =
     useAppSelector((state) => state.auth);
 
-  // Initialize SDK in client mode on mount
+  // SDK is no longer used in client - all operations go through API routes
+  // Mark as initialized immediately
   useEffect(() => {
     if (!sdkInitialized) {
-      const initSdk = async () => {
-        try {
-          // Frontend should connect to frontend URL (port 3498)
-          // SDK will automatically append /api/krapi/k1 and validate the endpoint
-          const endpoint = process.env.NEXT_PUBLIC_API_URL?.replace('/krapi/k1', '') || 'http://localhost:3498';
-          const connectConfig: any = {
-            endpoint,
-            // Enable retry logic for better reliability (if SDK supports it)
-            retry: {
-              enabled: true,
-              maxRetries: 3,
-              retryDelay: 1000, // 1 second
-              retryableStatusCodes: [408, 429, 500, 502, 503, 504],
-            },
-          };
-          await krapi.connect(connectConfig);
-          
-          // Perform health check after connection (if SDK supports it)
-          try {
-            if (typeof (krapi as any).healthCheck === 'function') {
-              const isHealthy = await (krapi as any).healthCheck();
-              if (!isHealthy) {
-                // eslint-disable-next-line no-console
-                console.warn("⚠️ SDK health check failed - connection may be unstable");
-              } else {
-                // eslint-disable-next-line no-console
-                console.log("✅ KRAPI SDK initialized in client mode and healthy");
-              }
-            }
-          } catch (healthError) {
-            // eslint-disable-next-line no-console
-            console.warn("⚠️ SDK health check error:", healthError);
-          }
-          
-          setSdkInitialized(true);
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error("❌ Failed to initialize KRAPI SDK:", error);
-          setSdkInitialized(true); // Set to true anyway to prevent infinite retries
-        }
-      };
-      initSdk();
+      setSdkInitialized(true);
     }
   }, [sdkInitialized]);
 
-  // Initialize auth on mount (after SDK is initialized)
+  // Initialize auth on mount (no SDK needed - uses API routes)
   useEffect(() => {
     if (!isInitialized && sdkInitialized) {
-      dispatch(initializeAuth({ krapi }));
+      // Initialize auth without SDK - it will use API routes
+      dispatch(initializeAuth({}));
     }
   }, [dispatch, isInitialized, sdkInitialized]);
-
-  // Update krapi client when session token changes
-  useEffect(() => {
-    if (sessionToken && sdkInitialized) {
-      krapi.auth.setSessionToken(sessionToken);
-    } else if (apiKey && sdkInitialized) {
-      krapi.auth.setApiKey(apiKey);
-    }
-  }, [sessionToken, apiKey, sdkInitialized]);
 
   // Handle auth errors and redirect
   const handleAuthError = useCallback(
@@ -239,7 +191,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     async (username: string, password: string) => {
       try {
         await dispatch(
-          loginAction({ username, password, krapi })
+          loginAction({ username, password })
         ).unwrap();
 
         // Check if there's a redirect URL
@@ -261,7 +213,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
     async (apiKey: string) => {
       try {
         await dispatch(
-          loginWithApiKeyAction({ apiKey, krapi })
+          loginWithApiKeyAction({ apiKey })
         ).unwrap();
 
         // Check if there's a redirect URL
@@ -281,7 +233,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   // Logout function
   const logout = useCallback(async () => {
     try {
-      await dispatch(logoutAction({ krapi })).unwrap();
+      await dispatch(logoutAction({})).unwrap();
       router.push("/login");
     } catch (_error) {
       // eslint-disable-next-line no-console
@@ -322,7 +274,7 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         login,
         loginWithApiKey,
         logout,
-        krapi,
+        krapi: null, // SDK no longer used in client - all operations via API routes
         sessionToken,
         apiKey,
         scopes,

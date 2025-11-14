@@ -69,7 +69,7 @@ export async function GET(
 
     const backendResponse = await response.json();
     
-    // Wrap response to match test expectations: { success: true, collections: [...] }
+    // Wrap response to match expected format: { success: true, collections: [...] }
     // Backend might return { collections: [...] } or { data: [...] } or just an array
     const collectionsArray = backendResponse.collections || backendResponse.data || (Array.isArray(backendResponse) ? backendResponse : []);
     
@@ -148,10 +148,10 @@ export async function POST(
     }
 
     const backendResponse = await response.json();
-    // Wrap response to match test expectations: { success: true, collection: ... }
-    const collection = backendResponse.data || backendResponse.collection;
+    // Wrap response to match expected format: { success: true, collection: ... }
+    const collection = backendResponse.data || backendResponse.collection || backendResponse;
     return NextResponse.json(
-      { success: true, collection },
+      { success: true, collection: collection },
       { status: 201 }
     );
   } catch (error) {

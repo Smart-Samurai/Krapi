@@ -13,6 +13,9 @@
  */
 "use client";
 
+// Note: This hook is deprecated - SDK is no longer used in client components
+// All operations should go through API routes instead
+// This hook is kept for backward compatibility but always returns null
 import type { KrapiWrapper } from "@smartsamurai/krapi-sdk";
 import { useCallback, useMemo } from "react";
 

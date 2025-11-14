@@ -147,9 +147,8 @@ export default function DocumentsPage() {
   });
 
   const loadCollections = useCallback(() => {
-    if (!krapi) return;
-    dispatch(fetchCollections({ projectId, krapi }));
-  }, [dispatch, projectId, krapi]);
+    dispatch(fetchCollections({ projectId }));
+  }, [dispatch, projectId]);
 
   const loadDocuments = useCallback(() => {
     if (!selectedCollection || !krapi) return;

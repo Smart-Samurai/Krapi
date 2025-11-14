@@ -250,6 +250,8 @@ export class AuthController {
       const adminUser = await authService.authenticateAdmin(username, password);
 
       if (!adminUser) {
+        // Log failed login attempt for debugging
+        console.warn(`Failed login attempt for username: ${username} from IP: ${req.ip}`);
         res.status(401).json({
           success: false,
           error: "Invalid credentials",

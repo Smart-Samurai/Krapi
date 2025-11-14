@@ -1,26 +1,15 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // Port configuration
-  serverRuntimeConfig: {
-    port: 3498,
-  },
-  publicRuntimeConfig: {
-    port: 3498,
-  },
-
-  // Enable proper error checking during builds (but allow for development)
-  eslint: {
-    ignoreDuringBuilds: true, // Temporarily ignore during builds
-  },
+const nextConfig = {
+  // Note: eslint and typescript options are no longer supported in next.config.ts in Next.js 16
+  // Use CLI flags or separate config files if needed
   typescript: {
     ignoreBuildErrors: true, // Temporarily ignore during builds
   },
 
-  // Next.js 15 optimizations
+  // Next.js 16 optimizations
+  // React Compiler is enabled by default in Next.js 16
   experimental: {
-    // Enable React 19 features - temporarily disabled to fix hydration issues
-    // reactCompiler: true,
     // Enable typed routes for better type safety - temporarily disabled to fix build issues
     // typedRoutes: true,
   },
@@ -37,6 +26,7 @@ const nextConfig: NextConfig = {
   // Optimize images and static assets
   images: {
     formats: ["image/webp", "image/avif"],
+    // Next.js 16 default is 4 hours (14400 seconds), but keeping 60 for development
     minimumCacheTTL: 60,
   },
 
@@ -56,7 +46,18 @@ const nextConfig: NextConfig = {
 
   // Optimize bundle size (swcMinify is enabled by default in Next.js 15)
 
-  // Webpack configuration to handle Node.js modules in browser
+  // Server-only packages - these should never be bundled for client
+  serverComponentsExternalPackages: [
+    "@smartsamurai/krapi-sdk",
+    "nodemailer",
+  ],
+
+  // Turbopack configuration (Next.js 16 default)
+  // Turbopack automatically handles Node.js built-in modules
+  // Note: Server-only packages like nodemailer should only be imported in server components/API routes
+  turbopack: {},
+
+  // Webpack configuration for backward compatibility (when using --webpack flag)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Configure fallbacks for Node.js modules when running in the browser
@@ -91,6 +92,6 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-};
+} as NextConfig;
 
 export default nextConfig;

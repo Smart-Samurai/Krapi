@@ -62,8 +62,8 @@ import { Project, Scope } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchProjects,
-  createProject as createProjectThunk,
-  updateProject as updateProjectThunk,
+  createProject,
+  updateProject,
 } from "@/store/projectsSlice";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 
@@ -150,7 +150,7 @@ export default function ProjectsPage() {
         toast.error("KRAPI client not initialized");
         return;
       }
-      const action = await dispatch(fetchProjects({ krapi }));
+      const action = await dispatch(fetchProjects({}));
       
       if (fetchProjects.rejected.match(action)) {
         const errorMessage = action.payload || action.error?.message || "Unknown error";
@@ -187,8 +187,8 @@ export default function ProjectsPage() {
     dispatch(beginBusy());
     try {
       // Use Redux thunk with krapi instance
-      const action = await dispatch(createProjectThunk({ data, krapi }));
-      if (createProjectThunk.fulfilled.match(action)) {
+      const action = await dispatch(createProject({ data }));
+      if (createProject.fulfilled.match(action)) {
         toast.success("Project created successfully");
         setIsCreateDialogOpen(false);
         createForm.reset();
@@ -221,18 +221,17 @@ export default function ProjectsPage() {
 
       // Use Redux thunk with krapi instance
       const action = await dispatch(
-        updateProjectThunk({
+        updateProject({
           id: selectedProject.id,
           updates: sdkData,
-          krapi,
         })
       );
-      if (updateProjectThunk.fulfilled.match(action)) {
+      if (updateProject.fulfilled.match(action)) {
         toast.success("Project updated successfully");
         setIsEditDialogOpen(false);
         setSelectedProject(null);
         // Projects are automatically updated in Redux store
-      } else if (updateProjectThunk.rejected.match(action)) {
+      } else if (updateProject.rejected.match(action)) {
         const errorMessage = action.payload || "Unknown error";
         toast.error(`Failed to update project: ${errorMessage}`);
       }

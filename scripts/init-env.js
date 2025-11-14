@@ -88,6 +88,45 @@ function formatEnvFile(env, comments) {
   return content;
 }
 
+function initFrontendEnv() {
+  const frontendDir = path.join(rootDir, "frontend-manager");
+  const frontendEnvExamplePath = path.join(frontendDir, "env.example");
+  const frontendEnvPath = path.join(frontendDir, ".env.local");
+
+  if (!fs.existsSync(frontendEnvExamplePath)) {
+    console.log(`?? Frontend env.example not found, skipping frontend env initialization...`);
+    return;
+  }
+
+  const exampleEnv = parseEnvFile(frontendEnvExamplePath);
+  let existingEnv = {};
+
+  if (fs.existsSync(frontendEnvPath)) {
+    console.log(`?? Found existing frontend .env.local file, merging with env.example...`);
+    existingEnv = parseEnvFile(frontendEnvPath);
+  } else {
+    console.log(`?? Creating new frontend .env.local file from env.example...`);
+  }
+
+  // Merge: keep existing values, add missing ones from example
+  const mergedEnv = { ...exampleEnv, ...existingEnv };
+
+  // Format and write
+  const content = formatEnvFile(mergedEnv, true);
+
+  fs.writeFileSync(frontendEnvPath, content, "utf8");
+
+  console.log(`? Frontend environment configuration initialized: ${frontendEnvPath}\n`);
+
+  // Show what was added/updated
+  const added = Object.keys(exampleEnv).filter(
+    (key) => !existingEnv.hasOwnProperty(key)
+  );
+  if (added.length > 0) {
+    console.log(`?? Added new frontend variables: ${added.join(", ")}\n`);
+  }
+}
+
 function main() {
   console.log("?? Initializing KRAPI environment configuration...\n");
 
@@ -125,8 +164,11 @@ function main() {
   }
 
   console.log(
-    `?? Tip: Review and update ${envPath} with your specific configuration values.`
+    `?? Tip: Review and update ${envPath} with your specific configuration values.\n`
   );
+
+  // Initialize frontend env file
+  initFrontendEnv();
 }
 
 if (require.main === module) {

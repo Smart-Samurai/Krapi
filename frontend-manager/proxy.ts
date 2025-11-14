@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // List of paths that don't require authentication
 const _publicPaths = ["/login", "/api/auth", "/api/krapi"];
 
-export function middleware(_request: NextRequest) {
+export function proxy(_request: NextRequest) {
   // Temporarily disable middleware for testing
   return NextResponse.next();
 

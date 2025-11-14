@@ -71,12 +71,12 @@ export async function GET(
 
     const backendResponse = await response.json();
     
-    // Wrap response to match test expectations: { success: true, collection: ... }
+    // Wrap response to match expected format: { success: true, collection: ... }
     const collection = backendResponse.collection || backendResponse.data || backendResponse;
     
     return NextResponse.json({
       success: true,
-      collection,
+      collection: collection,
     });
   } catch (error) {
     
@@ -155,12 +155,12 @@ export async function PUT(
 
     const backendResponse = await response.json();
     
-    // Wrap response to match test expectations: { success: true, collection: ... }
+    // Wrap response to match expected format: { success: true, collection: ... }
     const collection = backendResponse.collection || backendResponse.data || backendResponse;
     
     return NextResponse.json({
       success: true,
-      collection,
+      collection: collection,
     });
   } catch (error) {
     

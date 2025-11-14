@@ -61,7 +61,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import { ProjectScope, type ProjectUser } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
@@ -106,7 +105,7 @@ export default function UsersPage() {
     throw new Error("Project ID is required");
   }
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
+  const [searchQuery] = useState("");
 
   const dispatch = useAppDispatch();
   const bucket = useAppSelector((s) => s.users.byProjectId[projectId]);
@@ -132,23 +131,18 @@ export default function UsersPage() {
   });
 
   const loadUsersCb = useCallback(() => {
-    if (!krapi) return;
-    dispatch(fetchUsers({ projectId, krapi: krapi as import("@smartsamurai/krapi-sdk").KrapiWrapper }));
-  }, [dispatch, projectId, krapi]);
+    dispatch(fetchUsers({ projectId, search: searchQuery }));
+  }, [dispatch, projectId, searchQuery]);
 
   useEffect(() => {
     loadUsersCb();
   }, [loadUsersCb]);
 
   const handleCreateUser = async () => {
-    if (!krapi) {
-      setError("KRAPI client not initialized");
-      return;
-    }
     try {
       dispatch(beginBusy());
       const action = await dispatch(
-        createUser({ projectId, data: { ...formData }, krapi })
+        createUser({ projectId, data: { ...formData } })
       );
       if (createUser.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
@@ -192,13 +186,8 @@ export default function UsersPage() {
       };
       if (formData.password) updates.password = formData.password;
 
-      if (!krapi) {
-        setError("KRAPI client not initialized");
-        dispatch(endBusy());
-        return;
-      }
       const action = await dispatch(
-        updateUser({ projectId, userId: editingUser.id, updates, krapi })
+        updateUser({ projectId, userId: editingUser.id, updates })
       );
 
       if (updateUser.fulfilled.match(action)) {
@@ -237,13 +226,9 @@ export default function UsersPage() {
       return;
     }
 
-    if (!krapi) {
-      setError("KRAPI client not initialized");
-      return;
-    }
     try {
       dispatch(beginBusy());
-      const action = await dispatch(deleteUser({ projectId, userId, krapi }));
+      const action = await dispatch(deleteUser({ projectId, userId }));
       if (deleteUser.fulfilled.match(action)) {
         loadUsersCb();
       } else {
