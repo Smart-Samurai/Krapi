@@ -31,40 +31,19 @@ if not exist "package.json" (
     exit /b 1
 )
 
-REM Detect package manager (prefer pnpm, fallback to npm)
+REM Detect package manager (prefer npm as default, pnpm optional)
 set "PACKAGE_MANAGER="
-where pnpm >nul 2>&1
-if !errorlevel! equ 0 (
-    set "PACKAGE_MANAGER=pnpm"
-    echo [INFO] Using pnpm (preferred)
-    REM Restore pnpm files if they were backed up
-    if exist ".npmrc.pnpm" (
-        move /Y .npmrc.pnpm .npmrc >nul 2>&1
-    )
-    if exist "pnpm-workspace.yaml.bak" (
-        move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-    )
-    goto :package_detected
-)
-
 where npm >nul 2>&1
 if !errorlevel! equ 0 (
     set "PACKAGE_MANAGER=npm"
-    echo [INFO] Using npm (pnpm not found, npm will work but pnpm is recommended)
-    REM Backup pnpm-specific files that npm can't handle
-    if exist ".npmrc" (
-        move /Y .npmrc .npmrc.pnpm >nul 2>&1
-        echo [INFO] Temporarily disabled .npmrc (contains pnpm-specific configs)
-    )
-    if exist "pnpm-workspace.yaml" (
-        move /Y pnpm-workspace.yaml pnpm-workspace.yaml.bak >nul 2>&1
-        echo [INFO] Temporarily disabled pnpm-workspace.yaml (npm uses package.json workspaces)
-    )
-    REM Clean node_modules if they exist (may have been created by pnpm, causing conflicts)
-    if exist "node_modules" (
-        echo [INFO] Cleaning existing node_modules to avoid pnpm/npm conflicts...
-        rmdir /s /q node_modules >nul 2>&1
-    )
+    echo [INFO] Using npm (default)
+    goto :package_detected
+)
+
+where pnpm >nul 2>&1
+if !errorlevel! equ 0 (
+    set "PACKAGE_MANAGER=pnpm"
+    echo [INFO] Using pnpm (npm not found, pnpm is faster but npm is the standard)
     goto :package_detected
 )
 
@@ -103,11 +82,6 @@ echo [INFO] Step 2/5: Installing/updating dependencies...
 call :install_dependencies
 if !errorlevel! neq 0 (
     echo [ERROR] Dependency installation failed
-    REM Restore pnpm files on error
-    if "%PACKAGE_MANAGER%"=="npm" (
-        if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-        if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-    )
     echo.
     pause
     exit /b 1
@@ -119,11 +93,6 @@ echo [INFO] Step 3/5: Building backend and frontend...
 call :build_all
 if !errorlevel! neq 0 (
     echo [ERROR] Build failed
-    REM Restore pnpm files on error
-    if "%PACKAGE_MANAGER%"=="npm" (
-        if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-        if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-    )
     echo.
     pause
     exit /b 1
@@ -139,11 +108,6 @@ echo [INFO] Press Ctrl+C to stop services
 echo.
 call :start_prod
 set START_EXIT_CODE=!errorlevel!
-REM Restore pnpm files after completion
-if "%PACKAGE_MANAGER%"=="npm" (
-    if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-    if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-)
 if !START_EXIT_CODE! neq 0 (
     echo.
     echo [ERROR] Services stopped unexpectedly with exit code !START_EXIT_CODE!
@@ -160,11 +124,6 @@ call :init_environment
 call :install_dependencies
 if !errorlevel! neq 0 (
     echo [ERROR] Installation failed
-    REM Restore pnpm files on error
-    if "%PACKAGE_MANAGER%"=="npm" (
-        if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-        if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-    )
     echo.
     pause
     exit /b 1
@@ -177,11 +136,6 @@ echo [INFO] Press Ctrl+C to stop services
 echo.
 call :start_dev
 set START_EXIT_CODE=!errorlevel!
-REM Restore pnpm files after completion
-if "%PACKAGE_MANAGER%"=="npm" (
-    if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-    if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-)
 if !START_EXIT_CODE! neq 0 (
     echo.
     echo [ERROR] Services stopped unexpectedly with exit code !START_EXIT_CODE!
@@ -237,11 +191,6 @@ echo [INFO] Installing/updating dependencies...
 call %PACKAGE_MANAGER% install
 if !errorlevel! neq 0 (
     echo [ERROR] Failed to install dependencies
-    REM Restore pnpm files on error
-    if "%PACKAGE_MANAGER%"=="npm" (
-        if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-        if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-    )
     exit /b 1
 )
 echo [SUCCESS] Dependencies installed/updated
@@ -252,11 +201,6 @@ call :stop_running_services
 call %PACKAGE_MANAGER% run build:all
 if !errorlevel! neq 0 (
     echo [ERROR] Build failed
-    REM Restore pnpm files on error
-    if "%PACKAGE_MANAGER%"=="npm" (
-        if exist ".npmrc.pnpm" move /Y .npmrc.pnpm .npmrc >nul 2>&1
-        if exist "pnpm-workspace.yaml.bak" move /Y pnpm-workspace.yaml.bak pnpm-workspace.yaml >nul 2>&1
-    )
     exit /b 1
 )
 echo [SUCCESS] Build complete

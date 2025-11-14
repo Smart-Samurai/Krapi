@@ -94,13 +94,13 @@ Before installing KRAPI, ensure you have the following installed on your system:
 ### Required Dependencies
 
 - **Node.js** (v18 or higher) - [Download](https://nodejs.org/)
-- **pnpm** (v8 or higher) - **Recommended** - Preferred package manager - [Install](https://pnpm.io/installation)
+- **npm** (v9 or higher) - **Default** - Comes with Node.js, fully supported
+- **pnpm** (v8 or higher) - **Optional** - Faster alternative, fully compatible - [Install](https://pnpm.io/installation)
   ```bash
   npm install -g pnpm
   # or
   curl -fsSL https://get.pnpm.io/install.sh | sh -
   ```
-- **npm** (v9 or higher) - Alternative - Comes with Node.js, works as fallback
 
 ### Optional Dependencies
 
