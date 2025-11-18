@@ -76,7 +76,7 @@ export async function GET(
     
     return NextResponse.json({
       success: true,
-      collection: collection,
+      collection,
     });
   } catch (error) {
     
@@ -160,7 +160,7 @@ export async function PUT(
     
     return NextResponse.json({
       success: true,
-      collection: collection,
+      collection,
     });
   } catch (error) {
     

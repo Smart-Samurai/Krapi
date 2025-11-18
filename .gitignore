@@ -4,7 +4,10 @@ node_modules/
 
 # Environment files
 .env
-.env.*
+.env.local
+.env.*.local
+# Keep .env.sample tracked in git
+!.env.sample
 
 # IDE files
 .vscode/

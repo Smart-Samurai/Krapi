@@ -84,8 +84,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { FieldType, type FieldTypeType, type Collection, type CollectionField } from "@/lib/krapi";
+import type { Collection, CollectionField } from "@/lib/krapi";
+import { FieldType, type FieldType as FieldTypeType } from "@/lib/krapi-constants";
 import {
   fetchCollections,
   createCollection,

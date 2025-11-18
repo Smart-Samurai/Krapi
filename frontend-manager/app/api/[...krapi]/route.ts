@@ -60,11 +60,37 @@ async function proxyRequest(
   try {
     // Build the backend URL
     const pathSegments = params.krapi || [];
+    
+    // CRITICAL: Exclude MCP routes - these have specific handlers at /api/krapi/k1/mcp/*
+    // The catch-all route should NOT handle MCP routes - they have dedicated route handlers
+    // Check if this is an MCP route BEFORE processing
+    if (pathSegments.length >= 3 && 
+        pathSegments[0] === "krapi" && 
+        pathSegments[1] === "k1" && 
+        pathSegments[2] === "mcp") {
+      // MCP routes have specific handlers - this catch-all should never handle them
+      // If we get here, Next.js didn't find the specific route (route file issue or build cache)
+      // eslint-disable-next-line no-console
+      console.error("ERROR: Catch-all route matched MCP route - specific route should handle this!");
+      // eslint-disable-next-line no-console
+      console.error("Path segments:", pathSegments.join("/"));
+      // eslint-disable-next-line no-console
+      console.error(`Expected route: /api/krapi/k1/mcp/${pathSegments.slice(3).join("/")}`);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: "MCP route should be handled by specific route handler. Route file may be missing or not recognized by Next.js." 
+        },
+        { status: 404 }
+      );
+    }
+    
     // Remove 'krapi' and 'k1' from the beginning if they exist to avoid duplication
     const cleanSegments =
       pathSegments[0] === "krapi" && pathSegments[1] === "k1"
         ? pathSegments.slice(2)
         : pathSegments;
+    
     const backendPath = `/krapi/k1/${cleanSegments.join("/")}`;
     const backendUrl = `${BACKEND_URL}${backendPath}`;
 

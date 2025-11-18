@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (order) options.order = order as "asc" | "desc";
     if (search) options.search = search;
 
-    const client = createAuthenticatedSdk(authToken);
+    const client = await createAuthenticatedSdk(authToken);
     const response = await client.admin.getAllUsers(options);
     const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const client = createAuthenticatedSdk(authToken);
+    const client = await createAuthenticatedSdk(authToken);
     const response = await client.admin.createUser(body);
     const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 

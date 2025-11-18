@@ -49,7 +49,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Scope, AdminUser, AdminRole, AccessLevel } from "@/lib/krapi";
+import type { AdminUser } from "@/lib/krapi";
+import { Scope, AdminRole, AccessLevel } from "@/lib/krapi-constants";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 /**

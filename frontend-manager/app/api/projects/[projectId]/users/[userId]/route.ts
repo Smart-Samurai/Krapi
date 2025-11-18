@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken, serverSdk } from "@/app/api/lib/sdk-client";
+import { getAuthToken, getServerSdk } from "@/app/api/lib/sdk-client";
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -47,8 +47,9 @@ export async function GET(
     }
 
     // Use SDK instead of direct fetch
-    serverSdk.auth.setSessionToken(authToken);
-    const user = await serverSdk.users.get(projectId, userId);
+    const sdk = await getServerSdk();
+    sdk.auth.setSessionToken(authToken);
+    const user = await sdk.users.get(projectId, userId);
 
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
@@ -162,8 +163,9 @@ export async function PUT(
     const userData = await request.json();
 
     // Use SDK instead of direct fetch
-    serverSdk.auth.setSessionToken(authToken);
-    const user = await serverSdk.users.update(projectId, userId, userData);
+    const sdk = await getServerSdk();
+    sdk.auth.setSessionToken(authToken);
+    const user = await sdk.users.update(projectId, userId, userData);
 
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
@@ -219,8 +221,9 @@ export async function DELETE(
     }
 
     // Use SDK instead of direct fetch
-    serverSdk.auth.setSessionToken(authToken);
-    await serverSdk.users.delete(projectId, userId);
+    const sdk = await getServerSdk();
+    sdk.auth.setSessionToken(authToken);
+    await sdk.users.delete(projectId, userId);
 
     return NextResponse.json({ success: true, message: "User deleted successfully" });
   } catch (error) {

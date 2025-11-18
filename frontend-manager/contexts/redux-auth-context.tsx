@@ -19,7 +19,7 @@ import React, {
   useState,
 } from "react";
 
-import type { AdminUser, KrapiWrapper } from "@/lib/krapi";
+import type { AdminUser } from "@/lib/krapi";
 import {
   clearAuthData,
   initializeAuth,
@@ -55,7 +55,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   loginWithApiKey: (apiKey: string) => Promise<void>;
   logout: () => Promise<void>;
-  krapi: KrapiWrapper | null;
+  krapi: null; // SDK is not used in client components - always null (kept for backward compatibility)
   sessionToken: string | null;
   apiKey: string | null;
   scopes: string[];

@@ -40,6 +40,20 @@ class KrapiManager {
     }
   }
 
+  async initEnvironment() {
+    this.log("Initializing environment configuration...");
+    try {
+      const { main: initEnv } = require("./init-env.js");
+      await initEnv();
+    } catch (error) {
+      this.log(
+        `Warning: Failed to initialize environment: ${error.message}`,
+        "warn"
+      );
+      this.log("Continuing with existing .env file if it exists...", "warn");
+    }
+  }
+
   async checkDependencies() {
     this.log("Checking dependencies...");
 
@@ -239,6 +253,7 @@ async function main() {
   switch (command) {
     case "start":
       try {
+        await manager.initEnvironment();
         await manager.checkDependencies();
         await manager.buildPackages();
         await manager.startServices();

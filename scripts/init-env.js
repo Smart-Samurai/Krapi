@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Initialize .env file from env.example
+ * Initialize .env file from .env.sample
  * 
- * This script creates a .env file from env.example if it doesn't exist.
- * It also updates existing .env files with missing variables from env.example.
+ * This script creates a .env file from .env.sample if it doesn't exist.
+ * It also updates existing .env files with missing variables from .env.sample.
  */
 
 const fs = require("fs");
 const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
-const envExamplePath = path.join(rootDir, "env.example");
+const envExamplePath = path.join(rootDir, ".env.sample");
 const envPath = path.join(rootDir, ".env");
 
 function parseEnvFile(filePath) {
@@ -53,9 +53,17 @@ function formatEnvFile(env, comments) {
   const seenKeys = new Set();
 
   // Write with comments from example
-  const exampleLines = fs.existsSync(envExamplePath)
-    ? fs.readFileSync(envExamplePath, "utf8").split("\n")
-    : [];
+  // Try .env.sample first, fallback to env.example for backward compatibility
+  let exampleContent = "";
+  if (fs.existsSync(envExamplePath)) {
+    exampleContent = fs.readFileSync(envExamplePath, "utf8");
+  } else {
+    const fallbackPath = path.join(path.dirname(envExamplePath), "env.example");
+    if (fs.existsSync(fallbackPath)) {
+      exampleContent = fs.readFileSync(fallbackPath, "utf8");
+    }
+  }
+  const exampleLines = exampleContent ? exampleContent.split("\n") : [];
 
   for (const line of exampleLines) {
     const trimmed = line.trim();
@@ -90,22 +98,25 @@ function formatEnvFile(env, comments) {
 
 function initFrontendEnv() {
   const frontendDir = path.join(rootDir, "frontend-manager");
-  const frontendEnvExamplePath = path.join(frontendDir, "env.example");
+  const frontendEnvExamplePath = path.join(frontendDir, ".env.sample");
+  // Fallback to env.example if .env.sample doesn't exist
+  const fallbackPath = path.join(frontendDir, "env.example");
+  const actualPath = fs.existsSync(frontendEnvExamplePath) ? frontendEnvExamplePath : fallbackPath;
   const frontendEnvPath = path.join(frontendDir, ".env.local");
 
-  if (!fs.existsSync(frontendEnvExamplePath)) {
-    console.log(`?? Frontend env.example not found, skipping frontend env initialization...`);
+  if (!fs.existsSync(actualPath)) {
+    console.log(`?? Frontend .env.sample or env.example not found, skipping frontend env initialization...`);
     return;
   }
 
-  const exampleEnv = parseEnvFile(frontendEnvExamplePath);
+  const exampleEnv = parseEnvFile(actualPath);
   let existingEnv = {};
 
   if (fs.existsSync(frontendEnvPath)) {
-    console.log(`?? Found existing frontend .env.local file, merging with env.example...`);
+    console.log(`?? Found existing frontend .env.local file, merging with .env.sample...`);
     existingEnv = parseEnvFile(frontendEnvPath);
   } else {
-    console.log(`?? Creating new frontend .env.local file from env.example...`);
+    console.log(`?? Creating new frontend .env.local file from .env.sample...`);
   }
 
   // Merge: keep existing values, add missing ones from example
@@ -127,7 +138,7 @@ function initFrontendEnv() {
   }
 }
 
-function main() {
+async function main() {
   console.log("?? Initializing KRAPI environment configuration...\n");
 
   if (!fs.existsSync(envExamplePath)) {
@@ -139,10 +150,10 @@ function main() {
   let existingEnv = {};
 
   if (fs.existsSync(envPath)) {
-    console.log(`?? Found existing .env file, merging with env.example...`);
+    console.log(`?? Found existing .env file, merging with .env.sample...`);
     existingEnv = parseEnvFile(envPath);
   } else {
-    console.log(`?? Creating new .env file from env.example...`);
+    console.log(`?? Creating new .env file from .env.sample...`);
   }
 
   // Merge: keep existing values, add missing ones from example
@@ -172,7 +183,10 @@ function main() {
 }
 
 if (require.main === module) {
-  main();
+  main().catch((error) => {
+    console.error("❌ Fatal error:", error);
+    process.exit(1);
+  });
 }
 
 module.exports = { main };

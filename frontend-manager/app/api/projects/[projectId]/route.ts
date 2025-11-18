@@ -45,30 +45,63 @@ export async function GET(
 
     // Call the backend directly to properly handle 404 responses
     const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}`,
-      {
+    const backendEndpoint = `${backendUrl}/krapi/k1/projects/${projectId}`;
+    
+    let response;
+    try {
+      response = await fetch(backendEndpoint, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${authToken}`,
           "Content-Type": "application/json",
         },
-      }
-    );
+      });
+    } catch (fetchError) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to connect to backend:", fetchError);
+      return NextResponse.json(
+        { success: false, error: "Failed to connect to backend server" },
+        { status: 503 }
+      );
+    }
 
     if (!response.ok) {
-      const errorData = await response.json();
+      interface ErrorData {
+        error?: string;
+        message?: string;
+      }
+
+      let errorData: ErrorData;
+      try {
+        const errorText = await response.text();
+        try {
+          errorData = JSON.parse(errorText) as ErrorData;
+        } catch {
+          errorData = { error: errorText || `Backend returned ${response.status}` };
+        }
+      } catch {
+        errorData = { error: `Backend returned ${response.status}` };
+      }
+      // eslint-disable-next-line no-console
+      console.error(`Backend error for project ${projectId}:`, errorData);
       return NextResponse.json(
-        { success: false, error: errorData.error || "Failed to fetch project" },
+        { success: false, error: errorData.error || errorData.message || "Failed to fetch project" },
         { status: response.status }
       );
     }
 
-    const backendResponse = await response.json();
+    let backendResponse;
+    try {
+      backendResponse = await response.json();
+    } catch (_parseError) {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON response from backend" },
+        { status: 500 }
+      );
+    }
 
     // Check if the response has the expected structure
     if (!backendResponse || typeof backendResponse !== "object") {
-      
       return NextResponse.json(
         { success: false, error: "Invalid response format from backend" },
         { status: 500 }
@@ -79,7 +112,6 @@ export async function GET(
     const projectData = backendResponse.data || backendResponse;
     
     if (!projectData || !projectData.id) {
-      
       return NextResponse.json(
         { success: false, error: "Backend response missing project data" },
         { status: 500 }
@@ -92,6 +124,8 @@ export async function GET(
       project: projectData,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error fetching project:", error);
     return NextResponse.json(
       {
         success: false,
@@ -132,17 +166,26 @@ export async function PUT(
       );
     }
 
-    // Create authenticated SDK instance using the session token
-    const authenticatedSdk = createAuthenticatedSdk(authToken);
+    // Normalize active/is_active fields - backend expects is_active
+    const normalizedUpdates: Record<string, unknown> = { ...updates };
+    if ("active" in normalizedUpdates && !("is_active" in normalizedUpdates)) {
+      normalizedUpdates.is_active = normalizedUpdates.active;
+      delete normalizedUpdates.active;
+    }
 
-    const project = await authenticatedSdk.projects.update(projectId, updates);
+    // Create authenticated SDK instance using the session token
+    const authenticatedSdk = await createAuthenticatedSdk(authToken);
+
+    const project = await authenticatedSdk.projects.update(projectId, normalizedUpdates);
     
     // Wrap response to match expected format: { success: true, project: ... }
     return NextResponse.json({
       success: true,
-      project: project,
+      project,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error updating project:", error);
     return NextResponse.json(
       {
         success: false,
@@ -184,7 +227,7 @@ export async function DELETE(
     }
 
     // Create authenticated SDK instance using the session token
-    const authenticatedSdk = createAuthenticatedSdk(authToken);
+    const authenticatedSdk = await createAuthenticatedSdk(authToken);
 
     await authenticatedSdk.projects.delete(projectId);
     return NextResponse.json({

@@ -58,7 +58,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { Project, Scope } from "@/lib/krapi";
+import type { Project } from "@/lib/krapi";
+import { Scope } from "@/lib/krapi-constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchProjects,

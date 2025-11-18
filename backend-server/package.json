@@ -21,9 +21,9 @@
   "license": "MIT",
   "description": "KRAPI - Project-driven API backend with session-based authentication",
   "dependencies": {
-    "@krapi/error-handler": "file:packages\\krapi-error-handler",
-    "@krapi/logger": "file:packages\\krapi-logger",
-    "@krapi/monitor": "file:packages\\krapi-monitor",
+    "@krapi/error-handler": "file:packages/krapi-error-handler",
+    "@krapi/logger": "file:packages/krapi-logger",
+    "@krapi/monitor": "file:packages/krapi-monitor",
     "@smartsamurai/krapi-sdk": "latest",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",

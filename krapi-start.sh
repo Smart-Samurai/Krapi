@@ -77,9 +77,57 @@ if [ "$MODE" = "dev" ]; then
     # Install dependencies
     print_status "Installing/updating dependencies..."
     
-    # Always run install to update dependencies (especially SDK to latest)
+    # Install dependencies for packages first
+    print_status "Installing package dependencies..."
+    cd backend-server/packages/krapi-logger
     if ! $PACKAGE_MANAGER install; then
-        print_error "Failed to install dependencies"
+        print_error "Failed to install krapi-logger dependencies"
+        cd ../../..
+        read -p "Press Enter to exit..."
+        exit 1
+    fi
+    
+    cd ../krapi-error-handler
+    if ! $PACKAGE_MANAGER install; then
+        print_error "Failed to install krapi-error-handler dependencies"
+        cd ../../..
+        read -p "Press Enter to exit..."
+        exit 1
+    fi
+    
+    cd ../krapi-monitor
+    if ! $PACKAGE_MANAGER install; then
+        print_error "Failed to install krapi-monitor dependencies"
+        cd ../../..
+        read -p "Press Enter to exit..."
+        exit 1
+    fi
+    
+    cd ../../..
+    
+    # Install backend-server dependencies
+    cd backend-server
+    if ! $PACKAGE_MANAGER install; then
+        print_error "Failed to install backend-server dependencies"
+        cd ..
+        read -p "Press Enter to exit..."
+        exit 1
+    fi
+    cd ..
+    
+    # Install frontend-manager dependencies
+    cd frontend-manager
+    if ! $PACKAGE_MANAGER install; then
+        print_error "Failed to install frontend-manager dependencies"
+        cd ..
+        read -p "Press Enter to exit..."
+        exit 1
+    fi
+    cd ..
+    
+    # Always run install at root to update dependencies (especially SDK to latest)
+    if ! $PACKAGE_MANAGER install; then
+        print_error "Failed to install root dependencies"
         echo
         read -p "Press Enter to exit..."
         exit 1
@@ -115,9 +163,59 @@ $PACKAGE_MANAGER run init-env 2>&1 || true
 # Step 1: Install dependencies
 print_status "Step 1/4: Installing/updating dependencies..."
 
-# Always run install to update dependencies (especially SDK to latest)
+# Install dependencies for packages first
+print_status "Installing package dependencies..."
+cd backend-server/packages/krapi-logger
 if ! $PACKAGE_MANAGER install; then
-    print_error "Failed to install dependencies"
+    print_error "Failed to install krapi-logger dependencies"
+    cd ../../..
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+cd ../krapi-error-handler
+if ! $PACKAGE_MANAGER install; then
+    print_error "Failed to install krapi-error-handler dependencies"
+    cd ../../..
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+cd ../krapi-monitor
+if ! $PACKAGE_MANAGER install; then
+    print_error "Failed to install krapi-monitor dependencies"
+    cd ../../..
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+
+cd ../../..
+
+# Install backend-server dependencies
+print_status "Installing backend-server dependencies..."
+cd backend-server
+if ! $PACKAGE_MANAGER install; then
+    print_error "Failed to install backend-server dependencies"
+    cd ..
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+cd ..
+
+# Install frontend-manager dependencies
+print_status "Installing frontend-manager dependencies..."
+cd frontend-manager
+if ! $PACKAGE_MANAGER install; then
+    print_error "Failed to install frontend-manager dependencies"
+    cd ..
+    read -p "Press Enter to exit..."
+    exit 1
+fi
+cd ..
+
+# Always run install at root to update dependencies (especially SDK to latest)
+if ! $PACKAGE_MANAGER install; then
+    print_error "Failed to install root dependencies"
     echo
     read -p "Press Enter to exit..."
     exit 1

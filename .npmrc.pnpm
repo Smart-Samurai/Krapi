@@ -1,13 +1,20 @@
 # pnpm-specific configuration
 # These settings are automatically read by pnpm in addition to .npmrc
-# npm will ignore this file
+# npm will ignore this file completely
 
 # Allow build scripts for necessary packages
 public-hoist-pattern[]=*
 shamefully-hoist=true
 auto-install-peers=true
+strict-peer-dependencies=false
 
 # Allow build scripts for specific packages
 enable-pre-post-scripts=true
 ignore-build-errors=false
 
+# Package-specific build script approvals
+@tailwindcss/oxide:build-script=true
+better-sqlite3:build-script=true
+esbuild:build-script=true
+sharp:build-script=true
+unrs-resolver:build-script=true

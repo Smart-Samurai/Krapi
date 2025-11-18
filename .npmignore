@@ -1,0 +1,13 @@
+# Exclude all subdirectories - this is a monorepo, not a publishable package
+backend-server/
+frontend-manager/
+mcp-server/
+KRAPI-COMPREHENSIVE-TEST-SUITE/
+scripts/
+*.md
+.git/
+.cursor/
+.env
+.env.*
+pnpm-workspace.yaml
+.npmrc.pnpm

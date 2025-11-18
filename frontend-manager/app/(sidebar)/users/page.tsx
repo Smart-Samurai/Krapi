@@ -54,7 +54,8 @@ import { Input } from "@/components/ui/input";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { useKrapi } from "@/lib/hooks/useKrapi";
-import { AdminRole, AccessLevel, Scope, type AdminUser } from "@/lib/krapi";
+import type { AdminUser } from "@/lib/krapi";
+import { AdminRole, AccessLevel, Scope } from "@/lib/krapi-constants";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 // Permission types

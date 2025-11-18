@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig = {
   // Note: eslint and typescript options are no longer supported in next.config.ts in Next.js 16
@@ -47,14 +48,21 @@ const nextConfig = {
   // Optimize bundle size (swcMinify is enabled by default in Next.js 15)
 
   // Server-only packages - these should never be bundled for client
-  serverComponentsExternalPackages: [
+  // Note: In Next.js 16, this was renamed from serverComponentsExternalPackages
+  serverExternalPackages: [
     "@smartsamurai/krapi-sdk",
     "nodemailer",
   ],
 
+  // Set output file tracing root to fix lockfile warnings
+  outputFileTracingRoot: path.join(__dirname, ".."),
+
   // Turbopack configuration (Next.js 16 default)
-  // Turbopack automatically handles Node.js built-in modules
-  // Note: Server-only packages like nodemailer should only be imported in server components/API routes
+  // Note: Turbopack has stricter bundling rules than webpack
+  // For production builds, we use webpack (--webpack flag) which properly handles serverExternalPackages
+  // Turbopack is used for dev mode only (--turbo flag) for faster development
+  // The serverExternalPackages config above should work, but Turbopack may still try to analyze
+  // server-only code when types are imported. Use webpack for production builds.
   turbopack: {},
 
   // Webpack configuration for backward compatibility (when using --webpack flag)

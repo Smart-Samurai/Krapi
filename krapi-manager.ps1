@@ -66,8 +66,62 @@ if ($Mode -eq "dev") {
     if (-not (Test-Path ".env")) {
         & $PACKAGE_MANAGER run init-env 2>&1 | Out-Null
     }
+    
+    # Install dependencies for packages first
+    Write-Status "Installing package dependencies..."
+    Set-Location "backend-server\packages\krapi-logger"
+    & $PACKAGE_MANAGER install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to install krapi-logger dependencies"
+        Set-Location $PSScriptRoot
+        exit 1
+    }
+    
+    Set-Location "..\krapi-error-handler"
+    & $PACKAGE_MANAGER install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to install krapi-error-handler dependencies"
+        Set-Location $PSScriptRoot
+        exit 1
+    }
+    
+    Set-Location "..\krapi-monitor"
+    & $PACKAGE_MANAGER install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to install krapi-monitor dependencies"
+        Set-Location $PSScriptRoot
+        exit 1
+    }
+    
+    Set-Location $PSScriptRoot
+    
+    # Install backend-server dependencies
+    Set-Location "backend-server"
+    & $PACKAGE_MANAGER install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to install backend-server dependencies"
+        Set-Location $PSScriptRoot
+        exit 1
+    }
+    Set-Location $PSScriptRoot
+    
+    # Install frontend-manager dependencies
+    Set-Location "frontend-manager"
+    & $PACKAGE_MANAGER install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to install frontend-manager dependencies"
+        Set-Location $PSScriptRoot
+        exit 1
+    }
+    Set-Location $PSScriptRoot
+    
+    # Install root dependencies
     if (-not (Test-Path "node_modules")) {
         & $PACKAGE_MANAGER install
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to install root dependencies"
+            exit 1
+        }
     } else {
         Write-Status "Dependencies already installed, skipping..."
     }
@@ -91,10 +145,62 @@ Write-Status "Step 1/3: Installing dependencies..."
 if (-not (Test-Path ".env")) {
     & $PACKAGE_MANAGER run init-env 2>&1 | Out-Null
 }
+
+# Install dependencies for packages first
+Write-Status "Installing package dependencies..."
+Set-Location "backend-server\packages\krapi-logger"
+& $PACKAGE_MANAGER install
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install krapi-logger dependencies"
+    Set-Location $PSScriptRoot
+    exit 1
+}
+
+Set-Location "..\krapi-error-handler"
+& $PACKAGE_MANAGER install
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install krapi-error-handler dependencies"
+    Set-Location $PSScriptRoot
+    exit 1
+}
+
+Set-Location "..\krapi-monitor"
+& $PACKAGE_MANAGER install
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install krapi-monitor dependencies"
+    Set-Location $PSScriptRoot
+    exit 1
+}
+
+Set-Location $PSScriptRoot
+
+# Install backend-server dependencies
+Write-Status "Installing backend-server dependencies..."
+Set-Location "backend-server"
+& $PACKAGE_MANAGER install
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install backend-server dependencies"
+    Set-Location $PSScriptRoot
+    exit 1
+}
+Set-Location $PSScriptRoot
+
+# Install frontend-manager dependencies
+Write-Status "Installing frontend-manager dependencies..."
+Set-Location "frontend-manager"
+& $PACKAGE_MANAGER install
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to install frontend-manager dependencies"
+    Set-Location $PSScriptRoot
+    exit 1
+}
+Set-Location $PSScriptRoot
+
+# Install root dependencies
 if (-not (Test-Path "node_modules")) {
     & $PACKAGE_MANAGER install
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to install dependencies"
+        Write-Error "Failed to install root dependencies"
         exit 1
     }
     Write-Success "Dependencies installed"

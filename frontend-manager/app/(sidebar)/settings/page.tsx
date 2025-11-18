@@ -39,7 +39,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 
 // Settings schema
 const generalSettingsSchema = z.object({
@@ -100,8 +99,7 @@ export default function SettingsPage() {
   const [testEmailDialog, setTestEmailDialog] = useState(false);
   const [testEmail, setTestEmail] = useState("");
 
-  const krapi = useKrapi();
-  const { user: _user } = useReduxAuth();
+  const { sessionToken, user: _user } = useReduxAuth();
 
   const tabs = [
     { id: "general", label: "General", icon: Settings },
@@ -113,15 +111,28 @@ export default function SettingsPage() {
   // Fetch settings from backend
   useEffect(() => {
     const fetchSettings = async () => {
+      if (!sessionToken) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
-        // Get settings from backend
-        if (!krapi) return;
+        const response = await fetch("/api/system/settings", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        });
 
-        const response = await krapi.system.getSettings();
-        const result = response as unknown as SystemSettings | null;
-        if (result) {
-          setSettings(result);
+        if (!response.ok) {
+          throw new Error("Failed to fetch settings");
+        }
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          setSettings(result.data as SystemSettings);
         } else {
           // Fallback to default settings if API fails
           setSettings({
@@ -169,111 +180,182 @@ export default function SettingsPage() {
     };
 
     fetchSettings();
-  }, [krapi]);
+  }, [sessionToken]);
 
   const handleGeneralSubmit = async (data: GeneralSettingsData) => {
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
     try {
       setIsSaving(true);
-      // Save settings to backend
-      if (!krapi) return;
+      const response = await fetch("/api/system/settings", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ general: data }),
+      });
 
-      const response = await krapi.system.updateSettings({ general: data });
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
 
-      if (response) {
-        // Update local state
+      const result = await response.json();
+      if (result.success) {
         setSettings((prev) => (prev ? { ...prev, general: data } : null));
         toast.success("General settings saved successfully!");
       } else {
-        toast.error("Failed to save settings");
+        toast.error(result.error || "Failed to save settings");
       }
     } catch {
       // Error logged for debugging
-      alert("Failed to save settings. Please try again.");
+      toast.error("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSecuritySubmit = async (data: SecuritySettingsData) => {
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
     try {
       setIsSaving(true);
-      // Save settings to backend
-      if (!krapi) return;
+      const response = await fetch("/api/system/settings", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ security: data }),
+      });
 
-      const response = await krapi.system.updateSettings({ security: data });
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
 
-      if (response) {
-        // Update local state
+      const result = await response.json();
+      if (result.success) {
         setSettings((prev) => (prev ? { ...prev, security: data } : null));
         toast.success("Security settings saved successfully!");
       } else {
-        toast.error("Failed to save settings");
+        toast.error(result.error || "Failed to save settings");
       }
     } catch {
       // Error logged for debugging
-      alert("Failed to save settings. Please try again.");
+      toast.error("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleEmailSubmit = async (data: EmailSettingsData) => {
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
     try {
       setIsSaving(true);
-      // Save settings to backend
-      if (!krapi) return;
+      const response = await fetch("/api/system/settings", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: data }),
+      });
 
-      const response = await krapi.system.updateSettings({ email: data });
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
 
-      if (response) {
-        // Update local state
+      const result = await response.json();
+      if (result.success) {
         setSettings((prev) => (prev ? { ...prev, email: data } : null));
         toast.success("Email settings saved successfully!");
       } else {
-        toast.error("Failed to save settings");
+        toast.error(result.error || "Failed to save settings");
       }
     } catch {
       // Error logged for debugging
-      alert("Failed to save settings. Please try again.");
+      toast.error("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDatabaseSubmit = async (data: DatabaseSettingsData) => {
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
     try {
       setIsSaving(true);
-      // Save settings to backend
-      if (!krapi) return;
+      const response = await fetch("/api/system/settings", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ database: data }),
+      });
 
-      const response = await krapi.system.updateSettings({ database: data });
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
 
-      if (response) {
-        // Update local state
+      const result = await response.json();
+      if (result.success) {
         setSettings((prev) => (prev ? { ...prev, database: data } : null));
         toast.success("Database settings saved successfully!");
       } else {
-        toast.error("Failed to save settings");
+        toast.error(result.error || "Failed to save settings");
       }
     } catch {
       // Error logged for debugging
-      alert("Failed to save settings. Please try again.");
+      toast.error("Failed to save settings. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleTestEmail = async () => {
-    if (!settings || !krapi) return;
+    if (!settings || !sessionToken || !testEmail) {
+      toast.error("Please enter an email address");
+      return;
+    }
 
     try {
-      // Test email configuration
-      const response = await krapi.system.testEmailConfig(settings.email);
+      const response = await fetch("/api/system/test-email", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: testEmail,
+          emailConfig: settings.email,
+        }),
+      });
 
-      if (response && response.success) {
+      if (!response.ok) {
+        throw new Error("Email test failed");
+      }
+
+      const result = await response.json();
+      if (result.success) {
         toast.success("Email configuration test successful!");
+        setTestEmailDialog(false);
+        setTestEmail("");
       } else {
-        toast.error("Email configuration test failed");
+        toast.error(result.error || "Email configuration test failed");
       }
     } catch {
       // Error logged for debugging

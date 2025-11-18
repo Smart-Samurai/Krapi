@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken, serverSdk } from "@/app/api/lib/sdk-client";
+import { getAuthToken, getServerSdk } from "@/app/api/lib/sdk-client";
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -57,8 +57,9 @@ export async function PUT(
 
     // Use SDK instead of direct fetch
     // Update user with permissions field set to scopes
-    serverSdk.auth.setSessionToken(authToken);
-    const user = await serverSdk.users.update(projectId, userId, {
+    const sdk = await getServerSdk();
+    sdk.auth.setSessionToken(authToken);
+    const user = await sdk.users.update(projectId, userId, {
       permissions: scopes,
     });
 

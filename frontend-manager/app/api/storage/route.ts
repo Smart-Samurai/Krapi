@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { serverSdk } from "@/app/api/lib/sdk-client";
+import { getServerSdk } from "@/app/api/lib/sdk-client";
 
 /**
  * Storage API Routes
@@ -22,7 +22,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     // Get storage info using SDK
-    const storageInfo = await serverSdk.storage.getStorageInfo(projectId);
+    const sdk = await getServerSdk();
+    const storageInfo = await sdk.storage.getStorageInfo(projectId);
 
     return NextResponse.json({ success: true, data: storageInfo });
   } catch (error) {
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Upload file using SDK
-    const fileInfo = await serverSdk.storage.uploadFile(projectId, file, {
+    const sdk = await getServerSdk();
+    const fileInfo = await sdk.storage.uploadFile(projectId, file, {
       metadata: { uploaded_by: "admin" },
     });
 

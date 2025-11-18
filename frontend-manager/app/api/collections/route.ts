@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { serverSdk } from "@/app/api/lib/sdk-client";
+import { getServerSdk } from "@/app/api/lib/sdk-client";
 
 /**
  * Collections API Routes
@@ -22,7 +22,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     // Get collections for the project using SDK
-    const collections = await serverSdk.collections.getCollectionsByProject(
+    const sdk = await getServerSdk();
+    const collections = await sdk.collections.getCollectionsByProject(
       projectId
     );
 
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     // Create collection using SDK
     // SDK expects: collections.create(projectId, collectionData)
-    const collection = await serverSdk.collections.create(
+    const sdk = await getServerSdk();
+    const collection = await sdk.collections.create(
       collectionData.project_id,
       {
         name: collectionData.name,

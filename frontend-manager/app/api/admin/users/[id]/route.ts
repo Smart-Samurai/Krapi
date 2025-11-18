@@ -17,7 +17,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const client = createAuthenticatedSdk(authToken);
+    const client = await createAuthenticatedSdk(authToken);
     const response = await client.admin.getUser(id);
     const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
@@ -54,7 +54,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const client = createAuthenticatedSdk(authToken);
+    const client = await createAuthenticatedSdk(authToken);
     const response = await client.admin.updateUser(id, body);
     const result = response as unknown as { success: boolean; data?: unknown; error?: string };
 
@@ -90,7 +90,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const client = createAuthenticatedSdk(authToken);
+    const client = await createAuthenticatedSdk(authToken);
     const response = await client.admin.deleteUser(id);
 
     if (response.success) {

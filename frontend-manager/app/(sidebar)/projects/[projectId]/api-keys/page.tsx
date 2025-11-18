@@ -111,7 +111,7 @@ function getAuthToken(): string | null {
   }
   return localStorage.getItem("session_token");
 }
-import { ProjectScope } from "@/lib/krapi";
+import { ProjectScope } from "@/lib/krapi-constants";
 
 /**
  * Scope Labels Mapping

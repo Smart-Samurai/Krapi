@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { serverSdk } from "@/app/api/lib/sdk-client";
+import { getServerSdk } from "@/app/api/lib/sdk-client";
 
 /**
  * Documents API Routes
@@ -29,7 +29,8 @@ export async function GET(request: NextRequest): Promise<Response> {
       : 1;
 
     // Get documents from collection using SDK
-    const documents = await serverSdk.collections.getDocuments(collectionId, {
+    const sdk = await getServerSdk();
+    const documents = await sdk.collections.getDocuments(collectionId, {
       limit,
       page,
     });
@@ -59,7 +60,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Create document using SDK
-    const document = await serverSdk.collections.createDocument(
+    const sdk = await getServerSdk();
+    const document = await sdk.collections.createDocument(
       documentData.collection_id,
       documentData.data
     );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken, serverSdk } from "@/app/api/lib/sdk-client";
+import { getAuthToken, getServerSdk } from "@/app/api/lib/sdk-client";
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -36,11 +36,13 @@ export async function POST(
     const userData = await request.json();
 
     // Use SDK instead of direct fetch
-    serverSdk.auth.setSessionToken(authToken);
-    const user = await serverSdk.users.create(projectId, userData);
+    const sdk = await getServerSdk();
+    sdk.auth.setSessionToken(authToken);
+    const user = await sdk.users.create(projectId, userData);
 
     return NextResponse.json({ success: true, data: user }, { status: 201 });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Error creating project user:", error);
     
     // Check if it's an Axios error with a status code
@@ -143,14 +145,16 @@ export async function GET(
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined;
 
     // Use SDK instead of direct fetch
-    serverSdk.auth.setSessionToken(authToken);
-    const users = await serverSdk.users.getAll(projectId, {
+    const sdk = await getServerSdk();
+    sdk.auth.setSessionToken(authToken);
+    const users = await sdk.users.getAll(projectId, {
       search,
       limit,
     });
 
     return NextResponse.json({ success: true, data: Array.isArray(users) ? users : [] });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Error fetching project users:", error);
     return NextResponse.json(
       {

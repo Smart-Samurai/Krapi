@@ -40,13 +40,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Scope } from "@/lib/krapi";
+import { Scope } from "@/lib/krapi-constants";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 export default function ProfilePage() {
   const { user, scopes, sessionToken, loading: authLoading, isInitialized } = useReduxAuth();
-  const krapi = useKrapi();
   const extendedUser = user as ExtendedAdminUser;
 
   // Password state
@@ -130,25 +128,34 @@ export default function ProfilePage() {
       return;
     }
 
-    if (!krapi?.auth) {
-      toast.error("Authentication not initialized");
+    if (!sessionToken) {
+      toast.error("No session token available");
       return;
     }
 
     setIsChangingPassword(true);
     try {
-      const response = await krapi.auth.changePassword(
-        currentPassword,
-        newPassword
-      );
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
 
-      if (response.success) {
+      const result = await response.json();
+
+      if (result.success) {
         toast.success("Password changed successfully");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
-        toast.error("Failed to change password");
+        toast.error(result.error || "Failed to change password");
       }
     } catch {
       toast.error("Failed to change password");
@@ -163,11 +170,6 @@ export default function ProfilePage() {
       return;
     }
 
-    if (!krapi) {
-      toast.error("KRAPI SDK not available");
-      return;
-    }
-
     if (
       !confirm(
         "Are you sure you want to regenerate your API key? This will invalidate your current key."
@@ -178,13 +180,22 @@ export default function ProfilePage() {
 
     setIsRegeneratingKey(true);
     try {
-      const response = await krapi.auth.regenerateApiKey({});
-      if (response.success && response.data) {
+      const response = await fetch("/api/krapi/k1/apikeys/regenerate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
         toast.success("API key regenerated successfully");
-        // You might want to update the UI to show the new key
-        // For security reasons, you might want to show it only once
+        // Refresh the page to show the new key
+        window.location.reload();
       } else {
-        toast.error(response.error || "Failed to regenerate API key");
+        toast.error(result.error || "Failed to regenerate API key");
       }
     } catch (error) {
       toast.error(

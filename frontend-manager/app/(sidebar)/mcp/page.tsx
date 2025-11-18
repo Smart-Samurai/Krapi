@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 /**
  * Chat Message Interface
@@ -60,6 +61,7 @@ interface ChatMessage {
  * @returns {JSX.Element} Admin MCP page
  */
 export default function AdminMcpPage() {
+  const { sessionToken } = useReduxAuth();
   const [provider, setProvider] = useState<"openai" | "lmstudio" | "ollama">("openai");
   const [endpoint, setEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -118,9 +120,17 @@ export default function AdminMcpPage() {
     setConnected(false);
 
     try {
-      const response = await fetch("/api/krapi/k1/mcp/models", {
+      if (!sessionToken) {
+        setError("Please log in to continue");
+        return;
+      }
+
+      const response = await fetch("/api/mcp/models", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify({
           provider,
           endpoint,
@@ -153,9 +163,16 @@ export default function AdminMcpPage() {
 
     setCheckingCapabilities(true);
     try {
-      const response = await fetch("/api/krapi/k1/mcp/model-capabilities", {
+      if (!sessionToken) {
+        return;
+      }
+
+      const response = await fetch("/api/mcp/model-capabilities", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify({
           provider,
           endpoint,
@@ -172,7 +189,7 @@ export default function AdminMcpPage() {
     } finally {
       setCheckingCapabilities(false);
     }
-  }, [model, endpoint, provider, apiKey]);
+  }, [model, endpoint, provider, apiKey, sessionToken]);
 
   // Check capabilities when model changes
   useEffect(() => {
@@ -191,9 +208,18 @@ export default function AdminMcpPage() {
     setError(null);
 
     try {
-      const resp = await fetch(`/api/krapi/k1/mcp/admin/chat`, {
+      if (!sessionToken) {
+        setError("Please log in to continue");
+        setLoading(false);
+        return;
+      }
+
+      const resp = await fetch(`/api/mcp/admin/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify({
           provider,
           endpoint,

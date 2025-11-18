@@ -64,7 +64,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { Scope } from "@/lib/krapi";
+import { Scope } from "@/lib/krapi-constants";
 
 /**
  * Test Result Interface
@@ -139,7 +139,7 @@ interface DiagnosticResult {
  * @returns {JSX.Element} Test access page
  */
 export default function TestAccessPage() {
-  const { krapi, user: _user, hasScope } = useReduxAuth();
+  const { sessionToken, user: _user, hasScope } = useReduxAuth();
 
   const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
   const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(
@@ -171,8 +171,6 @@ export default function TestAccessPage() {
   };
 
   const checkCollectionAccess = async () => {
-    if (!krapi) return;
-
     try {
       // Note: Collection access check requires a project ID
       toast.info("Collection access check requires a project ID");
@@ -183,8 +181,6 @@ export default function TestAccessPage() {
   };
 
   const checkDocumentAccess = async () => {
-    if (!krapi) return;
-
     try {
       // Note: Document access check requires a project ID and collection ID
       toast.info(
@@ -197,14 +193,29 @@ export default function TestAccessPage() {
   };
 
   const checkSystemHealth = async () => {
-    if (!krapi) return;
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
 
     try {
       setRunning((prev) => ({ ...prev, health: true }));
-      const response = await krapi.health.check();
+      const response = await fetch("/api/health/check", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response) {
-        setHealthStatus(response);
+      if (!response.ok) {
+        throw new Error("Health check failed");
+      }
+
+      const result = await response.json();
+
+      if (result) {
+        setHealthStatus(result);
         toast.success("System health check completed");
       } else {
         toast.error("Failed to check system health");
@@ -225,14 +236,26 @@ export default function TestAccessPage() {
   };
 
   const checkDatabaseHealth = async () => {
-    if (!krapi || !hasScope(Scope.ADMIN_READ)) return;
+    if (!sessionToken || !hasScope(Scope.ADMIN_READ)) return;
 
     try {
       setRunning((prev) => ({ ...prev, dbHealth: true }));
-      const response = await krapi.health.checkDatabase();
+      const response = await fetch("/api/health/database", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response) {
-        setDbHealthStatus(response);
+      if (!response.ok) {
+        throw new Error("Database health check failed");
+      }
+
+      const result = await response.json();
+
+      if (result) {
+        setDbHealthStatus(result);
         toast.success("Database health check completed");
       } else {
         toast.error("Failed to check database health");
@@ -259,14 +282,29 @@ export default function TestAccessPage() {
   // };
 
   const runDiagnostics = async () => {
-    if (!krapi) return;
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
 
     try {
       setRunning((prev) => ({ ...prev, diagnostics: true }));
-      const response = await krapi.health.runDiagnostics();
+      const response = await fetch("/api/health/diagnostics", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response) {
-        setDiagnosticResults(response);
+      if (!response.ok) {
+        throw new Error("Diagnostics failed");
+      }
+
+      const result = await response.json();
+
+      if (result) {
+        setDiagnosticResults(result);
         toast.success("System diagnostics completed");
       } else {
         toast.error("Failed to run diagnostics");
@@ -280,14 +318,29 @@ export default function TestAccessPage() {
   };
 
   const runIntegrationTests = async () => {
-    if (!krapi) return;
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
 
     try {
       setRunning((prev) => ({ ...prev, integration: true }));
-      const response = await krapi.testing.runTests();
+      const response = await fetch("/api/testing/run-tests", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response) {
-        setTestResults(response.results || []);
+      if (!response.ok) {
+        throw new Error("Integration tests failed");
+      }
+
+      const result = await response.json();
+
+      if (result) {
+        setTestResults(result.results || []);
         toast.success("Integration tests completed");
       } else {
         toast.error("Failed to run integration tests");
@@ -301,21 +354,33 @@ export default function TestAccessPage() {
   };
 
   const createTestProject = async () => {
-    if (!krapi) {
-      toast.error("KRAPI instance not initialized");
+    if (!sessionToken) {
+      toast.error("No session token available");
       return;
     }
 
     try {
       setRunning((prev) => ({ ...prev, testProject: true }));
-      const response = await krapi.testing.createTestProject();
+      const response = await fetch("/api/testing/create-project", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response) {
+      if (!response.ok) {
+        throw new Error("Failed to create test project");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
         toast.success("Test project created successfully");
         // Refresh projects list
         await checkProjectAccess();
       } else {
-        toast.error("Failed to create test project: No response received");
+        toast.error(result.error || "Failed to create test project");
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -326,11 +391,25 @@ export default function TestAccessPage() {
   };
 
   const deleteTestProject = async (projectId: string) => {
-    if (!krapi) return;
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
 
     try {
       setRunning((prev) => ({ ...prev, cleanup: true }));
-      await krapi.testing.deleteTestProject(projectId);
+      const response = await fetch(`/api/testing/project/${projectId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete test project");
+      }
+
       toast.success("Test project deleted successfully");
       // Refresh test projects list
       await loadTestProjects();
@@ -343,20 +422,35 @@ export default function TestAccessPage() {
   };
 
   const cleanupTestData = async () => {
-    if (!krapi) return;
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
 
     try {
       setRunning((prev) => ({ ...prev, cleanup: true }));
-      const response = await krapi.testing.cleanup();
+      const response = await fetch("/api/testing/cleanup", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response) {
+      if (!response.ok) {
+        throw new Error("Failed to cleanup test data");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
         toast.success("Test data cleanup completed");
         // Refresh test projects list
         await loadTestProjects();
         await checkCollectionAccess();
         await checkDocumentAccess();
       } else {
-        toast.error("Failed to cleanup test data");
+        toast.error(result.error || "Failed to cleanup test data");
       }
     } catch (_error: unknown) {
       toast.error("Test data cleanup failed");
@@ -366,46 +460,44 @@ export default function TestAccessPage() {
   };
 
   const loadTestProjects = useCallback(async () => {
-    if (!krapi) return;
+    if (!sessionToken) return;
 
     try {
-      const response = await krapi.projects.getAll();
-      if (Array.isArray(response)) {
+      const response = await fetch("/api/projects", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const result = await response.json();
+      const projects = result.projects || result.data || [];
+
+      if (Array.isArray(projects)) {
         // Filter test projects (those with "test" in the name/description OR settings.isTestProject flag)
-        const testProjects = (response as unknown as Project[]).filter(
-          (p: Project) => {
-            const settings = p.settings as { isTestProject?: boolean } | undefined;
-            return (
-              settings?.isTestProject === true ||
-              p.name.toLowerCase().includes("test") ||
-              p.description?.toLowerCase().includes("test")
-            );
-          }
-        );
-        setTestProjects(testProjects as unknown as Project[]);
-      } else if (response && typeof response === "object" && "data" in response) {
-        // Handle ApiResponse format
-        const projects = (response as { data: Project[] }).data;
-        if (Array.isArray(projects)) {
-          const testProjects = projects.filter((p: Project) => {
-            const settings = p.settings as { isTestProject?: boolean } | undefined;
-            return (
-              settings?.isTestProject === true ||
-              p.name.toLowerCase().includes("test") ||
-              p.description?.toLowerCase().includes("test")
-            );
-          });
-          setTestProjects(testProjects);
-        }
+        const testProjects = projects.filter((p: Project) => {
+          const settings = p.settings as { isTestProject?: boolean } | undefined;
+          return (
+            settings?.isTestProject === true ||
+            p.name.toLowerCase().includes("test") ||
+            p.description?.toLowerCase().includes("test")
+          );
+        });
+        setTestProjects(testProjects);
       }
     } catch (_error: unknown) {
       // Failed to load test projects
     }
-  }, [krapi]);
+  }, [sessionToken]);
 
   useEffect(() => {
     loadTestProjects();
-  }, [krapi, loadTestProjects]);
+  }, [loadTestProjects]);
 
   const formatDuration = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;

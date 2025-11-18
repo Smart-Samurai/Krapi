@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 /**
  * Chat Message Interface
@@ -66,6 +67,7 @@ export default function ProjectMcpPage() {
     throw new Error("Project ID is required");
   }
   const projectId = params.projectId as string;
+  const { sessionToken } = useReduxAuth();
   const [provider, setProvider] = useState<"openai" | "lmstudio" | "ollama">("openai");
   const [endpoint, setEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -124,9 +126,17 @@ export default function ProjectMcpPage() {
     setConnected(false);
 
     try {
-      const response = await fetch("/api/krapi/k1/mcp/models", {
+      if (!sessionToken) {
+        setError("Please log in to continue");
+        return;
+      }
+
+      const response = await fetch("/api/mcp/models", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify({
           provider,
           endpoint,
@@ -159,9 +169,16 @@ export default function ProjectMcpPage() {
 
     setCheckingCapabilities(true);
     try {
-      const response = await fetch("/api/krapi/k1/mcp/model-capabilities", {
+      if (!sessionToken) {
+        return;
+      }
+
+      const response = await fetch("/api/mcp/model-capabilities", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify({
           provider,
           endpoint,
@@ -178,7 +195,7 @@ export default function ProjectMcpPage() {
     } finally {
       setCheckingCapabilities(false);
     }
-  }, [model, endpoint, provider, apiKey]);
+  }, [model, endpoint, provider, apiKey, sessionToken]);
 
   // Check capabilities when model changes
   useEffect(() => {
@@ -197,9 +214,18 @@ export default function ProjectMcpPage() {
     setError(null);
 
     try {
-      const resp = await fetch(`/api/krapi/k1/mcp/projects/${projectId}/chat`, {
+      if (!sessionToken) {
+        setError("Please log in to continue");
+        setLoading(false);
+        return;
+      }
+
+      const resp = await fetch(`/api/mcp/projects/${projectId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
         body: JSON.stringify({
           provider,
           endpoint,

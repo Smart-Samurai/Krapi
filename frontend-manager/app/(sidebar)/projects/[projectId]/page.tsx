@@ -21,7 +21,6 @@
 import {
   Database,
   Users,
-  FileText,
   Activity,
   ArrowRight,
   Edit,
@@ -45,7 +44,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById } from "@/store/projectsSlice";
@@ -70,7 +68,6 @@ export default function ProjectDetailPage() {
     throw new Error("Project ID is required");
   }
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
   const dispatch = useAppDispatch();
 
   const projectsState = useAppSelector((s) => s.projects);
@@ -171,19 +168,9 @@ export default function ProjectDetailPage() {
                 Collections <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </ActionButton>
-            <ActionButton variant="outline" icon={FileText} asChild>
-              <Link href={`/projects/${projectId}/documents`}>
-                Documents <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </ActionButton>
             <ActionButton variant="outline" icon={Users} asChild>
               <Link href={`/projects/${projectId}/users`}>
                 Users <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </ActionButton>
-            <ActionButton variant="outline" icon={FileText} asChild>
-              <Link href={`/projects/${projectId}/files`}>
-                Files <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </ActionButton>
             <ActionButton variant="outline" icon={Mail} asChild>

@@ -34,8 +34,8 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
-import { useKrapi } from "@/lib/hooks/useKrapi";
-import { Project, Scope } from "@/lib/krapi";
+import type { Project } from "@/lib/krapi";
+import { Scope } from "@/lib/krapi-constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
 
@@ -54,7 +54,6 @@ import { fetchProjects } from "@/store/projectsSlice";
  */
 export default function DashboardPage() {
   const { user, loading, scopes, hasScope } = useReduxAuth();
-  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const projectsState = useAppSelector((s) => s.projects);
   const projects = projectsState.items;

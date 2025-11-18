@@ -1,52 +1,124 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// List of paths that don't require authentication
-const _publicPaths = ["/login", "/api/auth", "/api/krapi"];
+/**
+ * List of paths that don't require authentication
+ * These paths are accessible without a valid session token
+ */
+const publicPaths = ["/login", "/api/auth", "/api/krapi"];
 
-export function proxy(_request: NextRequest) {
-  // Temporarily disable middleware for testing
-  return NextResponse.next();
+/**
+ * Validates a session token with the backend
+ * 
+ * @param {string} token - The session token to validate
+ * @returns {Promise<boolean>} True if token is valid, false otherwise
+ */
+async function validateTokenWithBackend(token: string): Promise<boolean> {
+  try {
+    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-  // Original middleware logic commented out for now
-  /*
+    const response = await fetch(`${backendUrl}/krapi/k1/auth/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const result = await response.json();
+    return result.success === true && result.data !== undefined;
+  } catch (_error) {
+    // If validation fails (network error, timeout, etc.), treat as invalid
+    return false;
+  }
+}
+
+/**
+ * Next.js 16 Proxy
+ * 
+ * Handles authentication checks for all routes:
+ * - Allows public paths without authentication
+ * - Validates session tokens for protected routes
+ * - Redirects to login if authentication fails
+ * 
+ * Note: In Next.js 16, middleware.ts has been renamed to proxy.ts
+ * to better reflect its role in handling network requests.
+ * 
+ * @param {NextRequest} request - The incoming request
+ * @returns {Promise<NextResponse>} Response or redirect
+ */
+export function proxy(request: NextRequest): Promise<NextResponse> {
+  return handleProxyRequest(request);
+}
+
+/**
+ * Handles the proxy request logic
+ * 
+ * @param {NextRequest} request - The incoming request
+ * @returns {Promise<NextResponse>} Response or redirect
+ */
+async function handleProxyRequest(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
+  // Allow static files and Next.js internal routes
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/favicon.ico") ||
+    pathname.startsWith("/public/")
+  ) {
+    return NextResponse.next();
+  }
+
+  // Allow public paths without authentication
   if (publicPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
-  // For API routes, check Authorization header instead of cookies
-  if (pathname.startsWith("/api/")) {
-    const authHeader = request.headers.get("authorization");
-    const hasAuth = !!authHeader && authHeader.startsWith("Bearer ");
-    
-    if (!hasAuth) {
-      return NextResponse.json(
-        { error: "Unauthorized - Missing or invalid Authorization header" },
-        { status: 401 }
-      );
-    }
-    
+  // Allow root path - it will handle redirect internally
+  if (pathname === "/") {
     return NextResponse.next();
   }
 
-  // For non-API routes, check for authentication tokens in cookies
-  const sessionToken = request.cookies.get("session_token")?.value;
-  const hasAuth = !!sessionToken;
+  // Get token from cookie or Authorization header
+  const sessionToken =
+    request.cookies.get("session_token")?.value ||
+    request.headers.get("authorization")?.replace("Bearer ", "");
 
-  // Redirect to login if not authenticated
-  if (!hasAuth) {
+  // If no token found, redirect to login
+  if (!sessionToken) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
+  // Validate token with backend
+  const isValid = await validateTokenWithBackend(sessionToken);
+
+  if (!isValid) {
+    // Token is invalid, clear cookie and redirect to login
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    const response = NextResponse.redirect(loginUrl);
+    
+    // Clear the invalid session token cookie
+    response.cookies.delete("session_token");
+    
+    return response;
+  }
+
+  // Token is valid, allow request to proceed
   return NextResponse.next();
-  */
 }
 
-// Configure which routes the middleware runs on
+// Configure which routes the proxy runs on
 export const config = {
   matcher: [
     /*
@@ -59,3 +131,5 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 };
+
+

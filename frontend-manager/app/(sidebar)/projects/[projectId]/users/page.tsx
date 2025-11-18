@@ -61,7 +61,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ProjectScope, type ProjectUser } from "@/lib/krapi";
+import type { ProjectUser } from "@/lib/krapi";
+import { ProjectScope } from "@/lib/krapi-constants";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { beginBusy, endBusy } from "@/store/uiSlice";
 import {

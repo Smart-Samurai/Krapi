@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { serverSdk } from "@/app/api/lib/sdk-client";
+import { getServerSdk } from "@/app/api/lib/sdk-client";
 
 /**
  * Auth API Routes
@@ -79,7 +79,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         // Register using SDK
-        const user = await serverSdk.auth.register({
+        const registerSdk = await getServerSdk();
+        const user = await registerSdk.auth.register({
           username: body.username,
           email: body.email,
           password: body.password,
@@ -98,7 +99,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         // Logout using SDK
-        await serverSdk.auth.logout(body.session_id);
+        const logoutSdk = await getServerSdk();
+        await logoutSdk.auth.logout(body.session_id);
         return NextResponse.json({
           success: true,
           message: "Logged out successfully",
