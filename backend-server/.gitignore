@@ -104,6 +104,13 @@ docs/.vuepress/dist/
 *.tar.gz
 *.rar
 
+# Restic binaries (keep the directory but ignore temp files)
+bin/*.zip
+bin/*.bz2
+bin/temp-*
+!bin/.gitkeep
+!bin/restic-*
+
 # Misc
 .env.example.local
 .maintenance

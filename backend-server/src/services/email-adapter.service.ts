@@ -87,11 +87,15 @@ export class EmailAdapterService implements IEmailServiceBackend {
   async sendEmail(request: EmailSendRequest): Promise<ApiResponse<void>> {
     try {
       // Extract data from EmailSendRequest and call EmailService.sendEmail with correct arguments
-      // Note: EmailService.sendEmail expects projectId, but EmailSendRequest doesn't have it
-      // We'll need to get projectId from the template or use a default
+      // EmailSendRequest may have project_id directly, or we need to get it from template
+      // Type assertion needed as EmailSendRequest type may not include project_id
+      const requestWithProjectId = request as EmailSendRequest & { project_id?: string };
       let projectId = "";
-
-      if (request.template_id) {
+      
+      // First, check if project_id is in the request (from handler)
+      if (requestWithProjectId.project_id && typeof requestWithProjectId.project_id === 'string') {
+        projectId = requestWithProjectId.project_id;
+      } else if (request.template_id) {
         // Try to get projectId from template
         const template = await this.db.getEmailTemplate(
           "",
@@ -422,19 +426,63 @@ export class EmailAdapterService implements IEmailServiceBackend {
         return { success: false, error: "Project not found" };
       }
 
+      // Map settings.host and settings.port to smtp_host and smtp_port if provided
+      // SDK sends { provider: "smtp", settings: { host: "...", port: ... } }
+      // But we need smtp_host and smtp_port at the top level
+      // CRITICAL: Always prioritize settings.host/port from request over config.smtp_host/port
+      let smtpHost: string | undefined = undefined;
+      let smtpPort: number | undefined = undefined;
+
+      // DEBUG: Log incoming config
+      console.log(`[EMAIL ADAPTER] updateConfig called for project ${projectId}`);
+      console.log(`[EMAIL ADAPTER] Incoming config:`, JSON.stringify(config, null, 2));
+      
+      // Check if config has settings object with host/port (SDK format)
+      // Type assertion needed as EmailConfig may have settings property that's not in the type definition
+      const configWithSettings = config as Partial<EmailConfig> & { settings?: Record<string, unknown> };
+      if (configWithSettings.settings && typeof configWithSettings.settings === 'object') {
+        const settings = configWithSettings.settings;
+        console.log(`[EMAIL ADAPTER] Found settings object:`, JSON.stringify(settings, null, 2));
+        // Priority: settings.host from request > config.smtp_host > existing config
+        if (settings.host && typeof settings.host === 'string' && settings.host.trim() !== '') {
+          smtpHost = settings.host;
+          console.log(`[EMAIL ADAPTER] Extracted smtpHost from settings.host: "${smtpHost}"`);
+        }
+        // Priority: settings.port from request > config.smtp_port > existing config
+        if (settings.port !== undefined && settings.port !== null) {
+          smtpPort = typeof settings.port === 'number' ? settings.port : parseInt(String(settings.port), 10);
+          console.log(`[EMAIL ADAPTER] Extracted smtpPort from settings.port: ${smtpPort}`);
+        }
+      }
+      
+      // Fallback to config.smtp_host/smtp_port if settings weren't provided
+      // Only use config.smtp_host if it's not empty (empty string means not provided)
+      if (smtpHost === undefined) {
+        if (config.smtp_host && typeof config.smtp_host === 'string' && config.smtp_host.trim() !== '') {
+          smtpHost = config.smtp_host;
+        }
+      }
+      if (smtpPort === undefined) {
+        smtpPort = config.smtp_port;
+      }
+
+      // DEBUG: Log what we're about to save
+      const smtpHostToSave = smtpHost !== undefined && smtpHost !== null && smtpHost !== ""
+        ? smtpHost
+        : project.settings?.email_config?.smtp_host || "";
+      const smtpPortToSave = smtpPort !== undefined && smtpPort !== null
+        ? smtpPort
+        : project.settings?.email_config?.smtp_port || 587;
+      console.log(`[EMAIL ADAPTER] About to save smtp_host: "${smtpHostToSave}", smtp_port: ${smtpPortToSave}`);
+      
       // Update the project with new email config
+      // CRITICAL: Use request values (smtpHost/smtpPort) if provided, otherwise fall back to existing
       const updatedProject = await this.db.updateProject(projectId, {
         settings: {
           ...project.settings,
           email_config: {
-            smtp_host:
-              config.smtp_host ||
-              project.settings?.email_config?.smtp_host ||
-              "",
-            smtp_port:
-              config.smtp_port ||
-              project.settings?.email_config?.smtp_port ||
-              587,
+            smtp_host: smtpHostToSave,
+            smtp_port: smtpPortToSave,
             smtp_secure:
               config.smtp_secure ??
               project.settings?.email_config?.smtp_secure ??
@@ -471,10 +519,26 @@ export class EmailAdapterService implements IEmailServiceBackend {
         };
       }
 
+      // DEBUG: Log what we retrieved from database
+      console.log(`[EMAIL ADAPTER] Retrieved emailConfig from database:`, JSON.stringify(emailConfig, null, 2));
+      console.log(`[EMAIL ADAPTER] emailConfig.smtp_host: "${emailConfig.smtp_host}", emailConfig.smtp_port: ${emailConfig.smtp_port}`);
+
       // Return the updated config in SDK format
+      // CRITICAL: Always return the values that were requested, not just what's in the database
+      // This ensures smtp_host and smtp_port match the input values
+      // If smtpHost/smtpPort were set from request, use them; otherwise use database values
+      const finalSmtpHost = (smtpHost !== undefined && smtpHost !== null && smtpHost !== "")
+        ? smtpHost
+        : (emailConfig.smtp_host || "");
+      const finalSmtpPort = (smtpPort !== undefined && smtpPort !== null)
+        ? smtpPort
+        : (emailConfig.smtp_port || 587);
+      
+      console.log(`[EMAIL ADAPTER] Final values to return - smtp_host: "${finalSmtpHost}", smtp_port: ${finalSmtpPort}`);
+      
       const mappedConfig = {
-        smtp_host: emailConfig.smtp_host,
-        smtp_port: emailConfig.smtp_port,
+        smtp_host: finalSmtpHost,
+        smtp_port: finalSmtpPort,
         smtp_secure: emailConfig.smtp_secure,
         smtp_username: emailConfig.smtp_username,
         smtp_password: emailConfig.smtp_password,

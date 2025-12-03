@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function - more permissive to accept any valid UUID format
@@ -60,38 +61,26 @@ export async function GET(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${documentId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // Use SDK method - frontend should work like third-party app
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const document = await sdk.documents.get(projectId, collectionName, documentId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!document) {
       return NextResponse.json(
         {
           success: false,
-          error: errorData.error || "Failed to fetch document",
+          error: "Document not found",
         },
-        { status: response.status }
+        { status: 404 }
       );
     }
 
-    const backendResponse = await response.json();
-    
-    // Backend returns document directly (not wrapped), so backendResponse IS the document
-    // Don't extract backendResponse.data - that's the document's data field, not the document!
-    const document = backendResponse;
-    
-    // Test expects response.data.id, so return document directly (not wrapped)
-    return NextResponse.json(document);
+    // Return document directly (tests expect response.data.id)
+    // The document object itself should be at the top level
+    return NextResponse.json({
+      ...document,
+      success: true, // Also include success flag
+    });
   } catch (error) {
     
     return NextResponse.json(
@@ -165,36 +154,17 @@ export async function PUT(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${documentId}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(documentData),
-      }
+    // Use SDK method - frontend should work like third-party app
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const document = await sdk.documents.update(
+      projectId,
+      collectionName,
+      documentId,
+      { data: documentData.data || documentData }
     );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to update document",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    // Backend returns the document directly
-    // Test expects response.data.data.title, so we need to return the document at the top level
-    // with a 'data' field containing the document's data field
-    return NextResponse.json({ success: true, ...backendResponse });
+    // SDK returns document directly
+    return NextResponse.json({ success: true, ...document });
   } catch (error) {
     
     return NextResponse.json(
@@ -259,29 +229,9 @@ export async function DELETE(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${documentId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to delete document",
-        },
-        { status: response.status }
-      );
-    }
+    // Use SDK method - frontend should work like third-party app
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    await sdk.documents.delete(projectId, collectionName, documentId);
 
     return NextResponse.json({
       success: true,

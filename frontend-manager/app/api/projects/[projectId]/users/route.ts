@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken, getServerSdk } from "@/app/api/lib/sdk-client";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
 
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
@@ -35,9 +45,8 @@ export async function POST(
 
     const userData = await request.json();
 
-    // Use SDK instead of direct fetch
-    const sdk = await getServerSdk();
-    sdk.auth.setSessionToken(authToken);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
     const user = await sdk.users.create(projectId, userData);
 
     return NextResponse.json({ success: true, data: user }, { status: 201 });
@@ -144,9 +153,8 @@ export async function GET(
     const search = searchParams.get("search") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined;
 
-    // Use SDK instead of direct fetch
-    const sdk = await getServerSdk();
-    sdk.auth.setSessionToken(authToken);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
     const users = await sdk.users.getAll(projectId, {
       search,
       limit,

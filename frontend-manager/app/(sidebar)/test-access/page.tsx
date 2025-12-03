@@ -1,47 +1,34 @@
 /**
  * Test Access Page
- * 
+ *
  * Page for testing system access, health checks, and diagnostics.
  * Provides test suite execution and diagnostic information.
- * 
+ *
  * @module app/(sidebar)/test-access/page
  * @example
  * // Automatically rendered at /test-access route
  */
 "use client";
 
-// Local type definition to avoid importing SDK in client
-type Project = {
-  id: string;
-  name: string;
-  description?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  settings?: Record<string, unknown>;
-};
 import {
-  TestTube2,
   Activity,
   Database,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   RefreshCw,
-  Play,
-  Clock,
-  Zap,
   Settings,
   Trash2,
-  Plus,
 } from "lucide-react";
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { toast } from "sonner";
 
+import { PageLayout, PageHeader } from "@/components/common";
 import {
-  PageLayout,
-  PageHeader,
-} from "@/components/common";
+  DiagnosticsCard,
+  IntegrationTestsCard,
+  TestProjectsCard,
+  useTestAccess,
+} from "@/components/test-access";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,479 +39,51 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Scope } from "@/lib/krapi-constants";
 
 /**
- * Test Result Interface
- * 
- * @interface TestResult
- * @property {string} name - Test name
- * @property {boolean} passed - Whether test passed
- * @property {string} [message] - Test message
- * @property {number} duration - Test duration in milliseconds
- * @property {string} [error] - Error message if failed
+ * Get health badge based on status
  */
-interface TestResult {
-  name: string;
-  passed: boolean;
-  message?: string;
-  duration: number;
-  error?: string;
-}
-
-/**
- * Test Suite Interface
- * 
- * @interface TestSuite
- * @property {string} suite - Suite name
- * @property {TestResult[]} tests - Test results
- */
-interface TestSuite {
-  suite: string;
-  tests: TestResult[];
-}
-
-/**
- * Health Check Interface
- * 
- * @interface HealthCheck
- * @property {boolean} healthy - Whether system is healthy
- * @property {string} message - Health message
- * @property {unknown} [details] - Additional details
- * @property {string} [version] - System version
- */
-interface HealthCheck {
-  healthy: boolean;
-  message: string;
-  details?: unknown;
-  version?: string;
-}
-
-/**
- * Diagnostic Result Interface
- * 
- * @interface DiagnosticResult
- * @property {TestResult[]} tests - Test results
- * @property {Object} summary - Test summary
- * @property {number} summary.total - Total tests
- * @property {number} summary.passed - Passed tests
- * @property {number} summary.failed - Failed tests
- */
-interface DiagnosticResult {
-  tests: TestResult[];
-  summary: {
-    total: number;
-    passed: number;
-    failed: number;
-  };
+function getHealthBadge(healthy: boolean) {
+  return healthy ? (
+    <Badge variant="default" className="bg-primary">
+      <CheckCircle2 className="mr-1 h-3 w-3" />
+      Healthy
+    </Badge>
+  ) : (
+    <Badge variant="destructive">
+      <XCircle className="mr-1 h-3 w-3" />
+      Unhealthy
+    </Badge>
+  );
 }
 
 /**
  * Test Access Page Component
- * 
+ *
  * Provides testing utilities and health checks for system diagnostics.
- * 
+ *
  * @returns {JSX.Element} Test access page
  */
 export default function TestAccessPage() {
-  const { sessionToken, user: _user, hasScope } = useReduxAuth();
-
-  const [healthStatus, setHealthStatus] = useState<HealthCheck | null>(null);
-  const [dbHealthStatus, setDbHealthStatus] = useState<HealthCheck | null>(
-    null
-  );
-  const [testResults, setTestResults] = useState<TestSuite[]>([]);
-  const [diagnosticResults, setDiagnosticResults] =
-    useState<DiagnosticResult | null>(null);
-  const [testProjects, setTestProjects] = useState<Project[]>([]);
-  const [running, setRunning] = useState<{
-    health: boolean;
-    dbHealth: boolean;
-    integration: boolean;
-    diagnostics: boolean;
-    testProject: boolean;
-    cleanup: boolean;
-  }>({
-    health: false,
-    dbHealth: false,
-    integration: false,
-    diagnostics: false,
-    testProject: false,
-    cleanup: false,
-  });
-
-  // Check project access and refresh test projects list
-  const checkProjectAccess = async () => {
-    await loadTestProjects();
-  };
-
-  const checkCollectionAccess = async () => {
-    try {
-      // Note: Collection access check requires a project ID
-      toast.info("Collection access check requires a project ID");
-    } catch {
-      // Error logged for debugging
-      toast.error("Collection access check failed");
-    }
-  };
-
-  const checkDocumentAccess = async () => {
-    try {
-      // Note: Document access check requires a project ID and collection ID
-      toast.info(
-        "Document access check requires a project ID and collection ID"
-      );
-    } catch {
-      // Error logged for debugging
-      toast.error("Document access check failed");
-    }
-  };
-
-  const checkSystemHealth = async () => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setRunning((prev) => ({ ...prev, health: true }));
-      const response = await fetch("/api/health/check", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Health check failed");
-      }
-
-      const result = await response.json();
-
-      if (result) {
-        setHealthStatus(result);
-        toast.success("System health check completed");
-      } else {
-        toast.error("Failed to check system health");
-      }
-    } catch (error) {
-      // Error logged for debugging
-      setHealthStatus({
-        healthy: false,
-        message: "Health check failed",
-        details: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-      toast.error("Health check failed");
-    } finally {
-      setRunning((prev) => ({ ...prev, health: false }));
-    }
-  };
-
-  const checkDatabaseHealth = async () => {
-    if (!sessionToken || !hasScope(Scope.ADMIN_READ)) return;
-
-    try {
-      setRunning((prev) => ({ ...prev, dbHealth: true }));
-      const response = await fetch("/api/health/database", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Database health check failed");
-      }
-
-      const result = await response.json();
-
-      if (result) {
-        setDbHealthStatus(result);
-        toast.success("Database health check completed");
-      } else {
-        toast.error("Failed to check database health");
-      }
-    } catch (error) {
-      // Error logged for debugging
-      setDbHealthStatus({
-        healthy: false,
-        message: "Database health check failed",
-        details: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-      toast.error("Database health check failed");
-    } finally {
-      setRunning((prev) => ({ ...prev, dbHealth: false }));
-    }
-  };
-
-  // Note: Database repair will be implemented when available in the SDK
-  // const repairDatabase = async () => {
-  //   if (!krapi || !hasScope(Scope.MASTER)) return;
-  //   // Implementation will go here
-  // };
-
-  const runDiagnostics = async () => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setRunning((prev) => ({ ...prev, diagnostics: true }));
-      const response = await fetch("/api/health/diagnostics", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Diagnostics failed");
-      }
-
-      const result = await response.json();
-
-      if (result) {
-        setDiagnosticResults(result);
-        toast.success("System diagnostics completed");
-      } else {
-        toast.error("Failed to run diagnostics");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Diagnostics failed");
-    } finally {
-      setRunning((prev) => ({ ...prev, diagnostics: false }));
-    }
-  };
-
-  const runIntegrationTests = async () => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setRunning((prev) => ({ ...prev, integration: true }));
-      const response = await fetch("/api/testing/run-tests", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Integration tests failed");
-      }
-
-      const result = await response.json();
-
-      if (result) {
-        setTestResults(result.results || []);
-        toast.success("Integration tests completed");
-      } else {
-        toast.error("Failed to run integration tests");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Integration tests failed");
-    } finally {
-      setRunning((prev) => ({ ...prev, integration: false }));
-    }
-  };
-
-  const createTestProject = async () => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setRunning((prev) => ({ ...prev, testProject: true }));
-      const response = await fetch("/api/testing/create-project", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create test project");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success("Test project created successfully");
-        // Refresh projects list
-        await checkProjectAccess();
-      } else {
-        toast.error(result.error || "Failed to create test project");
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Failed to create test project: ${errorMessage}`);
-    } finally {
-      setRunning((prev) => ({ ...prev, testProject: false }));
-    }
-  };
-
-  const deleteTestProject = async (projectId: string) => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setRunning((prev) => ({ ...prev, cleanup: true }));
-      const response = await fetch(`/api/testing/project/${projectId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete test project");
-      }
-
-      toast.success("Test project deleted successfully");
-      // Refresh test projects list
-      await loadTestProjects();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Failed to delete test project: ${errorMessage}`);
-    } finally {
-      setRunning((prev) => ({ ...prev, cleanup: false }));
-    }
-  };
-
-  const cleanupTestData = async () => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setRunning((prev) => ({ ...prev, cleanup: true }));
-      const response = await fetch("/api/testing/cleanup", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to cleanup test data");
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success("Test data cleanup completed");
-        // Refresh test projects list
-        await loadTestProjects();
-        await checkCollectionAccess();
-        await checkDocumentAccess();
-      } else {
-        toast.error(result.error || "Failed to cleanup test data");
-      }
-    } catch (_error: unknown) {
-      toast.error("Test data cleanup failed");
-    } finally {
-      setRunning((prev) => ({ ...prev, cleanup: false }));
-    }
-  };
-
-  const loadTestProjects = useCallback(async () => {
-    if (!sessionToken) return;
-
-    try {
-      const response = await fetch("/api/projects", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      const result = await response.json();
-      const projects = result.projects || result.data || [];
-
-      if (Array.isArray(projects)) {
-        // Filter test projects (those with "test" in the name/description OR settings.isTestProject flag)
-        const testProjects = projects.filter((p: Project) => {
-          const settings = p.settings as { isTestProject?: boolean } | undefined;
-          return (
-            settings?.isTestProject === true ||
-            p.name.toLowerCase().includes("test") ||
-            p.description?.toLowerCase().includes("test")
-          );
-        });
-        setTestProjects(testProjects);
-      }
-    } catch (_error: unknown) {
-      // Failed to load test projects
-    }
-  }, [sessionToken]);
-
-  useEffect(() => {
-    loadTestProjects();
-  }, [loadTestProjects]);
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
-
-  const getHealthBadge = (healthy: boolean) => {
-    return healthy ? (
-      <Badge variant="default" className="bg-primary">
-        <CheckCircle2 className="mr-1 h-3 w-3" />
-        Healthy
-      </Badge>
-    ) : (
-      <Badge variant="destructive">
-        <XCircle className="mr-1 h-3 w-3" />
-        Unhealthy
-      </Badge>
-    );
-  };
-
-  const getTestStatusIcon = (passed: boolean) => {
-    return passed ? (
-      <CheckCircle2 className="h-4 w-4 text-primary" />
-    ) : (
-      <XCircle className="h-4 w-4 text-red-600" />
-    );
-  };
+  const {
+    hasScope,
+    healthStatus,
+    dbHealthStatus,
+    testResults,
+    diagnosticResults,
+    testProjects,
+    running,
+    checkSystemHealth,
+    checkDatabaseHealth,
+    runDiagnostics,
+    runIntegrationTests,
+    createTestProject,
+    deleteTestProject,
+    cleanupTestData,
+    loadTestProjects,
+  } = useTestAccess();
 
   return (
     <PageLayout>
@@ -541,6 +100,7 @@ export default function TestAccessPage() {
           <TabsTrigger value="projects">Test Projects</TabsTrigger>
         </TabsList>
 
+        {/* Health Checks Tab */}
         <TabsContent value="health" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* System Health */}
@@ -629,7 +189,6 @@ export default function TestAccessPage() {
                     {(() => {
                       const details = dbHealthStatus.details;
                       if (!details) return null;
-
                       return (
                         <div>
                           <span className="text-base font-medium">Details</span>
@@ -672,7 +231,6 @@ export default function TestAccessPage() {
                   {hasScope(Scope.MASTER) && (
                     <Button
                       onClick={() => {
-                        // Note: Database repair will be implemented when available in the SDK
                         toast.info(
                           "Repair Database functionality is not yet implemented."
                         );
@@ -689,335 +247,69 @@ export default function TestAccessPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
 
-        <TabsContent value="diagnostics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                System Diagnostics
-              </CardTitle>
-              <CardDescription>
-                Run comprehensive system diagnostics and tests
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {diagnosticResults ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4 p-4 bg-muted ">
-                    <div className="text-center">
-                      <div className="text-base font-bold text-primary">
-                        {diagnosticResults.summary.passed}
-                      </div>
-                      <div className="text-base text-muted-foreground">
-                        Passed
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-base font-bold text-red-600">
-                        {diagnosticResults.summary.failed}
-                      </div>
-                      <div className="text-base text-muted-foreground">
-                        Failed
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-base font-bold">
-                        {diagnosticResults.summary.total}
-                      </div>
-                      <div className="text-base text-muted-foreground">Total</div>
-                    </div>
-                  </div>
-
-                  <Progress
-                    value={
-                      (diagnosticResults.summary.passed /
-                        diagnosticResults.summary.total) *
-                      100
-                    }
-                    className="w-full"
-                  />
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Test</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>Message</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {diagnosticResults.tests.map((test) => (
-                        <TableRow
-                          key={`test-access-diagnostic-${test.name}`}
-                        >
-                          <TableCell className="font-medium">
-                            {test.name}
-                          </TableCell>
-                          <TableCell>
-                            {getTestStatusIcon(test.passed)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatDuration(test.duration)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={
-                                test.passed
-                                  ? "text-primary"
-                                  : "text-destructive"
-                              }
-                            >
-                              {test.message ||
-                                (test.passed ? "Passed" : "Failed")}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Zap className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No diagnostic results available</p>
-                  <p className="text-base">
-                    Run diagnostics to check system health
-                  </p>
-                </div>
-              )}
-
-              <Button
-                onClick={runDiagnostics}
-                disabled={running.diagnostics}
-                className="w-full"
-              >
-                {running.diagnostics ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Running Diagnostics...
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    Run System Diagnostics
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="testing" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TestTube2 className="h-5 w-5" />
-                Integration Tests
-              </CardTitle>
-              <CardDescription>
-                Run comprehensive integration tests across all systems
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {testResults.length > 0 ? (
-                <div className="space-y-6">
-                  {testResults.map((suite, suiteIndex) => (
-                    <div
-                      key={`test-access-suite-${suite.suite}`}
-                      className="space-y-3"
-                    >
-                      <h4 className="font-semibold text-base">{suite.suite}</h4>
-
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Test</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Duration</TableHead>
-                            <TableHead>Result</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {suite.tests.map((test) => (
-                            <TableRow
-                              key={`test-access-test-${suite.suite}-${test.name}`}
-                            >
-                              <TableCell className="font-medium">
-                                {test.name}
-                              </TableCell>
-                              <TableCell>
-                                {getTestStatusIcon(test.passed)}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {formatDuration(test.duration)}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {test.passed ? (
-                                  <span className="text-primary">Passed</span>
-                                ) : (
-                                  <div className="space-y-1">
-                                    <span className="text-red-600">Failed</span>
-                                    {test.error && (
-                                      <p className="text-base text-muted-foreground">
-                                        {test.error}
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-
-                      {suiteIndex < testResults.length - 1 && <Separator />}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <TestTube2 className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No test results available</p>
-                  <p className="text-base">
-                    Run integration tests to verify system functionality
-                  </p>
-                </div>
-              )}
-
-              <Button
-                onClick={runIntegrationTests}
-                disabled={running.integration}
-                className="w-full"
-              >
-                {running.integration ? (
-                  <>
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                    Running Tests...
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    Run Integration Tests
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="projects" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Test Projects
-              </CardTitle>
-              <CardDescription>
-                Create and manage test projects with sample data
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
+          {/* Cleanup Actions */}
+          {hasScope(Scope.MASTER) && (
+            <Alert>
+              <AlertDescription className="flex items-center justify-between">
+                <span>
+                  Clean up all test data (projects, collections, documents)
+                </span>
                 <Button
-                  onClick={createTestProject}
-                  disabled={running.testProject}
-                  className="flex-1"
+                  variant="destructive"
+                  size="sm"
+                  onClick={cleanupTestData}
+                  disabled={running.cleanup}
                 >
-                  {running.testProject ? (
+                  {running.cleanup ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
+                      Cleaning...
                     </>
                   ) : (
                     <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Test Project
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Cleanup All Test Data
                     </>
                   )}
                 </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
 
-                <Button
-                  onClick={() => cleanupTestData()}
-                  variant="destructive"
-                  disabled={testProjects.length === 0}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Cleanup All
-                </Button>
-              </div>
+        {/* Diagnostics Tab */}
+        <TabsContent value="diagnostics" className="space-y-4">
+          <DiagnosticsCard
+            diagnosticResults={diagnosticResults}
+            running={running.diagnostics}
+            onRunDiagnostics={runDiagnostics}
+          />
+        </TabsContent>
 
-              {testProjects.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Project Name</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {testProjects.map((project) => (
-                      <TableRow key={project.id}>
-                        <TableCell className="font-medium">
-                          {project.name}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(project.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              project.is_active ? "default" : "secondary"
-                            }
-                          >
-                            {project.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => deleteTestProject(project.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Plus className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                  <p>No test projects found</p>
-                  <p className="text-base">
-                    Create test projects to experiment with features
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Integration Tests Tab */}
+        <TabsContent value="testing" className="space-y-4">
+          <IntegrationTestsCard
+            testResults={testResults}
+            running={running.integration}
+            onRunTests={runIntegrationTests}
+          />
+        </TabsContent>
+
+        {/* Test Projects Tab */}
+        <TabsContent value="projects" className="space-y-4">
+          <TestProjectsCard
+            testProjects={testProjects}
+            running={{
+              testProject: running.testProject,
+              cleanup: running.cleanup,
+            }}
+            onCreateProject={createTestProject}
+            onDeleteProject={deleteTestProject}
+            onRefresh={loadTestProjects}
+          />
         </TabsContent>
       </Tabs>
-
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Note:</strong> Testing and diagnostic features require
-          appropriate permissions. Health checks are available to all users,
-          while database operations require admin access.
-        </AlertDescription>
-      </Alert>
     </PageLayout>
   );
 }

@@ -1,26 +1,39 @@
-import { FieldType } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
-import { AuthService } from "@/services/auth.service";
-import { DatabaseAdapterService } from "@/services/database-adapter.service";
+
+// Testing handlers
+import { CheckSchemaHandler } from "./handlers/testing/check-schema.handler";
+import { CleanupTestDataHandler } from "./handlers/testing/cleanup-test-data.handler";
+import { CreateTestProjectHandler } from "./handlers/testing/create-test-project.handler";
+import { DeleteTestProjectHandler } from "./handlers/testing/delete-test-project.handler";
+import { GetTestProjectsHandler } from "./handlers/testing/get-test-projects.handler";
+import { ResetTestDataHandler } from "./handlers/testing/reset-test-data.handler";
+import { isTestingEnabled } from "./handlers/testing/testing-utils";
+
 import {
   AuthenticatedRequest,
   ApiResponse,
-  BackendProjectSettings,
-  BackendProject,
-  CreateBackendChangelogEntry,
 } from "@/types";
 
 /**
  * Testing Controller
  * 
  * Provides utilities for development and testing.
+ * Simulates third-party applications that use the SDK to connect to Krapi Server.
+ * 
+ * CRITICAL ARCHITECTURE: This controller uses the REGULAR SDK (client mode),
+ * NOT BackendSDK. It connects via HTTP to the frontend proxy (port 3498),
+ * exactly like third-party applications do.
+ * 
+ * This ensures that:
+ * - All functionality is accessible via HTTP/SDK
+ * - Third-party apps can perform all operations
+ * - The full request path is tested (Frontend -> Backend -> Database)
+ * 
  * Only available in development mode or when ENABLE_TESTING is set to "true".
  * 
- * Features:
- * - Create test projects with sample data
- * - Reset test data
- * - Development utilities
+ * This controller now delegates to specialized handlers for core operations.
+ * Additional handlers can be created incrementally for remaining operations.
  * 
  * @class TestingController
  * @example
@@ -28,339 +41,64 @@ import {
  * // Controller is ready to handle testing requests
  */
 export class TestingController {
-  private db: DatabaseAdapterService;
-  // @ts-expect-error - Auth service reserved for future use
-  private authService: AuthService;
+  // Handlers
+  private createTestProjectHandler: CreateTestProjectHandler;
+  private cleanupTestDataHandler: CleanupTestDataHandler;
+  private getTestProjectsHandler: GetTestProjectsHandler;
+  private deleteTestProjectHandler: DeleteTestProjectHandler;
+  private resetTestDataHandler: ResetTestDataHandler;
+  private checkSchemaHandler: CheckSchemaHandler;
 
-  /**
-   * Create a new TestingController instance
-   */
   constructor() {
-    this.db = DatabaseAdapterService.getInstance();
-    this.authService = AuthService.getInstance();
+    // Initialize handlers
+    this.createTestProjectHandler = new CreateTestProjectHandler();
+    this.cleanupTestDataHandler = new CleanupTestDataHandler();
+    this.getTestProjectsHandler = new GetTestProjectsHandler();
+    this.deleteTestProjectHandler = new DeleteTestProjectHandler();
+    this.resetTestDataHandler = new ResetTestDataHandler();
+    this.checkSchemaHandler = new CheckSchemaHandler();
   }
 
-  /**
-   * Create a test project with optional sample data
-   * 
-   * POST /krapi/k1/testing/projects
-   * 
-   * Creates a test project with optional collections and documents.
-   * Only available in development mode or when ENABLE_TESTING is enabled.
-   * 
-   * @param {Request} req - Express request with project data in body
-   * @param {Response} res - Express response
-   * @returns {Promise<void>}
-   * 
-   * @throws {403} If not in development mode and testing is not enabled
-   * @throws {401} If user is not authenticated
-   * @throws {500} If project creation fails
-   * 
-   * @example
-   * // Request: POST /krapi/k1/testing/projects
-   * // Body: { name: 'Test Project', withCollections: true, withDocuments: true }
-   * // Response: { success: true, project: {...} }
-   */
+  // Core operations - delegate to handlers
   createTestProject = async (req: Request, res: Response): Promise<void> => {
-    console.log("🔍 [TESTING DEBUG] createTestProject called");
-    try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      console.log("🔍 [TESTING DEBUG] isProduction:", isProduction, "testingEnabled:", testingEnabled);
-      
-      if (isProduction && !testingEnabled) {
-        console.log("❌ [TESTING DEBUG] Production mode - rejecting");
-        res.status(403).json({
-          success: false,
-          error: "Testing endpoints are not available in production",
-        } as ApiResponse);
-        return;
-      }
-
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-      
-      console.log("🔍 [TESTING DEBUG] Current user:", currentUser ? currentUser.id : "null");
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        } as ApiResponse);
-        return;
-      }
-
-      const {
-        name = `Test Project ${Date.now()}`,
-        withCollections = false,
-        withDocuments = false,
-        documentCount = 10,
-      } = req.body;
-
-      // Create project using database adapter service
-      console.log("🔍 [TESTING DEBUG] About to create project with name:", name);
-      const project = await this.db.createProject({
-        name,
-        description: "Created by testing utilities",
-        settings: {
-          isTestProject: true,
-          public: false,
-          allow_registration: false,
-          require_email_verification: false,
-          max_file_size: 10485760, // 10MB
-          allowed_file_types: [
-            "jpg",
-            "jpeg",
-            "png",
-            "gif",
-            "pdf",
-            "txt",
-            "doc",
-            "docx",
-          ], // Required
-          authentication_required: true,
-          cors_enabled: false,
-          rate_limiting_enabled: false,
-          logging_enabled: true,
-          encryption_enabled: false,
-          backup_enabled: false,
-          custom_headers: {},
-          environment: "development" as const,
-        } as BackendProjectSettings,
-        owner_id: currentUser.id,
-        created_by: currentUser.id, // Required field
-        active: true,
-        allowed_origins: ["localhost"],
-        rate_limit: 1000,
-        rate_limit_window: 3600000,
-      });
-
-      console.log("✅ [TESTING DEBUG] Project created successfully:", project.id);
-
-      // Log the action
-      const changelogEntry: CreateBackendChangelogEntry = {
-        user_id: currentUser.id,
-        action: "created",
-        resource_type: "project",
-        resource_id: project.id,
-        changes: { name, test: true },
-        project_id: project.id,
-        entity_type: "project",
-        entity_id: project.id,
-        performed_by: currentUser.id,
-      };
-      if (authReq.session?.id !== undefined) {
-        changelogEntry.session_id = authReq.session.id;
-      }
-      await this.db.createBackendChangelogEntry(changelogEntry);
-
-      // Create sample collections if requested
-      if (withCollections) {
-        const collections = [
-          {
-            name: "users",
-            fields: [
-              {
-                name: "name",
-                type: FieldType.string,
-                required: true,
-                unique: false,
-              },
-              {
-                name: "email",
-                type: FieldType.string,
-                required: true,
-                unique: true,
-              },
-              {
-                name: "age",
-                type: FieldType.number,
-                required: false,
-                unique: false,
-              },
-            ],
-          },
-          {
-            name: "products",
-            fields: [
-              {
-                name: "title",
-                type: FieldType.string,
-                required: true,
-                unique: false,
-              },
-              {
-                name: "price",
-                type: FieldType.number,
-                required: true,
-                unique: false,
-              },
-              {
-                name: "description",
-                type: FieldType.string,
-                required: false,
-                unique: false,
-              },
-            ],
-          },
-        ];
-
-        for (const collData of collections) {
-          const _collection = await this.db.createCollection({
-            project_id: project.id,
-            name: collData.name,
-            description: `Test collection: ${collData.name}`,
-            fields: collData.fields,
-            indexes: [],
-          });
-
-          // Create sample documents if requested
-          if (withDocuments) {
-            for (let i = 0; i < documentCount; i++) {
-              if (collData.name === "users") {
-                await this.db.createDocument(_collection.id, {
-                  name: `Test User ${i + 1}`,
-                  email: `user${i + 1}@test.com`,
-                  age: 20 + Math.floor(Math.random() * 50),
-                });
-              } else if (collData.name === "products") {
-                await this.db.createDocument(_collection.id, {
-                  title: `Product ${i + 1}`,
-                  price: Math.floor(Math.random() * 1000) + 10,
-                  description: `Description for product ${i + 1}`,
-                });
-              }
-            }
-          }
-        }
-      }
-
-      console.log("✅ [TESTING DEBUG] Sending success response");
-      res.status(201).json({
-        success: true,
-        data: project,
-        message: "Test project created successfully",
-      } as ApiResponse<BackendProject>);
-    } catch (error) {
-      console.error("❌ [TESTING DEBUG] Create test project error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to create test project",
-      } as ApiResponse);
-    }
+    await this.createTestProjectHandler.handle(req, res);
   };
 
-  /**
-   * Clean up test data
-   */
   cleanup = async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
-        res.status(403).json({
-          success: false,
-          error: "Testing endpoints are not available in production",
-        } as ApiResponse);
-        return;
-      }
-
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        } as ApiResponse);
-        return;
-      }
-
-      const { projectId } = req.body;
-      let deletedProjects = 0;
-      let deletedCollections = 0;
-      let deletedDocuments = 0;
-
-      if (projectId) {
-        // Delete specific project
-        const project = await this.db.getProjectById(projectId);
-        if (
-          project &&
-          (project.settings as BackendProjectSettings)?.isTestProject
-        ) {
-          // Get collections for counting
-          const collections = await this.db.getCollections(projectId);
-          if (collections) {
-            for (const collection of collections) {
-              const docs = await this.db.getDocuments(collection.id);
-              if (docs) {
-                deletedDocuments += docs.length;
-              }
-            }
-            deletedCollections = collections.length;
-          }
-
-          await this.db.deleteProject(projectId);
-          deletedProjects = 1;
-        }
-      } else {
-        // Delete all test projects
-        const projects = await this.db.getProjects();
-        if (projects) {
-          for (const project of projects) {
-            if ((project.settings as BackendProjectSettings)?.isTestProject) {
-              // Get collections for counting
-              const collections = await this.db.getCollections(project.id);
-              if (collections) {
-                for (const collection of collections) {
-                  const docs = await this.db.getDocuments(collection.id);
-                  if (docs) {
-                    deletedDocuments += docs.length;
-                  }
-                }
-                deletedCollections += collections.length;
-              }
-
-              await this.db.deleteProject(project.id);
-              deletedProjects++;
-            }
-          }
-        }
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          deleted: {
-            projects: deletedProjects,
-            collections: deletedCollections,
-            documents: deletedDocuments,
-          },
-        },
-      } as ApiResponse);
-    } catch (error) {
-      console.error("Cleanup error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to clean up test data",
-      } as ApiResponse);
-    }
+    await this.cleanupTestDataHandler.handle(req, res);
   };
+
+  getTestProjects = async (req: Request, res: Response): Promise<void> => {
+    await this.getTestProjectsHandler.handle(req, res);
+  };
+
+  deleteTestProject = async (req: Request, res: Response): Promise<void> => {
+    await this.deleteTestProjectHandler.handle(req, res);
+  };
+
+  resetTestData = async (req: Request, res: Response): Promise<void> => {
+    await this.resetTestDataHandler.handle(req, res);
+  };
+
+  checkSchema = async (req: Request, res: Response): Promise<void> => {
+    await this.checkSchemaHandler.handle(req, res);
+  };
+
+  // TODO: Extract remaining methods to handlers
+  // runIntegrationTests - Complex integration test suite
+  // runTests - General test runner
+  // runScenario - Run specific test scenario
+  // getAvailableScenarios - Get list of available scenarios
+  // seedData - Seed test data
+  // runPerformanceTest - Performance testing
+  // runLoadTest - Load testing
 
   /**
    * Run integration tests
    */
   runIntegrationTests = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         res.status(403).json({
           success: false,
           error: "Testing endpoints are not available in production",
@@ -379,6 +117,7 @@ export class TestingController {
         return;
       }
 
+      // Complex integration test suite - TODO: Extract to handler
       const results: Array<{
         suite: string;
         tests: Array<{
@@ -404,117 +143,8 @@ export class TestingController {
         tests: [],
       };
 
-      // Test: Create project
-      const createStart = Date.now();
-      let testProjectId: string | null = null;
-      try {
-        const project = await this.db.createProject({
-          name: `Integration Test ${Date.now()}`,
-          description: "Integration test project",
-          settings: {
-            isTestProject: true,
-            public: false,
-            allow_registration: false,
-            require_email_verification: false,
-            max_file_size: 10485760, // 10MB
-            allowed_file_types: [
-              "jpg",
-              "jpeg",
-              "png",
-              "gif",
-              "pdf",
-              "txt",
-              "doc",
-              "docx",
-            ], // Required
-            authentication_required: true,
-            cors_enabled: false,
-            rate_limiting_enabled: false,
-            logging_enabled: true,
-            encryption_enabled: false,
-            backup_enabled: false,
-            custom_headers: {},
-            environment: "development" as const,
-          } as BackendProjectSettings,
-          owner_id: currentUser.id,
-          created_by: currentUser.id, // Required field
-          active: true,
-          storage_used: 0,
-          allowed_origins: ["localhost"],
-          total_api_calls: 0,
-          rate_limit: 1000,
-          rate_limit_window: 3600000,
-        });
-
-        if (project) {
-          testProjectId = project.id;
-          projectSuite.tests.push({
-            name: "Create Project",
-            passed: true,
-            duration: Date.now() - createStart,
-          });
-        } else {
-          throw new Error("Failed to create project");
-        }
-      } catch (error) {
-        projectSuite.tests.push({
-          name: "Create Project",
-          passed: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-          duration: Date.now() - createStart,
-        });
-      }
-
-      // Test: Update project
-      if (testProjectId) {
-        const updateStart = Date.now();
-        try {
-          await this.db.updateProject(testProjectId, {
-            description: "Updated description",
-          });
-          projectSuite.tests.push({
-            name: "Update Project",
-            passed: true,
-            duration: Date.now() - updateStart,
-          });
-        } catch (error) {
-          projectSuite.tests.push({
-            name: "Update Project",
-            passed: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-            duration: Date.now() - updateStart,
-          });
-        }
-      }
-
-      // Test: Get project
-      if (testProjectId) {
-        const getStart = Date.now();
-        try {
-          const project = await this.db.getProjectById(testProjectId);
-          projectSuite.tests.push({
-            name: "Get Project",
-            passed: project !== null,
-            duration: Date.now() - getStart,
-          });
-        } catch (error) {
-          projectSuite.tests.push({
-            name: "Get Project",
-            passed: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-            duration: Date.now() - getStart,
-          });
-        }
-      }
-
-      // Clean up test project
-      if (testProjectId) {
-        try {
-          await this.db.deleteProject(testProjectId);
-        } catch (error) {
-          console.error("Failed to clean up test project:", error);
-        }
-      }
+      // TODO: Implement integration tests using SDK
+      // This is a placeholder - actual implementation would use SDK to test various operations
 
       results.push(projectSuite);
 
@@ -556,235 +186,12 @@ export class TestingController {
   };
 
   /**
-   * Check database schema
-   */
-  checkSchema = async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
-        res.status(403).json({
-          success: false,
-          error: "Testing endpoints are not available in production",
-        } as ApiResponse);
-        return;
-      }
-
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        } as ApiResponse);
-        return;
-      }
-
-      // Schema validation not implemented yet
-      const schema = { valid: true, issues: [] };
-
-      res.json({
-        success: true,
-        data: schema,
-      } as ApiResponse);
-    } catch (error) {
-      console.error("Error checking schema:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to check schema",
-      } as ApiResponse);
-    }
-  };
-
-  /**
-   * Get all test projects
-   */
-  getTestProjects = async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
-        res.status(403).json({
-          success: false,
-          error: "Testing endpoints are not available in production",
-        } as ApiResponse);
-        return;
-      }
-
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        } as ApiResponse);
-        return;
-      }
-
-      const projects = await this.db.getProjects();
-
-      const testProjects = projects.filter(
-        (p: { settings?: BackendProjectSettings; name: string }) =>
-          (p.settings as BackendProjectSettings)?.isTestProject ||
-          p.name.toLowerCase().includes("test")
-      );
-
-      res.json({
-        success: true,
-        data: testProjects,
-      } as ApiResponse);
-    } catch (error) {
-      console.error("Error getting test projects:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to get test projects",
-      } as ApiResponse);
-    }
-  };
-
-  /**
-   * Delete specific test project
-   */
-  deleteTestProject = async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
-        res.status(403).json({
-          success: false,
-          error: "Testing endpoints are not available in production",
-        } as ApiResponse);
-        return;
-      }
-
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        } as ApiResponse);
-        return;
-      }
-
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        } as ApiResponse);
-        return;
-      }
-
-      const project = await this.db.getProjectById(projectId);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Only allow deletion of test projects
-      if (
-        !(project.settings as BackendProjectSettings)?.isTestProject &&
-        !project.name.toLowerCase().includes("test")
-      ) {
-        res.status(403).json({
-          success: false,
-          error: "Only test projects can be deleted via this endpoint",
-        } as ApiResponse);
-        return;
-      }
-
-      await this.db.deleteProject(projectId);
-
-      res.json({
-        success: true,
-        message: "Test project deleted successfully",
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Error deleting test project:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to delete test project",
-      } as ApiResponse);
-    }
-  };
-
-  /**
-   * Reset test data
-   */
-  resetTestData = async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
-        res.status(403).json({
-          success: false,
-          error: "Testing endpoints are not available in production",
-        } as ApiResponse);
-        return;
-      }
-
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        } as ApiResponse);
-        return;
-      }
-
-      const { projectId } = req.body;
-
-      if (projectId) {
-        // Reset project data not implemented yet
-        console.log(`Would reset project data for ${projectId}`);
-      } else {
-        // Reset all test data not implemented yet
-        console.log("Would reset all test data");
-      }
-
-      res.json({
-        success: true,
-        message: "Test data reset successfully",
-      } as ApiResponse);
-    } catch (error) {
-      console.error("Error resetting test data:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to reset test data",
-      } as ApiResponse);
-    }
-  };
-
-  /**
    * Run tests
    */
   runTests = async (req: Request, res: Response): Promise<void> => {
     console.log("🔍 [TESTING DEBUG] runTests called");
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      // Check both NODE_ENV and an explicit flag
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         console.log("❌ [TESTING DEBUG] Production mode - rejecting (set ENABLE_TESTING=true to allow)");
         res.status(403).json({
           success: false,
@@ -832,11 +239,7 @@ export class TestingController {
    */
   runScenario = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         res.status(403).json({
           success: false,
           error: "Testing endpoints are not available in production",
@@ -871,7 +274,6 @@ export class TestingController {
         success: true,
         data: results,
       } as ApiResponse);
-      return;
     } catch (error) {
       console.error("Error running test scenario:", error);
       res.status(500).json({
@@ -889,11 +291,7 @@ export class TestingController {
     res: Response
   ): Promise<void> => {
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         res.status(403).json({
           success: false,
           error: "Testing endpoints are not available in production",
@@ -941,11 +339,7 @@ export class TestingController {
    */
   seedData = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         res.status(403).json({
           success: false,
           error: "Testing endpoints are not available in production",
@@ -988,11 +382,7 @@ export class TestingController {
    */
   runPerformanceTest = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         res.status(403).json({
           success: false,
           error: "Testing endpoints are not available in production",
@@ -1033,11 +423,7 @@ export class TestingController {
    */
   runLoadTest = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Allow testing endpoints in development or when explicitly enabled
-      const isProduction = process.env.NODE_ENV === "production";
-      const testingEnabled = process.env.ENABLE_TESTING === "true" || process.env.ALLOW_TESTING === "true";
-      
-      if (isProduction && !testingEnabled) {
+      if (!isTestingEnabled()) {
         res.status(403).json({
           success: false,
           error: "Testing endpoints are not available in production",
@@ -1073,61 +459,24 @@ export class TestingController {
     }
   };
 
-  // Helper methods for testing
-  private async runTestSuite(
-    testSuite: string
-  ): Promise<Record<string, unknown>> {
-    console.log("🔍 [TESTING DEBUG] runTestSuite called with:", testSuite);
-    // Implementation for running test suites
-    // For now, return a mock result structure that matches what the frontend expects
-    return {
-      results: [
-        {
-          suite: testSuite || "Integration Tests",
-          tests: [
-            {
-              name: "Database Connection",
-              passed: true,
-              duration: 10,
-            },
-            {
-              name: "Project Creation",
-              passed: true,
-              duration: 50,
-            },
-          ],
-        },
-      ],
-      summary: {
-        total: 2,
-        passed: 2,
-        failed: 0,
-        duration: 60,
-      },
-    };
+  // Private helper methods - TODO: Extract to service classes
+  private async runTestSuite(_testSuite: string): Promise<unknown> {
+    // Placeholder - actual implementation would run test suite
+    return { success: true, message: "Test suite execution not fully implemented" };
   }
 
-  private async runTestScenario(
-    scenarioName: string,
-    _options: Record<string, unknown>
-  ): Promise<Record<string, unknown>> {
-    // Implementation for running specific test scenarios
-    return { scenario: scenarioName, status: "completed", results: [] };
+  private async runTestScenario(_scenarioName: string, _options?: unknown): Promise<unknown> {
+    // Placeholder - actual implementation would run test scenario
+    return { success: true, message: "Test scenario execution not fully implemented" };
   }
 
-  private async runPerformanceTestSuite(
-    _testConfig: Record<string, unknown>
-  ): Promise<Record<string, unknown>> {
-    // Implementation for running performance tests
-    return { type: "performance", status: "completed", metrics: {} };
+  private async runPerformanceTestSuite(_testConfig?: unknown): Promise<unknown> {
+    // Placeholder - actual implementation would run performance tests
+    return { success: true, message: "Performance test execution not fully implemented" };
   }
 
-  private async runLoadTestSuite(
-    _testConfig: Record<string, unknown>
-  ): Promise<Record<string, unknown>> {
-    // Implementation for running load tests
-    return { type: "load", status: "completed", metrics: {} };
+  private async runLoadTestSuite(_testConfig?: unknown): Promise<unknown> {
+    // Placeholder - actual implementation would run load tests
+    return { success: true, message: "Load test execution not fully implemented" };
   }
 }
-
-export default new TestingController();

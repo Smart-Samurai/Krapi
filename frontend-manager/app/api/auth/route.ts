@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getServerSdk } from "@/app/api/lib/sdk-client";
+import {
+  createAuthenticatedBackendSdk,
+  getBackendSdkClient,
+} from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 /**
- * Auth API Routes
+ * Auth API Routes (Legacy - Use /api/krapi/k1/auth/* routes instead)
  *
- * POST /api/auth/login - User login
- * POST /api/auth/register - User registration
- * POST /api/auth/logout - User logout
+ * POST /api/auth?action=login - User login (deprecated, use /api/krapi/k1/auth/admin/login)
+ * POST /api/auth?action=register - User registration
+ * POST /api/auth?action=logout - User logout (deprecated, use /api/krapi/k1/auth/logout)
+ * 
+ * SDK-FIRST ARCHITECTURE: Uses backend SDK client to communicate with backend.
  */
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -36,35 +42,9 @@ export async function POST(request: NextRequest): Promise<Response> {
           );
         }
 
-        // Call backend directly for admin login
-        const response = await fetch(
-          `${
-            process.env.BACKEND_URL || "http://localhost:3470"
-          }/krapi/k1/auth/admin/login`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              username: body.username,
-              password: body.password,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          return NextResponse.json(
-            {
-              success: false,
-              error: errorData.error || "Authentication failed",
-            },
-            { status: response.status }
-          );
-        }
-
-        const session = await response.json();
+        // SDK-FIRST: Use backend SDK client for login
+        const loginSdk = await getBackendSdkClient();
+        const session = await loginSdk.auth.login(body.username, body.password, body.remember_me);
         return NextResponse.json(session);
 
       case "register":
@@ -78,8 +58,8 @@ export async function POST(request: NextRequest): Promise<Response> {
           );
         }
 
-        // Register using SDK
-        const registerSdk = await getServerSdk();
+        // SDK-FIRST: Use backend SDK client for registration
+        const registerSdk = await getBackendSdkClient();
         const user = await registerSdk.auth.register({
           username: body.username,
           email: body.email,
@@ -91,16 +71,16 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
 
       case "logout":
-        if (!body.session_id) {
+        // SDK-FIRST: Use backend SDK client for logout
+        const authToken = getAuthToken(request.headers);
+        if (!authToken) {
           return NextResponse.json(
-            { success: false, error: "Session ID is required" },
-            { status: 400 }
+            { success: false, error: "Authentication required" },
+            { status: 401 }
           );
         }
-
-        // Logout using SDK
-        const logoutSdk = await getServerSdk();
-        await logoutSdk.auth.logout(body.session_id);
+        const logoutSdk = await createAuthenticatedBackendSdk(authToken);
+        await logoutSdk.auth.logout();
         return NextResponse.json({
           success: true,
           message: "Logged out successfully",

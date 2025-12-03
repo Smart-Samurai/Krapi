@@ -35,27 +35,27 @@ export class SDKUsersService {
   }
 
   async getUserById(
-    _projectId: string,
-    _userId: string
+    projectId: string,
+    userId: string
   ): Promise<unknown | null> {
     // SDK expects: getUserById(projectId, userId)
-    throw new Error("getUserById not implemented in SDK");
+    return await this.usersService.getUserById(projectId, userId);
   }
 
   async getUserByEmail(
-    _projectId: string,
-    _email: string
+    projectId: string,
+    email: string
   ): Promise<unknown | null> {
     // SDK expects: getUserByEmail(projectId, email)
-    throw new Error("getUserByEmail not implemented in SDK");
+    return await this.usersService.getUserByEmail(projectId, email);
   }
 
   async getUserByUsername(
-    _projectId: string,
-    _username: string
+    projectId: string,
+    username: string
   ): Promise<unknown | null> {
     // SDK expects: getUserByUsername(projectId, username)
-    throw new Error("getUserByUsername not implemented in SDK");
+    return await this.usersService.getUserByUsername(projectId, username);
   }
 
   /**
@@ -84,17 +84,28 @@ export class SDKUsersService {
       email: string;
       password: string;
       role?: string;
+      permissions?: string[];
       metadata?: Record<string, unknown>;
-    }
+    },
+    createdBy?: string
   ): Promise<unknown> {
     // SDK expects: createUser(projectId, userData: CreateUserRequest, createdBy?)
-    return await this.usersService.createUser(projectId, {
+    const createUserData: {
+      username: string;
+      email: string;
+      password: string;
+      role?: string;
+      permissions?: string[];
+      metadata?: Record<string, unknown>;
+    } = {
       username: userData.username,
       email: userData.email,
       password: userData.password,
-      role: userData.role as string,
+      ...(userData.role && { role: userData.role }),
+      ...(userData.permissions && { permissions: userData.permissions }),
       ...(userData.metadata && { metadata: userData.metadata }),
-    });
+    };
+    return await this.usersService.createUser(projectId, createUserData, createdBy);
   }
 
   async updateUser(

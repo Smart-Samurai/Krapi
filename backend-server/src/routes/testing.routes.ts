@@ -2,6 +2,11 @@
  * Testing Routes
  * 
  * Provides testing utilities for development and testing.
+ * Simulates third-party applications that use the SDK to connect to Krapi Server.
+ * 
+ * CRITICAL: Testing controller uses REGULAR SDK (client mode), NOT BackendSDK.
+ * It connects via HTTP to the frontend proxy, exactly like third-party apps.
+ * 
  * Base path: /krapi/k1/testing
  * 
  * Routes:
@@ -27,6 +32,9 @@ import { Scope } from "@/types";
 
 const router: IRouter = Router();
 const controller = new TestingController();
+
+// No SDK initialization needed - testing controller uses regular SDK (client mode)
+// which connects via HTTP to frontend proxy automatically
 
 // All routes require authentication
 router.use(authenticate);

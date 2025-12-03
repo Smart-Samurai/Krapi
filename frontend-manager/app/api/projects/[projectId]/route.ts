@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createAuthenticatedSdk, getAuthToken } from "@/app/api/lib/sdk-client";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // Disable static generation for this dynamic route
 export function generateStaticParams() {
@@ -43,85 +48,14 @@ export async function GET(
       );
     }
 
-    // Call the backend directly to properly handle 404 responses
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const backendEndpoint = `${backendUrl}/krapi/k1/projects/${projectId}`;
-    
-    let response;
-    try {
-      response = await fetch(backendEndpoint, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-    } catch (fetchError) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to connect to backend:", fetchError);
-      return NextResponse.json(
-        { success: false, error: "Failed to connect to backend server" },
-        { status: 503 }
-      );
-    }
-
-    if (!response.ok) {
-      interface ErrorData {
-        error?: string;
-        message?: string;
-      }
-
-      let errorData: ErrorData;
-      try {
-        const errorText = await response.text();
-        try {
-          errorData = JSON.parse(errorText) as ErrorData;
-        } catch {
-          errorData = { error: errorText || `Backend returned ${response.status}` };
-        }
-      } catch {
-        errorData = { error: `Backend returned ${response.status}` };
-      }
-      // eslint-disable-next-line no-console
-      console.error(`Backend error for project ${projectId}:`, errorData);
-      return NextResponse.json(
-        { success: false, error: errorData.error || errorData.message || "Failed to fetch project" },
-        { status: response.status }
-      );
-    }
-
-    let backendResponse;
-    try {
-      backendResponse = await response.json();
-    } catch (_parseError) {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON response from backend" },
-        { status: 500 }
-      );
-    }
-
-    // Check if the response has the expected structure
-    if (!backendResponse || typeof backendResponse !== "object") {
-      return NextResponse.json(
-        { success: false, error: "Invalid response format from backend" },
-        { status: 500 }
-      );
-    }
-
-    // Backend returns { success: true, data: project } or project directly
-    const projectData = backendResponse.data || backendResponse;
-    
-    if (!projectData || !projectData.id) {
-      return NextResponse.json(
-        { success: false, error: "Backend response missing project data" },
-        { status: 500 }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const project = await sdk.projects.get(projectId);
 
     // Wrap response to match expected format: { success: true, project: ... }
     return NextResponse.json({
       success: true,
-      project: projectData,
+      project,
     });
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -173,8 +107,8 @@ export async function PUT(
       delete normalizedUpdates.active;
     }
 
-    // Create authenticated SDK instance using the session token
-    const authenticatedSdk = await createAuthenticatedSdk(authToken);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const authenticatedSdk = await createAuthenticatedBackendSdk(authToken);
 
     const project = await authenticatedSdk.projects.update(projectId, normalizedUpdates);
     
@@ -226,8 +160,8 @@ export async function DELETE(
       );
     }
 
-    // Create authenticated SDK instance using the session token
-    const authenticatedSdk = await createAuthenticatedSdk(authToken);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const authenticatedSdk = await createAuthenticatedBackendSdk(authToken);
 
     await authenticatedSdk.projects.delete(projectId);
     return NextResponse.json({

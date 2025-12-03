@@ -5,16 +5,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ emailId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
@@ -22,27 +23,22 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const response = await fetch(`${backendUrl}/email/status/${resolvedParams.emailId}`, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-      },
-    });
+    const { emailId } = resolvedParams;
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("project_id") || undefined;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to get email status" },
-        { status: response.status }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const status = await (sdk.email as unknown as {
+      getStatus: (projectId: string, messageId: string) => Promise<Record<string, unknown>>;
+    }).getStatus(projectId || "", emailId);
 
-    const statusData = await response.json();
-    return NextResponse.json(statusData);
-  } catch {
-    
+    return NextResponse.json(status);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error getting email status:", error);
     return NextResponse.json(
-      { error: "Failed to get email status" },
+      { error: error instanceof Error ? error.message : "Failed to get email status" },
       { status: 500 }
     );
   }

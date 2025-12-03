@@ -258,7 +258,8 @@ export const login = createAsyncThunk(
     }: { username: string; password: string },
     { getState: _getState }
   ) => {
-    const response = await fetch("/api/auth/login", {
+    // SDK-FIRST: Use SDK-compatible route
+    const response = await fetch("/api/krapi/k1/auth/admin/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

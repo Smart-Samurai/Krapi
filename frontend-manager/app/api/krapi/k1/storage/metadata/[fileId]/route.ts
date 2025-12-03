@@ -5,16 +5,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
@@ -22,23 +23,15 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const response = await fetch(`${backendUrl}/storage/metadata/${resolvedParams.fileId}`, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-      },
-    });
+    const { fileId } = resolvedParams;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to get file metadata" },
-        { status: response.status }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const metadata = await (sdk.storage as unknown as {
+      getMetadata: (fileId: string) => Promise<Record<string, unknown>>;
+    }).getMetadata(fileId);
 
-    const metadataData = await response.json();
-    return NextResponse.json(metadataData);
+    return NextResponse.json(metadata);
   } catch {
     
     return NextResponse.json(

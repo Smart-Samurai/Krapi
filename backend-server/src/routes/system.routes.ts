@@ -8,6 +8,7 @@
  * 
  * @module routes/system.routes
  */
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router } from "express";
 
 import SystemController from "../controllers/system.controller";
@@ -15,6 +16,16 @@ import { authenticate } from "../middleware/auth.middleware";
 
 const router: Router = Router();
 const controller = SystemController;
+
+/**
+ * Initialize BackendSDK for system routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
+export const initializeSystemSDK = (sdk: BackendSDK) => {
+  controller.setBackendSDK(sdk);
+};
 
 // Apply authentication middleware to all system routes
 router.use(authenticate);

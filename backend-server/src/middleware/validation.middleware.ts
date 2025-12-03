@@ -32,14 +32,29 @@ export const validate = (schema: z.ZodSchema) => {
     next: NextFunction
   ): Promise<void> => {
     try {
+      console.log("🔍 [INVESTIGATION] Validation middleware called", {
+        url: req.url,
+        path: req.path,
+        method: req.method,
+        body: req.body,
+        params: req.params,
+        query: req.query,
+      });
       await schema.parseAsync({
         body: req.body,
         query: req.query,
         params: req.params,
       });
+      console.log("✅ [INVESTIGATION] Validation passed");
       next();
     } catch (error) {
       if (error instanceof ZodError) {
+        console.log("❌ [INVESTIGATION] Validation failed", {
+          errors: error.issues.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
         res.status(400).json({
           success: false,
           error: "Validation error",
@@ -51,6 +66,7 @@ export const validate = (schema: z.ZodSchema) => {
         return;
       }
 
+      console.error("❌ [INVESTIGATION] Validation middleware unexpected error", error);
       res.status(500).json({
         success: false,
         error: "Internal server error",

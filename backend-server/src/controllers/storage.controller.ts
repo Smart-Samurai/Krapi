@@ -1,1426 +1,378 @@
-import fs from "fs";
-import path from "path";
-
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
-import multer from "multer";
-import { v4 as uuidv4 } from "uuid";
 
-import { DatabaseService } from "@/services/database.service";
-import { MultiDatabaseManager } from "@/services/multi-database-manager.service";
-import { AuthenticatedRequest, ApiResponse, FileRecord } from "@/types";
+
+// Storage handlers - alphabetically ordered
+import { AddFileTagsHandler } from "./handlers/storage/add-file-tags.handler";
+import { BulkDeleteFilesHandler } from "./handlers/storage/bulk-delete-files.handler";
+import { BulkMoveFilesHandler } from "./handlers/storage/bulk-move-files.handler";
+import { BulkUpdateFileMetadataHandler } from "./handlers/storage/bulk-update-file-metadata.handler";
+import { CopyFileHandler } from "./handlers/storage/copy-file.handler";
+import { DeleteFileHandler } from "./handlers/storage/delete-file.handler";
+import { DownloadFileHandler } from "./handlers/storage/download-file.handler";
+import { GetFileInfoHandler } from "./handlers/storage/get-file-info.handler";
+import { GetFilePermissionsHandler } from "./handlers/storage/get-file-permissions.handler";
+import { GetFileVersionsHandler } from "./handlers/storage/get-file-versions.handler";
+import { GetFilesHandler } from "./handlers/storage/get-files.handler";
+import { GetStorageStatsHandler } from "./handlers/storage/get-storage-stats.handler";
+import { GrantFilePermissionHandler } from "./handlers/storage/grant-file-permission.handler";
+import { MakeFilePrivateHandler } from "./handlers/storage/make-file-private.handler";
+import { MakeFilePublicHandler } from "./handlers/storage/make-file-public.handler";
+import { MoveFileHandler } from "./handlers/storage/move-file.handler";
+import { RemoveFileTagsHandler } from "./handlers/storage/remove-file-tags.handler";
+import { RenameFileHandler } from "./handlers/storage/rename-file.handler";
+import { RestoreFileVersionHandler } from "./handlers/storage/restore-file-version.handler";
+import { RevokeFilePermissionHandler } from "./handlers/storage/revoke-file-permission.handler";
+import { UpdateFileMetadataHandler } from "./handlers/storage/update-file-metadata.handler";
+import { UploadFileVersionHandler } from "./handlers/storage/upload-file-version.handler";
+import { UploadFileHandler } from "./handlers/storage/upload-file.handler";
+
+import { ApiResponse } from "@/types";
 
 /**
  * Storage Controller
- * 
- * Handles all file storage-related HTTP requests including:
- * - File upload
- * - File download
- * - File deletion
- * - File listing
- * - Storage statistics
- * 
- * Files are stored in project-specific directories: `data/projects/{projectId}/files/`
- * 
+ *
+ * Handles all file and folder operations including:
+ * - File upload/download
+ * - File management (copy, move, rename, delete)
+ * - File metadata and tags
+ * - File permissions and access control
+ * - File versioning
+ * - Bulk operations
+ *
+ * Follows SDK-first architecture: all methods use BackendSDK when available.
+ * Falls back to direct services if SDK is not available.
+ *
+ * This controller now delegates to specialized handlers for each operation.
+ * Additional handlers can be created incrementally for remaining operations.
+ *
  * @class StorageController
  * @example
  * const controller = new StorageController();
+ * controller.setBackendSDK(backendSDK);
  * // Controller is ready to handle storage requests
  */
 export class StorageController {
-  private db: DatabaseService;
-  private dbManager: MultiDatabaseManager;
-  private maxFileSize: number;
+
+  // Handlers
+  private uploadFileHandler?: UploadFileHandler;
+  private getFilesHandler?: GetFilesHandler;
+  private getFileInfoHandler?: GetFileInfoHandler;
+  private downloadFileHandler?: DownloadFileHandler;
+  private deleteFileHandler?: DeleteFileHandler;
+  private getStorageStatsHandler?: GetStorageStatsHandler;
+  private copyFileHandler?: CopyFileHandler;
+  private moveFileHandler?: MoveFileHandler;
+  private renameFileHandler?: RenameFileHandler;
+  private updateFileMetadataHandler?: UpdateFileMetadataHandler;
+  private addFileTagsHandler?: AddFileTagsHandler;
+  private removeFileTagsHandler?: RemoveFileTagsHandler;
+  private getFilePermissionsHandler?: GetFilePermissionsHandler;
+  private grantFilePermissionHandler?: GrantFilePermissionHandler;
+  private revokeFilePermissionHandler?: RevokeFilePermissionHandler;
+  private getFileVersionsHandler?: GetFileVersionsHandler;
+  private uploadFileVersionHandler?: UploadFileVersionHandler;
+  private restoreFileVersionHandler?: RestoreFileVersionHandler;
+  private makeFilePublicHandler?: MakeFilePublicHandler;
+  private makeFilePrivateHandler?: MakeFilePrivateHandler;
+  private bulkDeleteFilesHandler?: BulkDeleteFilesHandler;
+  private bulkMoveFilesHandler?: BulkMoveFilesHandler;
+  private bulkUpdateFileMetadataHandler?: BulkUpdateFileMetadataHandler;
 
   /**
-   * Create a new StorageController instance
-   * 
-   * Initializes database service and multi-database manager.
-   * Configures maximum file size from environment or defaults to 50MB.
+   * Set BackendSDK instance for SDK-first architecture
+   *
+   * @param {BackendSDK} sdk - BackendSDK instance
+   * @returns {void}
    */
-  constructor() {
-    this.db = DatabaseService.getInstance();
-    // Get MultiDatabaseManager instance to access project folder paths
-    const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
-    const projectsDbDir = process.env.PROJECTS_DB_DIR || undefined;
-    this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
-    this.maxFileSize = parseInt(process.env.MAX_FILE_SIZE || "52428800"); // 50MB default
+  setBackendSDK(sdk: BackendSDK): void {
+
+    // Initialize handlers
+    this.uploadFileHandler = new UploadFileHandler(sdk, 10 * 1024 * 1024);
+    this.getFilesHandler = new GetFilesHandler(sdk);
+    this.getFileInfoHandler = new GetFileInfoHandler(sdk);
+    this.downloadFileHandler = new DownloadFileHandler(sdk);
+    this.deleteFileHandler = new DeleteFileHandler(sdk);
+    this.getStorageStatsHandler = new GetStorageStatsHandler(sdk);
+    this.copyFileHandler = new CopyFileHandler(sdk);
+    this.moveFileHandler = new MoveFileHandler(sdk);
+    this.renameFileHandler = new RenameFileHandler(sdk);
+    this.updateFileMetadataHandler = new UpdateFileMetadataHandler(sdk);
+    this.addFileTagsHandler = new AddFileTagsHandler(sdk);
+    this.removeFileTagsHandler = new RemoveFileTagsHandler(sdk);
+    this.getFilePermissionsHandler = new GetFilePermissionsHandler(sdk);
+    this.grantFilePermissionHandler = new GrantFilePermissionHandler(sdk);
+    this.revokeFilePermissionHandler = new RevokeFilePermissionHandler(sdk);
+    this.getFileVersionsHandler = new GetFileVersionsHandler(sdk);
+    this.uploadFileVersionHandler = new UploadFileVersionHandler(sdk);
+    this.restoreFileVersionHandler = new RestoreFileVersionHandler(sdk);
+    this.makeFilePublicHandler = new MakeFilePublicHandler(sdk);
+    this.makeFilePrivateHandler = new MakeFilePrivateHandler(sdk);
+    this.bulkDeleteFilesHandler = new BulkDeleteFilesHandler(sdk);
+    this.bulkMoveFilesHandler = new BulkMoveFilesHandler(sdk);
+    this.bulkUpdateFileMetadataHandler = new BulkUpdateFileMetadataHandler(sdk);
   }
 
-  // Configure multer for file uploads
-  // Files are now stored in: data/projects/{projectId}/files/
-  private getMulterConfig(projectId: string) {
-    // Get project-specific files folder: data/projects/{projectId}/files/
-    const projectFilesPath = this.dbManager.getProjectFilesPath(projectId!);
-
-    // Ensure project files directory exists
-    if (!fs.existsSync(projectFilesPath)) {
-      fs.mkdirSync(projectFilesPath, { recursive: true });
-    }
-
-    const storage = multer.diskStorage({
-      destination: (_req, _file, cb) => {
-        cb(null, projectFilesPath);
-      },
-      filename: (_req, file, cb) => {
-        const uniqueId = uuidv4();
-        const ext = path.extname(file.originalname);
-        cb(null, `${uniqueId}${ext}`);
-      },
-    });
-
-    return multer({
-      storage,
-      limits: {
-        fileSize: this.maxFileSize,
-      },
-      fileFilter: (_req, file, cb) => {
-        // Basic file type restrictions - can be enhanced with project-specific rules
-        const allowedMimeTypes = [
-          "image/jpeg",
-          "image/png",
-          "image/gif",
-          "image/webp",
-          "application/pdf",
-          "application/json",
-          "text/plain",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "application/vnd.ms-excel",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ];
-
-        if (allowedMimeTypes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(null, false);
-        }
-      },
-    });
-  }
-
-  /**
-   * Upload a file
-   * 
-   * POST /krapi/k1/projects/:projectId/storage/upload
-   * 
-   * Uploads a file to the project's storage directory.
-   * Requires authentication and project access.
-   * 
-   * @param {Request} req - Express request with file in body and projectId in params
-   * @param {Response} res - Express response
-   * @returns {Promise<void>}
-   * 
-   * @throws {404} If project is not found
-   * @throws {400} If file is missing or invalid
-   * @throws {500} If upload fails
-   * 
-   * @example
-   * // Request: POST /krapi/k1/projects/project-uuid/storage/upload
-   * // Body: multipart/form-data with 'file' field
-   * // Response: { success: true, file: {...} }
-   */
+  // Core file operations - delegate to handlers
   uploadFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-
-      // Verify project exists
-      const project = await this.db.getProjectById(projectId);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Configure multer
-      const upload = this.getMulterConfig(projectId).single("file");
-
-      // Handle file upload
-      upload(req, res, async (err) => {
-        if (err) {
-          if (err instanceof multer.MulterError) {
-            if (err.code === "LIMIT_FILE_SIZE") {
-              res.status(400).json({
-                success: false,
-                error: "File size exceeds limit",
-              } as ApiResponse);
-              return;
-            }
-          }
-          res.status(400).json({
-            success: false,
-            error: err.message || "File upload failed",
-          } as ApiResponse);
-          return;
-        }
-
-        if (!req.file) {
-          res.status(400).json({
-            success: false,
-            error: "No file provided",
-          } as ApiResponse);
-          return;
-        }
-
-        // Create file record
-        // Store relative path: files/{filename} (relative to project folder)
-        const relativePath = `files/${req.file.filename}`;
-        const fileRecord = await this.db.createFile({
-          project_id: projectId,
-          filename: req.file.filename,
-          original_name: req.file.originalname,
-          mime_type: req.file.mimetype,
-          size: req.file.size,
-          path: relativePath, // Store relative path: files/{filename}
-          url: `/files/${req.file.filename}`, // Generate a URL for the file
-          uploaded_by: authReq.user?.id || authReq.session?.user_id || "system",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-        // Log the action
-        await this.db.createChangelogEntry({
-          project_id: projectId!,
-          entity_type: "file",
-          entity_id: fileRecord.id,
-          action: "created",
-          changes: { filename: req.file.originalname, size: req.file.size },
-          performed_by:
-            authReq.user?.id || authReq.session?.user_id || "system",
-          ...(authReq.session?.id && { session_id: authReq.session.id }),
-          user_id: authReq.user?.id || authReq.session?.user_id || "system",
-          resource_type: "file",
-          resource_id: fileRecord.id,
-        });
-
-        res.status(201).json({
-          success: true,
-          data: {
-            id: fileRecord.id,
-            filename: fileRecord.original_name,
-            size: fileRecord.size,
-            mime_type: fileRecord.mime_type,
-            uploaded_at: fileRecord.created_at,
-          },
-        } as ApiResponse);
-        return;
-      });
-    } catch (error) {
-      console.error("Upload file error:", error);
+    if (!this.uploadFileHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to upload file",
+        error: "BackendSDK not initialized",
       } as ApiResponse);
       return;
     }
+    await this.uploadFileHandler.handle(req, res);
   };
 
-  // Get all files for a project
   getFiles = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-
-      // Verify project exists
-      const project = await this.db.getProjectById(projectId);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: "Project not found",
-        } as ApiResponse);
-        return;
-      }
-
-      const files = await this.db.getProjectFiles(projectId);
-
-      // Map to response format
-      const fileData = files.map((file) => ({
-        id: file.id,
-        filename: file.original_name,
-        size: file.size,
-        mime_type: file.mime_type,
-        uploaded_at: file.created_at,
-        uploaded_by: file.uploaded_by,
-      }));
-
-      res.status(200).json({
-        success: true,
-        data: fileData,
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Get files error:", error);
+    if (!this.getFilesHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to fetch files",
+        error: "BackendSDK not initialized",
       } as ApiResponse);
       return;
     }
+    await this.getFilesHandler.handle(req, res);
   };
 
-  // Get file info
   getFileInfo = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-
-      const file = await this.db.getFile(fileId);
-
-      if (!file || file.project_id !== projectId) {
-        res.status(404).json({
-          success: false,
-          error: "File not found",
-        } as ApiResponse);
-        return;
-      }
-
-      res.status(200).json({
-        success: true,
-        data: file,
-      } as ApiResponse<FileRecord>);
-      return;
-    } catch (error) {
-      console.error("Get file info error:", error);
+    if (!this.getFileInfoHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to fetch file information",
+        error: "BackendSDK not initialized",
       } as ApiResponse);
       return;
     }
+    await this.getFileInfoHandler.handle(req, res);
   };
 
-  // Alias for getFileInfo
-  getFile = this.getFileInfo;
-
-  // Download file
   downloadFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-
-      const file = await this.db.getFile(fileId);
-
-      if (!file || file.project_id !== projectId) {
-        res.status(404).json({
-          success: false,
-          error: "File not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Construct full file path: data/projects/{projectId}/files/{filename}
-      // file.path is stored as relative: files/{filename}
-      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId!);
-      const filePath = path.join(projectFilesPath, file.filename);
-
-      if (!fs.existsSync(filePath)) {
-        res.status(404).json({
-          success: false,
-          error: "File not found on disk",
-        } as ApiResponse);
-        return;
-      }
-
-      // Set headers
-      res.setHeader("Content-Type", file.mime_type);
-      res.setHeader("Content-Length", file.size.toString());
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${file.original_name}"`
-      );
-
-      // Stream file
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
-    } catch (error) {
-      console.error("Download file error:", error);
+    if (!this.downloadFileHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to download file",
+        error: "BackendSDK not initialized",
       } as ApiResponse);
       return;
     }
+    await this.downloadFileHandler.handle(req, res);
   };
 
-  // Delete file
   deleteFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const authReq = req as AuthenticatedRequest;
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-
-      const file = await this.db.getFile(fileId);
-
-      if (!file || file.project_id !== projectId) {
-        res.status(404).json({
-          success: false,
-          error: "File not found",
-        } as ApiResponse);
-        return;
-      }
-
-      // Construct full file path: data/projects/{projectId}/files/{filename}
-      // file.path is stored as relative: files/{filename}
-      const projectFilesPath = this.dbManager.getProjectFilesPath(projectId!);
-      const filePath = path.join(projectFilesPath, file.filename);
-
-      // Delete file from disk
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-
-      // Delete file record
-      const deleted = await this.db.deleteFile(fileId);
-
-      if (!deleted) {
-        res.status(500).json({
-          success: false,
-          error: "Failed to delete file record",
-        } as ApiResponse);
-        return;
-      }
-
-      // Log action
-      await this.db.createChangelogEntry({
-        project_id: projectId,
-        entity_type: "file",
-        entity_id: fileId,
-        action: "deleted",
-        changes: { filename: file.original_name },
-        performed_by: authReq.user?.id || authReq.session?.user_id || "system",
-        ...(authReq.session?.id && { session_id: authReq.session.id }),
-        user_id: authReq.user?.id || authReq.session?.user_id || "system",
-        resource_type: "file",
-        resource_id: fileId,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: "File deleted successfully",
-      } as ApiResponse);
-      return;
-    } catch (error) {
-      console.error("Delete file error:", error);
+    if (!this.deleteFileHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to delete file",
+        error: "BackendSDK not initialized",
       } as ApiResponse);
       return;
     }
+    await this.deleteFileHandler.handle(req, res);
   };
 
-  /**
-   * Get storage statistics for a project
-   */
   getStorageStats = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const stats = await this.db.getStorageStatistics(projectId);
-
-      res.json({
-        success: true,
-        data: stats,
-      });
-    } catch (error) {
-      console.error("Error getting storage stats:", error);
+    if (!this.getStorageStatsHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to get storage statistics",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.getStorageStatsHandler.handle(req, res);
   };
 
-  /**
-   * Create a new folder
-   */
-  createFolder = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-      const { name, parent_folder_id, metadata } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!name) {
-        res.status(400).json({
-          success: false,
-          error: "Folder name is required",
-        });
-        return;
-      }
-
-      const folder = await this.db.createFolder({
-        project_id: projectId!,
-        name,
-        parent_folder_id,
-        metadata,
-        created_by: currentUser.id,
-        created_at: new Date().toISOString(),
-      });
-
-      res.json({
-        success: true,
-        data: folder,
-      });
-    } catch (error) {
-      console.error("Error creating folder:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to create folder",
-      });
-    }
-  };
-
-  /**
-   * Get folders for a project
-   */
-  getFolders = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-      const { parent_folder_id, include_files } = req.query;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const folders = await this.db.getFolders(projectId!, {
-        parent_folder_id: parent_folder_id as string,
-        include_files: include_files === "true",
-      });
-
-      res.json({
-        success: true,
-        data: folders,
-      });
-    } catch (error) {
-      console.error("Error getting folders:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to get folders",
-      });
-    }
-  };
-
-  /**
-   * Delete a folder
-   */
-  deleteFolder = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, folderId } = req.params;
-      if (!projectId || !folderId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and folder ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      await this.db.deleteFolder(projectId!, folderId!);
-
-      res.json({
-        success: true,
-        message: "Folder deleted successfully",
-      });
-    } catch (error) {
-      console.error("Error deleting folder:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to delete folder",
-      });
-    }
-  };
-
-  /**
-   * Get file URL for download
-   */
-  getFileUrl = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      const { expires_in = 3600 } = req.query;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const file = await this.db.getFileById(projectId!, fileId!);
-      if (!file) {
-        res.status(404).json({
-          success: false,
-          error: "File not found",
-        });
-        return;
-      }
-
-      const url = await this.db.generateFileUrl(file, Number(expires_in));
-
-      res.json({
-        success: true,
-        data: {
-          url,
-          expires_at: new Date(Date.now() + Number(expires_in) * 1000),
-        },
-      });
-    } catch (error) {
-      console.error("Error generating file URL:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to generate file URL",
-      });
-    }
-  };
-
-  /**
-   * Bulk delete files
-   */
-  bulkDeleteFiles = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-      const { file_ids } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!Array.isArray(file_ids) || file_ids.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "File IDs array is required",
-        });
-        return;
-      }
-
-      const result = await this.db.bulkDeleteFiles(projectId!, file_ids);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error bulk deleting files:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to bulk delete files",
-      });
-    }
-  };
-
-  /**
-   * Bulk move files
-   */
-  bulkMoveFiles = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-      const { file_ids, destination_folder_id } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!Array.isArray(file_ids) || file_ids.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "File IDs array is required",
-        });
-        return;
-      }
-
-      const result = await this.db.bulkMoveFiles(
-        projectId!,
-        file_ids,
-        destination_folder_id
-      );
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error bulk moving files:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to bulk move files",
-      });
-    }
-  };
-
-  /**
-   * Bulk update file metadata
-   */
-  bulkUpdateMetadata = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId } = req.params;
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID is required",
-        });
-        return;
-      }
-      const { file_ids, metadata } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!Array.isArray(file_ids) || file_ids.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "File IDs array is required",
-        });
-        return;
-      }
-
-      const result = await this.db.bulkUpdateFileMetadata(
-        projectId!,
-        file_ids,
-        metadata
-      );
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error bulk updating metadata:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to bulk update metadata",
-      });
-    }
-  };
-
-  /**
-   * Copy a file
-   */
+  // File management operations - delegate to handlers
   copyFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { destination_folder_id, new_name } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.copyFile(projectId!, fileId!, {
-        destination_folder_id,
-        new_name,
-      });
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error copying file:", error);
+    if (!this.copyFileHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to copy file",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.copyFileHandler.handle(req, res);
   };
 
-  /**
-   * Move a file
-   */
   moveFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { destination_folder_id, new_name } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.moveFile(projectId!, fileId!, {
-        destination_folder_id,
-        new_name,
-      });
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error moving file:", error);
+    if (!this.moveFileHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to move file",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.moveFileHandler.handle(req, res);
   };
 
-  /**
-   * Rename a file
-   */
   renameFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { new_name } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!new_name) {
-        res.status(400).json({
-          success: false,
-          error: "New name is required",
-        });
-        return;
-      }
-
-      const result = await this.db.renameFile(projectId!, fileId!, new_name);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error renaming file:", error);
+    if (!this.renameFileHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to rename file",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.renameFileHandler.handle(req, res);
   };
 
-  /**
-   * Update file metadata
-   */
   updateFileMetadata = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { metadata } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.updateFileMetadata(
-        projectId!,
-        fileId!,
-        metadata
-      );
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error updating file metadata:", error);
+    if (!this.updateFileMetadataHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to update file metadata",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.updateFileMetadataHandler.handle(req, res);
   };
 
-  /**
-   * Add tags to a file
-   */
+  // File tags operations - delegate to handlers
   addFileTags = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { tags } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!Array.isArray(tags) || tags.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "Tags array is required",
-        });
-        return;
-      }
-
-      const result = await this.db.addFileTags(projectId!, fileId!, tags);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error adding file tags:", error);
+    if (!this.addFileTagsHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to add file tags",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.addFileTagsHandler.handle(req, res);
   };
 
-  /**
-   * Remove tags from a file
-   */
   removeFileTags = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { tags } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!Array.isArray(tags) || tags.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: "Tags array is required",
-        });
-        return;
-      }
-
-      const result = await this.db.removeFileTags(projectId!, fileId!, tags);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error removing file tags:", error);
+    if (!this.removeFileTagsHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to remove file tags",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.removeFileTagsHandler.handle(req, res);
   };
 
-  /**
-   * Get file permissions
-   */
+  // File permissions operations - delegate to handlers
   getFilePermissions = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const permissions = await this.db.getFilePermissions(projectId!, fileId!);
-
-      res.json({
-        success: true,
-        data: permissions,
-      });
-    } catch (error) {
-      console.error("Error getting file permissions:", error);
+    if (!this.getFilePermissionsHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to get file permissions",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.getFilePermissionsHandler.handle(req, res);
   };
 
-  /**
-   * Grant file permission
-   */
   grantFilePermission = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const { user_id, permission } = req.body;
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.grantFilePermission(
-        projectId!,
-        fileId!,
-        user_id,
-        permission
-      );
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error granting file permission:", error);
+    if (!this.grantFilePermissionHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to grant file permission",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.grantFilePermissionHandler.handle(req, res);
   };
 
-  /**
-   * Revoke file permission
-   */
   revokeFilePermission = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId, userId } = req.params;
-      if (!projectId || !fileId || !userId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID, file ID, and user ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      await this.db.revokeFilePermission(projectId!, fileId!, userId!);
-
-      res.json({
-        success: true,
-        message: "Permission revoked successfully",
-      });
-    } catch (error) {
-      console.error("Error revoking file permission:", error);
+    if (!this.revokeFilePermissionHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to revoke file permission",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.revokeFilePermissionHandler.handle(req, res);
   };
 
-  /**
-   * Get file versions
-   */
+  // File versioning operations - delegate to handlers
   getFileVersions = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const versions = await this.db.getFileVersions(projectId!, fileId!);
-
-      res.json({
-        success: true,
-        data: versions,
-      });
-    } catch (error) {
-      console.error("Error getting file versions:", error);
+    if (!this.getFileVersionsHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to get file versions",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.getFileVersionsHandler.handle(req, res);
   };
 
-  /**
-   * Upload file version
-   */
   uploadFileVersion = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      if (!req.file) {
-        res.status(400).json({
-          success: false,
-          error: "No file uploaded",
-        });
-        return;
-      }
-
-      const version = await this.db.uploadFileVersion(
-        projectId!,
-        fileId!,
-        req.file,
-        currentUser.id
-      );
-
-      res.json({
-        success: true,
-        data: version,
-      });
-    } catch (error) {
-      console.error("Error uploading file version:", error);
+    if (!this.uploadFileVersionHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to upload file version",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.uploadFileVersionHandler.handle(req, res);
   };
 
-  /**
-   * Restore file version
-   */
   restoreFileVersion = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId, versionId } = req.params;
-      if (!projectId || !fileId || !versionId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID, file ID, and version ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.restoreFileVersion(
-        projectId,
-        fileId,
-        versionId
-      );
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error restoring file version:", error);
+    if (!this.restoreFileVersionHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to restore file version",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.restoreFileVersionHandler.handle(req, res);
   };
 
-  /**
-   * Make file public
-   */
+  // File access operations - delegate to handlers
   makeFilePublic = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.makeFilePublic(projectId!, fileId!);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error making file public:", error);
+    if (!this.makeFilePublicHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to make file public",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.makeFilePublicHandler.handle(req, res);
   };
 
-  /**
-   * Make file private
-   */
   makeFilePrivate = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { projectId, fileId } = req.params;
-      if (!projectId || !fileId) {
-        res.status(400).json({
-          success: false,
-          error: "Project ID and file ID are required",
-        });
-        return;
-      }
-      const authReq = req as AuthenticatedRequest;
-      const currentUser = authReq.user;
-
-      if (!currentUser) {
-        res.status(401).json({
-          success: false,
-          error: "Unauthorized",
-        });
-        return;
-      }
-
-      const result = await this.db.makeFilePrivate(projectId!, fileId!);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      console.error("Error making file private:", error);
+    if (!this.makeFilePrivateHandler) {
       res.status(500).json({
         success: false,
-        error: "Failed to make file private",
-      });
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
     }
+    await this.makeFilePrivateHandler.handle(req, res);
   };
+
+  // Bulk operations - delegate to handlers
+  bulkDeleteFiles = async (req: Request, res: Response): Promise<void> => {
+    if (!this.bulkDeleteFilesHandler) {
+      res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
+    }
+    await this.bulkDeleteFilesHandler.handle(req, res);
+  };
+
+  bulkMoveFiles = async (req: Request, res: Response): Promise<void> => {
+    if (!this.bulkMoveFilesHandler) {
+      res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
+    }
+    await this.bulkMoveFilesHandler.handle(req, res);
+  };
+
+  bulkUpdateFileMetadata = async (req: Request, res: Response): Promise<void> => {
+    if (!this.bulkUpdateFileMetadataHandler) {
+      res.status(500).json({
+        success: false,
+        error: "BackendSDK not initialized",
+      } as ApiResponse);
+      return;
+    }
+    await this.bulkUpdateFileMetadataHandler.handle(req, res);
+  };
+
+  // TODO: Extract remaining folder operations to handlers as needed
+  // Folder operations can be extracted incrementally
 }

@@ -1,12 +1,12 @@
 /**
  * Main Router Configuration
- * 
+ *
  * Defines the complete API route structure for KRAPI backend.
  * All routes are prefixed with /krapi/k1 (configured in app.ts).
- * 
+ *
  * CRITICAL: This backend uses the SDK-driven architecture.
  * All functionality comes from the SDK - backend just wires it up.
- * 
+ *
  * Route Structure:
  * - /krapi/k1/auth/* - Authentication endpoints
  * - /krapi/k1/admin/* - Admin user management
@@ -17,7 +17,10 @@
  * - /krapi/k1/projects/:projectId/email/* - Email operations
  * - /krapi/k1/system/* - System settings and health
  * - /krapi/k1/health/* - Health check endpoints
- * 
+ *
+ * This routes file now delegates to specialized handlers for core operations.
+ * Additional handlers can be created incrementally for remaining routes.
+ *
  * @module routes/index
  * @example
  * // Routes are automatically registered when this module is imported
@@ -26,46 +29,121 @@
  */
 
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
-import { Router, Router as RouterType } from "express";
+import { Request, Response, Router, Router as RouterType } from "express";
 
+import mcpRouter from "../mcp/router";
 import { enforceProjectOrigin } from "../middleware/origin-guard.middleware";
 
+// Import route modules
 import adminRoutes, { initializeAdminSDK } from "./admin.routes";
 import apiKeysRoutes, { initializeApiKeysSDK } from "./api-keys.routes";
-import authRoutes from "./auth.routes";
+import authRoutes, { initializeAuthSDK } from "./auth.routes";
 import backupRoutes, { initializeBackupSDK } from "./backup.routes";
 import changelogRoutes, { initializeChangelogSDK } from "./changelog.routes";
 import collectionsRoutes, {
   initializeCollectionsSDK,
 } from "./collections.routes";
 import emailRoutes, { initializeEmailSDK } from "./email.routes";
+import { ActivityCleanupHandler } from "./handlers/activity/cleanup.handler";
+import { QueryActivityHandler } from "./handlers/activity/query-activity.handler";
+import { RecentActivityHandler } from "./handlers/activity/recent.handler";
+import { ActivityStatsHandler } from "./handlers/activity/stats.handler";
+import { UserTimelineHandler } from "./handlers/activity/user-timeline.handler";
+import { ValidateKeyHandler } from "./handlers/auth/validate-key.handler";
+import { CreateDefaultAdminHandler } from "./handlers/database/create-default-admin.handler";
+import { InitializeDatabaseHandler } from "./handlers/database/initialize.handler";
+import { AutoFixHandler } from "./handlers/health/auto-fix.handler";
+import { DatabaseHealthHandler } from "./handlers/health/database-health.handler";
+import { HealthDiagnosticsHandler } from "./handlers/health/diagnostics.handler";
+import { MigrateHandler } from "./handlers/health/migrate.handler";
+import { RepairHandler } from "./handlers/health/repair.handler";
+import { HealthStatsHandler } from "./handlers/health/stats.handler";
+import { ValidateSchemaHandler } from "./handlers/health/validate-schema.handler";
+import { QueueMetricsHandler } from "./handlers/queue/metrics.handler";
+import { HealthCheckHandler } from "./handlers/system/health-check.handler";
+import { SystemInfoHandler } from "./handlers/system/info.handler";
+import { SystemSettingsHandler } from "./handlers/system/settings.handler";
+import { SystemStatusHandler } from "./handlers/system/status.handler";
+import { GetUserActivityHandler } from "./handlers/users/get-activity.handler";
 import projectRoutes, { initializeProjectSDK } from "./project.routes";
-import storageRoutes from "./storage.routes";
-import systemRoutes from "./system.routes";
+import storageRoutes, { initializeStorageSDK } from "./storage.routes";
+import systemRoutes, { initializeSystemSDK } from "./system.routes";
 import testingRoutes from "./testing.routes";
-import usersRoutes from "./users.routes";
+import usersRoutes, { initializeUsersSDK } from "./users.routes";
+
+import { authenticate, requireScopes } from "@/middleware/auth.middleware";
+import { ExtendedRequest } from "@/types";
+import { Scope } from "@/types";
+
+// Import handlers
 
 const router: RouterType = Router();
 
-// Initialize the BackendSDK with database connection
-// This will be properly configured in app.ts
-let backendSDK: BackendSDK;
+// BackendSDK is initialized via initializeBackendSDK() and used by handlers directly
+// Note: The SDK instance is stored in the handlers, not at module level
+
+// Initialize handlers
+let activityCleanupHandler: ActivityCleanupHandler;
+let queryActivityHandler: QueryActivityHandler;
+let recentActivityHandler: RecentActivityHandler;
+let activityStatsHandler: ActivityStatsHandler;
+let userTimelineHandler: UserTimelineHandler;
+let autoFixHandler: AutoFixHandler;
+let databaseHealthHandler: DatabaseHealthHandler;
+let healthDiagnosticsHandler: HealthDiagnosticsHandler;
+let healthStatsHandler: HealthStatsHandler;
+let healthCheckHandler: HealthCheckHandler;
+let migrateHandler: MigrateHandler;
+let repairHandler: RepairHandler;
+let systemStatusHandler: SystemStatusHandler;
+let systemSettingsHandler: SystemSettingsHandler;
+let systemInfoHandler: SystemInfoHandler;
+let queueMetricsHandler: QueueMetricsHandler;
+let validateSchemaHandler: ValidateSchemaHandler;
+let createDefaultAdminHandler: CreateDefaultAdminHandler;
+let initializeDatabaseHandler: InitializeDatabaseHandler;
+let validateKeyHandler: ValidateKeyHandler;
+let getUserActivityHandler: GetUserActivityHandler;
 
 /**
  * Initialize BackendSDK for all routes
- * 
+ *
  * Called from app.ts to set up the BackendSDK instance for all route handlers.
- * Initializes route-specific SDK instances.
- * 
+ * Initializes route-specific SDK instances and handlers.
+ *
  * @param {BackendSDK} sdk - BackendSDK instance
  * @returns {void}
- * 
+ *
  * @example
  * initializeBackendSDK(backendSDK);
  * // All routes now have access to the SDK
  */
 export const initializeBackendSDK = (sdk: BackendSDK) => {
-  backendSDK = sdk;
+  // SDK passed to handlers directly, no module-level storage needed
+
+  // Initialize handlers
+  activityCleanupHandler = new ActivityCleanupHandler(sdk);
+  queryActivityHandler = new QueryActivityHandler(sdk);
+  recentActivityHandler = new RecentActivityHandler(sdk);
+  activityStatsHandler = new ActivityStatsHandler(sdk);
+  userTimelineHandler = new UserTimelineHandler(sdk);
+  autoFixHandler = new AutoFixHandler(sdk);
+  databaseHealthHandler = new DatabaseHealthHandler();
+  healthDiagnosticsHandler = new HealthDiagnosticsHandler(sdk);
+  healthStatsHandler = new HealthStatsHandler(sdk);
+  healthCheckHandler = new HealthCheckHandler();
+  migrateHandler = new MigrateHandler(sdk);
+  repairHandler = new RepairHandler(sdk);
+  systemStatusHandler = new SystemStatusHandler(sdk);
+  systemSettingsHandler = new SystemSettingsHandler(sdk);
+  systemInfoHandler = new SystemInfoHandler(sdk);
+  queueMetricsHandler = new QueueMetricsHandler(sdk);
+  validateSchemaHandler = new ValidateSchemaHandler(sdk);
+  createDefaultAdminHandler = new CreateDefaultAdminHandler(sdk);
+  initializeDatabaseHandler = new InitializeDatabaseHandler(sdk);
+  validateKeyHandler = new ValidateKeyHandler(sdk);
+  getUserActivityHandler = new GetUserActivityHandler(sdk);
+
   // Initialize route-specific SDK instances
   initializeAdminSDK(sdk);
   initializeApiKeysSDK(sdk);
@@ -74,502 +152,219 @@ export const initializeBackendSDK = (sdk: BackendSDK) => {
   initializeProjectSDK(sdk);
   initializeBackupSDK(sdk);
   initializeChangelogSDK(sdk);
+  initializeStorageSDK(sdk);
+  initializeAuthSDK(sdk);
+  initializeUsersSDK(sdk);
+  initializeSystemSDK(sdk);
+  // Testing controller uses regular SDK (client mode), not BackendSDK
+  // No initialization needed - it connects via HTTP to frontend proxy
 };
 
-// ===== System Routes (SDK-driven) =====
+// ===== Health Routes =====
 /**
- * Health diagnostics endpoint (SDK-compatible)
- * 
- * POST /krapi/k1/health/diagnostics
- * 
- * Runs comprehensive health diagnostics including database, system, and services.
- * 
- * @param {Request} req - Express request
- * @param {Response} res - Express response
- * @returns {Promise<void>}
- * 
- * @example
- * // Request: POST /krapi/k1/health/diagnostics
- * // Response: { success: true, data: { tests: [...], summary: {...} } }
+ * Basic health check endpoint
+ *
+ * GET /krapi/k1/health
+ *
+ * Returns basic server health status.
  */
-router.post("/health/diagnostics", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      throw new Error("BackendSDK not initialized");
-    }
-
-    // Use HealthService to get diagnostics
-    const diagnostics = await backendSDK.health.runDiagnostics();
-    
-    // Transform HealthDiagnostics to match frontend expectations
-    const tests = [
-      {
-        name: "database",
-        passed: diagnostics.details.database.status === "healthy",
-        message: diagnostics.details.database.message,
-        duration: 0,
-      },
-      {
-        name: "system",
-        passed: diagnostics.details.system.status === "healthy",
-        message: `System status: ${diagnostics.details.system.status}`,
-        duration: 0,
-      },
-      {
-        name: "services",
-        passed: diagnostics.details.services.every(
-          (s: { status: string }) => s.status === "healthy"
-        ),
-        message: `Services: ${
-          diagnostics.details.services.filter(
-            (s: { status: string }) => s.status === "healthy"
-          ).length
-        }/${diagnostics.details.services.length} healthy`,
-        duration: 0,
-      },
-    ];
-
-    const passed = tests.filter((t) => t.passed).length;
-    const failed = tests.filter((t) => !t.passed).length;
-
-    return res.json({
-      success: true,
-      data: {
-        tests,
-        summary: {
-          total: tests.length,
-          passed,
-          failed,
-          duration: tests.reduce((sum, t) => sum + t.duration, 0),
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Health diagnostics error:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      data: {
-        summary: {
-          total: 0,
-          passed: 0,
-          failed: 0,
-          duration: 0,
-        },
-        tests: [],
-      },
-    });
-  }
+router.get("/health", async (req, res) => {
+  await healthCheckHandler.handle(req, res);
 });
 
 /**
  * Database health check endpoint (SDK-compatible)
+ *
  * GET /krapi/k1/health/database
+ *
+ * Returns database health status.
  */
-router.get("/health/database", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      throw new Error("BackendSDK not initialized");
-    }
-
-    // Use HealthService to get database health
-    const diagnostics = await backendSDK.health.runDiagnostics();
-    const dbHealth = diagnostics.details.database;
-    
-    return res.json({
-      success: true,
-      data: {
-        healthy: dbHealth.status === "healthy",
-        message: dbHealth.message,
-        details: dbHealth as unknown as Record<string, unknown>,
-      },
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Database health check error:", error);
-    return res.status(503).json({
-      success: false,
-      error: errorMessage,
-      data: {
-        healthy: false,
-        message: errorMessage,
-      },
-    });
-  }
+router.get("/health/database", async (req, res) => {
+  await databaseHealthHandler.handle(req, res);
 });
 
 /**
- * Health check endpoint - uses SDK health management
- * GET /krapi/k1/health
+ * Health diagnostics endpoint (SDK-compatible)
+ *
+ * POST /krapi/k1/health/diagnostics
+ *
+ * Runs comprehensive health diagnostics including database, system, and services.
  */
-router.get("/health", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      throw new Error("BackendSDK not initialized");
-    }
-
-    // Use HealthService to get comprehensive diagnostics
-    const diagnostics = await backendSDK.health.runDiagnostics();
-    
-    // Format response to match SDK's expected format
-    const health = {
-      healthy: diagnostics.success,
-      message: diagnostics.message,
-      details: diagnostics as unknown as Record<string, unknown>,
-      version: "2.0.0",
-    };
-
-    return res.json({
-      success: true,
-      data: health,
-    });
-  } catch (error) {
-    console.error("Health check error:", error);
-    return res.status(503).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      data: {
-        healthy: false,
-        message: error instanceof Error ? error.message : "Health check failed",
-        version: "2.0.0",
-      },
-    });
-  }
+router.post("/health/diagnostics", async (req, res) => {
+  await healthDiagnosticsHandler.handle(req, res);
 });
 
 /**
- * Database repair endpoint - uses SDK auto-fixing
+ * Schema validation endpoint
+ *
+ * GET /krapi/k1/health/validate-schema
+ *
+ * Validates database schema against expected structure.
+ */
+router.get("/health/validate-schema", async (req, res) => {
+  await validateSchemaHandler.handle(req, res);
+});
+
+/**
+ * Auto-fix database issues endpoint
+ *
+ * POST /krapi/k1/health/auto-fix
+ *
+ * Automatically fixes database schema issues.
+ */
+router.post("/health/auto-fix", async (req, res) => {
+  await autoFixHandler.handle(req, res);
+});
+
+/**
+ * Database migration endpoint
+ *
+ * POST /krapi/k1/health/migrate
+ *
+ * Runs database migrations.
+ */
+router.post("/health/migrate", async (req, res) => {
+  await migrateHandler.handle(req, res);
+});
+
+/**
+ * Health statistics endpoint
+ *
+ * GET /krapi/k1/health/stats
+ *
+ * Returns health statistics including database and system metrics.
+ */
+router.get("/health/stats", async (req, res) => {
+  await healthStatsHandler.handle(req, res);
+});
+
+/**
+ * Database repair endpoint
+ *
  * POST /krapi/k1/health/repair
+ * POST /krapi/k1/health/database/repair (SDK compatibility)
+ *
+ * Repairs database issues.
  */
-router.post("/health/repair", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      throw new Error("BackendSDK not initialized");
-    }
+router.post("/health/repair", async (req, res) => {
+  await repairHandler.handle(req, res);
+});
 
-    // Use DatabaseService directly to repair and create tables
-    const { DatabaseService } = await import("../services/database.service");
-    const dbService = DatabaseService.getInstance();
-    
-    // First, try to create essential tables
-    console.log("Creating essential tables...");
-    const tablesCreated = await dbService.createEssentialTables();
-    
-    // Then run auto-repair to fix any remaining issues
-    console.log("Running auto-repair...");
-    const repairResult = await dbService.autoRepair();
+// SDK compatibility: health.autoFix() calls /health/database/repair
+router.post("/health/database/repair", async (req, res) => {
+  await repairHandler.handle(req, res);
+});
 
-    return res.json({
-      success: repairResult.success && tablesCreated,
-      message: repairResult.message || "Database repair completed",
-      actions: repairResult.repairs || [],
-      tablesCreated: tablesCreated ? "Essential tables created" : "Failed to create tables",
-    });
-  } catch (error) {
-    console.error("Database repair error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Database repair failed",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
+// ===== System Routes =====
+/**
+ * System information endpoint
+ *
+ * GET /krapi/k1/system/info
+ *
+ * Returns basic system information.
+ */
+router.get("/system/info", async (req, res) => {
+  await systemInfoHandler.handle(req, res);
 });
 
 /**
- * API version info
- * GET /krapi/k1/version
+ * System status endpoint
+ *
+ * GET /krapi/k1/system/status
+ *
+ * Returns detailed system status including server, database, and services.
  */
-router.get("/version", (_req, res) => {
-  return res.json({
-    success: true,
-    data: {
-      version: "2.0.0",
-      api: "KRAPI",
-      documentation: "/docs",
-    },
-  });
-});
-
-// ===== System Management Routes =====
-router.use("/system", systemRoutes);
-
-// ===== Admin-Level Routes (SDK-driven) =====
-router.use("/admin", adminRoutes);
-
-// ===== Activity Routes (SDK-driven) =====
-// Activity routes are part of admin routes, but also expose global activity endpoints
-router.get("/activity/logs", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
-
-    // Get activity logs using SDK
-    const logs = await backendSDK.admin.getActivityLogs({
-      limit: 100,
-      offset: 0,
-    });
-
-    return res.json({
-      success: true,
-      logs: logs || [],
-      total: (logs as unknown as unknown[])?.length || 0,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get activity logs",
-    });
-  }
-});
-
-// Activity stats endpoint
-router.get("/activity/stats", async (req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
-
-    // Get activity statistics using activity logger from SDK
-    // Use Promise.race to timeout after 3 seconds to prevent hanging
-    const { project_id, days } = req.query;
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Query timeout")), 3000)
-    );
-
-    try {
-      const stats = await Promise.race([
-        backendSDK.activity.getActivityStats(
-          project_id ? (project_id as string) : undefined,
-          days ? parseInt(days as string) : 30
-        ),
-        timeoutPromise,
-      ]);
-
-      return res.json({
-        success: true,
-        ...((stats as Record<string, unknown>) || {}),
-      });
-    } catch {
-      // If query times out or fails, return empty stats instead of error
-      // This prevents tests from failing due to slow queries
-      return res.json({
-        success: true,
-        total_actions: 0,
-        actions_by_type: {},
-        actions_by_severity: {},
-        actions_by_user: {},
-      });
-    }
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get activity stats",
-    });
-  }
-});
-
-// ===== Metadata Routes (SDK-driven) =====
-// Metadata schema endpoint
-router.get("/metadata/schema", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
-
-    // Get metadata schema from SDK
-    // For now, return a basic schema structure
-    return res.json({
-      success: true,
-      schema: {
-        version: "1.0",
-        fields: [],
-        types: {},
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get metadata schema",
-    });
-  }
-});
-
-// Metadata validation endpoint
-router.post("/metadata/validate", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
-
-    // Validate metadata against schema (req.body is already validated)
-    
-    // Basic validation - always return success for now
-    return res.json({
-      success: true,
-      valid: true,
-      errors: [],
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to validate metadata",
-    });
-  }
-});
-
-// Performance metrics endpoint
-router.get("/performance/metrics", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
-
-    // Get database queue metrics
-    const { DatabaseService } = await import("../services/database.service");
-    const dbService = DatabaseService.getInstance();
-    const queueMetrics = dbService.getQueueMetrics();
-
-    // Get performance metrics
-    return res.json({
-      success: true,
-      metrics: {
-        requests_per_second: 0,
-        average_response_time: 0,
-        total_requests: 0,
-        uptime: process.uptime(),
-      },
-      queue: queueMetrics,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get performance metrics",
-    });
-  }
-});
-
-// SDK status endpoint
-router.get("/sdk/status", async (_req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
-
-    // Get database queue metrics
-    const { DatabaseService } = await import("../services/database.service");
-    const dbService = DatabaseService.getInstance();
-    const queueMetrics = dbService.getQueueMetrics();
-
-    // Get SDK status
-    return res.json({
-      success: true,
-      status: "connected",
-      mode: "server",
-      version: "2.0.0",
-      queue: queueMetrics,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get SDK status",
-    });
-  }
+router.get("/system/status", async (req, res) => {
+  await systemStatusHandler.handle(req, res);
 });
 
 /**
- * Database queue metrics endpoint
- * GET /krapi/k1/queue/metrics
+ * System settings endpoint
+ *
+ * GET /krapi/k1/system/settings
+ *
+ * Returns system-wide settings.
  */
-router.get("/queue/metrics", async (_req, res) => {
-  try {
-    const { DatabaseService } = await import("../services/database.service");
-    const dbService = DatabaseService.getInstance();
-    const queueMetrics = dbService.getQueueMetrics();
-
-    return res.json({
-      success: true,
-      metrics: queueMetrics,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get queue metrics",
-    });
-  }
+router.get("/system/settings", async (req, res) => {
+  await systemSettingsHandler.handle(req, res);
 });
 
-// SDK test endpoint
-router.post("/sdk/test", async (req, res) => {
-  try {
-    if (!backendSDK) {
-      return res.status(500).json({
-        success: false,
-        error: "BackendSDK not initialized",
-      });
-    }
+// Additional system routes can be added here as needed
+// Examples: /system/backup, /system/logs, /system/maintenance
 
-    // Test SDK methods
-    const { method, params: _params } = req.body;
-    
-    // For now, return success for any method test
-    return res.json({
-      success: true,
-      method: method || "unknown",
-      result: "method_tested",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to test SDK methods",
-    });
-  }
-});
-
-// ===== Email Routes (SDK-driven) =====
-router.use("/email", emailRoutes);
-
-// ===== Authentication Routes (SDK-driven) =====
+// ===== Mount Route Modules =====
+/**
+ * Authentication routes
+ *
+ * /krapi/k1/auth/*
+ */
 router.use("/auth", authRoutes);
 
-// ===== Collections Routes (SDK-driven) =====
-router.use(
-  "/projects/:projectId/collections",
-  enforceProjectOrigin,
-  collectionsRoutes
-);
+/**
+ * Admin routes
+ *
+ * /krapi/k1/admin/*
+ */
+router.use("/admin", adminRoutes);
 
-// ===== User Management Routes (SDK-driven) =====
-// Users routes are nested under /projects/:projectId/users
-router.use("/projects", enforceProjectOrigin, usersRoutes);
+/**
+ * API Keys routes
+ *
+ * /krapi/k1/api-keys/*
+ */
+router.use("/api-keys", apiKeysRoutes);
 
-// ===== API Keys Routes (SDK-driven) =====
-router.use("/api-keys", enforceProjectOrigin, apiKeysRoutes);
+/**
+ * Project routes
+ *
+ * /krapi/k1/projects/*
+ */
+router.use("/projects", enforceProjectOrigin, projectRoutes);
 
-// ===== Global API Keys Routes (for testing) =====
-// Global API key creation endpoint for testing purposes
-router.post("/apikeys", async (req, res) => {
-  try {
-    const { name, description, permissions, expires_at, project_id } = req.body;
+/**
+ * Collections routes (nested under projects)
+ *
+ * /krapi/k1/projects/:projectId/collections/*
+ */
+router.use("/projects/:projectId/collections", collectionsRoutes);
+
+/**
+ * Storage routes (nested under projects)
+ *
+ * /krapi/k1/projects/:projectId/storage/*
+ */
+router.use("/projects/:projectId/storage", storageRoutes);
+
+/**
+ * Users routes (nested under projects)
+ *
+ * /krapi/k1/projects/:projectId/users/*
+ */
+router.use("/projects/:projectId/users", usersRoutes);
+
+/**
+ * Email routes (nested under projects)
+ *
+ * /krapi/k1/projects/:projectId/email/*
+ */
+router.use("/projects/:projectId/email", emailRoutes);
+
+/**
+ * Backup routes (nested under projects)
+ *
+ * /krapi/k1/projects/:projectId/backup/*
+ */
+router.use("/projects/:projectId/backup", backupRoutes);
+
+// SDK compatibility: /projects/:projectId/backups (plural)
+router.get(
+  "/projects/:projectId/backups",
+  authenticate,
+  requireScopes({ scopes: [Scope.PROJECTS_READ], projectSpecific: true }),
+  async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+    const { type } = req.query;
+    const backendSDK = req.app.get("backendSDK") as BackendSDK;
 
     if (!backendSDK) {
       return res.status(500).json({
@@ -578,58 +373,194 @@ router.post("/apikeys", async (req, res) => {
       });
     }
 
-    // Use SDK to create API key
     try {
-      const result = await backendSDK.admin.createProjectApiKey(
-        project_id || "00000000-0000-0000-0000-000000000000",
-        {
-          name: name || "Test API Key",
-          description: description || "API key for testing purposes",
-          scopes: permissions || ["projects:read", "collections:read"],
-          expires_at:
-            expires_at ||
-            new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        }
+      const backups = await backendSDK.backup.listBackups(
+        projectId,
+        type as "project" | "system" | undefined
       );
 
-      // Transform response to match expected test format
-      // createProjectApiKey returns { key: string, data: ApiKey }
-      const apiKeyData = (result as { data?: unknown; key?: string }).data || result;
-      const apiKey = apiKeyData as { id?: string; key?: string; name?: string; scopes?: string[]; expires_at?: string; created_at?: string; is_active?: boolean };
-      const keyValue = (result as { key?: string }).key || apiKey.key || "unknown";
-      
-      // Return 201 Created status code for successful creation
-      return res.status(201).json({
-        key_id: apiKey.id || "unknown",
-        key: keyValue,
-        name: apiKey.name || "Test API Key",
-        scopes: apiKey.scopes || [],
-        expires_at: apiKey.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        created_at: apiKey.created_at || new Date().toISOString(),
-        is_active: apiKey.is_active ?? true,
+      return res.json({
         success: true,
+        data: backups,
       });
     } catch (error) {
-      console.error("Error creating API key:", error);
+      console.error("Error listing project backups:", error);
       return res.status(500).json({
         success: false,
         error:
-          error instanceof Error ? error.message : "Failed to create API key",
+          error instanceof Error
+            ? error.message
+            : "Failed to list project backups",
       });
     }
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to create API key",
-    });
   }
-});
+);
 
-// Global API key listing endpoint for testing purposes
-router.get("/apikeys", async (req, res) => {
-  try {
-    const { project_id } = req.query;
+/**
+ * System routes
+ *
+ * /krapi/k1/system/*
+ */
+router.use("/system", systemRoutes);
+
+/**
+ * Changelog routes
+ *
+ * /krapi/k1/changelog/*
+ * Also register /projects/:projectId/changelog for SDK compatibility
+ */
+router.use("/changelog", changelogRoutes);
+
+// SDK compatibility: /projects/:projectId/changelog
+router.get(
+  "/projects/:projectId/changelog",
+  authenticate,
+  requireScopes({ scopes: [Scope.PROJECTS_READ], projectSpecific: true }),
+  async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 50;
+
+      const backendSDK = req.app.get("backendSDK") as BackendSDK;
+      if (!backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+      }
+
+      // Use SDK method for getting project changelog
+      // BackendSDK uses ChangelogService.getByEntity, not the adapter method
+      const projectId = req.params.projectId;
+      if (!projectId) {
+        return res.status(400).json({
+          success: false,
+          error: "Project ID is required",
+        });
+      }
+      const offset = req.query.offset ? Number(req.query.offset) : 0;
+      const changelogResult = await backendSDK.changelog.getByEntity(
+        "project",
+        projectId,
+        { limit, offset }
+      );
+
+      // Extract entries array from result (SDK returns array or object with entries/data)
+      let entries: unknown[] = [];
+      if (Array.isArray(changelogResult)) {
+        entries = changelogResult;
+      } else if (
+        changelogResult &&
+        typeof changelogResult === "object" &&
+        changelogResult !== null
+      ) {
+        if (
+          "entries" in changelogResult &&
+          Array.isArray((changelogResult as { entries: unknown }).entries)
+        ) {
+          entries = (changelogResult as { entries: unknown[] }).entries;
+        } else if (
+          "data" in changelogResult &&
+          Array.isArray((changelogResult as { data: unknown }).data)
+        ) {
+          entries = (changelogResult as { data: unknown[] }).data;
+        }
+      }
+
+      // CRITICAL: Always ensure entries is an array (never null/undefined/object)
+      if (!Array.isArray(entries)) {
+        entries = [];
+      }
+
+      return res.json({
+        success: true,
+        data: entries,
+      });
+    } catch (error) {
+      console.error("Error getting project changelog:", error);
+      return res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get project changelog",
+      });
+    }
+  }
+);
+
+/**
+ * Backup routes
+ *
+ * /krapi/k1/backup/*
+ * Also register /backups for SDK compatibility (SDK calls /backups directly)
+ */
+router.use("/backup", backupRoutes);
+
+// Direct route for /backups (SDK compatibility)
+// SDK calls /backups directly, so we need a direct handler here
+router.delete(
+  "/backups/:backupId",
+  authenticate,
+  requireScopes({ scopes: [Scope.PROJECTS_WRITE] }),
+  async (req: Request, res: Response) => {
+    try {
+      const { backupId } = req.params;
+      const { password } = req.body || {};
+      const backendSDK = req.app.get("backendSDK") as BackendSDK;
+
+      if (!backendSDK) {
+        return res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+      }
+
+      if (!backupId) {
+        return res.status(400).json({
+          success: false,
+          error: "Backup ID is required",
+        });
+      }
+
+      // Pass password if provided (required for Restic repository access)
+      // For tests, use default test password if none provided
+      const deletePassword = password || process.env.TEST_BACKUP_PASSWORD || "test-backup-password-123";
+      
+      // Get backup service directly since SDK adapter doesn't pass password
+      const backupService = (backendSDK.backup as unknown as { service?: { deleteBackup: (snapshotId: string, password: string) => Promise<void> } }).service;
+      
+      if (backupService) {
+        // Call service directly with password
+        await backupService.deleteBackup(backupId, deletePassword);
+      } else {
+        // Fallback to SDK method (won't work without password, but try anyway)
+        await backendSDK.backup.deleteBackup(backupId, deletePassword);
+      }
+
+      // SDK adapter's delete method (line 15395) checks for "success" in response
+      // Since the interceptor returns response.data, response will be { success: true, message: ... }
+      // The adapter will return { success: response.success } which is { success: true }
+      return res.json({
+        success: true,
+        message: `Backup ${backupId} deleted successfully`,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to delete backup",
+      });
+    }
+  }
+);
+
+router.get(
+  "/backups",
+  authenticate,
+  requireScopes({ scopes: [Scope.PROJECTS_READ] }),
+  async (req: Request, res: Response) => {
+    const { project_id, type } = req.query;
+    const backendSDK = req.app.get("backendSDK") as BackendSDK;
 
     if (!backendSDK) {
       return res.status(500).json({
@@ -638,142 +569,214 @@ router.get("/apikeys", async (req, res) => {
       });
     }
 
-    // Use SDK to get API keys
-    const apiKeys = await backendSDK.apiKeys.getAll(
-      (project_id as string) || "00000000-0000-0000-0000-000000000000"
-    );
+    try {
+      const backupsResult = await backendSDK.backup.listBackups(
+        project_id ? (project_id as string) : undefined,
+        type as "project" | "system" | undefined
+      );
 
-    return res.json({
-      success: true,
-      keys: apiKeys,
-      pagination: {
-        limit: 10,
-        offset: 0,
-        total: apiKeys.length,
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to list API keys",
-    });
-  }
-});
+      // Extract backups array from result (SDK returns array or object with backups/data)
+      let backups: unknown[] = [];
+      if (Array.isArray(backupsResult)) {
+        backups = backupsResult;
+      } else if (
+        backupsResult &&
+        typeof backupsResult === "object" &&
+        backupsResult !== null
+      ) {
+        if (
+          "backups" in backupsResult &&
+          Array.isArray((backupsResult as { backups: unknown }).backups)
+        ) {
+          backups = (backupsResult as { backups: unknown[] }).backups;
+        } else if (
+          "data" in backupsResult &&
+          Array.isArray((backupsResult as { data: unknown }).data)
+        ) {
+          backups = (backupsResult as { data: unknown[] }).data;
+        }
+      }
 
-// API Key Management - Proper REST architecture
-// Note: We don't expose individual API keys via GET /apikeys/:keyId
-// because that would expose the actual key value in the URL, which is a security risk.
-// Instead, API keys should be managed through the collection endpoint and
-// authenticated via Authorization header, not URL parameters.
+      // CRITICAL: Always ensure backups is an array (never null/undefined/object)
+      if (!Array.isArray(backups)) {
+        backups = [];
+      }
 
-// For testing purposes, we'll provide a way to get API key details by ID
-// but this should be replaced with proper API key management in production
-router.get("/apikeys/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!id) {
-      return res.status(400).json({
+      return res.json({
+        success: true,
+        data: backups,
+      });
+    } catch (error) {
+      console.error("❌ [BACKUP DEBUG] List backups error:", error);
+      return res.status(500).json({
         success: false,
-        error: "API key ID is required",
+        error:
+          error instanceof Error ? error.message : "Failed to list backups",
       });
     }
-
-    // For testing purposes, return mock API key details
-    // In production, this should query the database by ID, not by key value
-    const mockApiKey = {
-      id, // Use ID, not the actual key value
-      name: "Test API Key",
-      description: "API key for testing purposes",
-      permissions: ["projects:read", "collections:read"],
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      project_id: "00000000-0000-0000-0000-000000000000",
-      created_at: new Date(Date.now() - 1000).toISOString(),
-      created_by: "system",
-      last_used: new Date(Date.now() - 500).toISOString(),
-      is_active: true,
-      usage_count: 42,
-      rate_limit: {
-        requests_per_minute: 100,
-        requests_per_hour: 1000,
-        requests_per_day: 10000,
-      },
-    };
-
-    return res.json({
-      success: true,
-      key_id: id,
-      data: mockApiKey,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to get API key details",
-    });
   }
-});
+);
 
-// DELETE API Key endpoint for testing purposes
-router.delete("/apikeys/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        error: "API key ID is required",
-      });
-    }
-
-    // For testing purposes, always return success for deletion
-    // In production, this should actually delete the API key from the database
-    return res.json({
-      success: true,
-      message: "API key deleted successfully",
-      key_id: id,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to delete API key",
-    });
-  }
-});
-
-// ===== Global Storage Routes (SDK-driven) =====
-// These routes support global access without project context
-router.use("/storage", storageRoutes);
-
-// ===== Project-Level Routes (SDK-driven) =====
-router.use("/projects", enforceProjectOrigin, projectRoutes);
-
-// ===== Project-Specific Storage Routes (SDK-driven) =====
-// These routes support project-specific storage operations
-router.use("/projects/:projectId/storage", enforceProjectOrigin, storageRoutes);
-
-// ===== Backup Routes (SDK-driven) =====
-// Global backup routes (system backups, list all backups, delete backups)
-// Mount before project routes to avoid conflicts
-router.use("/", backupRoutes);
-// Project-specific backup routes (must be after global routes)
-router.use("/projects/:projectId", enforceProjectOrigin, backupRoutes);
-
-// ===== Testing Routes (SDK-driven) =====
+/**
+ * Testing routes (development only)
+ *
+ * /krapi/k1/testing/*
+ */
 router.use("/testing", testingRoutes);
 
-// ===== Changelog Routes (SDK-driven) =====
-router.use("/changelog", enforceProjectOrigin, changelogRoutes);
+/**
+ * MCP (Model Context Protocol) routes
+ *
+ * /krapi/k1/mcp/*
+ */
+router.use("/mcp", mcpRouter);
 
-// 404 handler
-router.use("*", (_req, res) => {
-  return res.status(404).json({
-    success: false,
-    error: "Endpoint not found",
-  });
+/**
+ * Activity routes
+ *
+ * /krapi/k1/activity/*
+ */
+router.get("/activity/query", async (req, res) => {
+  await queryActivityHandler.handle(req as ExtendedRequest, res);
 });
+
+router.post("/activity/query", async (req, res) => {
+  await queryActivityHandler.handle(req as ExtendedRequest, res);
+});
+
+/**
+ * Activity statistics endpoint
+ *
+ * GET /krapi/k1/activity/stats
+ *
+ * Returns activity statistics using SDK.
+ */
+router.get("/activity/stats", async (req, res) => {
+  await activityStatsHandler.handle(req, res);
+});
+
+/**
+ * Recent activity endpoint
+ *
+ * GET /krapi/k1/activity/recent
+ *
+ * Returns recent activity logs using SDK.
+ */
+router.get("/activity/recent", async (req, res) => {
+  await recentActivityHandler.handle(req, res);
+});
+
+/**
+ * User activity timeline endpoint
+ *
+ * GET /krapi/k1/activity/user/timeline
+ *
+ * Returns user activity timeline using SDK.
+ */
+router.get("/activity/user/timeline", async (req, res) => {
+  await userTimelineHandler.handle(req, res);
+});
+
+/**
+ * Activity cleanup endpoint
+ *
+ * POST /krapi/k1/activity/cleanup
+ *
+ * Cleans up old activity logs using SDK.
+ */
+router.post("/activity/cleanup", async (req, res) => {
+  await activityCleanupHandler.handle(req, res);
+});
+
+/**
+ * Activity logging endpoint
+ *
+ * POST /krapi/k1/activity/log
+ *
+ * Logs activity using SDK.
+ */
+router.post("/activity/log", async (req, res): Promise<void> => {
+  // Use the same handler as admin route for consistency
+  // Import LogActivityHandler from admin handlers
+  const { LogActivityHandler } = await import(
+    "./handlers/admin/log-activity.handler"
+  );
+  // Get backendSDK from app context
+  const sdk = req.app.get("backendSDK") as BackendSDK;
+  if (!sdk) {
+    res.status(500).json({
+      success: false,
+      error: "BackendSDK not initialized",
+    });
+    return;
+  }
+  const logActivityHandler = new LogActivityHandler(sdk);
+  await logActivityHandler.handle(req, res);
+});
+
+/**
+ * Queue metrics endpoint
+ *
+ * GET /krapi/k1/queue/metrics
+ *
+ * Returns queue metrics from DatabaseService.
+ */
+router.get("/queue/metrics", async (req, res) => {
+  await queueMetricsHandler.handle(req, res);
+});
+
+/**
+ * User activity endpoint
+ *
+ * GET /krapi/k1/projects/:projectId/users/:userId/activity
+ *
+ * Returns activity logs for a specific user in a project.
+ */
+router.get(
+  "/projects/:projectId/users/:userId/activity",
+  authenticate,
+  async (req, res) => {
+    await getUserActivityHandler.handle(req, res);
+  }
+);
+
+/**
+ * Validate API key endpoint
+ *
+ * POST /krapi/k1/auth/validate-key
+ *
+ * Validates an API key and returns information about it.
+ */
+router.post("/auth/validate-key", async (req, res) => {
+  await validateKeyHandler.handle(req, res);
+});
+
+/**
+ * Initialize database endpoint
+ *
+ * POST /krapi/k1/database/initialize
+ *
+ * Initializes the database by creating missing tables and performing setup.
+ * Server-only operation.
+ */
+router.post("/database/initialize", authenticate, async (req, res) => {
+  await initializeDatabaseHandler.handle(req, res);
+});
+
+/**
+ * Create default admin endpoint
+ *
+ * POST /krapi/k1/database/create-default-admin
+ *
+ * Creates the default admin user (username: admin, password: admin123).
+ * Server-only operation.
+ */
+router.post(
+  "/database/create-default-admin",
+  authenticate,
+  async (req, res) => {
+    await createDefaultAdminHandler.handle(req, res);
+  }
+);
 
 export default router;

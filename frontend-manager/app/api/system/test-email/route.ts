@@ -1,13 +1,18 @@
-import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
+
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 
 /**
  * Test email configuration
  * POST /api/system/test-email
+ *
+ * SDK 0.4.0+: Use email.testConfig(projectId, testEmail) instead of system.testEmailConfig()
  */
 export async function POST(request: NextRequest) {
   try {
-    const authToken = request.headers.get("authorization")?.replace("Bearer ", "");
+    const authToken = request.headers
+      .get("authorization")
+      ?.replace("Bearer ", "");
 
     if (!authToken) {
       return NextResponse.json(
@@ -17,16 +22,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, emailConfig } = body;
+    const { email, projectId } = body;
 
-    if (!email || !emailConfig) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, error: "Email and email config are required" },
+        { success: false, error: "Email is required" },
         { status: 400 }
       );
     }
 
-    const result = await krapi.system.testEmailConfig(emailConfig);
+    // SDK 0.4.0+: Use email.testConfig(projectId, testEmail)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await sdk.email.testConfig(projectId || "", email);
 
     return NextResponse.json({
       success: true,
@@ -42,4 +49,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

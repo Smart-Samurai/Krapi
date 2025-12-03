@@ -1,0 +1,249 @@
+---
+alwaysApply: true
+---
+
+# Cursor Rule: SDK Type Safety - Always Import, Never Define
+
+## Absolute Requirement
+
+**CRITICAL RULE**: All types used in KRAPI must come directly from the `@smartsamurai/krapi-sdk` package. **NEVER** manually define types that should be imported from the SDK.
+
+## Why This Matters
+
+1. **Type Safety**: SDK types are the single source of truth for API contracts
+2. **Version Consistency**: Manual types can become outdated when SDK changes
+3. **Compile-Time Error Detection**: Using correct types catches mismatches before runtime
+4. **API Contract Enforcement**: SDK types ensure frontend/backend compatibility
+5. **Maintenance**: No duplicate type definitions to keep in sync
+
+## The Rule
+
+### ✅ CORRECT: Always Import SDK Types
+
+```typescript
+// ✅ Import directly from SDK
+import type {
+  Project,
+  Collection,
+  Document,
+  ApiKey,
+} from "@smartsamurai/krapi-sdk";
+
+// ✅ Use SDK types in your code
+function createProject(data: Project): Promise<Project> {
+  return backendSDK.projects.create(data);
+}
+```
+
+### ❌ FORBIDDEN: Never Manually Define SDK Types
+
+```typescript
+// ❌ NEVER define types that should come from SDK
+interface BackendProject {
+  id: string;
+  name: string;
+  description?: string;
+  // ... manual definition that may be wrong/outdated
+}
+
+// ❌ NEVER extend SDK types manually
+interface MyProject extends BackendProject {
+  customField: string; // This defeats type safety
+}
+```
+
+### ❌ ABSOLUTELY FORBIDDEN: Using "any" Types
+
+```typescript
+// ❌ NEVER use "any" - defeats all type safety
+function processData(data: any): any {
+  return data; // No type checking possible
+}
+
+// ❌ NEVER use "any[]" for arrays
+const items: any[] = []; // Cannot catch type errors
+
+// ❌ NEVER use Record<string, any>
+const config: Record<string, any> = {}; // No type safety
+```
+
+## Implementation Pattern
+
+### 1. Type-Only Imports from SDK
+
+```typescript
+// Always use type-only imports for SDK types
+import type {
+  Project,
+  Collection,
+  Document,
+  ApiKey,
+  Session,
+  ProjectSettings,
+} from "@smartsamurai/krapi-sdk";
+```
+
+### 2. Backend-Specific Extensions (RARE)
+
+Only when absolutely necessary for backend-specific concerns:
+
+```typescript
+// ✅ ONLY for backend-specific data (not in SDK)
+import type { Project } from "@smartsamurai/krapi-sdk";
+
+interface BackendProjectData extends Project {
+  // Only add fields that SDK doesn't have and backend needs
+  internalId: string;
+  cachedAt: Date;
+}
+```
+
+### 3. Function Signatures Must Use SDK Types
+
+```typescript
+// ✅ Correct - uses SDK types
+export async function getProject(id: string): Promise<Project> {
+  return backendSDK.projects.get(id);
+}
+
+// ❌ Wrong - manual type definition
+export async function getProject(id: string): Promise<{
+  id: string;
+  name: string;
+  description?: string;
+}> {
+  return backendSDK.projects.get(id);
+}
+```
+
+### 4. Database Operations Must Use SDK Types
+
+```typescript
+// ✅ Correct - SDK types for database operations
+export class ProjectService {
+  async create(data: Project): Promise<Project> {
+    // Database operations use SDK Project type
+    return await this.db.createProject(data);
+  }
+}
+```
+
+## Migration Examples
+
+### Before (Violates Rule)
+
+```typescript
+// Manual type definition - WRONG
+interface BackendProject {
+  id: string;
+  name: string;
+  description?: string;
+  settings: {
+    public: boolean;
+    maxUsers?: number;
+  };
+}
+
+// Function using manual type - WRONG
+function createProject(data: BackendProject): Promise<BackendProject> {
+  return backendSDK.projects.create(data);
+}
+```
+
+### After (Follows Rule)
+
+```typescript
+// Import correct types from SDK - CORRECT
+import type { Project, CreateProjectRequest } from "@smartsamurai/krapi-sdk";
+
+// Function using SDK types - CORRECT
+function createProject(data: CreateProjectRequest): Promise<Project> {
+  return backendSDK.projects.create(data);
+}
+
+// If backend needs additional fields, extend properly - RARE
+import type { Project } from "@smartsamurai/krapi-sdk";
+
+interface BackendProjectData extends Project {
+  // Only add backend-specific fields
+  internalCacheKey: string;
+}
+```
+
+## Validation Checklist
+
+- [ ] All types imported directly from `@smartsamurai/krapi-sdk`
+- [ ] No manual interface definitions for SDK entities
+- [ ] No `any` types anywhere in the codebase
+- [ ] Function parameters use SDK types
+- [ ] Return types use SDK types
+- [ ] Database operations use SDK types
+- [ ] API responses typed with SDK types
+
+## Enforcement
+
+- **TypeScript Compiler**: Must pass with strict type checking
+- **ESLint**: Custom rule to detect manual type definitions
+- **Code Review**: Mandatory check for SDK type usage
+- **CI/CD**: Type checking failures block deployment
+
+## Exceptions (RARE)
+
+**ONLY** for truly backend-specific concerns not in SDK:
+
+1. **Database Indexes**: Internal database optimization types
+2. **Cache Metadata**: Backend caching information
+3. **Internal IDs**: Backend-specific identifiers
+4. **Audit Fields**: Backend-specific timestamps/metadata
+
+Even then, prefer extending SDK types rather than redefining.
+
+## Examples in Codebase
+
+### ✅ Correct Usage
+
+```typescript
+// types/index.ts
+export type {
+  Project,
+  Collection,
+  Document,
+  ApiKey,
+  Session,
+} from "@smartsamurai/krapi-sdk";
+
+// services/project.service.ts
+import type { Project, CreateProjectRequest } from "@/types";
+
+export class ProjectService {
+  async create(data: CreateProjectRequest): Promise<Project> {
+    return this.backendSDK.projects.create(data);
+  }
+}
+```
+
+### ❌ Violations to Fix
+
+```typescript
+// WRONG - manual type definition
+interface BackendProject {
+  id: string;
+  name: string;
+  // ...
+}
+
+// WRONG - using any
+function process(data: any): any {
+  return data;
+}
+```
+
+## Consequences of Violation
+
+1. **Type Safety Compromised**: Cannot detect API contract mismatches
+2. **Runtime Errors**: Type mismatches only caught during testing
+3. **Maintenance Burden**: Duplicate type definitions to maintain
+4. **SDK Updates Broken**: Manual types don't update with SDK changes
+5. **Frontend/Backend Drift**: Different type definitions cause issues
+
+**REMEMBER**: The SDK is the single source of truth for types. Always import, never define manually. No "any" types allowed.

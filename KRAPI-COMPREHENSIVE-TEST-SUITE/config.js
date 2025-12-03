@@ -9,15 +9,16 @@ export const CONFIG = {
   // ⚠️ IMPORTANT: All tests simulate external third-party applications
   // ALL requests MUST go through the FRONTEND (port 3498), NOT directly to backend (port 3470)
   // This simulates how real external apps would connect to Krapi Server
-  
+
   // Frontend URL - This is what external apps should use
-  FRONTEND_URL: "http://localhost:3498", // ✅ Use this for all SDK connections
-  FRONTEND_API_URL: "http://localhost:3498/api", // Frontend API endpoints
-  
+  // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Windows
+  FRONTEND_URL: "http://127.0.0.1:3498", // ✅ Use this for all SDK connections
+  FRONTEND_API_URL: "http://127.0.0.1:3498/api", // Frontend API endpoints
+
   // Backend URL - DO NOT USE in tests (only for internal server-side code)
   // Tests should NEVER connect directly to backend - always go through frontend
-  BACKEND_URL: "http://localhost:3470", // ⚠️ Internal only - not for external clients
-  DIRECT_BACKEND_URL: "http://localhost:3470", // ⚠️ Internal only - not for external clients
+  BACKEND_URL: "http://127.0.0.1:3470", // ⚠️ Internal only - not for external clients
+  DIRECT_BACKEND_URL: "http://127.0.0.1:3470", // ⚠️ Internal only - not for external clients
 
   // Test credentials
   ADMIN_CREDENTIALS: {
@@ -34,6 +35,21 @@ export const CONFIG = {
   CLEANUP_AFTER_TESTS: true,
   VERBOSE_LOGGING: true,
   TIMEOUT_MS: 5000, // Reduced from 30s to 5s max
+
+  // CORS test configuration
+  // These origins should be configured as allowed in the app
+  CORS_ALLOWED_ORIGINS: [
+    "https://test-allowed.example.com",
+    "https://app1.example.com",
+    "https://app2.example.com",
+    "https://app3.example.com",
+  ],
+  // These origins should be blocked (not in allowed list)
+  CORS_DISALLOWED_ORIGINS: [
+    "https://malicious-attacker.com",
+    "http://evil-site.com",
+    "https://unauthorized.example.com",
+  ],
 
   // Test file configuration
   TEST_FILE: {

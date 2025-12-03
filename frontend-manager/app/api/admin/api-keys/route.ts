@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
 /**
  * Admin API Keys API Route
  *
@@ -18,37 +21,22 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const token = authorization.substring(7);
-    const body = await request.json();
-
-    // Call backend directly for API key creation
-    const response = await fetch(
-      `${
-        process.env.BACKEND_URL || "http://localhost:3470"
-      }/krapi/k1/admin/api-keys`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
+    const authToken = getAuthToken(request.headers);
+    if (!authToken) {
       return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to create API key",
-        },
-        { status: response.status }
+        { success: false, error: "Authorization header required" },
+        { status: 401 }
       );
     }
 
-    const apiKeyData = await response.json();
-    return NextResponse.json(apiKeyData);
+    const body = await request.json();
+    const projectId = body.projectId || body.project_id || "";
+
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const apiKey = await sdk.apiKeys.create(projectId, body);
+
+    return NextResponse.json(apiKey);
   } catch (error) {
     return NextResponse.json(
       {

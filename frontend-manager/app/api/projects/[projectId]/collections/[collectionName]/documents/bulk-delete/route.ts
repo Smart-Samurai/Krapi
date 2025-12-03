@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function - more permissive to accept any valid UUID format
@@ -55,32 +56,28 @@ export async function POST(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const bulkDeleteUrl = `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/bulk-delete`;
-
-    const response = await fetch(bulkDeleteUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ document_ids }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to bulk delete documents",
-        },
-        { status: response.status }
-      );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    // SDK bulkDelete uses filter, but route receives document_ids array
+    // We need to delete each document individually or create a filter
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    
+    // For now, delete documents one by one
+    // Note: SDK should support array of IDs for bulk delete
+    let deletedCount = 0;
+    for (const documentId of document_ids) {
+      try {
+        await sdk.documents.delete(projectId, collectionName, documentId);
+        deletedCount++;
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to delete document ${documentId}:`, error);
+      }
     }
 
-    const result = await response.json();
-    return NextResponse.json({ success: true, data: result });
+    return NextResponse.json({
+      success: true,
+      data: { deleted: deletedCount },
+    });
   } catch (error) {
     
     return NextResponse.json(

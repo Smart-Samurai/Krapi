@@ -6,16 +6,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ keyId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
@@ -23,27 +24,18 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const response = await fetch(`${backendUrl}/apikeys/${resolvedParams.keyId}`, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-      },
-    });
+    const { keyId } = resolvedParams;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to get API key details" },
-        { status: response.status }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const apiKey = await sdk.apiKeys.get("", keyId);
 
-    const apiKeyData = await response.json();
-    return NextResponse.json(apiKeyData);
-  } catch {
-    
+    return NextResponse.json(apiKey);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error getting API key:", error);
     return NextResponse.json(
-      { error: "Failed to get API key details" },
+      { error: error instanceof Error ? error.message : "Failed to get API key details" },
       { status: 500 }
     );
   }
@@ -54,9 +46,9 @@ export async function DELETE(
   { params }: { params: Promise<{ keyId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
@@ -64,27 +56,18 @@ export async function DELETE(
     }
 
     const resolvedParams = await params;
-    const response = await fetch(`${backendUrl}/apikeys/${resolvedParams.keyId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: authHeader,
-      },
-    });
+    const { keyId } = resolvedParams;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to delete API key" },
-        { status: response.status }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    await sdk.apiKeys.delete("", keyId);
 
-    const deleteData = await response.json();
-    return NextResponse.json(deleteData);
-  } catch {
-    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error deleting API key:", error);
     return NextResponse.json(
-      { error: "Failed to delete API key" },
+      { error: error instanceof Error ? error.message : "Failed to delete API key" },
       { status: 500 }
     );
   }

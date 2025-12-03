@@ -66,42 +66,86 @@ export class AuthAdapterService {
     user?: AdminUser | ProjectUser;
     scopes?: string[];
   }> {
-    const result = await this.authService.validateSessionToken(token);
+    try {
+      const result = await this.authService.validateSessionToken(token);
 
-    if (!result.valid || !result.session) {
+      if (!result.valid || !result.session) {
+        return { valid: false };
+      }
+
+      const session = result.session;
+
+      // WORKAROUND: SDK creates sessions with type: null, so we need to infer type
+      // Try to determine session type from user_type field or by looking up the user
+      let sessionType = session.type;
+      
+      // If type is null, try to infer from user_type field
+      if (!sessionType && (session as { user_type?: string }).user_type) {
+        const userType = (session as { user_type: string }).user_type;
+        if (userType === "admin") {
+          sessionType = SessionType.ADMIN;
+        } else if (userType === "project" || userType === "project_user") {
+          sessionType = SessionType.PROJECT;
+        }
+      }
+
+      // If still null, try to infer by looking up the user
+      if (!sessionType) {
+        // Try admin user first (most common case)
+        const adminUser = await this.db.getAdminUserById(session.user_id);
+        if (adminUser) {
+          sessionType = SessionType.ADMIN;
+        } else if (session.project_id) {
+          // If has project_id, likely a project session
+          sessionType = SessionType.PROJECT;
+        }
+      }
+
+      if (sessionType === SessionType.ADMIN) {
+        const adminUser = await this.db.getAdminUserById(session.user_id);
+        if (!adminUser) {
+          return { valid: false };
+        }
+
+        // WORKAROUND: If session has empty scopes, derive from user role
+        let scopes: string[] = [];
+        if (session.scopes && session.scopes.length > 0) {
+          scopes = session.scopes.map((s) => s.toString());
+        } else {
+          // Derive scopes from user role
+          const authService = AuthService.getInstance();
+          scopes = authService
+            .getScopesForRole(adminUser.role)
+            .map((scope) => scope.toString());
+        }
+
+        return {
+          valid: true,
+          user: adminUser,
+          scopes,
+        };
+      } else if (sessionType === SessionType.PROJECT && session.project_id) {
+        const projectUser = await this.db.getProjectUser(
+          session.project_id,
+          session.user_id
+        );
+        if (!projectUser) {
+          return { valid: false };
+        }
+
+        return {
+          valid: true,
+          user: projectUser as unknown as ProjectUser,
+          scopes: (projectUser as BackendProjectUser).scopes || [],
+        };
+      }
+
+      return { valid: false };
+    } catch (error) {
+      // Log error but return invalid session instead of throwing
+      console.error("Error validating session:", error);
       return { valid: false };
     }
-
-    const session = result.session;
-
-    if (session.type === SessionType.ADMIN) {
-      const adminUser = await this.db.getAdminUserById(session.user_id);
-      if (!adminUser) {
-        return { valid: false };
-      }
-
-      return {
-        valid: true,
-        user: adminUser,
-        scopes: adminUser.permissions || [],
-      };
-    } else if (session.type === SessionType.PROJECT && session.project_id) {
-      const projectUser = await this.db.getProjectUser(
-        session.project_id,
-        session.user_id
-      );
-      if (!projectUser) {
-        return { valid: false };
-      }
-
-      return {
-        valid: true,
-        user: projectUser as unknown as ProjectUser,
-        scopes: (projectUser as BackendProjectUser).scopes || [],
-      };
-    }
-
-    return { valid: false };
   }
 
   /**

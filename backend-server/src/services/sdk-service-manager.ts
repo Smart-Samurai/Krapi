@@ -82,6 +82,12 @@ export class SDKServiceManager {
         await dbService.createEssentialTables();
         console.log("✅ Essential tables created successfully");
 
+        // CRITICAL: Fix missing columns after table creation
+        // This ensures columns like last_used_at are added even if tables already existed
+        console.log("🔧 Fixing missing columns in existing tables...");
+        await dbService.fixMissingColumns();
+        console.log("✅ Missing columns fixed");
+
         // The backend service already creates the default admin user
         // No need to call the SDK method
         console.log(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function - more permissive to accept any valid UUID format
@@ -40,43 +41,46 @@ export async function GET(
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const limit = searchParams.get("limit");
-    const days = searchParams.get("days");
+    const limit = searchParams.get("limit")
+      ? parseInt(searchParams.get("limit")!)
+      : undefined;
+    const offset = searchParams.get("offset")
+      ? parseInt(searchParams.get("offset")!)
+      : undefined;
+    const days = searchParams.get("days")
+      ? parseInt(searchParams.get("days")!)
+      : undefined;
+    const action_type = searchParams.get("action_type") || undefined;
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/activity?${new URLSearchParams(
-        {
-          ...(limit && { limit: limit.toString() }),
-          ...(days && { days: days.toString() }),
-        }
-      )}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to fetch project activity",
-        },
-        { status: response.status }
-      );
+    // SDK 0.4.0+: getActivity uses start_date/end_date instead of days
+    // Calculate start_date from days if provided
+    let start_date: string | undefined;
+    if (days) {
+      const startDateObj = new Date();
+      startDateObj.setDate(startDateObj.getDate() - days);
+      start_date = startDateObj.toISOString();
     }
 
-    const activity = await response.json();
-    // Return the activities array directly as expected by the test
-    return NextResponse.json(activity.data.activities);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const activity = await sdk.projects.getActivity(projectId, {
+      limit,
+      offset,
+      action_type,
+      start_date,
+    });
+
+    // SDK returns activity object or array
+    // Format response to match expected format
+    const activities = Array.isArray(activity)
+      ? activity
+      : typeof activity === "object" &&
+        activity !== null &&
+        "activities" in activity
+      ? (activity as { activities: unknown[] }).activities
+      : [];
+    return NextResponse.json(activities);
   } catch (error) {
-    
     return NextResponse.json(
       {
         success: false,

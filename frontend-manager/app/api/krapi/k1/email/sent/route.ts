@@ -5,49 +5,37 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
     const { searchParams } = new URL(request.url);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const queryParams = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      queryParams.append(key, value);
-    });
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const projectId = searchParams.get("project_id") || undefined;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined;
+    const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : undefined;
 
-    const response = await fetch(
-      `${backendUrl}/email/sent?${queryParams}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: authHeader,
-        },
-      }
-    );
+    const sentEmails = await (sdk.email as unknown as {
+      getSent: (projectId?: string, options?: { limit?: number; offset?: number }) => Promise<unknown[]>;
+    }).getSent(projectId, { limit, offset });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to list sent emails" },
-        { status: response.status }
-      );
-    }
-
-    const emailsData = await response.json();
-    return NextResponse.json(emailsData);
-  } catch {
-    
+    return NextResponse.json(sentEmails);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error listing sent emails:", error);
     return NextResponse.json(
-      { error: "Failed to list sent emails" },
+      { error: error instanceof Error ? error.message : "Failed to list sent emails" },
       { status: 500 }
     );
   }

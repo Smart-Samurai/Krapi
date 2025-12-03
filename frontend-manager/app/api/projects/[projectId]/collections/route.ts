@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // Disable static generation for this dynamic route
 export function generateStaticParams() {
@@ -43,73 +48,14 @@ export async function GET(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const backendEndpoint = `${backendUrl}/krapi/k1/projects/${projectId}/collections`;
-    
-    let response;
-    try {
-      response = await fetch(backendEndpoint, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-    } catch (fetchError) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to connect to backend:", fetchError);
-      return NextResponse.json(
-        { success: false, error: "Failed to connect to backend server" },
-        { status: 503 }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const collections = await sdk.collections.getAll(projectId);
 
-    if (!response.ok) {
-      interface ErrorData {
-        error?: string;
-        message?: string;
-      }
-
-      let errorData: ErrorData;
-      try {
-        const errorText = await response.text();
-        try {
-          errorData = JSON.parse(errorText) as ErrorData;
-        } catch {
-          errorData = { error: errorText || `Backend returned ${response.status}` };
-        }
-      } catch {
-        errorData = { error: `Backend returned ${response.status}` };
-      }
-      // eslint-disable-next-line no-console
-      console.error(`Backend error for project ${projectId} collections:`, errorData);
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || errorData.message || "Failed to fetch collections",
-        },
-        { status: response.status }
-      );
-    }
-
-    let backendResponse;
-    try {
-      backendResponse = await response.json();
-    } catch (_error) {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON response from backend" },
-        { status: 500 }
-      );
-    }
-    
-    // Wrap response to match expected format: { success: true, collections: [...] }
-    // Backend might return { collections: [...] } or { data: [...] } or just an array
-    const collectionsArray = backendResponse.collections || backendResponse.data || (Array.isArray(backendResponse) ? backendResponse : []);
-    
+    // SDK returns collections array directly
     return NextResponse.json({
       success: true,
-      collections: collectionsArray,
+      collections: Array.isArray(collections) ? collections : [collections],
     });
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -157,46 +103,10 @@ export async function POST(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(collectionData),
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const collection = await sdk.collections.create(projectId, collectionData);
 
-    if (!response.ok) {
-      let errorData: { error?: string; message?: string };
-      try {
-        const errorText = await response.text();
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || `Backend returned ${response.status}` };
-        }
-      } catch {
-        errorData = { error: `Backend returned ${response.status}` };
-      }
-      // eslint-disable-next-line no-console
-      console.error(`Backend error creating collection for project ${projectId}:`, errorData);
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || errorData.message || "Failed to create collection",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    // Wrap response to match expected format: { success: true, collection: ... }
-    const collection = backendResponse.data || backendResponse.collection || backendResponse;
     return NextResponse.json(
       { success: true, collection },
       { status: 201 }

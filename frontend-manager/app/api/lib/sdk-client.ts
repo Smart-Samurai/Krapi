@@ -1,10 +1,15 @@
 /**
  * SDK Client for API Routes
- * 
+ *
  * This module provides SDK access for API routes only.
  * IMPORTANT: The SDK is imported dynamically to prevent initialization during build.
  * The SDK should NEVER be imported in client components.
+ *
+ * SDK 0.3.3+: Uses singleton SDK which now supports reconnection automatically.
+ * For concurrent operations, consider using createInstance() instead.
  */
+
+import { config, SDK_RETRY_CONFIG } from "@/lib/config";
 
 // Store the SDK instance once loaded
 let krapiInstance: Awaited<ReturnType<typeof importSDK>> | null = null;
@@ -17,38 +22,38 @@ let connectionPromise: Promise<void> | null = null;
 async function importSDK() {
   // Dynamic import - this only happens at runtime in API routes
   const { krapi } = await import("@smartsamurai/krapi-sdk");
-  
+
   // Connect if not already connected
   if (!connectionPromise) {
+    // SDK-FIRST: Use centralized config for frontend URL
+    // SDK should connect to FRONTEND URL (not backend) so requests go through the proxy
+    const frontendUrl = config.frontend.url;
     const connectConfig = {
-      endpoint: process.env.KRAPI_BACKEND_URL || "http://localhost:3470",
-      apiKey: process.env.ADMIN_API_KEY || "admin-api-key",
-      retry: {
-        enabled: true,
-        maxRetries: 3,
-        retryDelay: 1000,
-        retryableStatusCodes: [408, 429, 500, 502, 503, 504],
-      },
+      endpoint: frontendUrl,
+      apiKey: config.sdk.adminApiKey,
+      retry: SDK_RETRY_CONFIG,
     };
 
     connectionPromise = krapi
       .connect(connectConfig)
       .then(async () => {
         try {
-          const krapiWithHealthCheck = krapi as typeof krapi & { healthCheck?: () => Promise<boolean> };
-          if (typeof krapiWithHealthCheck.healthCheck === 'function') {
-            const isHealthy = await krapiWithHealthCheck.healthCheck();
-            if (!isHealthy) {
-              // eslint-disable-next-line no-console
-              console.warn("⚠️ SDK health check failed - connection may be unstable");
-            } else {
-              // eslint-disable-next-line no-console
-              console.log("✅ SDK connected and healthy");
-            }
+          const krapiWithHealthCheck = krapi as typeof krapi & {
+            healthCheck?: () => Promise<boolean>;
+          };
+          if (typeof krapiWithHealthCheck.healthCheck === "function") {
+            // Skip health check on initial connection to speed up login
+            // Health check can be done separately if needed
+            // const isHealthy = await krapiWithHealthCheck.healthCheck();
+            // if (!isHealthy) {
+            //   console.warn("⚠️ SDK health check failed - connection may be unstable");
+            // } else {
+            //   console.log("✅ SDK connected and healthy");
+            // }
           }
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.warn("⚠️ SDK health check error:", error);
+        } catch (_error) {
+          // Silently ignore health check errors during connection
+          // Health check can be done separately if needed
         }
       })
       .catch((error: unknown) => {
@@ -92,9 +97,12 @@ export const serverSdk = new Proxy({} as Awaited<ReturnType<typeof importSDK>>, 
 }) as unknown as Awaited<ReturnType<typeof importSDK>>;
 
 // Helper to create authenticated SDK instance
-export async function createAuthenticatedSdk(_token: string): Promise<Awaited<ReturnType<typeof importSDK>>> {
+export async function createAuthenticatedSdk(
+  _token: string
+): Promise<Awaited<ReturnType<typeof importSDK>>> {
   const sdk = await getServerSdk();
-  sdk.auth.setSessionToken(_token);
+  // SDK 0.3.3+: setSessionToken() is async and auto-initializes clients if needed
+  await sdk.auth.setSessionToken(_token);
   return sdk;
 }
 

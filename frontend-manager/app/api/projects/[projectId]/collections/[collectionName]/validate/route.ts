@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
-// UUID validation function - more permissive to accept any valid UUID format
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export function generateStaticParams() {
+  return [];
+}
+
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,10 +22,13 @@ function isValidUUID(uuid: string): boolean {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ projectId: string; collectionName: string }> }
+  {
+    params,
+  }: {
+    params: Promise<{ projectId: string; collectionName: string }>;
+  }
 ): Promise<Response> {
   try {
-    // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
 
     if (!authToken) {
@@ -30,7 +40,6 @@ export async function POST(
 
     const { projectId, collectionName } = await params;
 
-    // Validate UUID format before making backend call
     if (!isValidUUID(projectId)) {
       return NextResponse.json(
         { success: false, error: "Invalid project ID format" },
@@ -45,42 +54,27 @@ export async function POST(
       );
     }
 
-    // Call the backend directly (backend uses /validate-schema, not /validate)
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/validate-schema`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}), // Empty body as per test
-      }
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const collectionsService = sdk.collections as unknown as {
+      validateSchema: (
+        projectId: string,
+        collectionName: string
+      ) => Promise<{ valid: boolean; errors?: unknown[] }>;
+    };
+
+    const result = await collectionsService.validateSchema(
+      projectId,
+      collectionName
     );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to validate collection schema",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    
-    // Backend returns { success: true, valid: true, ... }, pass it through
-    // But test expects { success: true, valid: true }
     return NextResponse.json({
       success: true,
-      valid: backendResponse.valid || backendResponse.isValid || false,
-      ...backendResponse,
+      valid: result.valid === true,
+      errors: result.errors || [],
     });
   } catch (error) {
-    
+    // eslint-disable-next-line no-console
+    console.error("Error validating collection schema:", error);
     return NextResponse.json(
       {
         success: false,
@@ -93,4 +87,3 @@ export async function POST(
     );
   }
 }
-

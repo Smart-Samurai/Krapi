@@ -1,25 +1,34 @@
-/**
- * Count Documents API Route
- * GET /api/projects/[projectId]/collections/[collectionName]/documents/count
- */
-
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
-// UUID validation function - more permissive to accept any valid UUID format
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export function generateStaticParams() {
+  return [];
+}
+
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 }
 
+/**
+ * Count documents in a collection
+ * GET /api/projects/[projectId]/collections/[collectionName]/documents/count
+ */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ projectId: string; collectionName: string }> }
+  {
+    params,
+  }: {
+    params: Promise<{ projectId: string; collectionName: string }>;
+  }
 ): Promise<Response> {
   try {
-    // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
 
     if (!authToken) {
@@ -31,7 +40,6 @@ export async function GET(
 
     const { projectId, collectionName } = await params;
 
-    // Validate UUID format before making backend call
     if (!isValidUUID(projectId)) {
       return NextResponse.json(
         { success: false, error: "Invalid project ID format" },
@@ -46,65 +54,35 @@ export async function GET(
       );
     }
 
-    // Get query parameters for filtering
     const { searchParams } = new URL(request.url);
-
-    // Parse filter parameters
-    let filter: Record<string, string> | undefined = undefined;
+    let filter: Record<string, unknown> | undefined = undefined;
     for (const [key, value] of searchParams.entries()) {
       if (key.startsWith("filter[")) {
         if (!filter) filter = {};
-        const fieldName = key.slice(7, -1); // Remove "filter[" and "]"
+        const fieldName = key.slice(7, -1);
         filter[fieldName] = value;
       }
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    const sdk = await createAuthenticatedBackendSdk(authToken);
 
-    // Build query parameters for filtering
-    const countParams = new URLSearchParams();
-    if (filter) {
-      for (const [key, value] of Object.entries(filter)) {
-        if (typeof value === "string") {
-          countParams.append(`filter[${key}]`, value);
-        }
-      }
+    // Use SDK count method if available, otherwise get all and count
+    if (typeof sdk.documents.count === "function") {
+      const count = await sdk.documents.count(projectId, collectionName, {
+        filter: filter as Record<string, unknown> | undefined,
+      });
+      return NextResponse.json({ success: true, count });
     }
 
-    const fullCountUrl = countParams.toString()
-      ? `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/count?${countParams.toString()}`
-      : `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/count`;
-
-    const response = await fetch(fullCountUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
+    // Fallback: get all documents and count them
+    const documents = await sdk.documents.getAll(projectId, collectionName, {
+      filter: filter as Record<string, unknown> | undefined,
+      limit: 10000,
+      offset: 0,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to count documents",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    // Backend returns { success: true, count: number }
-    // Test expects response.data.count to be a number
-    const countValue = backendResponse.count;
-    // Ensure count is a number
-    const count = typeof countValue === "number" ? countValue : parseInt(String(countValue || 0), 10);
-    
+    const count = Array.isArray(documents) ? documents.length : 1;
     return NextResponse.json({ success: true, count });
   } catch (error) {
-    
     return NextResponse.json(
       {
         success: false,

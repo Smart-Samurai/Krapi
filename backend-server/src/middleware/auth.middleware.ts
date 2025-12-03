@@ -1,7 +1,7 @@
+import { BackendSDK, ApiKeyScope } from "@smartsamurai/krapi-sdk";
 import { Request, Response, NextFunction } from "express";
 
 import { AuthService } from "@/services/auth.service";
-import { DatabaseService } from "@/services/database.service";
 import {
   AuthenticatedRequest,
   Scope,
@@ -9,45 +9,189 @@ import {
   BackendApiKey,
 } from "@/types";
 
-const authService = AuthService.getInstance();
-const db = DatabaseService.getInstance();
+// Store BackendSDK instance (set via initializeAuthMiddleware)
+let backendSDK: BackendSDK | null = null;
+
+/**
+ * Initialize auth middleware with BackendSDK
+ *
+ * Must be called from app.ts after BackendSDK is initialized.
+ *
+ * @param {BackendSDK} sdk - BackendSDK instance
+ */
+export const initializeAuthMiddleware = (sdk: BackendSDK): void => {
+  backendSDK = sdk;
+};
+
+/**
+ * Get API key by key string using SDK database connection
+ *
+ * SDK doesn't have a direct getApiKey method, so we use the database connection.
+ * API keys can be in main DB (admin keys) or project DBs (project keys).
+ *
+ * @param {string} key - API key string
+ * @returns {Promise<BackendApiKey | null>} API key or null if not found
+ */
+async function getApiKeyByKey(key: string): Promise<BackendApiKey | null> {
+  if (!backendSDK) {
+    throw new Error("BackendSDK not initialized");
+  }
+
+  // Get database connection from SDK (should be SdkDatabaseAdapter)
+  const dbConnection = (
+    backendSDK as {
+      databaseConnection?: {
+        query: (
+          sql: string,
+          params?: unknown[]
+        ) => Promise<{ rows: unknown[]; rowCount: number }>;
+      };
+    }
+  ).databaseConnection;
+
+  if (!dbConnection) {
+    throw new Error("Database connection not available");
+  }
+
+  // Import MultiDatabaseManager to access it directly
+  // Since SdkDatabaseAdapter wraps it, we need to access it
+  const { MultiDatabaseManager } = await import(
+    "@/services/multi-database-manager.service"
+  );
+  const dbManager = new MultiDatabaseManager();
+
+  // Try main DB first (admin/system keys)
+  let result = await dbManager.queryMain(
+    "SELECT * FROM api_keys WHERE key = $1 AND is_active = 1",
+    [key]
+  );
+
+  let foundProjectId: string | null = null;
+
+  // If not found in main DB, search project DBs
+  if (result.rows.length === 0) {
+    const projectDbs = dbManager.listProjectDbs();
+
+    for (const projectId of projectDbs) {
+      try {
+        result = await dbManager.queryProject(
+          projectId,
+          "SELECT * FROM api_keys WHERE key = $1 AND is_active = 1",
+          [key]
+        );
+        if (result.rows.length > 0) {
+          foundProjectId = projectId;
+          break;
+        }
+      } catch {
+        // Continue searching
+        continue;
+      }
+    }
+  }
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const row = result.rows[0] as Record<string, unknown>;
+  if (!row) {
+    return null;
+  }
+
+  // Map to BackendApiKey format
+  const projectIdValue =
+    foundProjectId || (row.project_id ? String(row.project_id) : undefined);
+  const apiKey: BackendApiKey = {
+    id: String(row.id || ""),
+    key: String(row.key || ""),
+    name: String(row.name || ""),
+    user_id: String(row.user_id || row.owner_id || ""),
+    ...(projectIdValue ? { project_id: projectIdValue } : {}),
+    scopes: Array.isArray(row.scopes)
+      ? (row.scopes as unknown[]).map(
+          (s) => (typeof s === "string" ? s : String(s)) as ApiKeyScope
+        )
+      : typeof row.scopes === "string"
+      ? (JSON.parse(row.scopes) as unknown[]).map(
+          (s) => (typeof s === "string" ? s : String(s)) as ApiKeyScope
+        )
+      : [],
+    ...(row.expires_at ? { expires_at: String(row.expires_at) } : {}),
+    ...(row.rate_limit ? { rate_limit: Number(row.rate_limit) } : {}),
+    ...(row.metadata
+      ? {
+          metadata:
+            typeof row.metadata === "string"
+              ? JSON.parse(row.metadata)
+              : (row.metadata as Record<string, unknown>),
+        }
+      : {}),
+    created_at: String(row.created_at || ""),
+    ...(row.last_used_at ? { last_used_at: String(row.last_used_at) } : {}),
+    usage_count: row.usage_count ? Number(row.usage_count) : 0,
+    status: (row.status || (row.is_active ? "active" : "inactive")) as
+      | "active"
+      | "inactive",
+  };
+
+  // Update last_used_at
+  try {
+    if (foundProjectId) {
+      await dbManager.queryProject(
+        foundProjectId,
+        "UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key = $1",
+        [key]
+      );
+    } else {
+      await dbManager.queryMain(
+        "UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE key = $1",
+        [key]
+      );
+    }
+  } catch {
+    // Ignore update errors
+  }
+
+  return apiKey;
+}
 
 /**
  * Authenticate request using Bearer token or API key
- * 
+ *
  * Middleware that validates authentication for incoming requests.
  * Supports both session token (Bearer) and API key authentication.
- * 
+ *
  * Authentication methods (checked in order):
  * 1. X-API-Key header (for API key authentication)
  * 2. Authorization header with Bearer token (for session authentication)
  * 3. Authorization header with ApiKey prefix (alternative API key format)
- * 
+ *
  * For API keys:
  * - Validates API key exists and is active
  * - Checks expiration date
  * - Verifies associated user/project is active
  * - Sets user context and scopes on request
- * 
+ *
  * For session tokens:
- * - Validates session token
+ * - Validates session token using SDK
  * - Checks session expiration
  * - Verifies user exists and is active
  * - Sets user context and scopes on request
- * 
+ *
  * @param {Request} req - Express request object
  * @param {Response} res - Express response object
  * @param {NextFunction} next - Express next function
  * @returns {Promise<void>}
- * 
+ *
  * @throws {401} If no authentication provided
  * @throws {401} If authentication is invalid or expired
  * @throws {401} If user/project is inactive
- * 
+ *
  * @example
  * // Apply to routes
  * router.use(authenticate);
- * 
+ *
  * // Or to specific routes
  * router.get('/protected', authenticate, handler);
  */
@@ -112,9 +256,8 @@ export const authenticate = async (
         return;
       }
 
-      const apiKey = (await db.getApiKey(
-        apiKeyHeader
-      )) as unknown as BackendApiKey;
+      // Use SDK to get API key
+      const apiKey = await getApiKeyByKey(apiKeyHeader);
 
       if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
@@ -134,18 +277,31 @@ export const authenticate = async (
       }
 
       // Get owner details
-      let userId: string;
-      // @ts-expect-error - User type reserved for future use
-      let _userType: "admin" | "project";
+      let userId: string | undefined;
       let projectId: string | undefined;
 
       // Check if it's an admin API key (has no project_id) or project API key
       if (!apiKey.project_id) {
         userId = apiKey.user_id;
-        _userType = "admin";
 
-        // Verify admin user exists and is active
-        const adminUser = await db.getAdminUserById(userId);
+        // Verify admin user exists and is active using SDK
+        if (!userId) {
+          res.status(401).json({
+            success: false,
+            error: "API key has no associated user",
+          });
+          return;
+        }
+
+        if (!backendSDK) {
+          res.status(500).json({
+            success: false,
+            error: "BackendSDK not initialized",
+          });
+          return;
+        }
+
+        const adminUser = await backendSDK.admin.getUserById(userId);
         if (!adminUser || !adminUser.active) {
           res.status(401).json({
             success: false,
@@ -156,11 +312,18 @@ export const authenticate = async (
       } else {
         // Project API key
         projectId = apiKey.project_id;
-        _userType = "project";
 
-        // Verify project exists and is active
-        const project = await db.getProjectById(projectId);
-        if (!project || !project.active) {
+        // Verify project exists and is active using SDK
+        if (!backendSDK) {
+          res.status(500).json({
+            success: false,
+            error: "BackendSDK not initialized",
+          });
+          return;
+        }
+
+        const project = await backendSDK.projects.getProjectById(projectId);
+        if (!project || !(project as { active?: boolean }).active) {
           res.status(401).json({
             success: false,
             error: "Project not found or inactive",
@@ -174,18 +337,31 @@ export const authenticate = async (
 
       // Get user scopes for admin users
       let userScopes: string[] = [];
-      if (!projectId) {
-        const adminUser = await db.getAdminUserById(userId);
+      if (!projectId && userId && backendSDK) {
+        const adminUser = await backendSDK.admin.getUserById(userId);
         if (adminUser) {
           const authService = AuthService.getInstance();
           userScopes = authService
             .getScopesForRole(adminUser.role)
             .map((scope) => scope.toString());
         }
+      } else if (
+        apiKey.scopes &&
+        Array.isArray(apiKey.scopes) &&
+        apiKey.scopes.length > 0
+      ) {
+        // Use scopes from API key - ensure they're strings
+        userScopes = apiKey.scopes.map((scope) => {
+          if (typeof scope === "string") {
+            return scope;
+          }
+          // Handle enum or other types
+          return String(scope);
+        });
       }
 
       (req as AuthenticatedRequest).user = {
-        id: userId,
+        id: userId || "",
         project_id: projectId || "",
         scopes: userScopes,
       };
@@ -220,8 +396,8 @@ export const authenticate = async (
     }
 
     if (isApiKey) {
-      // Handle API key authentication
-      const apiKey = (await db.getApiKey(token)) as unknown as BackendApiKey;
+      // Handle API key authentication (same logic as X-API-Key header)
+      const apiKey = await getApiKeyByKey(token);
 
       if (!apiKey || apiKey.status !== "active") {
         res.status(401).json({
@@ -241,18 +417,31 @@ export const authenticate = async (
       }
 
       // Get owner details
-      let userId: string;
-      // @ts-expect-error - User type reserved for future use
-      let _userType: "admin" | "project";
+      let userId: string | undefined;
       let projectId: string | undefined;
 
       // Check if it's an admin API key (has no project_id) or project API key
       if (!apiKey.project_id) {
         userId = apiKey.user_id;
-        _userType = "admin";
 
-        // Verify admin user exists and is active
-        const adminUser = await db.getAdminUserById(userId);
+        // Verify admin user exists and is active using SDK
+        if (!userId) {
+          res.status(401).json({
+            success: false,
+            error: "API key has no associated user",
+          });
+          return;
+        }
+
+        if (!backendSDK) {
+          res.status(500).json({
+            success: false,
+            error: "BackendSDK not initialized",
+          });
+          return;
+        }
+
+        const adminUser = await backendSDK.admin.getUserById(userId);
         if (!adminUser || !adminUser.active) {
           res.status(401).json({
             success: false,
@@ -263,11 +452,18 @@ export const authenticate = async (
       } else {
         // Project API key
         projectId = apiKey.project_id;
-        _userType = "project";
 
-        // Verify project exists and is active
-        const project = await db.getProjectById(projectId);
-        if (!project || !project.active) {
+        // Verify project exists and is active using SDK
+        if (!backendSDK) {
+          res.status(500).json({
+            success: false,
+            error: "BackendSDK not initialized",
+          });
+          return;
+        }
+
+        const project = await backendSDK.projects.getProjectById(projectId);
+        if (!project || !(project as { active?: boolean }).active) {
           res.status(401).json({
             success: false,
             error: "Project not found or inactive",
@@ -281,27 +477,114 @@ export const authenticate = async (
 
       // Get user scopes for admin users
       let userScopes: string[] = [];
-      if (!projectId) {
-        const adminUser = await db.getAdminUserById(userId);
+      if (!projectId && userId && backendSDK) {
+        const adminUser = await backendSDK.admin.getUserById(userId);
         if (adminUser) {
           const authService = AuthService.getInstance();
           userScopes = authService
             .getScopesForRole(adminUser.role)
             .map((scope) => scope.toString());
         }
+      } else if (
+        apiKey.scopes &&
+        Array.isArray(apiKey.scopes) &&
+        apiKey.scopes.length > 0
+      ) {
+        // Use scopes from API key - ensure they're strings
+        userScopes = apiKey.scopes.map((scope) => {
+          if (typeof scope === "string") {
+            return scope;
+          }
+          // Handle enum or other types
+          return String(scope);
+        });
       }
 
       (req as AuthenticatedRequest).user = {
-        id: userId,
+        id: userId || "",
         project_id: projectId || "",
         scopes: userScopes,
       };
       (req as AuthenticatedRequest).apiKey = apiKey;
     } else {
-      // Handle session token authentication
-      const result = await authService.validateSessionToken(token);
+      // Handle session token authentication using SDK
+      if (!backendSDK) {
+        res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        });
+        return;
+      }
 
-      if (!result.valid || !result.session) {
+      if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
+        console.log("🔍 [AUTH MIDDLEWARE] Validating session token:", {
+          tokenLength: token?.length,
+          tokenPrefix: token?.substring(0, 20),
+          hasToken: !!token,
+        });
+      }
+
+      // Use SDK's auth.validateSession() method
+      // SDK returns ApiResponse<{ valid: boolean, user?: AdminUser | ProjectUser, scopes?: string[] }>
+      let validationResult: {
+        valid: boolean;
+        user?: unknown;
+        scopes?: string[];
+      } = { valid: false };
+
+      try {
+        // SDK's validateSession in server mode returns the session object directly (or null if invalid)
+        // If it returns an object, the session is valid. If null, it's invalid.
+        const sessionResult = await backendSDK.auth.validateSession(token);
+
+        // Check if session exists (not null) - that means it's valid
+        if (!sessionResult || (typeof sessionResult === "object" && "valid" in sessionResult && !(sessionResult as { valid: boolean }).valid)) {
+          // Session is invalid (null or { valid: false })
+          validationResult = { valid: false };
+        } else {
+          // Session is valid - SDK returned the session object
+          // Now get the user from the session using AuthAdapterService
+          // This provides the full validation result with user and scopes
+          const { AuthAdapterService } = await import("@/services/auth-adapter.service");
+          const authAdapter = AuthAdapterService.getInstance();
+          const fullValidation = await authAdapter.validateSession(token);
+          
+          if (fullValidation.valid && fullValidation.user) {
+            validationResult = {
+              valid: true,
+              user: fullValidation.user,
+              ...(fullValidation.scopes ? { scopes: fullValidation.scopes } : {}),
+            };
+            if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
+              console.log("✅ [AUTH MIDDLEWARE] Session validated and user retrieved:", {
+                userId: (fullValidation.user as { id?: string }).id,
+                username: (fullValidation.user as { username?: string }).username,
+              });
+            }
+          } else {
+            console.log("⚠️ [AUTH MIDDLEWARE] Session valid but could not retrieve user");
+            validationResult = { valid: false };
+          }
+        }
+      } catch (error) {
+        console.error(
+          "❌ [AUTH MIDDLEWARE] Failed to validate session:",
+          error instanceof Error ? error.message : String(error)
+        );
+        validationResult = { valid: false };
+      }
+
+      if (
+        !validationResult ||
+        !validationResult.valid ||
+        !validationResult.user
+      ) {
+        if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
+          console.log("❌ [AUTH MIDDLEWARE] Token validation failed:", {
+            valid: validationResult?.valid,
+            hasUser: !!validationResult?.user,
+          });
+        }
         res.status(401).json({
           success: false,
           error: "Invalid or expired session - please log in again",
@@ -309,37 +592,81 @@ export const authenticate = async (
         return;
       }
 
-      const session = result.session;
+      if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
+        console.log("✅ [AUTH MIDDLEWARE] Token validation succeeded:", {
+          userId: (validationResult.user as { id?: string }).id,
+          username: (validationResult.user as { username?: string }).username,
+        });
+      }
 
-      // For project sessions, user_id might be null
-      // In such cases, use the session id as the user identifier
-      const userId = session.user_id || session.id;
+      const user = validationResult.user as {
+        id: string;
+        role?: string;
+        project_id?: string;
+        username?: string;
+      };
 
-      // Get user scopes for admin users
+      // Get user ID from result
+      const userId = user.id;
+
+      // Get user scopes - prioritize scopes from SDK response
       let userScopes: string[] = [];
-      if (session.type === "admin" && session.user_id) {
-        const adminUser = await db.getAdminUserById(session.user_id);
-        if (adminUser) {
-          const authService = AuthService.getInstance();
-          userScopes = authService
-            .getScopesForRole(adminUser.role)
-            .map((scope) => scope.toString());
+
+      // First priority: Use scopes from SDK response
+      if (
+        validationResult.scopes &&
+        Array.isArray(validationResult.scopes) &&
+        validationResult.scopes.length > 0
+      ) {
+        userScopes = validationResult.scopes.map((scope) =>
+          typeof scope === "string" ? scope : String(scope)
+        );
+        if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
           console.log(
-            `🔍 [AUTH DEBUG] Admin user ${adminUser.username} has role: ${
-              adminUser.role
-            }, scopes: ${userScopes.join(", ")}`
+            `🔍 [AUTH DEBUG] Using scopes from SDK response: ${userScopes.join(
+              ", "
+            )}`
           );
         }
-      } else if (session.type === "project" && session.scopes) {
-        userScopes = session.scopes.map((scope) => scope.toString());
+      } else if (user.role && backendSDK) {
+        // Fallback: Derive scopes from user role
+        const userRole = user.role;
+        if (userRole) {
+          const authService = AuthService.getInstance();
+          userScopes = authService
+            .getScopesForRole(userRole)
+            .map((scope) => scope.toString());
+          if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
+            console.log(
+              `🔍 [AUTH DEBUG] User has role: ${userRole}, scopes: ${userScopes.join(
+                ", "
+              )}`
+            );
+          }
+        } else {
+          // Last resort: give master_admin scopes if no scopes found
+          const authService = AuthService.getInstance();
+          userScopes = authService
+            .getScopesForRole("master_admin")
+            .map((scope) => scope.toString());
+          if (process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV === 'development') {
+            console.log(
+              `⚠️ [AUTH DEBUG] No scopes found, using master_admin scopes as fallback: ${userScopes.join(
+                ", "
+              )}`
+            );
+          }
+        }
       }
+
+      // Get project_id from user if available
+      const projectId = user.project_id || "";
 
       (req as AuthenticatedRequest).user = {
         id: userId,
-        project_id: session.project_id || "",
+        project_id: projectId,
         scopes: userScopes,
       };
-      (req as AuthenticatedRequest).session = session;
     }
 
     next();
@@ -354,44 +681,44 @@ export const authenticate = async (
 
 /**
  * Require specific scopes for access
- * 
+ *
  * Creates middleware that enforces scope-based authorization.
  * Checks if the authenticated user has the required scopes.
- * 
+ *
  * Features:
  * - Supports "requireAll" mode (all scopes required) or "any" mode (any scope sufficient)
  * - Supports project-specific scope checking
  * - MASTER scope bypasses all checks
  * - Validates project access for project-specific operations
- * 
+ *
  * @param {ScopeRequirement} requirement - Scope requirement configuration
  * @param {Scope[]} requirement.scopes - Array of required scopes
  * @param {boolean} [requirement.requireAll] - If true, all scopes required; if false, any scope sufficient
  * @param {boolean} [requirement.projectSpecific] - If true, validates project access
  * @returns {Function} Express middleware function
- * 
+ *
  * @throws {401} If user is not authenticated
  * @throws {400} If project ID is required but missing
  * @throws {403} If user lacks required scopes
  * @throws {403} If API key doesn't have access to the project
- * 
+ *
  * @example
  * // Require any of the specified scopes
- * router.get('/projects', requireScopes({ 
+ * router.get('/projects', requireScopes({
  *   scopes: [Scope.PROJECTS_READ, Scope.PROJECTS_WRITE],
- *   requireAll: false 
+ *   requireAll: false
  * }), handler);
- * 
+ *
  * // Require all specified scopes
- * router.post('/projects', requireScopes({ 
+ * router.post('/projects', requireScopes({
  *   scopes: [Scope.PROJECTS_READ, Scope.PROJECTS_WRITE],
- *   requireAll: true 
+ *   requireAll: true
  * }), handler);
- * 
+ *
  * // Project-specific scope check
- * router.get('/projects/:projectId/data', requireScopes({ 
+ * router.get('/projects/:projectId/data', requireScopes({
  *   scopes: [Scope.DOCUMENTS_READ],
- *   projectSpecific: true 
+ *   projectSpecific: true
  * }), handler);
  */
 export const requireScopes = (requirement: ScopeRequirement) => {
@@ -413,13 +740,30 @@ export const requireScopes = (requirement: ScopeRequirement) => {
     const userScopes = authReq.user.scopes || [];
 
     console.log(
-      `🔍 [SCOPE DEBUG] Checking scopes. User scopes: [${userScopes.join(", ")}], Required: [${requirement.scopes.map(s => s.toString()).join(", ")}]`
+      `🔍 [SCOPE DEBUG] Checking scopes. User scopes: [${userScopes.join(
+        ", "
+      )}], Required: [${requirement.scopes
+        .map((s) => s.toString())
+        .join(", ")}]`
     );
 
     // Master scope bypasses all checks
-    // Check both enum value and string value
+    // Check both enum value and string value (userScopes is array of strings)
     const masterScopeString = Scope.MASTER.toString();
-    if (userScopes.includes(Scope.MASTER) || userScopes.includes("master") || userScopes.includes(masterScopeString)) {
+    const hasMasterScope =
+      userScopes.includes(Scope.MASTER) ||
+      userScopes.includes("master") ||
+      userScopes.includes("MASTER") ||
+      userScopes.includes(masterScopeString) ||
+      userScopes.some(
+        (scope) =>
+          scope &&
+          (scope.toString() === "master" ||
+            scope.toString() === "MASTER" ||
+            scope.toString() === masterScopeString)
+      );
+
+    if (hasMasterScope) {
       console.log(
         `✅ [SCOPE DEBUG] MASTER scope detected (${masterScopeString}) - bypassing all checks and calling next()`
       );
@@ -428,9 +772,22 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 
     // Check if project-specific scope is required
     if (requirement.projectSpecific) {
+      console.log("🔍 [INVESTIGATION] requireScopes: projectSpecific=true", {
+        url: req.url,
+        path: req.path,
+        paramsProjectId: req.params.projectId,
+        userProjectId: authReq.user?.project_id,
+      });
       const projectId = req.params.projectId || authReq.user.project_id;
 
       if (!projectId) {
+        console.log(
+          "❌ [INVESTIGATION] requireScopes: Project ID required but missing",
+          {
+            url: req.url,
+            path: req.path,
+          }
+        );
         res.status(400).json({
           success: false,
           error: "Project ID required",
@@ -449,6 +806,14 @@ export const requireScopes = (requirement: ScopeRequirement) => {
         });
         return;
       }
+    } else {
+      console.log(
+        "🔍 [INVESTIGATION] requireScopes: projectSpecific=false (no project ID check)",
+        {
+          url: req.url,
+          path: req.path,
+        }
+      );
     }
 
     // Check required scopes
@@ -468,19 +833,23 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 
     if (!hasAccess) {
       console.log(
-        `🔍 [SCOPE DEBUG] Access denied. Required: [${requirement.scopes.map(s => s.toString()).join(", ")}], User has: [${userScopes.join(", ")}]`
+        `🔍 [SCOPE DEBUG] Access denied. Required: [${requirement.scopes
+          .map((s) => s.toString())
+          .join(", ")}], User has: [${userScopes.join(", ")}]`
       );
       res.status(403).json({
         success: false,
         error: "Insufficient permissions",
-        required_scopes: requirement.scopes.map(s => s.toString()),
+        required_scopes: requirement.scopes.map((s) => s.toString()),
         user_scopes: userScopes,
       });
       return;
     }
 
     console.log(
-      `✅ [SCOPE DEBUG] Access granted for scopes: [${requirement.scopes.map(s => s.toString()).join(", ")}] - calling next()`
+      `✅ [SCOPE DEBUG] Access granted for scopes: [${requirement.scopes
+        .map((s) => s.toString())
+        .join(", ")}] - calling next()`
     );
 
     return next();
@@ -489,9 +858,9 @@ export const requireScopes = (requirement: ScopeRequirement) => {
 
 /**
  * Shorthand middleware requiring admin read access
- * 
+ *
  * Convenience middleware that requires ADMIN_READ scope.
- * 
+ *
  * @example
  * router.get('/admin/users', requireAdmin, handler);
  */
@@ -502,9 +871,9 @@ export const requireAdmin = requireScopes({
 
 /**
  * Shorthand middleware requiring project read access
- * 
+ *
  * Convenience middleware that requires PROJECTS_READ scope with project-specific validation.
- * 
+ *
  * @example
  * router.get('/projects/:projectId', requireProjectAccess, handler);
  */
@@ -516,9 +885,9 @@ export const requireProjectAccess = requireScopes({
 
 /**
  * Shorthand middleware requiring collection read access
- * 
+ *
  * Convenience middleware that requires COLLECTIONS_READ scope with project-specific validation.
- * 
+ *
  * @example
  * router.get('/projects/:projectId/collections', requireCollectionRead, handler);
  */
@@ -530,9 +899,9 @@ export const requireCollectionRead = requireScopes({
 
 /**
  * Shorthand middleware requiring collection write access
- * 
+ *
  * Convenience middleware that requires COLLECTIONS_WRITE scope with project-specific validation.
- * 
+ *
  * @example
  * router.post('/projects/:projectId/collections', requireCollectionWrite, handler);
  */
@@ -544,9 +913,9 @@ export const requireCollectionWrite = requireScopes({
 
 /**
  * Shorthand middleware requiring document read access
- * 
+ *
  * Convenience middleware that requires DOCUMENTS_READ scope with project-specific validation.
- * 
+ *
  * @example
  * router.get('/projects/:projectId/documents', requireDocumentRead, handler);
  */
@@ -558,9 +927,9 @@ export const requireDocumentRead = requireScopes({
 
 /**
  * Shorthand middleware requiring document write access
- * 
+ *
  * Convenience middleware that requires DOCUMENTS_WRITE scope with project-specific validation.
- * 
+ *
  * @example
  * router.post('/projects/:projectId/documents', requireDocumentWrite, handler);
  */
@@ -572,9 +941,9 @@ export const requireDocumentWrite = requireScopes({
 
 /**
  * Shorthand middleware requiring storage read access
- * 
+ *
  * Convenience middleware that requires STORAGE_READ scope with project-specific validation.
- * 
+ *
  * @example
  * router.get('/projects/:projectId/storage', requireStorageRead, handler);
  */
@@ -586,9 +955,9 @@ export const requireStorageRead = requireScopes({
 
 /**
  * Shorthand middleware requiring storage write access
- * 
+ *
  * Convenience middleware that requires STORAGE_WRITE scope with project-specific validation.
- * 
+ *
  * @example
  * router.post('/projects/:projectId/storage', requireStorageWrite, handler);
  */
@@ -600,7 +969,7 @@ export const requireStorageWrite = requireScopes({
 
 /**
  * Legacy export for backward compatibility
- * 
+ *
  * @deprecated Use `authenticate` instead
  * @see authenticate
  */
@@ -608,7 +977,7 @@ export const authenticateJWT = authenticate;
 
 /**
  * Legacy export for backward compatibility
- * 
+ *
  * @deprecated Use `authenticate` instead
  * @see authenticate
  */
@@ -616,7 +985,7 @@ export const authenticateAdmin = authenticate;
 
 /**
  * Legacy export for backward compatibility
- * 
+ *
  * @deprecated Use `authenticate` instead
  * @see authenticate
  */

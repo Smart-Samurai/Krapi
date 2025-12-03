@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * Extract auth token from request headers
- */
-function getAuthToken(headers: Headers): string | undefined {
-  const authorization = headers.get("authorization");
-  if (authorization?.startsWith("Bearer ")) {
-    return authorization.substring(7);
-  }
-  return undefined;
-}
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * Get all projects
@@ -23,49 +19,22 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (!authToken) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
-        { status: 401 }
-      );
+      { status: 401 }
+    );
     }
 
-    // Call backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(`${backendUrl}/krapi/k1/projects`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const projects = await sdk.projects.getAll();
+
+    // SDK returns projects array directly
+    return NextResponse.json({
+      success: true,
+      projects: Array.isArray(projects) ? projects : [projects],
     });
-
-    if (!response.ok) {
-      throw new Error(
-        `Backend request failed: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const backendResponse = await response.json();
-
-    // Wrap response to match expected format: { success: true, projects: [...] }
-    if (backendResponse.success && Array.isArray(backendResponse.data)) {
-      return NextResponse.json({
-        success: true,
-        projects: backendResponse.data,
-        pagination: backendResponse.pagination,
-      });
-    }
-
-    // If backend returns array directly
-    if (Array.isArray(backendResponse)) {
-      return NextResponse.json({
-        success: true,
-        projects: backendResponse,
-      });
-    }
-
-    // Return the backend response as-is if format is different
-    return NextResponse.json(backendResponse);
   } catch (error) {
-    
+    // eslint-disable-next-line no-console
+    console.error("Error fetching projects:", error);
     return NextResponse.json(
       {
         success: false,
@@ -83,8 +52,6 @@ export async function GET(request: NextRequest): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
-    // Debug: Log all headers received (removed for production)
-
     // Extract authentication token from headers
     const authToken = getAuthToken(request.headers);
 
@@ -100,58 +67,28 @@ export async function POST(request: NextRequest): Promise<Response> {
     if (!projectData.name) {
       return NextResponse.json(
         { success: false, error: "Project name is required" },
-        { status: 400 }
-      );
+      { status: 400 }
+    );
     }
 
-    // Call backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(`${backendUrl}/krapi/k1/projects`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: projectData.name,
-        description: projectData.description,
-        settings: projectData.settings,
-      }),
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const project = await sdk.projects.create({
+      name: projectData.name,
+      description: projectData.description,
+      settings: projectData.settings,
     });
 
-    if (!response.ok) {
-      throw new Error(
-        `Backend request failed: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const backendResponse = await response.json();
-
-    // Wrap response to match expected format: { success: true, project: ... }
-    if (backendResponse.success && backendResponse.data) {
-      return NextResponse.json(
-        {
-          success: true,
-          project: backendResponse.data,
-        },
-        { status: 201 }
-      );
-    }
-
-    // If backend returns project directly
-    if (backendResponse.id) {
-      return NextResponse.json(
-        {
-          success: true,
-          project: backendResponse,
-        },
-        { status: 201 }
-      );
-    }
-
-    return NextResponse.json(backendResponse, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        project,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    
+    // eslint-disable-next-line no-console
+    console.error("Error creating project:", error);
     return NextResponse.json(
       {
         success: false,

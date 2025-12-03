@@ -1,22 +1,42 @@
 #!/usr/bin/env node
 
-import axios from "axios";
 import { krapi } from "@smartsamurai/krapi-sdk";
 import { writeFile, mkdir, rm, readdir } from "fs/promises";
 import { join, dirname } from "path";
-import { existsSync } from "fs";
+import { existsSync, openSync, closeSync } from "fs";
 import { fileURLToPath } from "url";
 import CONFIG from "./config.js";
+import TestLogger from "./test-logger.js";
+import {
+  extractTestErrorDetails,
+  formatTestErrorLog,
+  formatCompactError,
+  classifyErrorSource,
+  getErrorCategory,
+  getFixLocation,
+} from "./error-utils.js";
+
+// Import test registry for selective execution
+import {
+  TEST_REGISTRY,
+  resolveTestDependencies,
+  getInitializationRequirements,
+  getAllTestNames,
+} from "./test-registry.js";
 
 /**
  * Comprehensive Test Suite for KRAPI Server
- * 
+ *
  * ⚠️ IMPORTANT: This test suite simulates external third-party applications
  * ALL tests connect through the FRONTEND (port 3498), NOT directly to backend (port 3470)
  * This ensures we test the same path that real external apps would use.
  */
+// Total number of tests in the suite (used for progress tracking)
+// Updated: Added 20 missing tests to reach 100% coverage (120 tests total)
+const TOTAL_TESTS_IN_SUITE = 120;
+
 class ComprehensiveTestSuite {
-  constructor(sessionToken = null, testProject = null) {
+  constructor(sessionToken = null, testProject = null, selectedTests = null) {
     this.sessionToken = sessionToken;
     this.testProject = testProject;
     this.testCollection = null;
@@ -26,10 +46,17 @@ class ComprehensiveTestSuite {
       errors: [],
     };
     this.results = []; // Array for individual test results
+    this.totalTestsInSuite = TOTAL_TESTS_IN_SUITE; // Total expected tests
     // Use the same krapi singleton that external apps would use
     // All connections go through FRONTEND (port 3498) to simulate real external app behavior
     this.krapi = krapi;
     this.startTime = Date.now();
+
+    // Store selected tests for conditional execution
+    // selectedTests is an array of test chunk names to run, or null for all
+    this.selectedTests = selectedTests;
+
+    // Set environment BEFORE creating logger so it can be passed to logger
     this.environment = {
       nodeVersion: process.version,
       platform: process.platform,
@@ -39,53 +66,91 @@ class ComprehensiveTestSuite {
       timestamp: new Date().toISOString(),
       testMode: "external-client-simulation", // Indicates we're simulating external apps
     };
+
+    this.logger = new TestLogger({
+      verbose: process.env.VERBOSE === "true",
+      showPassed: process.env.HIDE_PASSED !== "true",
+      grouped: true,
+      minimal: process.env.VERBOSE !== "true", // Minimal mode unless verbose
+      environment: this.environment,
+    });
+  }
+
+  /**
+   * Safe console.log wrapper that handles EPIPE errors gracefully
+   * Prevents "broken pipe" errors when stdout is closed
+   */
+  safeLog(...args) {
+    try {
+      console.log(...args);
+    } catch (error) {
+      // Ignore EPIPE errors (broken pipe) - happens when stdout is closed
+      if (error.code !== "EPIPE" && error.code !== "ENOTCONN") {
+        // Only re-throw if it's not a pipe error
+        throw error;
+      }
+      // Silently ignore pipe errors - they're harmless
+    }
   }
 
   async test(name, testFunction) {
     const startTime = Date.now();
     try {
-      console.log(`⏳ ${name}...`);
       await testFunction();
       const duration = Date.now() - startTime;
-      console.log(`✅ ${name} (${duration}ms)`);
+
+      // Warn if test takes too long (>5 seconds for all tests)
+      const slowThreshold = 5000;
+      if (duration > slowThreshold) {
+        console.log(
+          `   ⚠️  Slow test: ${duration}ms (threshold: ${slowThreshold}ms)`
+        );
+      }
+
+      this.logger.testResult(name, "PASSED", duration);
+      this.logger.updateSuiteStats("PASSED");
+      this.logger.recordTestResult(name, "PASSED", duration);
+      // Keep local tracking for backward compatibility
       this.testResults.passed++;
-      this.results.push({
-        test: name,
-        status: "PASSED",
-        duration: duration,
-        error: null,
-        stack: null,
-        timestamp: new Date().toISOString(),
-      });
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.log(`❌ ${name} (${duration}ms)`);
-      console.log(`   Error: ${error.message}`);
-      this.testResults.failed++;
-      const errorDetails = {
-        test: name,
-        error: error.message,
-        stack: error.stack || null,
-        code: error.code || null,
-        status: error.response?.status || null,
-        statusText: error.response?.statusText || null,
-        responseData: error.response?.data || null,
-      };
-      this.testResults.errors.push(errorDetails);
-      this.results.push({
-        test: name,
-        status: "FAILED",
-        duration: duration,
-        error: error.message,
-        stack: error.stack || null,
-        code: error.code || null,
-        httpStatus: error.response?.status || null,
-        httpStatusText: error.response?.statusText || null,
-        responseData: error.response?.data || null,
-        timestamp: new Date().toISOString(),
+
+      // Use SDK error utilities to extract detailed error information
+      const errorDetails = extractTestErrorDetails(error);
+      const errorSource = classifyErrorSource(error);
+      const errorCategory = getErrorCategory(error);
+      const fixLocation = getFixLocation(error);
+
+      // Log compact error information in console (detailed info goes to log files)
+      this.safeLog(`\n❌ ${name} (${duration}ms)`);
+      this.safeLog(`   ${formatCompactError(error)}`);
+      this.safeLog(
+        `   Source: ${errorSource} | Category: ${errorCategory} | Fix: ${fixLocation}`
+      );
+
+      this.logger.testResult(name, "FAILED", duration, error);
+      this.logger.updateSuiteStats("FAILED");
+
+      // Record test result with enhanced error details including classification
+      this.logger.recordTestResult(name, "FAILED", duration, error, {
+        errorCode: errorDetails.code,
+        errorStatus: errorDetails.status,
+        errorMessage: errorDetails.message,
+        errorDetails: errorDetails.details,
+        errorTimestamp: errorDetails.timestamp,
+        errorSource: errorSource,
+        errorCategory: errorCategory,
+        fixLocation: fixLocation,
       });
-      // Don't throw - continue running all tests
-      // throw error;
+
+      // Keep local tracking for backward compatibility
+      this.testResults.failed++;
+
+      // If STOP_ON_FIRST_FAILURE is enabled, throw immediately to stop all queued tests
+      if (process.env.STOP_ON_FIRST_FAILURE === "true") {
+        throw error;
+      }
+      // Otherwise, continue running all tests (default behavior)
     }
   }
 
@@ -95,75 +160,239 @@ class ComprehensiveTestSuite {
     }
   }
 
+  // Enhanced assertion with response validation
+  assertResponse(
+    response,
+    expectedFields = [],
+    message = "Response validation failed"
+  ) {
+    if (!response) {
+      throw new Error(`${message}: Response is null or undefined`);
+    }
+
+    if (typeof response !== "object") {
+      throw new Error(
+        `${message}: Response is not an object (got ${typeof response})`
+      );
+    }
+
+    // Check if response is an empty object
+    const responseKeys = Object.keys(response);
+    if (responseKeys.length === 0) {
+      throw new Error(`${message}: Response is an empty object with no keys`);
+    }
+
+    // Check for expected fields
+    for (const field of expectedFields) {
+      if (!(field in response)) {
+        const availableKeys =
+          responseKeys.length > 0 ? responseKeys.join(", ") : "(no keys)";
+        throw new Error(
+          `${message}: Missing required field '${field}' in response. Response keys: ${availableKeys}`
+        );
+      }
+
+      // Check if field has actual data (not null/undefined/empty string)
+      const value = response[field];
+      if (value === null || value === undefined || value === "") {
+        throw new Error(
+          `${message}: Field '${field}' exists but has no data (value: ${JSON.stringify(
+            value
+          )})`
+        );
+      }
+
+      // For string fields, check they're not just whitespace
+      if (typeof value === "string" && value.trim() === "") {
+        throw new Error(
+          `${message}: Field '${field}' is an empty or whitespace-only string`
+        );
+      }
+
+      // For arrays, check they're not empty
+      if (Array.isArray(value) && value.length === 0) {
+        throw new Error(`${message}: Field '${field}' is an empty array`);
+      }
+
+      // For objects, check they have at least one key
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value) &&
+        Object.keys(value).length === 0
+      ) {
+        throw new Error(`${message}: Field '${field}' is an empty object`);
+      }
+    }
+
+    return true;
+  }
+
+  // Validate response has real data (not just structure)
+  assertHasData(response, message = "Response has no real data") {
+    if (!response) {
+      throw new Error(`${message}: Response is null or undefined`);
+    }
+
+    // Arrays are valid responses (even if empty) - they are objects but should be handled separately
+    if (Array.isArray(response)) {
+      // Empty arrays are valid - they represent "no data" which is different from "invalid response"
+      return true;
+    }
+
+    if (typeof response !== "object") {
+      throw new Error(`${message}: Response is not an object`);
+    }
+
+    // Check if response has any meaningful data
+    const keys = Object.keys(response);
+    if (keys.length === 0) {
+      throw new Error(`${message}: Response is an empty object`);
+    }
+
+    // Check if all values are null/undefined/empty
+    const hasData = keys.some((key) => {
+      const value = response[key];
+      return (
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        !(Array.isArray(value) && value.length === 0) &&
+        !(typeof value === "object" && Object.keys(value).length === 0)
+      );
+    });
+
+    if (!hasData) {
+      throw new Error(
+        `${message}: Response has no meaningful data. Response: ${JSON.stringify(
+          response
+        )}`
+      );
+    }
+
+    return true;
+  }
+
   async runAll() {
     return this.runAllTests();
   }
 
   async runAllTests() {
-    console.log("🚀 Starting Comprehensive KRAPI Test Suite");
-    console.log("=".repeat(60));
-    console.log("⚠️  TEST MODE: Simulating External Third-Party Applications");
-    console.log("✅ All tests connect through FRONTEND (port 3498)");
-    console.log("❌ NO tests connect directly to BACKEND (port 3470)");
-    console.log("=".repeat(60));
+    const isQuickMode = process.env.STOP_ON_FIRST_FAILURE === "true";
+
+    if (!this.logger.minimal || this.logger.verbose) {
+      console.log("🚀 Starting Comprehensive KRAPI Test Suite");
+      console.log("=".repeat(60));
+      this.logger.info(
+        "TEST MODE: Simulating External Third-Party Applications"
+      );
+      this.logger.info("All tests connect through FRONTEND (port 3498)");
+
+      if (isQuickMode) {
+        console.log("");
+        console.log("⚡ QUICK MODE (--stop-on-first-failure)");
+        console.log("   • Tests will STOP immediately on first failure");
+        console.log(
+          "   • Total test count will NOT be accurate (shows only tests run before failure)"
+        );
+        console.log("   • Use this mode to fix errors one by one");
+        console.log(
+          "   • For full test suite, use: pnpm run test:comprehensive"
+        );
+        console.log("");
+      } else {
+        console.log("");
+        console.log("📊 COMPREHENSIVE MODE");
+        console.log("   • All tests will run regardless of failures");
+        console.log("   • Total test count will be accurate");
+        console.log("   • Use this mode to see complete test coverage");
+        console.log("");
+      }
+      console.log("=".repeat(60));
+    } else {
+      // Minimal mode: just show start
+      if (isQuickMode) {
+        console.log(
+          "🚀 Running tests (QUICK MODE - stops on first failure)...\n"
+        );
+      } else {
+        console.log("🚀 Running tests (COMPREHENSIVE MODE - all tests)...\n");
+      }
+    }
 
     try {
-      // Setup Phase
-      await this.setup();
+      // Determine which tests to run
+      const testsToRun = this.selectedTests || getAllTestNames();
 
-      // Authentication Tests
-      await this.runAuthTests();
+      // Resolve dependencies (e.g., if running "email", also run "auth" and "projects")
+      const testsWithDependencies = resolveTestDependencies(testsToRun);
 
-      // Project Management Tests (run before SDK tests so testProject is available)
-      await this.runProjectTests();
+      // Get initialization requirements
+      const initRequirements = getInitializationRequirements(
+        testsWithDependencies
+      );
 
-      // SDK Client Tests (using npm package) - run after project tests
-      await this.runSDKClientTests();
+      // Setup Phase (conditional based on requirements)
+      await this.setup(initRequirements);
 
-      // SDK Integration Tests (new features) - run after SDK client tests
-      await this.runSDKIntegrationTests();
+      // Run tests in dependency order
+      for (const testName of testsWithDependencies) {
+        const test = TEST_REGISTRY[testName];
+        if (!test) {
+          console.warn(`⚠️  Unknown test: ${testName}, skipping`);
+          continue;
+        }
 
-      // Collection Management Tests
-      await this.runCollectionTests();
+        // Only run if it's in the selected tests (or if selectedTests is null, run all)
+        // Dependencies are always run, but we only show them if they're explicitly selected
+        const isExplicitlySelected =
+          !this.selectedTests || this.selectedTests.includes(testName);
+        const isDependency =
+          this.selectedTests && !this.selectedTests.includes(testName);
 
-      // Document CRUD Tests
-      await this.runDocumentTests();
+        if (isDependency) {
+          // This is a dependency, run it silently (no suite start/end logging)
+          try {
+            await test.function(this);
+          } catch (error) {
+            console.error(
+              `💥 Dependency test '${testName}' failed:`,
+              error.message
+            );
+            this.testResults.failed++;
+            this.testResults.errors.push({
+              test: test.displayName,
+              error: error.message,
+            });
+          }
+        } else {
+          // This is an explicitly selected test, run it with full logging
+          this.logger.suiteStart(test.displayName);
 
-      // Storage Tests
-      await this.runStorageTests();
+          try {
+            await test.function(this);
+          } catch (error) {
+            console.error(`💥 Test chunk '${testName}' failed:`, error.message);
+            this.testResults.failed++;
+            this.testResults.errors.push({
+              test: test.displayName,
+              error: error.message,
+            });
+          }
 
-      // Email Tests
-      await this.runEmailTests();
+          this.logger.suiteEnd(test.displayName);
+        }
 
-      // API Key Tests
-      await this.runApiKeyTests();
-
-      // User Management Tests
-      await this.runUserTests();
-
-      // Activity Logging Tests
-      await this.runActivityLoggingTests();
-
-      // Metadata Management Tests
-      await this.runMetadataTests();
-
-      // Performance Monitoring Tests
-      await this.runPerformanceTests();
-
-      // Database Queue Tests
-      await this.runQueueTests();
-
-      // SDK API Endpoint Tests
-      await this.runSDKApiTests();
-
-      // MCP Server Tests (mocked)
-      await this.runMCPServerTests();
-
-      // Backup Tests
-      await this.runBackupTests();
-
-      // Complete CMS Integration Tests
-      await this.runCMSIntegrationTests();
+        // Check if we should stop on first failure
+        if (
+          process.env.STOP_ON_FIRST_FAILURE === "true" &&
+          this.testResults.failed > 0
+        ) {
+          throw new Error(
+            "Test failed - stopping immediately (STOP_ON_FIRST_FAILURE mode)"
+          );
+        }
+      }
     } catch (error) {
       console.error("💥 TEST SUITE FAILED:", error.message);
       this.testResults.failed++;
@@ -171,25 +400,34 @@ class ComprehensiveTestSuite {
         test: "Test Suite",
         error: error.message,
       });
-      // Don't throw - let finally block handle cleanup and results
+      // In STOP_ON_FIRST_FAILURE mode, rethrow to stop immediately
+      if (process.env.STOP_ON_FIRST_FAILURE === "true") {
+        throw error;
+      }
+      // Otherwise, don't throw - let finally block handle cleanup and results
     } finally {
       await this.cleanup();
       this.printResults();
-      
+
       // Save results to file
       try {
         await this.saveResultsToFile();
       } catch (error) {
-        console.error("⚠️  Failed to save test results to file:", error.message);
+        console.error(
+          "⚠️  Failed to save test results to file:",
+          error.message
+        );
       }
-      
+
       // Return true if all tests passed, false otherwise
       return this.testResults.failed === 0;
     }
   }
 
   async cleanupDatabaseFiles() {
-    console.log("   Cleaning up database files from previous test runs...");
+    console.log(
+      "   🧹 Cleaning up database files from previous test runs (industry-standard cleanup)..."
+    );
     try {
       // Get the backend-server directory path
       const testSuiteDir = dirname(fileURLToPath(import.meta.url));
@@ -197,11 +435,90 @@ class ComprehensiveTestSuite {
       const backendDataDir = join(projectRoot, "backend-server", "data");
 
       if (!existsSync(backendDataDir)) {
-        console.log("   No database directory found, skipping cleanup");
+        console.log("   ✅ No database directory found, nothing to clean");
         return;
       }
 
-      // Clean up main database files
+      console.log(`   📂 Database directory: ${backendDataDir}`);
+
+      // Helper function to check if file is accessible (not locked)
+      const isFileAccessible = (filePath) => {
+        try {
+          // Try to open file in read-write mode to check if it's locked
+          const fd = fs.openSync(filePath, "r+");
+          fs.closeSync(fd);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      // Industry-standard file deletion with retry logic
+      // Handles Windows file locking, SQLite WAL mode, and concurrent access
+      const deleteFileWithRetry = async (
+        filePath,
+        fileName,
+        maxRetries = 15 // Increased retries for Windows
+      ) => {
+        // First, try to check if file exists
+        if (!existsSync(filePath)) {
+          return true; // Already deleted
+        }
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            // On Windows, check if file is accessible before trying to delete
+            if (process.platform === "win32" && attempt > 1) {
+              if (!isFileAccessible(filePath)) {
+                // File is still locked, wait longer with exponential backoff
+                const waitTime = Math.min(2000 * attempt, 15000);
+                if (attempt <= 3 || attempt % 3 === 0) {
+                  console.log(
+                    `   ⏳ ${fileName} is locked (attempt ${attempt}/${maxRetries}), waiting ${waitTime}ms...`
+                  );
+                }
+                await new Promise((resolve) => setTimeout(resolve, waitTime));
+                continue;
+              }
+            }
+
+            // Attempt deletion
+            await rm(filePath, { force: true });
+
+            // Verify deletion was successful
+            if (!existsSync(filePath)) {
+              return true;
+            } else {
+              throw new Error("File still exists after deletion");
+            }
+          } catch (error) {
+            if (attempt < maxRetries) {
+              // Exponential backoff with jitter
+              const baseWait = process.platform === "win32" ? 3000 : 1500;
+              const waitTime = Math.min(
+                baseWait * Math.pow(1.5, attempt - 1) + Math.random() * 1000,
+                15000
+              );
+              if (attempt <= 3 || attempt % 3 === 0) {
+                console.log(
+                  `   ⏳ Retrying deletion of ${fileName} (attempt ${attempt}/${maxRetries}), waiting ${Math.round(
+                    waitTime
+                  )}ms...`
+                );
+              }
+              await new Promise((resolve) => setTimeout(resolve, waitTime));
+            } else {
+              console.log(
+                `   ❌ Failed to delete ${fileName} after ${maxRetries} attempts: ${error.message}`
+              );
+              return false;
+            }
+          }
+        }
+        return false;
+      };
+
+      // Clean up main database files (industry-standard: delete all SQLite file variants)
       const mainDbFiles = [
         "krapi_main.db",
         "krapi_main.db-wal",
@@ -211,117 +528,249 @@ class ComprehensiveTestSuite {
         "krapi.db-shm",
       ];
 
+      let mainDbDeletedCount = 0;
       for (const dbFile of mainDbFiles) {
         const dbPath = join(backendDataDir, dbFile);
         if (existsSync(dbPath)) {
-          try {
-            await rm(dbPath, { force: true });
+          const deleted = await deleteFileWithRetry(dbPath, dbFile);
+          if (deleted) {
+            mainDbDeletedCount++;
             console.log(`   ✅ Deleted ${dbFile}`);
-          } catch (error) {
-            console.log(`   ⚠️  Could not delete ${dbFile}: ${error.message}`);
           }
         }
       }
 
-      // Clean up project databases
+      if (mainDbDeletedCount > 0) {
+        console.log(
+          `   ✅ Cleaned ${mainDbDeletedCount} main database file(s)`
+        );
+      }
+
+      // Clean up project databases (industry-standard: comprehensive cleanup)
+      // Project databases are stored as .db files directly in the projects directory
+      // CRITICAL: Delete ALL project databases to ensure clean state
       const projectsDir = join(backendDataDir, "projects");
+      let projectDbDeletedCount = 0;
+
       if (existsSync(projectsDir)) {
         try {
-          const projectDirs = await readdir(projectsDir, { withFileTypes: true });
-          for (const projectDir of projectDirs) {
-            if (projectDir.isDirectory()) {
-              const projectPath = join(projectsDir, projectDir.name);
-              try {
-                await rm(projectPath, { recursive: true, force: true });
-                console.log(`   ✅ Deleted project database: ${projectDir.name}`);
-              } catch (error) {
-                console.log(`   ⚠️  Could not delete project ${projectDir.name}: ${error.message}`);
+          // Industry-standard: Delete ALL files matching database patterns
+          // This ensures complete cleanup regardless of how many files exist
+          const allFiles = await readdir(projectsDir, { withFileTypes: true });
+          const totalFiles = allFiles.length;
+
+          if (totalFiles > 0) {
+            console.log(
+              `   📊 Found ${totalFiles} item(s) in projects directory - cleaning all...`
+            );
+          }
+
+          // First pass: Delete all files and directories
+          for (const fileEntry of allFiles) {
+            if (fileEntry.isFile()) {
+              const fileName = fileEntry.name;
+              // Delete ALL files in projects directory (they're all database-related)
+              const filePath = join(projectsDir, fileName);
+              const deleted = await deleteFileWithRetry(filePath, fileName);
+              if (deleted) {
+                projectDbDeletedCount++;
+                if (projectDbDeletedCount <= 10) {
+                  console.log(`   ✅ Deleted: ${fileName}`);
+                }
+              }
+            } else if (fileEntry.isDirectory()) {
+              // Legacy: some old setups might have project directories
+              const projectPath = join(projectsDir, fileEntry.name);
+              let deleted = false;
+              const maxRetries = process.platform === "win32" ? 15 : 8;
+              for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                  await rm(projectPath, { recursive: true, force: true });
+                  deleted = true;
+                  break;
+                } catch (error) {
+                  if (attempt < maxRetries) {
+                    const baseWait = process.platform === "win32" ? 3000 : 1500;
+                    const waitTime = Math.min(
+                      baseWait * Math.pow(1.5, attempt - 1),
+                      15000
+                    );
+                    if (attempt <= 3 || attempt % 3 === 0) {
+                      console.log(
+                        `   ⏳ Retrying deletion of project directory ${
+                          fileEntry.name
+                        } (attempt ${attempt}/${maxRetries}), waiting ${Math.round(
+                          waitTime
+                        )}ms...`
+                      );
+                    }
+                    await new Promise((resolve) =>
+                      setTimeout(resolve, waitTime)
+                    );
+                  }
+                }
+              }
+              if (deleted) {
+                projectDbDeletedCount++;
+                if (projectDbDeletedCount <= 10) {
+                  console.log(
+                    `   ✅ Deleted project directory: ${fileEntry.name}`
+                  );
+                }
+              } else {
+                console.log(
+                  `   ❌ Could not delete project ${fileEntry.name} after ${maxRetries} attempts`
+                );
               }
             }
           }
+
+          // Second pass: Aggressive cleanup - delete ANY remaining files
+          // This catches files created between passes or missed in first pass
+          try {
+            const remainingFiles = await readdir(projectsDir);
+            let secondPassDeleted = 0;
+            for (const fileName of remainingFiles) {
+              const filePath = join(projectsDir, fileName);
+              if (existsSync(filePath)) {
+                const deleted = await deleteFileWithRetry(filePath, fileName);
+                if (deleted) {
+                  secondPassDeleted++;
+                  projectDbDeletedCount++;
+                }
+              }
+            }
+            if (secondPassDeleted > 0) {
+              console.log(
+                `   ✅ Second pass: Deleted ${secondPassDeleted} remaining file(s)`
+              );
+            }
+          } catch (finalError) {
+            console.log(
+              `   ⚠️  Second pass cleanup warning: ${finalError.message}`
+            );
+          }
+
+          // Third pass: Final aggressive cleanup - delete everything that remains
+          try {
+            const finalCheck = await readdir(projectsDir);
+            if (finalCheck.length > 0) {
+              console.log(
+                `   ⚠️  Third pass: ${finalCheck.length} item(s) still remain, attempting final cleanup...`
+              );
+              for (const fileName of finalCheck) {
+                const filePath = join(projectsDir, fileName);
+                if (existsSync(filePath)) {
+                  await deleteFileWithRetry(filePath, fileName);
+                }
+              }
+            }
+
+            // Final verification
+            const verificationCheck = await readdir(projectsDir);
+            if (verificationCheck.length === 0) {
+              console.log(`   ✅ Projects directory is now completely empty`);
+            } else {
+              console.log(
+                `   ⚠️  WARNING: Projects directory still contains ${verificationCheck.length} item(s) after cleanup`
+              );
+            }
+          } catch {
+            // Ignore errors in final check
+          }
+
+          if (projectDbDeletedCount > 0) {
+            console.log(
+              `   ✅ Cleaned ${projectDbDeletedCount} project database file(s)/directories`
+            );
+          } else if (totalFiles === 0) {
+            console.log(`   ✅ Projects directory was already empty`);
+          }
         } catch (error) {
-          console.log(`   ⚠️  Could not read projects directory: ${error.message}`);
+          console.log(
+            `   ❌ Error reading projects directory: ${error.message}`
+          );
         }
+      } else {
+        console.log(
+          `   ✅ Projects directory does not exist, nothing to clean`
+        );
       }
 
-      console.log("   ✅ Database cleanup complete");
+      console.log("   ✅ Database cleanup complete (industry-standard)");
     } catch (error) {
       console.log(`   ⚠️  Database cleanup warning: ${error.message}`);
       // Don't throw - continue with tests even if cleanup fails
     }
   }
 
-  async setup() {
+  async setup(
+    initRequirements = {
+      requiresAuth: true,
+      requiresProject: true,
+      requiresCollection: true,
+    }
+  ) {
     console.log("🔧 Setting up test environment...");
 
     try {
-      // Clean up database files from previous test runs first
-      await this.cleanupDatabaseFiles();
+      // NOTE: Database cleanup is handled by the test runner BEFORE starting services
+      // Do NOT cleanup here - the backend is running and has file locks on the database
+      // The test runner (comprehensive-test-runner.js) handles cleanup in cleanupExistingResources()
 
-      // Test if frontend is running
+      // Test if frontend is running using native fetch
       console.log("   Testing frontend connection...");
-      const healthResponse = await axios
-        .get(`${CONFIG.FRONTEND_URL}/api/health`, {
-          timeout: 5000,
-        })
-        .catch(() => null);
+      let frontendHealthy = false;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const healthResponse = await fetch(
+          `${CONFIG.FRONTEND_URL}/api/health`,
+          {
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeoutId);
+        frontendHealthy = healthResponse.ok;
+      } catch {
+        frontendHealthy = false;
+      }
 
-      if (!healthResponse) {
+      if (!frontendHealthy) {
         throw new Error(
           `Frontend not responding at ${CONFIG.FRONTEND_URL}. Please start the services first with: npm run dev`
         );
       }
 
-      // Use provided session token or login to get one
-      if (this.sessionToken) {
-        console.log("   Using provided session token...");
-        // Verify the token is still valid
-        try {
-          await axios.get(`${CONFIG.FRONTEND_URL}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-            timeout: 5000,
-          });
-          console.log("✅ Session token is valid");
-        } catch (error) {
-          console.log("   Session token invalid, logging in...");
-          this.sessionToken = null; // Reset to force login
-        }
-      }
-
-      if (!this.sessionToken) {
-        console.log("   Logging in...");
-        const loginResponse = await axios.post(
-          `${CONFIG.FRONTEND_URL}/api/auth/login`,
-          {
-            username: "admin",
-            password: "admin123",
-          },
-          {
-            timeout: 10000,
-          }
-        );
-
-        this.assert(loginResponse.status === 200, "Login should succeed");
-        this.assert(
-          loginResponse.data.success === true,
-          "Login response should indicate success"
-        );
-        this.sessionToken = loginResponse.data.session_token;
-        this.assert(this.sessionToken, "Session token should be present");
-      }
-
-      // Initialize SDK exactly like an external third-party application would
+      // The test runner already connects the SDK and logs in.
+      // We need to connect to the SDK first, then set the session token.
+      //
       // ⚠️ CRITICAL: We connect to FRONTEND URL (port 3498), NOT backend (port 3470)
       // This simulates how real external apps connect to Krapi Server
-      console.log("   Initializing KRAPI SDK (simulating external third-party app)...");
-      console.log(`   ✅ Connecting to FRONTEND URL: ${CONFIG.FRONTEND_URL} (port 3498)`);
-      console.log(`   ⚠️  NOT connecting to backend: ${CONFIG.BACKEND_URL} (port 3470) - this is correct!`);
-      try {
-        // Initialize with new SDK features: retry logic and endpoint validation
-        // External apps MUST use frontend URL - SDK will validate and warn if wrong
+      this.safeLog(
+        "   Initializing KRAPI SDK (simulating external third-party app)..."
+      );
+      this.safeLog(
+        `   ✅ Connecting to FRONTEND URL: ${CONFIG.FRONTEND_URL} (port 3498)`
+      );
+      this.safeLog(
+        `   ⚠️  NOT connecting to backend: ${CONFIG.BACKEND_URL} (port 3470) - this is correct!`
+      );
+
+      // Convert localhost to 127.0.0.1 to avoid IPv6 resolution issues on Windows
+      let endpoint = CONFIG.FRONTEND_URL;
+      if (endpoint.includes("localhost")) {
+        endpoint = endpoint.replace("localhost", "127.0.0.1");
+      }
+
+      // Step 1: Connect with session token if available (from test runner), otherwise connect without auth
+      // If sessionToken was passed to constructor, use it immediately
+      if (this.sessionToken) {
+        this.safeLog("   Using session token from test runner...");
         await this.krapi.connect({
-          endpoint: CONFIG.FRONTEND_URL, // ✅ Frontend URL (port 3498) - correct for external apps
-          // Enable retry logic for better reliability
+          endpoint: endpoint, // ✅ Frontend URL (port 3498) - use IPv4 to avoid IPv6 issues
+          sessionToken: this.sessionToken, // ✅ Use token from constructor
+          initializeClients: true,
           retry: {
             enabled: true,
             maxRetries: 3,
@@ -329,42 +778,207 @@ class ComprehensiveTestSuite {
             retryableStatusCodes: [408, 429, 500, 502, 503, 504],
           },
         });
-        
+        this.safeLog("   ✅ SDK connected with session token from test runner");
+      } else {
+        // Step 1a: Connect without auth to perform login
+        await this.krapi.connect({
+          endpoint: endpoint, // ✅ Frontend URL (port 3498) - use IPv4 to avoid IPv6 issues
+          initializeClients: true,
+          retry: {
+            enabled: true,
+            maxRetries: 3,
+            retryDelay: 1000, // 1 second
+            retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+          },
+        });
+      }
+
+      // Step 2: Login to get fresh session token (only if auth is needed and not already logged in)
+      if (initRequirements.requiresAuth && !this.sessionToken) {
+        this.safeLog("   Logging in via SDK...");
+        const loginResult = await this.krapi.auth.login("admin", "admin123");
+
+        this.assert(
+          loginResult.session_token,
+          "Login should return session token"
+        );
+        this.assert(loginResult.user, "Login should return user");
+        this.sessionToken = loginResult.session_token;
+        this.assert(this.sessionToken, "Session token should be present");
+        this.safeLog("   ✅ Login successful, got session token");
+
+        // Step 3: CRITICAL - Reconnect with session token so ALL HTTP clients have it
+        // The SDK's setSessionToken() only updates the auth client, not other clients.
+        // By reconnecting with sessionToken in config, ALL clients get the token.
+        this.safeLog(
+          "   Reconnecting SDK with session token for all services..."
+        );
+        await this.krapi.connect({
+          endpoint: endpoint,
+          sessionToken: this.sessionToken, // ✅ Pass token in config so all clients get it
+          initializeClients: true,
+          retry: {
+            enabled: true,
+            maxRetries: 3,
+            retryDelay: 1000,
+            retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+          },
+        });
+        this.safeLog(
+          "   ✅ SDK reconnected with session token for all services"
+        );
+
         // Perform health check after connection
         try {
           const isHealthy = await this.krapi.healthCheck();
           if (!isHealthy) {
-            console.log("   ⚠️ SDK health check failed - connection may be unstable");
+            this.safeLog(
+              "   ⚠️ SDK health check failed - connection may be unstable"
+            );
           } else {
-            console.log("   ✅ SDK health check passed");
+            this.safeLog("   ✅ SDK health check passed");
           }
         } catch (healthError) {
-          console.log(`   ⚠️ SDK health check error: ${healthError.message}`);
+          this.safeLog(`   ⚠️ SDK health check error: ${healthError.message}`);
         }
-        
-        // Set session token exactly like the frontend does
-        if (this.sessionToken) {
-          this.krapi.auth.setSessionToken(this.sessionToken);
-          console.log("   ✅ Session token set on krapi singleton");
-        }
-        
-        // Log SDK structure for debugging
-        console.log("✅ KRAPI SDK initialized (simulating external third-party app)");
+      }
+
+      // Log SDK structure for debugging (only if verbose)
+      if (process.env.VERBOSE === "true") {
+        console.log(
+          "✅ KRAPI SDK initialized (simulating external third-party app)"
+        );
         console.log(`   ✅ Connected to frontend: ${CONFIG.FRONTEND_URL}`);
-        console.log(`   ✅ SDK will route requests through frontend proxy to backend`);
-        console.log(`   SDK keys: ${Object.keys(this.krapi).join(', ')}`);
+        console.log(
+          `   ✅ SDK will route requests through frontend proxy to backend`
+        );
+        console.log(`   SDK keys: ${Object.keys(this.krapi).join(", ")}`);
         if (this.krapi.projects) {
-          console.log(`   krapi.projects keys: ${Object.keys(this.krapi.projects).join(', ')}`);
+          console.log(
+            `   krapi.projects keys: ${Object.keys(this.krapi.projects).join(
+              ", "
+            )}`
+          );
         }
         if (this.krapi.collections) {
-          console.log(`   krapi.collections keys: ${Object.keys(this.krapi.collections).join(', ')}`);
+          console.log(
+            `   krapi.collections keys: ${Object.keys(
+              this.krapi.collections
+            ).join(", ")}`
+          );
         }
         if (this.krapi.documents) {
-          console.log(`   krapi.documents keys: ${Object.keys(this.krapi.documents).join(', ')}`);
+          console.log(
+            `   krapi.documents keys: ${Object.keys(this.krapi.documents).join(
+              ", "
+            )}`
+          );
         }
-      } catch (error) {
-        console.log(`⚠️  Could not initialize KRAPI SDK: ${error.message}`);
-        // SDK tests will be skipped if initialization fails
+      }
+
+      // Step 3: Create test project if required and not already exists
+      // Only create if we have authentication (project creation requires auth)
+      // CRITICAL: Only create if testProject is null/undefined - if it was passed from test runner, use it!
+      if (initRequirements.requiresProject && !this.testProject) {
+        // Ensure we have a session token before creating project
+        if (!this.sessionToken && initRequirements.requiresAuth) {
+          throw new Error(
+            "Cannot create test project: authentication required but login failed"
+          );
+        }
+        console.log("   Creating test project...");
+        const projectName = `Test Project ${Date.now()}`;
+        this.testProject = await this.krapi.projects.create({
+          name: projectName,
+          description: "A test project for comprehensive testing",
+        });
+        this.logger.setTestProject(this.testProject);
+        console.log(`   ✅ Test project created: ${this.testProject.id}`);
+      } else if (this.testProject) {
+        // Test project was passed from test runner - use it!
+        console.log(`   ✅ Using test project from test runner: ${this.testProject.id}`);
+        this.logger.setTestProject(this.testProject);
+      }
+
+      // Step 4: Create test collection if required and not already exists
+      // Only create if we have authentication and a project
+      if (
+        initRequirements.requiresCollection &&
+        !this.testCollection &&
+        this.testProject
+      ) {
+        // Ensure we have a session token before creating collection
+        if (!this.sessionToken && initRequirements.requiresAuth) {
+          throw new Error(
+            "Cannot create test collection: authentication required but login failed"
+          );
+        }
+        console.log("   Creating test collection...");
+        this.testCollection = await this.krapi.collections.create(
+          this.testProject.id,
+          {
+            name: "test_collection",
+            description: "A test collection for comprehensive testing",
+            fields: [], // Empty fields array - required by backend validation
+          }
+        );
+        this.logger.setTestCollection(this.testCollection);
+        console.log(`   ✅ Test collection created: ${this.testCollection.id}`);
+        
+        // CRITICAL: Verify collection exists before proceeding
+        // This ensures the collection is fully committed and can be found by the SDK
+        // Try both by ID and by name to ensure it's accessible
+        let collectionVerified = false;
+        let retries = 0;
+        const maxRetries = 10;
+        while (!collectionVerified && retries < maxRetries) {
+          try {
+            // Try to get collection by ID first
+            let foundCollection = null;
+            if (this.testCollection.id) {
+              try {
+                foundCollection = await this.krapi.collections.get(
+                  this.testProject.id,
+                  this.testCollection.id
+                );
+              } catch {
+                // If ID lookup fails, try by name
+              }
+            }
+            
+            // If ID lookup failed or no ID, try by name
+            if (!foundCollection && this.testCollection.name) {
+              try {
+                foundCollection = await this.krapi.collections.get(
+                  this.testProject.id,
+                  this.testCollection.name
+                );
+              } catch {
+                // Name lookup also failed
+              }
+            }
+            
+            if (foundCollection && (foundCollection.id === this.testCollection.id || foundCollection.name === this.testCollection.name)) {
+              collectionVerified = true;
+              console.log(`   ✅ Collection verified: ${foundCollection.id || foundCollection.name}`);
+            } else {
+              retries++;
+              if (retries < maxRetries) {
+                console.log(`   ⚠️  Collection not yet found, retrying... (${retries}/${maxRetries})`);
+                await new Promise((resolve) => setTimeout(resolve, 300));
+              }
+            }
+          } catch (error) {
+            retries++;
+            if (retries < maxRetries) {
+              console.log(`   ⚠️  Collection verification failed, retrying... (${retries}/${maxRetries}): ${error.message}`);
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            } else {
+              console.log(`   ⚠️  Collection verification failed after ${maxRetries} retries - continuing anyway`);
+              // Don't throw - continue with tests even if verification fails
+            }
+          }
+        }
       }
 
       console.log("✅ Test environment setup complete");
@@ -379,2014 +993,15 @@ class ComprehensiveTestSuite {
     }
   }
 
-  async runAuthTests() {
-    console.log("\n🔐 Authentication Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Login with valid credentials", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/auth/login`,
-        {
-          username: "admin",
-          password: "admin123",
-        }
-      );
-      this.assert(response.status === 200, "Login should return 200");
-      this.assert(response.data.success === true, "Login should succeed");
-      this.assert(response.data.session_token, "Session token should be present");
-    });
-
-    await this.test("Login with invalid credentials", async () => {
-      try {
-        await axios.post(`${CONFIG.FRONTEND_URL}/api/auth/login`, {
-          username: "admin",
-          password: "wrongpassword",
-        });
-        throw new Error("Should have failed");
-      } catch (error) {
-        this.assert(
-          error.response.status === 401,
-          "Should return 401 for invalid credentials"
-        );
-      }
-    });
-
-    await this.test("Get current user", async () => {
-      const response = await axios.get(`${CONFIG.FRONTEND_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${this.sessionToken}` },
-      });
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        response.data.user.username === "admin",
-        "Should return admin user"
-      );
-    });
-  }
-
-  async runSDKClientTests() {
-    console.log("\n🔧 SDK Client Tests (npm package)");
-    console.log("-".repeat(30));
-
-    if (!this.krapi) {
-      console.log("⚠️  Skipping SDK tests - KRAPI SDK not initialized");
-      return;
-    }
-
-    // Log krapi singleton structure for debugging
-    console.log(`   krapi singleton structure: ${JSON.stringify(Object.keys(this.krapi), null, 2)}`);
-    if (this.krapi.projects) {
-      console.log(`   krapi.projects structure: ${JSON.stringify(Object.keys(this.krapi.projects), null, 2)}`);
-    } else {
-      console.log("   ⚠️  krapi singleton doesn't have 'projects' property");
-    }
-
-    await this.test("SDK client can list projects", async () => {
-      // Based on frontend usage: krapi.projects.getAll() returns Project[] directly
-      if (typeof this.krapi.projects?.getAll !== 'function') {
-        const availableMethods = Object.keys(this.krapi.projects || {});
-        throw new Error(`projects.getAll() method not found. Available methods: ${availableMethods.join(', ')}`);
-      }
-      
-      const result = await this.krapi.projects.getAll();
-      
-      // SDK should return Project[] directly (as per frontend usage)
-      if (Array.isArray(result)) {
-        this.assert(Array.isArray(result), "Should return projects array");
-        return; // Success
-      } else if (result && result.data && Array.isArray(result.data)) {
-        // Handle wrapped response
-        this.assert(Array.isArray(result.data), "Should return projects array in data");
-        return; // Success
-      } else {
-        console.log("SDK getAll() response:", JSON.stringify(result, null, 2));
-        throw new Error(`Unexpected response format from projects.getAll(): ${JSON.stringify(result)}`);
-      }
-    });
-
-    await this.test("SDK client can create project", async () => {
-      if (typeof this.krapi.projects?.create !== 'function') {
-        throw new Error("krapi.projects.create method not available");
-      }
-      
-      const projectName = `SDK Test Project ${Date.now()}`;
-      const result = await this.krapi.projects.create({
-        name: projectName,
-        description: "Test project created via SDK",
-      });
-      
-      // Handle different response formats
-      let project = null;
-      if (result && result.id) {
-        // Direct project object
-        project = result;
-      } else if (result && result.data && result.data.id) {
-        // Wrapped in { success, data }
-        project = result.data;
-      } else if (result && result.success && result.data) {
-        project = result.data;
-      } else {
-        console.log("SDK create project response:", JSON.stringify(result, null, 2));
-        throw new Error(`Unexpected response format: ${JSON.stringify(result)}`);
-      }
-      
-      this.assert(project && project.id, "Should return project ID");
-      
-      // Store for cleanup
-      if (!this.testProject) {
-        this.testProject = project;
-      }
-    });
-
-    await this.test("SDK client can get project by ID", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available");
-      }
-      if (typeof this.krapi.projects?.get !== 'function') {
-        throw new Error("krapi.projects.get method not available");
-      }
-      
-      const result = await this.krapi.projects.get(this.testProject.id);
-      
-      // Handle different response formats
-      let project = null;
-      if (result && result.id) {
-        project = result;
-      } else if (result && result.data) {
-        project = result.data;
-      } else {
-        project = result;
-      }
-      
-      this.assert(project && project.id === this.testProject.id, "Should return correct project");
-    });
-
-    await this.test("SDK client can create collection", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available");
-      }
-      if (typeof this.krapi.collections?.create !== 'function') {
-        const availableMethods = Object.keys(this.krapi.collections || {});
-        throw new Error(`collections.create() method not found. Available methods: ${availableMethods.join(', ')}`);
-      }
-      
-      // Ensure session token is set (frontend does this automatically)
-      if (this.sessionToken) {
-        this.krapi.auth.setSessionToken(this.sessionToken);
-      }
-      
-      // Use exactly like the frontend: krapi.collections.create(projectId, {...})
-      const result = await this.krapi.collections.create(this.testProject.id, {
-        name: "sdk_test_collection",
-        description: "Test collection created via SDK",
-        fields: [
-          { name: "title", type: "string", required: true },
-          { name: "value", type: "number", required: false },
-        ],
-      });
-      
-      // SDK returns Collection directly (as per frontend usage)
-      this.assert(result && result.id, "Should return collection ID");
-      
-      // Store collection for document tests if not already set
-      if (!this.testCollection) {
-        this.testCollection = result;
-        console.log(`   ✅ Stored collection for document tests: ${this.testCollection.id} (${this.testCollection.name})`);
-      }
-    });
-
-    await this.test("SDK client can create document", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available");
-      }
-      
-      // Create a collection for document tests if one doesn't exist
-      if (!this.testCollection) {
-        console.log("   Creating collection for document tests...");
-        if (typeof this.krapi.collections?.create !== 'function') {
-          throw new Error("krapi.collections.create method not available - cannot create test collection");
-        }
-        
-        // Ensure session token is set
-        if (this.sessionToken) {
-          this.krapi.auth.setSessionToken(this.sessionToken);
-        }
-        
-        // Create collection via SDK (same as frontend)
-        const collection = await this.krapi.collections.create(this.testProject.id, {
-          name: `sdk_doc_test_${Date.now()}`,
-          description: "Collection for SDK document tests",
-          fields: [
-            { name: "title", type: "string", required: true },
-            { name: "value", type: "number", required: false },
-          ],
-        });
-        
-        this.testCollection = collection;
-        console.log(`   ✅ Created and stored collection: ${this.testCollection.id} (${this.testCollection.name})`);
-      }
-      
-      // Use exactly like the frontend: krapi.documents.create(projectId, collectionId, { data })
-      if (typeof this.krapi.documents?.create !== 'function') {
-        const availableMethods = Object.keys(this.krapi.documents || {});
-        throw new Error(`documents.create() method not found. Available methods: ${availableMethods.join(', ')}`);
-      }
-      
-      // Ensure session token is set
-      if (this.sessionToken) {
-        this.krapi.auth.setSessionToken(this.sessionToken);
-      }
-      
-      // Use exactly like frontend: krapi.documents.create(projectId, collectionId, { data })
-      // Backend expects collection name in URL, not ID
-      const collectionIdentifier = this.testCollection.name || this.testCollection.id;
-      const document = await this.krapi.documents.create(
-        this.testProject.id,
-        collectionIdentifier,
-        { data: { title: "SDK Test Document", value: 42 } }
-      );
-      
-      // SDK returns Document directly (as per frontend usage)
-      this.assert(document && document.id, "Should return document ID");
-      console.log(`   ✅ Created document via SDK: ${document.id}`);
-    });
-
-    await this.test("SDK client can list documents", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available");
-      }
-      
-      // Create a collection for document tests if one doesn't exist
-      if (!this.testCollection) {
-        console.log("   Creating collection for document tests...");
-        if (typeof this.krapi.collections?.create !== 'function') {
-          throw new Error("krapi.collections.create method not available - cannot create test collection");
-        }
-        
-        // Ensure session token is set
-        if (this.sessionToken) {
-          this.krapi.auth.setSessionToken(this.sessionToken);
-        }
-        
-        // Create collection via SDK (same as frontend)
-        const collection = await this.krapi.collections.create(this.testProject.id, {
-          name: `sdk_doc_test_${Date.now()}`,
-          description: "Collection for SDK document tests",
-          fields: [
-            { name: "title", type: "string", required: true },
-            { name: "value", type: "number", required: false },
-          ],
-        });
-        
-        this.testCollection = collection;
-        console.log(`   ✅ Created and stored collection: ${this.testCollection.id} (${this.testCollection.name})`);
-      }
-      
-      // Use exactly like the frontend: krapi.documents.getAll(projectId, collectionId)
-      if (typeof this.krapi.documents?.getAll !== 'function') {
-        const availableMethods = Object.keys(this.krapi.documents || {});
-        throw new Error(`documents.getAll() method not found. Available methods: ${availableMethods.join(', ')}`);
-      }
-      
-      // Ensure session token is set
-      if (this.sessionToken) {
-        this.krapi.auth.setSessionToken(this.sessionToken);
-      }
-      
-      // Ensure we have at least one document to list (create one if needed)
-      let documents = [];
-      try {
-        // Backend expects collection name in URL, not ID
-        const collectionIdentifier = this.testCollection.name || this.testCollection.id;
-        
-        // Try to list documents first
-        documents = await this.krapi.documents.getAll(
-          this.testProject.id,
-          collectionIdentifier
-        );
-        
-        // SDK returns Document[] directly (as per frontend usage)
-        if (!Array.isArray(documents)) {
-          // Handle wrapped response
-          documents = documents.data || documents.documents || [];
-        }
-        
-        if (documents.length === 0) {
-          console.log("   No documents found, creating one...");
-          // Create a document using SDK (same as frontend)
-          await this.krapi.documents.create(
-            this.testProject.id,
-            collectionIdentifier,
-            { data: { title: "SDK List Test Document", value: 100 } }
-          );
-          
-          // List again
-          documents = await this.krapi.documents.getAll(
-            this.testProject.id,
-            collectionIdentifier
-          );
-          if (!Array.isArray(documents)) {
-            documents = documents.data || documents.documents || [];
-          }
-        }
-      } catch (error) {
-        // If listing fails, try creating a document first
-        console.log(`   Error listing documents, creating one first: ${error.message}`);
-        const collectionIdentifier = this.testCollection.name || this.testCollection.id;
-        await this.krapi.documents.create(
-          this.testProject.id,
-          collectionIdentifier,
-          { data: { title: "SDK List Test Document", value: 100 } }
-        );
-        
-        // List again
-        documents = await this.krapi.documents.getAll(
-          this.testProject.id,
-          collectionIdentifier
-        );
-        if (!Array.isArray(documents)) {
-          documents = documents.data || documents.documents || [];
-        }
-      }
-      
-      // SDK returns Document[] directly (as per frontend usage)
-      this.assert(Array.isArray(documents), "Should return documents array");
-      this.assert(documents.length > 0, "Should have at least one document");
-      console.log(`   ✅ Listed ${documents.length} document(s) via SDK`);
-    });
-  }
-
-  async runSDKIntegrationTests() {
-    console.log("\n🔧 SDK Integration Tests (New Features)");
-    console.log("-".repeat(30));
-
-    if (!this.krapi) {
-      console.log("⚠️  Skipping SDK integration tests - KRAPI SDK not initialized");
-      return;
-    }
-
-    // Test 0: Verify we're using frontend URL (CRITICAL - all tests must use frontend)
-    await this.test("✅ All tests connect through FRONTEND (simulating external app)", async () => {
-      // CRITICAL: This test suite simulates external third-party applications
-      // ALL requests MUST go through FRONTEND (port 3498), NOT backend (port 3470)
-      const endpoint = CONFIG.FRONTEND_URL;
-      this.assert(endpoint.includes('3498'), 
-        `❌ CRITICAL ERROR: Tests must use FRONTEND URL (port 3498), got: ${endpoint}`);
-      this.assert(!endpoint.includes('3470'), 
-        `❌ CRITICAL ERROR: Tests must NOT use BACKEND URL (port 3470), got: ${endpoint}`);
-      console.log(`   ✅ Verified: Using FRONTEND URL: ${endpoint} (correct for external apps)`);
-      console.log(`   ✅ Verified: NOT using BACKEND URL: ${CONFIG.BACKEND_URL} (correct!)`);
-    });
-
-    // Test 1: Endpoint Validation
-    await this.test("SDK endpoint validation warns about backend URL", async () => {
-      // This test verifies that SDK warns when connecting to backend URL
-      // Note: We can't easily test warnings in automated tests, but we can verify
-      // that the SDK still works correctly with frontend URL
-      const endpoint = CONFIG.FRONTEND_URL;
-      this.assert(endpoint.includes('3498') || !endpoint.includes('3470'), 
-        "Test should use frontend URL (port 3498)");
-    });
-
-    // Test 2: Automatic Path Handling
-    await this.test("SDK automatically handles /api/krapi/k1 path", async () => {
-      // SDK should automatically append /api/krapi/k1 if missing
-      // We test this by making a request and verifying it succeeds
-      const projects = await this.krapi.projects.getAll();
-      this.assert(Array.isArray(projects) || (projects && projects.data), 
-        "SDK should handle path automatically and return projects");
-    });
-
-    // Test 3: Health Check
-    await this.test("SDK health check works", async () => {
-      if (typeof this.krapi.healthCheck !== 'function') {
-        throw new Error("healthCheck() method not available");
-      }
-      
-      const isHealthy = await this.krapi.healthCheck();
-      this.assert(typeof isHealthy === 'boolean', "Health check should return boolean");
-      this.assert(isHealthy === true, "Health check should return true when server is healthy");
-    });
-
-    // Test 4: Detailed Health Status
-    await this.test("SDK getHealthStatus returns detailed status", async () => {
-      if (typeof this.krapi.getHealthStatus !== 'function') {
-        throw new Error("getHealthStatus() method not available");
-      }
-      
-      const health = await this.krapi.getHealthStatus();
-      this.assert(health !== null && typeof health === 'object', 
-        "Health status should return an object");
-      this.assert(health.status === 'ok' || health.status === 'degraded' || health.status === 'down',
-        "Health status should have valid status");
-    });
-
-    // Test 5: Retry Logic Configuration
-    await this.test("SDK retry logic is configured", async () => {
-      // Verify that retry logic was configured during setup
-      // We can't directly test retries without simulating failures,
-      // but we can verify the SDK is configured correctly
-      const projects = await this.krapi.projects.getAll();
-      this.assert(Array.isArray(projects) || (projects && projects.data),
-        "SDK should work correctly with retry logic configured");
-    });
-
-    // Test 6: Better Error Messages
-    await this.test("SDK provides helpful error messages", async () => {
-      // Test with invalid project ID to get error message
-      try {
-        await this.krapi.projects.get('invalid-project-id-that-does-not-exist');
-        // If we get here, the test should fail (project shouldn't exist)
-        throw new Error("Expected error for invalid project ID");
-      } catch (error) {
-        // Verify error message is helpful
-        this.assert(error.message && error.message.length > 0,
-          "Error message should be provided");
-        // Error should contain helpful information
-        const hasHelpfulInfo = error.message.includes('not found') || 
-                              error.message.includes('404') ||
-                              error.message.includes('project');
-        this.assert(hasHelpfulInfo, 
-          "Error message should contain helpful information");
-      }
-    });
-
-    // Test 7: SDK Compatibility Check
-    await this.test("SDK compatibility check works", async () => {
-      if (typeof this.krapi.checkCompatibility !== 'function') {
-        throw new Error("checkCompatibility() method not available");
-      }
-      
-      const compatibility = await this.krapi.checkCompatibility();
-      this.assert(compatibility !== null && typeof compatibility === 'object',
-        "Compatibility check should return an object");
-      this.assert(typeof compatibility.compatible === 'boolean',
-        "Compatibility should have a boolean compatible field");
-      this.assert(compatibility.sdkVersion && typeof compatibility.sdkVersion === 'string',
-        "Compatibility should include SDK version");
-    });
-
-    // Test 8: TypeScript Type Safety (Runtime Check)
-    await this.test("SDK connection config types are correct", async () => {
-      // Verify that connection was made with correct config structure
-      // This is a runtime check since we can't test TypeScript types at runtime
-      const projects = await this.krapi.projects.getAll();
-      this.assert(Array.isArray(projects) || (projects && projects.data),
-        "SDK should work with typed connection config");
-    });
-  }
-
-  async runProjectTests() {
-    console.log("\n📁 Project Management Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Create test project", async () => {
-      // Use unique project name to avoid UNIQUE constraint errors from previous runs
-      const projectName = `Test Project ${Date.now()}`;
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects`,
-        {
-          name: projectName,
-          description: "A test project for comprehensive testing",
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        response.status === 201,
-        "Project creation should return 201"
-      );
-      this.assert(
-        response.data.success === true,
-        "Project creation should succeed"
-      );
-      this.testProject = response.data.project;
-      this.assert(this.testProject.id, "Project should have an ID");
-    });
-
-    await this.test("Get all projects", async () => {
-      const response = await axios.get(`${CONFIG.FRONTEND_URL}/api/projects`, {
-        headers: { Authorization: `Bearer ${this.sessionToken}` },
-      });
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.projects),
-        "Should return projects array"
-      );
-      this.assert(
-        response.data.projects.length > 0,
-        "Should have at least one project"
-      );
-    });
-
-    await this.test("Get project by ID", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        response.data.project.id === this.testProject.id,
-        "Should return correct project"
-      );
-    });
-
-    await this.test("Update project", async () => {
-      // Use unique project name to avoid UNIQUE constraint errors from previous runs
-      const updatedName = `Updated Test Project ${Date.now()}`;
-      const response = await axios.put(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}`,
-        {
-          name: updatedName,
-          description: "Updated description",
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        response.data.project.name === updatedName,
-        "Should update name"
-      );
-    });
-  }
-
-  async runCollectionTests() {
-    console.log("\n📚 Collection Management Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Create test collection", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections`,
-        {
-          name: "test_collection",
-          description: "A test collection for comprehensive testing",
-          fields: [
-            { name: "title", type: "string", required: true },
-            { name: "status", type: "string", required: true },
-            { name: "priority", type: "number", required: false },
-            { name: "is_active", type: "boolean", required: false },
-            { name: "description", type: "text", required: false },
-          ],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        response.status === 201,
-        "Collection creation should return 201"
-      );
-      this.assert(
-        response.data.success === true,
-        "Collection creation should succeed"
-      );
-      
-      // Handle different response structures
-      const collection = response.data.collection || response.data.data || response.data;
-      this.assert(collection && collection.id, "Collection should have an ID");
-      this.testCollection = collection;
-      console.log(`   ✅ Test collection set: ${this.testCollection.id} (${this.testCollection.name})`);
-    });
-
-    await this.test("Get all collections", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.collections),
-        "Should return collections array"
-      );
-      this.assert(
-        response.data.collections.length > 0,
-        "Should have at least one collection"
-      );
-    });
-
-    await this.test("Get collection by name", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        response.data.collection.name === this.testCollection.name,
-        "Should return correct collection"
-      );
-    });
-
-    await this.test("Update collection", async () => {
-      const response = await axios.put(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}`,
-        {
-          description: "Updated collection description",
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Get collection statistics", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/stats`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Validate collection schema", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/validate`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(response.data.valid === true, "Schema should be valid");
-    });
-  }
-
-  async runDocumentTests() {
-    console.log("\n📄 Document CRUD & Operations Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Create single document", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents`,
-        {
-          data: {
-            title: "Test Document",
-            status: "todo",
-            priority: 1,
-            is_active: true,
-            description: "A test document",
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        response.status === 201,
-        "Document creation should return 201"
-      );
-      this.assert(response.data.id, "Document should have an ID");
-    });
-
-    await this.test("Get document by ID", async () => {
-      // First create a document to get
-      const createResponse = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents`,
-        {
-          data: {
-            title: "Document to Get",
-            status: "in_progress",
-            priority: 2,
-            is_active: true,
-            description: "Document for get test",
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      const documentId = createResponse.data.id;
-
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/${documentId}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        response.data.id === documentId,
-        "Should return correct document"
-      );
-    });
-
-    await this.test("Update document", async () => {
-      // First create a document to update
-      const createResponse = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents`,
-        {
-          data: {
-            title: "Document to Update",
-            status: "todo",
-            priority: 1,
-            is_active: true,
-            description: "Document for update test",
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      const documentId = createResponse.data.id;
-
-      const response = await axios.put(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/${documentId}`,
-        {
-          data: {
-            title: "Updated Document",
-            status: "done",
-            priority: 3,
-            is_active: false,
-            description: "Updated description",
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        response.data.data.title === "Updated Document",
-        "Should update title"
-      );
-    });
-
-    await this.test("Create multiple test documents", async () => {
-      const documents = [
-        {
-          data: {
-            title: "Test Document 1",
-            status: "archived",
-            priority: 1,
-            is_active: false,
-            description: "First test document",
-          },
-        },
-        {
-          data: {
-            title: "Test Document 2",
-            status: "done",
-            priority: 2,
-            is_active: true,
-            description: "Second test document",
-          },
-        },
-        {
-          data: {
-            title: "Test Document 3",
-            status: "in_progress",
-            priority: 3,
-            is_active: true,
-            description: "Third test document",
-          },
-        },
-      ];
-
-      for (const doc of documents) {
-        const response = await axios.post(
-          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents`,
-          doc,
-          {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-          }
-        );
-        this.assert(
-          response.status === 201,
-          "Document creation should return 201"
-        );
-        this.assert(response.data.id, "Document should have an ID");
-      }
-    });
-
-    await this.test("Get all documents", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        Array.isArray(response.data.data),
-        "Should return documents array"
-      );
-      this.assert(response.data.data.length > 0, "Should have documents");
-    });
-
-    await this.test("Get documents with pagination", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents?limit=2&offset=0`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        Array.isArray(response.data.data),
-        "Should return documents array"
-      );
-      this.assert(response.data.data.length <= 2, "Should respect limit");
-    });
-
-    await this.test("Filter documents by status", async () => {
-      // Create a document with specific status
-      const createResponse = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents`,
-        {
-          data: {
-            title: "Todo Document",
-            status: "todo",
-            priority: 1,
-            is_active: true,
-            description: "Document with todo status",
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents?filter[status]=todo`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        Array.isArray(response.data.data),
-        "Should return documents array"
-      );
-    });
-
-    await this.test("Filter documents by multiple criteria", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents?filter[status]=done&filter[is_active]=true`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        Array.isArray(response.data.data),
-        "Should return documents array"
-      );
-    });
-
-    await this.test("Sort documents by priority", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents?orderBy=priority&order=desc`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(
-        Array.isArray(response.data.data),
-        "Should return documents array"
-      );
-    });
-
-    await this.test("Count documents", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/count`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        typeof response.data.count === "number",
-        `Should return count as number (got: ${typeof response.data.count}, value: ${JSON.stringify(response.data.count)})`
-      );
-    });
-
-    await this.test("Count documents with filter", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/count?filter[status]=todo`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        typeof response.data.count === "number",
-        "Should return count as number"
-      );
-    });
-
-    await this.test("Bulk create documents", async () => {
-      const documents = [
-        {
-          data: {
-            title: "Bulk Document 1",
-            status: "bulk_created",
-            priority: 3,
-            is_active: true,
-            description: "First bulk created document",
-          },
-        },
-        {
-          data: {
-            title: "Bulk Document 2",
-            status: "bulk_created",
-            priority: 4,
-            is_active: true,
-            description: "Second bulk created document",
-          },
-        },
-      ];
-
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/bulk`,
-        { documents },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 201, "Bulk create should return 201");
-      this.assert(response.data.success === true, "Bulk create should succeed");
-      this.assert(
-        Array.isArray(response.data.created),
-        "Should return created documents"
-      );
-    });
-
-    await this.test("Bulk update documents", async () => {
-      // First get some documents to update
-      const getResponse = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents?limit=2`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-
-      if (getResponse.data.data.length > 0) {
-        const updates = getResponse.data.data.map((doc) => ({
-          id: doc.id,
-          data: {
-            ...doc.data,
-            status: "bulk_updated",
-            priority: (doc.data.priority || 1) + 1,
-          },
-        }));
-
-        const response = await axios.put(
-          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/bulk`,
-          { updates },
-          {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-          }
-        );
-        this.assert(response.status === 200, "Bulk update should return 200");
-        this.assert(
-          response.data.success === true,
-          "Bulk update should succeed"
-        );
-      }
-    });
-
-    await this.test("Bulk delete documents", async () => {
-      // Get some documents to delete
-      const getResponse = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents?filter[status]=bulk_updated&limit=2`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-
-      this.assert(getResponse.status === 200, "Get documents should return 200");
-      this.assert(
-        getResponse.data && Array.isArray(getResponse.data.data),
-        "Response should contain data array"
-      );
-
-      if (getResponse.data.data.length > 0) {
-        const documentIds = getResponse.data.data.map((doc) => doc.id);
-        this.assert(documentIds.length > 0, "Should have document IDs to delete");
-
-        const response = await axios.post(
-          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/bulk-delete`,
-          { document_ids: documentIds },
-          {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-            timeout: 10000, // 10 second timeout
-          }
-        );
-        this.assert(response.status === 200, "Bulk delete should return 200");
-        this.assert(
-          response.data && response.data.success === true,
-          "Bulk delete should succeed"
-        );
-        this.assert(
-          response.data.data &&
-            typeof response.data.data.deleted_count === "number",
-          "Should return deleted_count"
-        );
-        this.assert(
-          response.data.data.deleted_count > 0,
-          "Should delete at least one document"
-        );
-      } else {
-        // If no documents found, test still passes but logs a note
-        console.log("   No documents with status 'bulk_updated' found to delete");
-      }
-    });
-
-    await this.test("Search documents", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/search`,
-        {
-          query: "test",
-          limit: 10,
-          offset: 0,
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.documents),
-        "Should return documents array"
-      );
-    });
-
-    await this.test("Aggregate documents", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/collections/${this.testCollection.name}/documents/aggregate`,
-        {
-          group_by: ["status"],
-          aggregations: [],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.groups),
-        "Should return groups array"
-      );
-    });
-  }
-
-  async runStorageTests() {
-    console.log("\n💾 Storage Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Get storage info", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/storage/info`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Get storage stats", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/storage/stats`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("List storage files", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/storage/files`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.files),
-        "Should return files array"
-      );
-    });
-  }
-
-  async runEmailTests() {
-    console.log("\n📧 Email Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Get email configuration", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/email/config`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Test email connection", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/email/test`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-  }
-
-  async runApiKeyTests() {
-    console.log("\n🔑 API Key Tests");
-    console.log("-".repeat(30));
-
-    await this.test("List API keys", async () => {
-      const response = await axios.get(`${CONFIG.FRONTEND_URL}/api/apikeys`, {
-        headers: { Authorization: `Bearer ${this.sessionToken}` },
-      });
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.keys),
-        "Should return keys array"
-      );
-    });
-
-    await this.test("Create API key", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/apikeys`,
-        {
-          name: "Test API Key",
-          description: "A test API key",
-          scopes: ["projects:read", "collections:read"],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 201, "Should return 201");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(response.data.key, "Should return API key");
-    });
-  }
-
-  async runUserTests() {
-    console.log("\n👥 User Management Tests");
-    console.log("-".repeat(30));
-
-    let testUserId = null;
-
-    await this.test("List project users (empty initially)", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available for user tests");
-      }
-
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.data),
-        "Should return users array"
-      );
-    });
-
-    await this.test("Create project user", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available for user tests");
-      }
-
-      const uniqueEmail = `testuser.${Date.now()}@example.com`;
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
-        {
-          username: `testuser_${Date.now()}`,
-          email: uniqueEmail,
-          password: "TestPassword123!",
-          scopes: ["documents:read", "documents:write"],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 201, "Should return 201");
-      this.assert(response.data.success === true, "Should succeed");
-      
-      // Handle nested response structure (frontend wraps backend response)
-      let userData = null;
-      if (response.data.data && response.data.data.id) {
-        // Normal structure: { success: true, data: { id: ... } }
-        userData = response.data.data;
-      } else if (response.data.data && response.data.data.data && response.data.data.data.id) {
-        // Double-wrapped: { success: true, data: { success: true, data: { id: ... } } }
-        userData = response.data.data.data;
-      } else if (response.data.id) {
-        // Direct user object
-        userData = response.data;
-      } else {
-        console.log("Response structure:", JSON.stringify(response.data, null, 2));
-        throw new Error(`Unexpected user response structure: ${JSON.stringify(response.data)}`);
-      }
-      
-      this.assert(userData, "Should return user data");
-      this.assert(userData.id, `User should have an ID. Got: ${JSON.stringify(userData)}`);
-      testUserId = userData.id;
-    });
-
-    await this.test("Get project user by ID", async () => {
-      if (!this.testProject || !testUserId) {
-        throw new Error("No test project or user ID available");
-      }
-
-      // Add retry logic with timeout to handle transient network issues
-      let response;
-      let lastError;
-      const maxRetries = 3;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          response = await axios.get(
-            `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
-            {
-              headers: { Authorization: `Bearer ${this.sessionToken}` },
-              timeout: 10000, // 10 second timeout
-            }
-          );
-          break; // Success, exit retry loop
-        } catch (error) {
-          lastError = error;
-          if (attempt < maxRetries) {
-            console.log(`   ⚠️  Attempt ${attempt} failed, retrying... (${error.message})`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
-          } else {
-            throw error; // Re-throw on final attempt
-          }
-        }
-      }
-
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(response.data.data.id === testUserId, "Should return correct user");
-    });
-
-    await this.test("List project users (after creation)", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available for user tests");
-      }
-
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      
-      // Handle different response structures
-      let users = null;
-      if (Array.isArray(response.data.data)) {
-        users = response.data.data;
-      } else if (response.data.data && Array.isArray(response.data.data.data)) {
-        users = response.data.data.data;
-      } else if (Array.isArray(response.data)) {
-        users = response.data;
-      } else {
-        throw new Error(`Unexpected users response structure: ${JSON.stringify(response.data)}`);
-      }
-      
-      this.assert(Array.isArray(users), "Should return users array");
-      // Note: User might not be in list if creation failed, so we check if testUserId exists
-      if (testUserId) {
-        this.assert(
-          users.length > 0,
-          "Should have at least one user after creation"
-        );
-      } else {
-        console.log("   Note: User creation may have failed, skipping length check");
-      }
-    });
-
-    await this.test("Update project user", async () => {
-      if (!this.testProject || !testUserId) {
-        throw new Error("No test project or user ID available");
-      }
-
-      const response = await axios.put(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
-        {
-          email: `updated.${Date.now()}@example.com`,
-          scopes: ["documents:read"],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(response.data.data.id === testUserId, "Should return same user");
-    });
-
-    await this.test("Update project user scopes", async () => {
-      if (!this.testProject || !testUserId) {
-        throw new Error("No test project or user ID available");
-      }
-
-      const response = await axios.put(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}/scopes`,
-        {
-          scopes: ["documents:read", "documents:write", "collections:read"],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Create duplicate user (should fail)", async () => {
-      if (!this.testProject || !testUserId) {
-        throw new Error("No test project or user ID available");
-      }
-
-      // First, get the existing user's email
-      const getUserResponse = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      const existingEmail = getUserResponse.data.data.email;
-
-      try {
-        await axios.post(
-          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users`,
-          {
-            username: `duplicate_${Date.now()}`,
-            email: existingEmail,
-            password: "TestPassword123!",
-          },
-          {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-          }
-        );
-        throw new Error("Should have failed with duplicate email");
-      } catch (error) {
-        // Log error details for debugging
-        if (error.response) {
-          console.log(`   ⚠️  Duplicate user error - Status: ${error.response.status}, Data:`, error.response.data);
-        } else {
-          console.log(`   ⚠️  Duplicate user error - No response property:`, error);
-        }
-        this.assert(
-          error.response && error.response.status === 409,
-          `Should return 409 for duplicate email, got ${error.response?.status || 'no status'}`
-        );
-      }
-    });
-
-    await this.test("Delete project user", async () => {
-      if (!this.testProject || !testUserId) {
-        throw new Error("No test project or user ID available");
-      }
-
-      const response = await axios.delete(
-        `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Get deleted user (should fail)", async () => {
-      if (!this.testProject || !testUserId) {
-        throw new Error("No test project or user ID available");
-      }
-
-      try {
-        await axios.get(
-          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}/users/${testUserId}`,
-          {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-          }
-        );
-        throw new Error("Should have failed with 404");
-      } catch (error) {
-        // Log error details for debugging
-        if (error.response) {
-          console.log(`   ⚠️  Get deleted user error - Status: ${error.response.status}, Data:`, error.response.data);
-        } else {
-          console.log(`   ⚠️  Get deleted user error - No response property:`, error);
-        }
-        this.assert(
-          error.response && error.response.status === 404,
-          `Should return 404 for deleted user, got ${error.response?.status || 'no status'}`
-        );
-      }
-    });
-  }
-
-  async runActivityLoggingTests() {
-    console.log("\n📊 Activity Logging Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Get activity logs", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/activity/logs`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.logs),
-        "Should return logs array"
-      );
-    });
-
-    await this.test("Get activity stats", async () => {
-      // This endpoint can be slow, add timeout and retry logic
-      let response;
-      let lastError;
-      const maxRetries = 3;
-      
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          response = await axios.get(
-            `${CONFIG.FRONTEND_URL}/api/krapi/k1/activity/stats`,
-            {
-              headers: { Authorization: `Bearer ${this.sessionToken}` },
-              timeout: 10000, // 10 second timeout
-            }
-          );
-          break; // Success, exit retry loop
-        } catch (error) {
-          lastError = error;
-          if (attempt < maxRetries) {
-            console.log(`   ⚠️  Attempt ${attempt} failed, retrying... (${error.message})`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
-          } else {
-            throw error; // Re-throw on final attempt
-          }
-        }
-      }
-      
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-  }
-
-  async runMetadataTests() {
-    console.log("\n🏷️ Metadata Management Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Get metadata schema", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/metadata/schema`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Validate metadata", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/metadata/validate`,
-        {
-          metadata: {
-            source: "test",
-            version: "1.0",
-            tags: ["test", "comprehensive"],
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-  }
-
-  async runPerformanceTests() {
-    console.log("\n⚡ Performance Monitoring Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Get performance metrics", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/performance/metrics`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-
-    await this.test("Get system health", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/health`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-  }
-
-  async runQueueTests() {
-    console.log("\n📋 Database Queue Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Get queue metrics endpoint", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/queue/metrics`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        response.data.metrics !== undefined,
-        "Metrics should be present"
-      );
-      this.assert(
-        typeof response.data.metrics.queueSize === "number",
-        "queueSize should be a number"
-      );
-      this.assert(
-        typeof response.data.metrics.processingCount === "number",
-        "processingCount should be a number"
-      );
-      this.assert(
-        typeof response.data.metrics.totalProcessed === "number",
-        "totalProcessed should be a number"
-      );
-      this.assert(
-        typeof response.data.metrics.totalErrors === "number",
-        "totalErrors should be a number"
-      );
-      this.assert(
-        typeof response.data.metrics.averageWaitTime === "number",
-        "averageWaitTime should be a number"
-      );
-      this.assert(
-        typeof response.data.metrics.averageProcessTime === "number",
-        "averageProcessTime should be a number"
-      );
-      this.assert(
-        Array.isArray(response.data.metrics.queueItems),
-        "queueItems should be an array"
-      );
-    });
-
-    await this.test("Queue metrics in health endpoint", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/health`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      
-      // Queue metrics might be in data.details or at top level
-      const healthData = response.data.data || response.data;
-      const queueMetrics = healthData.queue || healthData.details?.queue || response.data.queue;
-      
-      if (queueMetrics) {
-        this.assert(
-          typeof queueMetrics.queueSize === "number",
-          "queueSize should be a number"
-        );
-        this.assert(
-          typeof queueMetrics.processingCount === "number",
-          "processingCount should be a number"
-        );
-      } else {
-        // Queue metrics might not be in health endpoint - that's okay, it's in /queue/metrics
-        console.log("   Note: Queue metrics not found in health endpoint (this is acceptable)");
-      }
-    });
-
-    await this.test("Queue metrics in performance endpoint", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/performance/metrics`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      // Queue metrics might be nested in performance metrics
-      if (response.data.metrics && response.data.metrics.queue) {
-        this.assert(
-          typeof response.data.metrics.queue.queueSize === "number",
-          "queueSize should be a number"
-        );
-      }
-    });
-  }
-
-  async runSDKApiTests() {
-    console.log("\n🔧 SDK API Endpoint Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Test SDK status endpoint", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/sdk/status`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-  }
-
-  async runMCPServerTests() {
-    console.log("\n🤖 MCP Server Tests (Mocked)");
-    console.log("-".repeat(30));
-
-    await this.test("MCP server can be built", async () => {
-      // Test that the MCP server package can be imported and initialized
-      // We can't actually test the MCP server without an LLM connection,
-      // but we can verify the package structure
-      try {
-        // Check if MCP server package exists
-        const fs = await import("fs");
-        const path = await import("path");
-        const mcpServerPath = path.join(
-          process.cwd(),
-          "..",
-          "mcp-server",
-          "krapi-mcp-server",
-          "package.json"
-        );
-        const packageExists = fs.existsSync(mcpServerPath);
-        this.assert(packageExists, "MCP server package should exist");
-      } catch (error) {
-        // If we can't check, that's okay - just verify the test structure
-        console.log("   Note: Could not verify MCP server package structure");
-      }
-    });
-
-    await this.test("MCP server tools are defined", async () => {
-      // Verify that MCP server has the expected tools
-      // Since we can't actually run the MCP server without LLM,
-      // we'll verify the source code structure
-      try {
-        const fs = await import("fs");
-        const path = await import("path");
-        const mcpServerIndex = path.join(
-          process.cwd(),
-          "..",
-          "mcp-server",
-          "krapi-mcp-server",
-          "src",
-          "index.ts"
-        );
-        if (fs.existsSync(mcpServerIndex)) {
-          const content = fs.readFileSync(mcpServerIndex, "utf-8");
-          // Check for expected MCP tools
-          const expectedTools = [
-            "create_project",
-            "create_collection",
-            "create_document",
-            "query_documents",
-            "create_project_api_key",
-            "send_email",
-          ];
-          for (const tool of expectedTools) {
-            this.assert(
-              content.includes(tool),
-              `MCP server should have ${tool} tool`
-            );
-          }
-        }
-      } catch (error) {
-        console.log("   Note: Could not verify MCP server tools structure");
-      }
-    });
-
-    await this.test("MCP server uses SDK correctly", async () => {
-      // Verify that MCP server imports and uses the SDK correctly
-      try {
-        const fs = await import("fs");
-        const path = await import("path");
-        const mcpServerIndex = path.join(
-          process.cwd(),
-          "..",
-          "mcp-server",
-          "krapi-mcp-server",
-          "src",
-          "index.ts"
-        );
-        if (fs.existsSync(mcpServerIndex)) {
-          const content = fs.readFileSync(mcpServerIndex, "utf-8");
-          // Check that it imports from npm package
-          this.assert(
-            content.includes("@smartsamurai/krapi-sdk"),
-            "MCP server should use npm SDK package"
-          );
-          this.assert(
-            content.includes("KrapiSDK"),
-            "MCP server should use KrapiSDK class"
-          );
-        }
-      } catch (error) {
-        console.log("   Note: Could not verify MCP server SDK usage");
-      }
-    });
-  }
-
-  async runBackupTests() {
-    console.log("\n💾 Backup Tests");
-    console.log("-".repeat(30));
-
-    let backupId = null;
-    let backupPassword = null;
-
-    await this.test("Create project backup", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available for backup test");
-      }
-
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}/backup`,
-        {
-          description: "Test backup",
-          password: "test-backup-password-123",
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(response.data.backup_id, "Should return backup ID");
-      this.assert(response.data.password, "Should return backup password");
-
-      backupId = response.data.backup_id;
-      backupPassword = response.data.password || "test-backup-password-123";
-    });
-
-    await this.test("List project backups", async () => {
-      if (!this.testProject) {
-        throw new Error("No test project available for backup test");
-      }
-
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${this.testProject.id}/backups`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.backups),
-        "Should return backups array"
-      );
-    });
-
-    await this.test("List all backups", async () => {
-      const response = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backups`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(
-        Array.isArray(response.data.backups),
-        "Should return backups array"
-      );
-    });
-
-    await this.test("Create system backup", async () => {
-      const response = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backup/system`,
-        {
-          description: "Test system backup",
-          password: "test-system-backup-password-123",
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-      this.assert(response.data.backup_id, "Should return backup ID");
-      this.assert(response.data.password, "Should return backup password");
-    });
-
-    await this.test("Delete backup", async () => {
-      if (!backupId) {
-        console.log("   Skipping - no backup ID available");
-        return;
-      }
-
-      const response = await axios.delete(
-        `${CONFIG.FRONTEND_URL}/api/krapi/k1/backups/${backupId}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(response.status === 200, "Should return 200");
-      this.assert(response.data.success === true, "Should succeed");
-    });
-  }
-
-  async runCMSIntegrationTests() {
-    console.log("\n🌐 Complete CMS Integration Tests");
-    console.log("-".repeat(30));
-
-    await this.test("Full CMS workflow", async () => {
-      // Create a new project with unique name to avoid conflicts
-      const uniqueId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-      const projectName = `CMS Test Project ${uniqueId}`;
-      
-      const projectResponse = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects`,
-        {
-          name: projectName,
-          description: "Project for CMS integration testing",
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        projectResponse.status === 201,
-        "Project creation should succeed"
-      );
-      const project = projectResponse.data.project;
-
-      // Create a collection
-      const collectionResponse = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}/collections`,
-        {
-          name: "cms_content",
-          description: "CMS content collection",
-          fields: [
-            { name: "title", type: "string", required: true },
-            { name: "content", type: "text", required: true },
-            { name: "published", type: "boolean", required: false },
-          ],
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        collectionResponse.status === 201,
-        "Collection creation should succeed"
-      );
-      const collection = collectionResponse.data.collection;
-
-      // Create content
-      const contentResponse = await axios.post(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}/collections/${collection.name}/documents`,
-        {
-          data: {
-            title: "CMS Test Content",
-            content: "This is test content for CMS integration",
-            published: true,
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        contentResponse.status === 201,
-        "Content creation should succeed"
-      );
-
-      // Get content
-      const getResponse = await axios.get(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}/collections/${collection.name}/documents/${contentResponse.data.id}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        getResponse.status === 200,
-        "Content retrieval should succeed"
-      );
-      this.assert(
-        getResponse.data.data.title === "CMS Test Content",
-        "Should return correct content"
-      );
-
-      // Update content
-      const updateResponse = await axios.put(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}/collections/${collection.name}/documents/${contentResponse.data.id}`,
-        {
-          data: {
-            title: "Updated CMS Content",
-            content: "Updated content for CMS integration",
-            published: false,
-          },
-        },
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        updateResponse.status === 200,
-        "Content update should succeed"
-      );
-
-      // Delete content
-      const deleteResponse = await axios.delete(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}/collections/${collection.name}/documents/${contentResponse.data.id}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        deleteResponse.status === 200,
-        "Content deletion should succeed"
-      );
-
-      // Delete collection
-      const deleteCollectionResponse = await axios.delete(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}/collections/${collection.name}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        deleteCollectionResponse.status === 200,
-        "Collection deletion should succeed"
-      );
-
-      // Delete project
-      const deleteProjectResponse = await axios.delete(
-        `${CONFIG.FRONTEND_URL}/api/projects/${project.id}`,
-        {
-          headers: { Authorization: `Bearer ${this.sessionToken}` },
-        }
-      );
-      this.assert(
-        deleteProjectResponse.status === 200,
-        "Project deletion should succeed"
-      );
-    });
-  }
-
+  // All test methods have been moved to separate files in tests/ directory
+  // They are imported at the top of this file and called in runAllTests()
   async cleanup() {
     console.log("\n🧹 Cleaning up test environment...");
 
     if (this.testProject) {
       try {
-        await axios.delete(
-          `${CONFIG.FRONTEND_URL}/api/projects/${this.testProject.id}`,
-          {
-            headers: { Authorization: `Bearer ${this.sessionToken}` },
-          }
-        );
+        // Always use SDK for cleanup - never use direct axios
+        await this.krapi.projects.delete(this.testProject.id);
       } catch (error) {
         console.log("Warning: Could not delete test project:", error.message);
       }
@@ -2397,171 +1012,144 @@ class ComprehensiveTestSuite {
 
   printResults() {
     const totalTests = this.testResults.passed + this.testResults.failed;
-    
-    console.log("\n" + "=".repeat(60));
-    console.log("📊 COMPREHENSIVE TEST RESULTS");
-    console.log("=".repeat(60));
-    console.log(`✅ Passed: ${this.testResults.passed}`);
-    console.log(`❌ Failed: ${this.testResults.failed}`);
-    console.log(`📊 Total: ${totalTests}`);
+    const duration = Date.now() - this.startTime;
+    const totalExpectedTests = this.totalTestsInSuite || 79; // Always use 79 as total expected
 
-    if (this.testResults.errors.length > 0) {
-      console.log("\n❌ Failed Tests:");
-      this.testResults.errors.forEach((error) => {
-        console.log(`   • ${error.test}: ${error.error}`);
+    // Calculate performance metrics
+    const avgTestTime = totalTests > 0 ? Math.round(duration / totalTests) : 0;
+    const testsPerSecond =
+      duration > 0 ? (totalTests / (duration / 1000)).toFixed(2) : 0;
+
+    // Get slow tests (>5s for all tests)
+    // Use logger.results array, not testResults object (which has passed/failed/errors)
+    const slowTests = (this.logger.results || [])
+      .filter((t) => {
+        const threshold = 5000;
+        return t.duration > threshold;
+      })
+      .sort((a, b) => b.duration - a.duration);
+
+    console.log("\n" + "=".repeat(60));
+    console.log("TEST SUMMARY");
+    console.log("=".repeat(60));
+
+    // Use logger for summary - pass total expected tests (120 for 100% coverage)
+    this.logger.summary(
+      totalTests, // Number of tests that actually ran
+      this.testResults.passed,
+      this.testResults.failed,
+      duration,
+      totalExpectedTests // Updated to 120 for 100% coverage
+    );
+
+    // Print performance metrics
+    console.log(`\n📊 PERFORMANCE METRICS:`);
+    console.log(`   Total Duration: ${(duration / 1000).toFixed(2)}s`);
+    console.log(`   Average Test Time: ${avgTestTime}ms`);
+    console.log(`   Tests Per Second: ${testsPerSecond}`);
+
+    if (slowTests.length > 0) {
+      console.log(`\n⚠️  SLOW TESTS (${slowTests.length}):`);
+      slowTests.slice(0, 10).forEach((test) => {
+        const testName = test.test || test.name || "Unknown test";
+        console.log(`   ${testName}: ${test.duration}ms`);
       });
+      if (slowTests.length > 10) {
+        console.log(`   ... and ${slowTests.length - 10} more slow tests`);
+      }
     }
 
-    const successRate = totalTests > 0
-      ? ((this.testResults.passed / totalTests) * 100).toFixed(1)
-      : "0.0";
-    console.log(`\n🎯 Success Rate: ${successRate}% (${this.testResults.passed}/${totalTests})`);
+    // Add error source summary
+    if (this.testResults.failed > 0) {
+      const failedTests = (this.logger.results || []).filter(
+        (t) => t.status === "FAILED"
+      );
+      const errorsBySource = {
+        SDK: 0,
+        SERVER: 0,
+        NETWORK: 0,
+        UNKNOWN: 0,
+      };
+
+      failedTests.forEach((test) => {
+        const source = test.errorSource || "UNKNOWN";
+        if (errorsBySource[source] !== undefined) {
+          errorsBySource[source]++;
+        } else {
+          errorsBySource.UNKNOWN++;
+        }
+      });
+
+      console.log(`\n📋 ERROR SOURCE SUMMARY:`);
+      if (errorsBySource.SDK > 0) {
+        console.log(
+          `   SDK Issues: ${errorsBySource.SDK} (fix in @smartsamurai/krapi-sdk)`
+        );
+      }
+      if (errorsBySource.SERVER > 0) {
+        console.log(
+          `   Server Issues: ${errorsBySource.SERVER} (fix in backend/frontend)`
+        );
+      }
+      if (errorsBySource.NETWORK > 0) {
+        console.log(
+          `   Network Issues: ${errorsBySource.NETWORK} (check connectivity)`
+        );
+      }
+      if (errorsBySource.UNKNOWN > 0) {
+        console.log(
+          `   Unknown Issues: ${errorsBySource.UNKNOWN} (manual investigation needed)`
+        );
+      }
+    }
+
+    console.log("=".repeat(60));
+
+    const isQuickMode = process.env.STOP_ON_FIRST_FAILURE === "true";
 
     if (this.testResults.failed === 0 && totalTests > 0) {
-      console.log("\n🎉 ALL TESTS PASSED! KRAPI is production ready! 🎉");
+      if (isQuickMode) {
+        console.log(
+          `\n✅ All tests passed so far (${totalTests}/${totalExpectedTests} executed - quick mode)`
+        );
+        console.log("   Run 'pnpm run test:comprehensive' for full test suite");
+      } else {
+        console.log(
+          `\n🎉 ALL TESTS PASSED! (${totalTests}/${totalExpectedTests}) KRAPI is production ready! 🎉`
+        );
+      }
     } else if (totalTests === 0) {
-      console.log("\n⚠️  No tests were executed. Please check test suite configuration.");
-    } else {
-      console.log(
-        `\n⚠️  ${this.testResults.failed} of ${totalTests} test(s) failed. Please review and fix.`
+      this.logger.warn(
+        "No tests were executed. Please check test suite configuration."
       );
+    } else {
+      if (isQuickMode) {
+        this.logger.warn(
+          `${this.testResults.failed} of ${totalTests} test(s) failed (${totalTests}/${totalExpectedTests} executed - quick mode stopped on first failure). Fix the error and run again.`
+        );
+      } else {
+        this.logger.warn(
+          `${this.testResults.failed} of ${totalTests} test(s) failed (${totalTests}/${totalExpectedTests} total). Please review and fix.`
+        );
+      }
     }
 
     console.log("=".repeat(60));
   }
 
+  // DEPRECATED: File saving is now handled by TestLogger
+  // Keeping this method for backward compatibility, but delegates to logger
   async saveResultsToFile() {
-    const totalTests = this.testResults.passed + this.testResults.failed;
-    const duration = Date.now() - this.startTime;
-    const successRate = totalTests > 0
-      ? ((this.testResults.passed / totalTests) * 100).toFixed(1)
-      : "0.0";
-
-    const reportData = {
-      summary: {
-        totalTests,
-        passed: this.testResults.passed,
-        failed: this.testResults.failed,
-        successRate: `${successRate}%`,
-        duration: `${duration}ms`,
-        timestamp: new Date().toISOString(),
-        startTime: new Date(this.startTime).toISOString(),
-        endTime: new Date().toISOString(),
-      },
-      environment: this.environment,
-      testResults: this.results,
-      failedTests: this.testResults.errors,
-      testProject: this.testProject ? {
-        id: this.testProject.id,
-        name: this.testProject.name,
-      } : null,
-      testCollection: this.testCollection ? {
-        id: this.testCollection.id,
-        name: this.testCollection.name,
-      } : null,
-    };
-
-    // Create logs directory if it doesn't exist
-    const logsDir = join(process.cwd(), "test-logs");
-    if (!existsSync(logsDir)) {
-      await mkdir(logsDir, { recursive: true });
-    }
-
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const jsonFilename = join(logsDir, `test-results-${timestamp}.json`);
-    const txtFilename = join(logsDir, `test-results-${timestamp}.txt`);
-
-    // Save JSON report
-    await writeFile(jsonFilename, JSON.stringify(reportData, null, 2), "utf-8");
-
-    // Generate human-readable text report
-    let textReport = "=".repeat(80) + "\n";
-    textReport += "KRAPI COMPREHENSIVE TEST SUITE RESULTS\n";
-    textReport += "=".repeat(80) + "\n\n";
-
-    textReport += "SUMMARY\n";
-    textReport += "-".repeat(80) + "\n";
-    textReport += `Total Tests: ${totalTests}\n`;
-    textReport += `Passed: ${this.testResults.passed}\n`;
-    textReport += `Failed: ${this.testResults.failed}\n`;
-    textReport += `Success Rate: ${successRate}%\n`;
-    textReport += `Duration: ${duration}ms\n`;
-    textReport += `Timestamp: ${new Date().toISOString()}\n\n`;
-
-    textReport += "ENVIRONMENT\n";
-    textReport += "-".repeat(80) + "\n";
-    textReport += `Node Version: ${this.environment.nodeVersion}\n`;
-    textReport += `Platform: ${this.environment.platform}\n`;
-    textReport += `Architecture: ${this.environment.arch}\n`;
-    textReport += `Frontend URL: ${this.environment.frontendUrl}\n`;
-    textReport += `Backend URL: ${this.environment.backendUrl}\n\n`;
-
+    // Update logger with test project/collection before saving
     if (this.testProject) {
-      textReport += "TEST PROJECT\n";
-      textReport += "-".repeat(80) + "\n";
-      textReport += `ID: ${this.testProject.id}\n`;
-      textReport += `Name: ${this.testProject.name}\n\n`;
+      this.logger.setTestProject(this.testProject);
     }
-
     if (this.testCollection) {
-      textReport += "TEST COLLECTION\n";
-      textReport += "-".repeat(80) + "\n";
-      textReport += `ID: ${this.testCollection.id}\n`;
-      textReport += `Name: ${this.testCollection.name}\n\n`;
+      this.logger.setTestCollection(this.testCollection);
     }
 
-    textReport += "DETAILED TEST RESULTS\n";
-    textReport += "-".repeat(80) + "\n\n";
-
-    // Group tests by status
-    const passedTests = this.results.filter((r) => r.status === "PASSED");
-    const failedTests = this.results.filter((r) => r.status === "FAILED");
-
-    if (passedTests.length > 0) {
-      textReport += `PASSED TESTS (${passedTests.length})\n`;
-      textReport += "-".repeat(80) + "\n";
-      passedTests.forEach((result) => {
-        textReport += `✅ ${result.test} (${result.duration}ms)\n`;
-      });
-      textReport += "\n";
-    }
-
-    if (failedTests.length > 0) {
-      textReport += `FAILED TESTS (${failedTests.length})\n`;
-      textReport += "-".repeat(80) + "\n";
-      failedTests.forEach((result) => {
-        textReport += `❌ ${result.test} (${result.duration}ms)\n`;
-        textReport += `   Error: ${result.error}\n`;
-        if (result.httpStatus) {
-          textReport += `   HTTP Status: ${result.httpStatus} ${result.httpStatusText || ""}\n`;
-        }
-        if (result.code) {
-          textReport += `   Error Code: ${result.code}\n`;
-        }
-        if (result.responseData) {
-          textReport += `   Response Data: ${JSON.stringify(result.responseData, null, 2)}\n`;
-        }
-        if (result.stack) {
-          textReport += `   Stack Trace:\n${result.stack.split("\n").map((line) => `      ${line}`).join("\n")}\n`;
-        }
-        textReport += "\n";
-      });
-    }
-
-    textReport += "=".repeat(80) + "\n";
-    textReport += "END OF REPORT\n";
-    textReport += "=".repeat(80) + "\n";
-
-    // Save text report
-    await writeFile(txtFilename, textReport, "utf-8");
-
-    console.log(`\n📄 Test results saved to:`);
-    console.log(`   JSON: ${jsonFilename}`);
-    console.log(`   Text: ${txtFilename}`);
-    console.log(`\n💡 You can share these files to help diagnose issues.`);
-
-    return { jsonFilename, txtFilename };
+    // Delegate to unified logger for file output
+    return await this.logger.saveResultsToFile();
   }
 }
 

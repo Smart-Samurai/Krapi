@@ -9,7 +9,9 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "postinstall": "npm rebuild better-sqlite3 || true"
+    "postinstall": "npm rebuild better-sqlite3 || true",
+    "download-restic": "node scripts/download-restic-binaries.js",
+    "prebuild": "npm run download-restic || echo 'Warning: Restic binaries not downloaded. Run npm run download-restic manually.'"
   },
   "keywords": [
     "api",
@@ -24,7 +26,7 @@
     "@krapi/error-handler": "file:packages/krapi-error-handler",
     "@krapi/logger": "file:packages/krapi-logger",
     "@krapi/monitor": "file:packages/krapi-monitor",
-    "@smartsamurai/krapi-sdk": "latest",
+    "@smartsamurai/krapi-sdk": "^0.5.18",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.10.0",
@@ -57,11 +59,13 @@
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
+    "adm-zip": "^0.5.16",
     "eslint": "^9.39.1",
     "eslint-plugin-import": "^2.32.0",
     "nodemon": "^3.1.11",
     "tsc-alias": "^1.8.16",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "unbzip2-stream": "^1.4.3"
   },
   "tsc-alias": {
     "baseUrl": ".",

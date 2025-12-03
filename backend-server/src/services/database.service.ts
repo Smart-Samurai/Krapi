@@ -4,6 +4,7 @@ import { ApiKeyScope, FieldType } from "@smartsamurai/krapi-sdk";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
+import { AuthService } from "./auth.service";
 import { DatabaseQueue, QueueMetrics } from "./database-queue.service";
 import { MigrationService } from "./migration.service";
 import { MultiDatabaseManager } from "./multi-database-manager.service";
@@ -28,7 +29,6 @@ import {
   BackendProjectSettings,
   BackendProjectUser,
   QueryOptions,
-  UserRole,
 } from "@/types";
 import { getDefaultCollections } from "@/utils/default-collections";
 import { isValidProjectId, sanitizeProjectId } from "@/utils/validation";
@@ -376,6 +376,61 @@ export class DatabaseService {
     return await this.queue.enqueue(async (_db) => {
       return await this.dbManager.queryProject(projectId, sql, params);
     }, 0);
+  }
+
+  /**
+   * Execute a write operation on a project database
+   *
+   * Executes INSERT, UPDATE, or DELETE queries on a project-specific database.
+   *
+   * @param {string} projectId - The project ID
+   * @param {string} sql - The SQL statement to execute
+   * @param {unknown[]} [params] - Query parameters
+   * @returns {Promise<{ changes: number; lastID?: number }>} Execution result with change count
+   *
+   * @example
+   * await db.executeProject('project-uuid', 'INSERT INTO files VALUES ($1, $2)', ['id', 'name']);
+   */
+  async executeProject(
+    projectId: string,
+    sql: string,
+    params?: unknown[]
+  ): Promise<{ changes: number; lastID?: number }> {
+    if (!projectId) {
+      throw new Error("Project ID is required for project database operations");
+    }
+
+    await this.initializeQueue();
+
+    return await this.queue.enqueue(async (_db) => {
+      const result = await this.dbManager.queryProject(projectId, sql, params);
+      return { changes: result.rowCount } as {
+        changes: number;
+        lastID?: number;
+      };
+    }, 0);
+  }
+
+  /**
+   * Query a single row from a project database
+   *
+   * Returns the first row from the query result or null if no rows found.
+   *
+   * @param {string} projectId - The project ID
+   * @param {string} sql - The SQL query
+   * @param {unknown[]} [params] - Query parameters
+   * @returns {Promise<Record<string, unknown> | null>} Single row or null
+   *
+   * @example
+   * const file = await db.queryProjectOne('project-uuid', 'SELECT * FROM files WHERE id = $1', ['file-id']);
+   */
+  async queryProjectOne(
+    projectId: string,
+    sql: string,
+    params?: unknown[]
+  ): Promise<Record<string, unknown> | null> {
+    const result = await this.queryProject(projectId, sql, params);
+    return result.rows[0] ?? null;
   }
 
   /**
@@ -773,6 +828,21 @@ export class DatabaseService {
       await this.dbManager.queryMain(`
         CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key) WHERE is_active = 1
       `);
+
+      // Storage Quotas Table (main DB) - tracks storage usage per project
+      // CRITICAL: SDK's updateStorageUsage method requires this table
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS storage_quotas (
+          project_id TEXT PRIMARY KEY,
+          current_files INTEGER DEFAULT 0,
+          current_storage_bytes INTEGER DEFAULT 0,
+          quota_limit_bytes INTEGER,
+          quota_limit_files INTEGER,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Created storage_quotas table in main database");
+
       await this.dbManager.queryMain(`
         CREATE INDEX IF NOT EXISTS idx_api_keys_owner ON api_keys(owner_id)
       `);
@@ -814,13 +884,16 @@ export class DatabaseService {
       `);
 
       // Sessions Table (main DB)
+      // SDK-FIRST: Include both 'type' (for backward compatibility) and 'user_type' (for SDK compatibility)
+      // Also include ip_address, user_agent, and last_used_at for SDK compatibility
       await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
           user_id TEXT REFERENCES admin_users(id),
           project_id TEXT REFERENCES projects(id),
-          type TEXT NOT NULL CHECK (type IN ('admin', 'project')),
+          type TEXT CHECK (type IN ('admin', 'project')),
+          user_type TEXT CHECK (user_type IN ('admin', 'project')),
           scopes TEXT NOT NULL DEFAULT '[]',
           metadata TEXT DEFAULT '{}',
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -828,13 +901,167 @@ export class DatabaseService {
           consumed INTEGER DEFAULT 0,
           consumed_at TEXT,
           last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
-          is_active INTEGER DEFAULT 1
+          last_used_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          is_active INTEGER DEFAULT 1,
+          ip_address TEXT,
+          user_agent TEXT
         )
       `);
+
+      // Migration: Add user_type column to existing sessions table if it doesn't exist
+      // This ensures SDK compatibility even if table was created with old schema
+      // NOTE: This migration is only needed for tables created before user_type was added to CREATE TABLE
+      try {
+        // Check if table exists first
+        const tableExists = await this.dbManager.queryMain(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'
+        `);
+
+        if (tableExists.rows.length > 0) {
+          // Table exists, check if column exists
+          const tableInfo = await this.dbManager.queryMain(
+            `PRAGMA table_info(sessions)`
+          );
+          const columns = (tableInfo.rows as Array<{ name: string }>).map(
+            (row) => row.name
+          );
+
+          if (!columns.includes("user_type")) {
+            try {
+              await this.dbManager.queryMain(`
+                ALTER TABLE sessions ADD COLUMN user_type TEXT CHECK (user_type IN ('admin', 'project'))
+              `);
+              // Update existing rows to set user_type = type
+              await this.dbManager.queryMain(`
+                UPDATE sessions SET user_type = type WHERE user_type IS NULL
+              `);
+              console.log(
+                "✅ Added 'user_type' column to sessions table (SDK compatibility)"
+              );
+            } catch (alterError) {
+              // Column might have been added by another process - check again
+              const errorMsg =
+                alterError instanceof Error
+                  ? alterError.message
+                  : String(alterError);
+              if (errorMsg.includes("duplicate column")) {
+                // Column already exists - silently ignore (race condition)
+                // Verify it exists now
+                const recheckInfo = await this.dbManager.queryMain(
+                  `PRAGMA table_info(sessions)`
+                );
+                const recheckColumns = (
+                  recheckInfo.rows as Array<{ name: string }>
+                ).map((row) => row.name);
+                if (recheckColumns.includes("user_type")) {
+                  // Column exists now - update existing rows if needed
+                  await this.dbManager
+                    .queryMain(
+                      `
+                    UPDATE sessions SET user_type = type WHERE user_type IS NULL
+                  `
+                    )
+                    .catch(() => {
+                      // Ignore update errors
+                    });
+                }
+              } else {
+                // Unexpected error - rethrow
+                throw alterError;
+              }
+            }
+          } else {
+            // Column already exists - update existing rows if needed
+            await this.dbManager
+              .queryMain(
+                `
+              UPDATE sessions SET user_type = type WHERE user_type IS NULL
+            `
+              )
+              .catch(() => {
+                // Ignore update errors
+              });
+          }
+        }
+        // If table doesn't exist yet, CREATE TABLE will include user_type, so no migration needed
+      } catch (error) {
+        // Only log unexpected errors (not duplicate column errors)
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (
+          !errorMsg.includes("duplicate column") &&
+          !errorMsg.includes("duplicate column name")
+        ) {
+          console.warn(`⚠️  Failed to add user_type column: ${errorMsg}`);
+        }
+      }
 
       // Create index for sessions
       await this.dbManager.queryMain(`
         CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)
+      `);
+
+      // Activity Logs Table (main DB - system-wide activity)
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS activity_logs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          action TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          resource_id TEXT,
+          details TEXT DEFAULT '{}',
+          ip_address TEXT,
+          user_agent TEXT,
+          severity TEXT DEFAULT 'info',
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Migration: Add timestamp column to existing activity_logs table if it doesn't exist
+      try {
+        const tableInfo = await this.dbManager.queryMain(
+          `PRAGMA table_info(activity_logs)`
+        );
+        const columns = (tableInfo.rows as Array<{ name: string }>).map(
+          (row) => row.name
+        );
+
+        if (!columns.includes("timestamp")) {
+          await this.dbManager.queryMain(`
+            ALTER TABLE activity_logs ADD COLUMN timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+          `);
+          // Update existing rows to set timestamp = created_at
+          await this.dbManager.queryMain(`
+            UPDATE activity_logs SET timestamp = created_at WHERE timestamp IS NULL
+          `);
+          console.log(
+            "✅ Added 'timestamp' column to activity_logs table (SDK compatibility)"
+          );
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (
+          !errorMsg.includes("duplicate column") &&
+          !errorMsg.includes("duplicate column name")
+        ) {
+          console.warn(`⚠️  Failed to add timestamp column: ${errorMsg}`);
+        }
+      }
+
+      // Create indexes for activity_logs
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_project_id ON activity_logs(project_id)
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at)
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action)
       `);
 
       // Note: Changelog is stored in project-specific databases
@@ -914,7 +1141,10 @@ export class DatabaseService {
           encrypted INTEGER DEFAULT 0,
           version TEXT DEFAULT '2.0.0',
           description TEXT,
-          file_path TEXT NOT NULL
+          file_path TEXT NOT NULL,
+          snapshot_id TEXT,
+          unique_size INTEGER,
+          file_count INTEGER
         )
       `);
 
@@ -1362,7 +1592,7 @@ export class DatabaseService {
     }
   }
 
-  private async fixMissingColumns(): Promise<void> {
+  async fixMissingColumns(): Promise<void> {
     try {
       // Check and add missing columns to sessions table (SQLite uses PRAGMA table_info) - main DB
       const sessionColumns = await this.dbManager.queryMain(
@@ -1372,22 +1602,142 @@ export class DatabaseService {
         sessionColumns.rows as Array<{ name: string }>
       ).map((row) => row.name);
 
-      // Add consumed column if it doesn't exist
+      // Add consumed column if it doesn't exist (with error handling)
       if (!existingSessionColumns.includes("consumed")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE sessions 
-          ADD COLUMN consumed INTEGER DEFAULT 0
-        `);
-        console.log("Added missing 'consumed' column to sessions table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions 
+            ADD COLUMN consumed INTEGER DEFAULT 0
+          `);
+          console.log("Added missing 'consumed' column to sessions table");
+        } catch (error) {
+          // Column might have been added by another process, ignore duplicate column error
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add consumed_at column if it doesn't exist
+      // Add consumed_at column if it doesn't exist (with error handling)
       if (!existingSessionColumns.includes("consumed_at")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE sessions 
-          ADD COLUMN consumed_at TEXT
-        `);
-        console.log("Added missing 'consumed_at' column to sessions table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions 
+            ADD COLUMN consumed_at TEXT
+          `);
+          console.log("Added missing 'consumed_at' column to sessions table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
+      }
+
+      // Add user_type column if it doesn't exist (SDK compatibility) (with error handling)
+      if (!existingSessionColumns.includes("user_type")) {
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions 
+            ADD COLUMN user_type TEXT CHECK (user_type IN ('admin', 'project'))
+          `);
+          // Update existing rows to set user_type = type
+          await this.dbManager.queryMain(`
+            UPDATE sessions SET user_type = type WHERE user_type IS NULL
+          `);
+          console.log(
+            "Added missing 'user_type' column to sessions table (SDK compatibility)"
+          );
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
+      }
+
+      // Add ip_address column if it doesn't exist (SDK compatibility) (with error handling)
+      if (!existingSessionColumns.includes("ip_address")) {
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions 
+            ADD COLUMN ip_address TEXT
+          `);
+          console.log(
+            "Added missing 'ip_address' column to sessions table (SDK compatibility)"
+          );
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
+      }
+
+      // Add user_agent column if it doesn't exist (SDK compatibility) (with error handling)
+      if (!existingSessionColumns.includes("user_agent")) {
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions 
+            ADD COLUMN user_agent TEXT
+          `);
+          console.log(
+            "Added missing 'user_agent' column to sessions table (SDK compatibility)"
+          );
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
+      }
+
+      // CRITICAL: Add last_used_at column if missing (SDK requires this) (with error handling)
+      if (!existingSessionColumns.includes("last_used_at")) {
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions ADD COLUMN last_used_at TEXT DEFAULT CURRENT_TIMESTAMP
+          `);
+          // Migrate existing data: copy last_activity to last_used_at if available
+          await this.dbManager.queryMain(`
+            UPDATE sessions SET last_used_at = last_activity WHERE last_used_at IS NULL AND last_activity IS NOT NULL
+          `);
+          // Set default for any remaining null values
+          await this.dbManager.queryMain(`
+            UPDATE sessions SET last_used_at = created_at WHERE last_used_at IS NULL
+          `);
+          console.log(
+            "✅ Added missing 'last_used_at' column to sessions table (SDK compatibility)"
+          );
+        } catch (error) {
+          // If column already exists (race condition), that's fine - just log and continue
+          if (
+            error instanceof Error &&
+            error.message.includes("duplicate column")
+          ) {
+            console.log(
+              "⚠️  'last_used_at' column already exists (race condition), continuing..."
+            );
+          } else {
+            // For other errors, rethrow
+            throw error;
+          }
+        }
+      } else {
+        console.log(
+          "✅ 'last_used_at' column already exists in sessions table"
+        );
       }
 
       // Check and add missing columns to projects table - main DB
@@ -1398,67 +1748,132 @@ export class DatabaseService {
         projectColumns.rows as Array<{ name: string }>
       ).map((row) => row.name);
 
-      // Add is_active column if it doesn't exist
+      // Add is_active column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("is_active")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN is_active INTEGER DEFAULT 1
-        `);
-        console.log("Added missing 'is_active' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN is_active INTEGER DEFAULT 1
+          `);
+          console.log("Added missing 'is_active' column to projects table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add created_by column if it doesn't exist
+      // Add created_by column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("created_by")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN created_by TEXT REFERENCES admin_users(id)
-        `);
-        console.log("Added missing 'created_by' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN created_by TEXT REFERENCES admin_users(id)
+          `);
+          console.log("Added missing 'created_by' column to projects table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add settings column if it doesn't exist
+      // Add settings column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("settings")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN settings TEXT DEFAULT '{}'
-        `);
-        console.log("Added missing 'settings' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN settings TEXT DEFAULT '{}'
+          `);
+          console.log("Added missing 'settings' column to projects table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add storage_used column if it doesn't exist
+      // Add storage_used column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("storage_used")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN storage_used INTEGER DEFAULT 0
-        `);
-        console.log("Added missing 'storage_used' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN storage_used INTEGER DEFAULT 0
+          `);
+          console.log("Added missing 'storage_used' column to projects table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add api_calls_count column if it doesn't exist
+      // Add api_calls_count column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("api_calls_count")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN api_calls_count INTEGER DEFAULT 0
-        `);
-        console.log("Added missing 'api_calls_count' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN api_calls_count INTEGER DEFAULT 0
+          `);
+          console.log(
+            "Added missing 'api_calls_count' column to projects table"
+          );
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add last_api_call column if it doesn't exist
+      // Add last_api_call column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("last_api_call")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN last_api_call TEXT
-        `);
-        console.log("Added missing 'last_api_call' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN last_api_call TEXT
+          `);
+          console.log("Added missing 'last_api_call' column to projects table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
-      // Add project_url column if it doesn't exist
+      // Add project_url column if it doesn't exist (with error handling)
       if (!existingProjectColumns.includes("project_url")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE projects 
-          ADD COLUMN project_url TEXT
-        `);
-        console.log("Added missing 'project_url' column to projects table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE projects 
+            ADD COLUMN project_url TEXT
+          `);
+          console.log("Added missing 'project_url' column to projects table");
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column")
+          ) {
+            throw error;
+          }
+        }
       }
 
       // Check and add missing columns to admin_users table - main DB
@@ -1472,39 +1887,234 @@ export class DatabaseService {
 
       // Add password_hash column if it doesn't exist (rename from password if needed)
       if (!existingAdminUserColumns.includes("password_hash")) {
-        if (existingAdminUserColumns.includes("password")) {
-          // Rename password column to password_hash
-          await this.dbManager.queryMain(`
-            ALTER TABLE admin_users 
-            RENAME COLUMN password TO password_hash
-          `);
-          console.log(
-            "Renamed 'password' column to 'password_hash' in admin_users table"
-          );
-        } else {
-          // Add password_hash column
-          await this.dbManager.queryMain(`
-            ALTER TABLE admin_users 
-            ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''
-          `);
-          console.log(
-            "Added missing 'password_hash' column to admin_users table"
-          );
+        try {
+          if (existingAdminUserColumns.includes("password")) {
+            // Rename password column to password_hash
+            await this.dbManager.queryMain(`
+              ALTER TABLE admin_users 
+              RENAME COLUMN password TO password_hash
+            `);
+            console.log(
+              "Renamed 'password' column to 'password_hash' in admin_users table"
+            );
+          } else {
+            // Add password_hash column
+            await this.dbManager.queryMain(`
+              ALTER TABLE admin_users 
+              ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''
+            `);
+            console.log(
+              "Added missing 'password_hash' column to admin_users table"
+            );
+          }
+        } catch (error) {
+          // Silently ignore duplicate column errors - column already exists
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column") &&
+            !error.message.includes("duplicate column name")
+          ) {
+            throw error;
+          }
         }
       }
 
       // Add api_key column if it doesn't exist
       if (!existingAdminUserColumns.includes("api_key")) {
-        await this.dbManager.queryMain(`
-          ALTER TABLE admin_users 
-          ADD COLUMN api_key VARCHAR(255) UNIQUE
-        `);
-        console.log("Added missing 'api_key' column to admin_users table");
+        try {
+          await this.dbManager.queryMain(`
+            ALTER TABLE admin_users 
+            ADD COLUMN api_key VARCHAR(255) UNIQUE
+          `);
+          console.log("Added missing 'api_key' column to admin_users table");
+        } catch (error) {
+          // Silently ignore duplicate column errors - column already exists
+          if (
+            error instanceof Error &&
+            !error.message.includes("duplicate column") &&
+            !error.message.includes("duplicate column name")
+          ) {
+            throw error;
+          }
+        }
       }
 
       // Note: Removed user_type backward compatibility code - now using 'type' column directly
       // Note: Collections, documents, files, project_users, changelog, project api_keys are in project DBs
       // They will be initialized when project databases are first accessed
+      
+      // Fix files table columns in all project databases (SDK requires specific column names)
+      const projectDbs = this.dbManager.listProjectDbs();
+      for (const projectId of projectDbs) {
+        try {
+          const filesColumns = await this.dbManager.queryProject(
+            projectId,
+            `PRAGMA table_info(files)`
+          );
+          const existingFilesColumns = (
+            filesColumns.rows as Array<{ name: string }>
+          ).map((row) => row.name);
+
+          // SDK-required columns that might be missing
+          const requiredColumns = [
+            { name: 'filename', type: 'TEXT' },
+            { name: 'file_path', type: 'TEXT' },
+            { name: 'file_size', type: 'INTEGER' },
+            { name: 'file_extension', type: 'TEXT' },
+            { name: 'storage_provider', type: 'TEXT DEFAULT \'local\'' },
+            { name: 'storage_path', type: 'TEXT' },
+            { name: 'storage_url', type: 'TEXT' },
+            { name: 'is_public', type: 'INTEGER DEFAULT 0' },
+            { name: 'is_deleted', type: 'INTEGER DEFAULT 0' },
+            { name: 'tags', type: 'TEXT DEFAULT \'[]\'' },
+            { name: 'uploaded_by', type: 'TEXT' },
+          ];
+
+          for (const col of requiredColumns) {
+            if (!existingFilesColumns.includes(col.name)) {
+              try {
+                await this.dbManager.queryProject(
+                  projectId,
+                  `ALTER TABLE files ADD COLUMN ${col.name} ${col.type}`
+                );
+                console.log(`Added missing '${col.name}' column to files table in project ${projectId}`);
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  !error.message.includes("duplicate column")
+                ) {
+                  console.error(`Failed to add column ${col.name} to files table in project ${projectId}:`, error);
+                }
+              }
+            }
+          }
+
+          // Re-query columns after adding new ones to get updated list
+          const updatedFilesColumns = await this.dbManager.queryProject(
+            projectId,
+            `PRAGMA table_info(files)`
+          );
+          const existingFilesColumnsAfter = (
+            updatedFilesColumns.rows as Array<{ name: string }>
+          ).map((row) => row.name);
+
+          // Migrate data: copy filename -> name (SDK uses filename, but we also need name for compatibility)
+          // Also copy path -> file_path, size -> file_size, created_by -> uploaded_by
+          if (existingFilesColumnsAfter.includes('name') && existingFilesColumnsAfter.includes('filename')) {
+            try {
+              // Copy filename to name if name is NULL (SDK inserts filename but not name)
+              await this.dbManager.queryProject(
+                projectId,
+                `UPDATE files SET name = filename WHERE (name IS NULL OR name = '') AND filename IS NOT NULL AND filename != ''`
+              );
+            } catch (error) {
+              // Ignore migration errors
+            }
+          }
+          if (existingFilesColumnsAfter.includes('path') && existingFilesColumnsAfter.includes('file_path')) {
+            try {
+              // Copy path -> file_path (for backward compatibility)
+              await this.dbManager.queryProject(
+                projectId,
+                `UPDATE files SET file_path = path WHERE (file_path IS NULL OR file_path = '') AND path IS NOT NULL AND path != ''`
+              );
+              // Copy file_path -> path (SDK inserts file_path, but some code might expect path)
+              await this.dbManager.queryProject(
+                projectId,
+                `UPDATE files SET path = file_path WHERE (path IS NULL OR path = '') AND file_path IS NOT NULL AND file_path != ''`
+              );
+            } catch (error) {
+              // Ignore migration errors
+            }
+          }
+          if (existingFilesColumnsAfter.includes('size') && existingFilesColumnsAfter.includes('file_size')) {
+            try {
+              await this.dbManager.queryProject(
+                projectId,
+                `UPDATE files SET file_size = size WHERE file_size IS NULL`
+              );
+            } catch (error) {
+              // Ignore migration errors
+            }
+          }
+        if (existingFilesColumnsAfter.includes('created_by') && existingFilesColumnsAfter.includes('uploaded_by')) {
+          try {
+            await this.dbManager.queryProject(
+              projectId,
+              `UPDATE files SET uploaded_by = created_by WHERE uploaded_by IS NULL OR uploaded_by = ''`
+            );
+          } catch (error) {
+            // Ignore migration errors
+          }
+        }
+          // Migrate data: copy file_path -> path (SDK inserts file_path but schema requires path)
+          // CRITICAL: SDK inserts file_path, but schema has path NOT NULL
+          // We need to ensure path is populated from file_path
+          if (existingFilesColumnsAfter.includes('file_path') && existingFilesColumnsAfter.includes('path')) {
+            try {
+              await this.dbManager.queryProject(
+                projectId,
+                `UPDATE files SET path = file_path WHERE (path IS NULL OR path = '') AND file_path IS NOT NULL AND file_path != ''`
+              );
+            } catch (error) {
+              // Ignore migration errors
+            }
+          }
+        } catch (error) {
+          // If project DB doesn't exist or table doesn't exist, that's fine - it will be created with correct schema
+          console.log(`Skipping files table fix for project ${projectId}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      // CRITICAL: Ensure storage_quotas table exists in main database
+      // SDK's updateStorageUsage method requires this table
+      try {
+        const tables = await this.dbManager.queryMain(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='storage_quotas'
+        `);
+        if (tables.rows.length === 0) {
+          // Table doesn't exist - create it
+          await this.dbManager.queryMain(`
+            CREATE TABLE IF NOT EXISTS storage_quotas (
+              project_id TEXT PRIMARY KEY,
+              current_files INTEGER DEFAULT 0,
+              current_storage_bytes INTEGER DEFAULT 0,
+              quota_limit_bytes INTEGER,
+              quota_limit_files INTEGER,
+              updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+          console.log("✅ Created missing storage_quotas table in main database");
+        }
+      } catch (error) {
+        console.error("Error creating storage_quotas table:", error);
+      }
+
+      // CRITICAL: Ensure email_templates table exists in main database
+      // SDK's EmailService.getTemplates method requires this table
+      try {
+        const emailTemplatesTables = await this.dbManager.queryMain(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='email_templates'
+        `);
+        if (emailTemplatesTables.rows.length === 0) {
+          // Table doesn't exist - create it
+          await this.dbManager.queryMain(`
+            CREATE TABLE IF NOT EXISTS email_templates (
+              id TEXT PRIMARY KEY,
+              project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+              name TEXT NOT NULL,
+              subject TEXT NOT NULL,
+              body TEXT NOT NULL,
+              variables TEXT DEFAULT '[]',
+              created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+              updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+          console.log("✅ Created missing email_templates table in main database");
+        }
+      } catch (error) {
+        console.error("Error creating email_templates table:", error);
+      }
     } catch (error) {
       console.error("Error fixing missing columns:", error);
     }
@@ -2072,7 +2682,7 @@ export class DatabaseService {
 
     // Create user as a document in the "users" collection
     // The users collection is automatically created for every project
-    const userDocument = {
+    const userDocument: Record<string, unknown> = {
       username: userData.username,
       user_unique_id: userUniqueId,
       password: passwordHash, // Store hashed password
@@ -2107,7 +2717,8 @@ export class DatabaseService {
       is_verified: userData.is_verified || false,
       scopes: userData.scopes || [],
       password: passwordHash, // Return hashed password
-      permissions: [],
+      permissions: userData.scopes || [], // Map scopes to permissions for SDK compatibility
+      role: userData.role || "user", // Include role in response
       created_at: now,
       updated_at: now,
       status: "active",
@@ -2143,10 +2754,15 @@ export class DatabaseService {
       permissions: [],
       created_at: document.created_at,
       updated_at: document.updated_at,
-      status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      status: (userData.is_active === false ? "inactive" : "active") as
+        | "active"
+        | "inactive"
+        | "suspended",
       is_active: userData.is_active !== false,
       login_count: (userData.login_count as number) || 0,
-      role: (((userData.role as string) || "user") as unknown) as UserRole,
+      // SDK 0.5.0: role is string, not UserRole interface
+      role: (userData.role as string) || "user",
+      metadata: (userData.metadata as Record<string, unknown>) || {},
     };
     if (userData.phone) {
       user.phone = userData.phone as string;
@@ -2197,10 +2813,15 @@ export class DatabaseService {
       permissions: [],
       created_at: document.created_at,
       updated_at: document.updated_at,
-      status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      status: (userData.is_active === false ? "inactive" : "active") as
+        | "active"
+        | "inactive"
+        | "suspended",
       is_active: userData.is_active !== false,
       login_count: (userData.login_count as number) || 0,
-      role: (((userData.role as string) || "user") as unknown) as UserRole,
+      // SDK 0.5.0: role is string, not UserRole interface
+      role: (userData.role as string) || "user",
+      metadata: (userData.metadata as Record<string, unknown>) || {},
     };
     if (userData.phone) {
       user.phone = userData.phone as string;
@@ -2241,10 +2862,15 @@ export class DatabaseService {
       permissions: [],
       created_at: document.created_at,
       updated_at: document.updated_at,
-      status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      status: (userData.is_active === false ? "inactive" : "active") as
+        | "active"
+        | "inactive"
+        | "suspended",
       is_active: userData.is_active !== false,
       login_count: (userData.login_count as number) || 0,
-      role: (((userData.role as string) || "user") as unknown) as UserRole,
+      // SDK 0.5.0: role is string, not UserRole interface
+      role: (userData.role as string) || "user",
+      metadata: (userData.metadata as Record<string, unknown>) || {},
     };
     if (userData.phone) {
       user.phone = userData.phone as string;
@@ -2284,10 +2910,15 @@ export class DatabaseService {
         permissions: [],
         created_at: document.created_at,
         updated_at: document.updated_at,
-        status: (userData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+        status: (userData.is_active === false ? "inactive" : "active") as
+          | "active"
+          | "inactive"
+          | "suspended",
         is_active: userData.is_active !== false,
         login_count: (userData.login_count as number) || 0,
-        role: (((userData.role as string) || "user") as unknown) as UserRole,
+        // SDK 0.5.0: role is string, not UserRole interface
+        role: (userData.role as string) || "user",
+        metadata: (userData.metadata as Record<string, unknown>) || {},
       };
       if (userData.phone) {
         user.phone = userData.phone as string;
@@ -2320,7 +2951,7 @@ export class DatabaseService {
     updates: Partial<BackendProjectUser>
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    
+
     // Get current user document
     const currentUser = await this.getProjectUser(projectId, userId);
     if (!currentUser) {
@@ -2351,7 +2982,9 @@ export class DatabaseService {
       updatedData.phone = updates.phone;
     }
     if (updates.is_verified !== undefined) {
-      updatedData.confirmation_state = updates.is_verified ? "confirmed" : "not_confirmed";
+      updatedData.confirmation_state = updates.is_verified
+        ? "confirmed"
+        : "not_confirmed";
       if (updates.is_verified) {
         updatedData.email_verified_at = new Date().toISOString();
       }
@@ -2394,10 +3027,15 @@ export class DatabaseService {
       permissions: [],
       created_at: updatedDocument.created_at,
       updated_at: updatedDocument.updated_at,
-      status: (updatedUserData.is_active === false ? "inactive" : "active") as "active" | "inactive" | "suspended",
+      status: (updatedUserData.is_active === false ? "inactive" : "active") as
+        | "active"
+        | "inactive"
+        | "suspended",
       is_active: updatedUserData.is_active !== false,
       login_count: (updatedUserData.login_count as number) || 0,
-      role: (((updatedUserData.role as string) || "user") as unknown) as UserRole,
+      // SDK 0.5.0: role is string, not UserRole interface
+      role: (updatedUserData.role as string) || "user",
+      metadata: (updatedUserData.metadata as Record<string, unknown>) || {},
     };
     if (updatedUserData.phone) {
       user.phone = updatedUserData.phone as string;
@@ -2632,13 +3270,63 @@ export class DatabaseService {
 
   async getCollection(
     projectId: string,
-    collectionName: string
+    collectionNameOrId: string
   ): Promise<Collection | null> {
-    const result = await this.dbManager.queryProject(
+    // Check if the input is a UUID (collection ID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUUID = uuidRegex.test(collectionNameOrId);
+
+    if (isUUID) {
+      // Look up by ID
+      const result = await this.dbManager.queryProject(
+        projectId,
+        "SELECT * FROM collections WHERE id = $1 AND project_id = $2",
+        [collectionNameOrId, projectId]
+      );
+      const row = result.rows[0];
+      return row ? this.mapCollection(row as Record<string, unknown>) : null;
+    }
+
+    // Normalize collection name: URL decode, trim whitespace
+    let normalizedCollectionName = collectionNameOrId;
+    try {
+      normalizedCollectionName = decodeURIComponent(collectionNameOrId);
+    } catch {
+      normalizedCollectionName = collectionNameOrId;
+    }
+    normalizedCollectionName = normalizedCollectionName.trim();
+
+    // Try exact match first
+    let result = await this.dbManager.queryProject(
       projectId,
       "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
-      [projectId, collectionName]
+      [projectId, normalizedCollectionName]
     );
+
+    // If exact match fails, try case-insensitive match
+    if (result.rows.length === 0) {
+      const allCollectionsResult = await this.dbManager.queryProject(
+        projectId,
+        "SELECT * FROM collections WHERE project_id = $1",
+        [projectId]
+      );
+      
+      const caseInsensitiveMatch = allCollectionsResult.rows.find(
+        (row) => {
+          const rowName = row.name as string | undefined;
+          return rowName?.toLowerCase() === normalizedCollectionName.toLowerCase();
+        }
+      );
+      
+      if (caseInsensitiveMatch) {
+        // Re-query with the actual collection name from database
+        result = await this.dbManager.queryProject(
+          projectId,
+          "SELECT * FROM collections WHERE project_id = $1 AND name = $2",
+          [projectId, caseInsensitiveMatch.name]
+        );
+      }
+    }
 
     const row = result.rows[0];
     return row ? this.mapCollection(row as Record<string, unknown>) : null;
@@ -2714,7 +3402,7 @@ export class DatabaseService {
       return false;
     }
 
-    const row = collectionResult.rows[0];
+    const row = collectionResult.rows[0] as Record<string, unknown> | undefined;
     if (!row) {
       return false;
     }
@@ -2868,7 +3556,7 @@ export class DatabaseService {
       return false;
     }
 
-    const row = collectionResult.rows[0];
+    const row = collectionResult.rows[0] as Record<string, unknown> | undefined;
     if (!row) {
       return false;
     }
@@ -2914,7 +3602,9 @@ export class DatabaseService {
       );
     }
 
-    const collectionId = collectionResult.rows[0]?.id as string;
+    const collectionId = (
+      collectionResult.rows[0] as Record<string, unknown> | undefined
+    )?.id as string;
 
     // Generate document ID (SQLite doesn't support RETURNING *)
     const documentId = uuidv4();
@@ -2971,7 +3661,9 @@ export class DatabaseService {
       return null;
     }
 
-    const collectionRow = collectionResult.rows[0];
+    const collectionRow = collectionResult.rows[0] as
+      | Record<string, unknown>
+      | undefined;
     if (!collectionRow) {
       return null;
     }
@@ -3026,7 +3718,9 @@ export class DatabaseService {
       return { documents: [], total: 0 };
     }
 
-    const collectionRow = collectionResult.rows[0];
+    const collectionRow = collectionResult.rows[0] as
+      | Record<string, unknown>
+      | undefined;
     if (!collectionRow) {
       return { documents: [], total: 0 };
     }
@@ -3110,7 +3804,9 @@ export class DatabaseService {
       );
     }
 
-    const collectionId = collectionResult.rows[0]?.id as string;
+    const collectionId = (
+      collectionResult.rows[0] as Record<string, unknown> | undefined
+    )?.id as string;
 
     // Update the document (SQLite doesn't support RETURNING *) - in project DB
     // JSON stringify data since SQLite stores it as TEXT
@@ -3156,7 +3852,7 @@ export class DatabaseService {
       return false;
     }
 
-    const row = collectionResult.rows[0];
+    const row = collectionResult.rows[0] as Record<string, unknown> | undefined;
     if (!row) {
       return false;
     }
@@ -3197,7 +3893,9 @@ export class DatabaseService {
       return [];
     }
 
-    const collectionRow = collectionResult.rows[0];
+    const collectionRow = collectionResult.rows[0] as
+      | Record<string, unknown>
+      | undefined;
     if (!collectionRow) {
       return [];
     }
@@ -3247,7 +3945,9 @@ export class DatabaseService {
       return 0;
     }
 
-    const collectionRow = collectionResult.rows[0];
+    const collectionRow = collectionResult.rows[0] as
+      | Record<string, unknown>
+      | undefined;
     if (!collectionRow) {
       return 0;
     }
@@ -3417,10 +4117,53 @@ export class DatabaseService {
   }
 
   async getSessionByToken(token: string): Promise<BackendSession | null> {
-    const result = await this.dbManager.queryMain(
-      "SELECT * FROM sessions WHERE token = $1 AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP",
+    // First, try to find session by token (without expiration check) for debugging
+    const debugResult = await this.dbManager.queryMain(
+      "SELECT * FROM sessions WHERE token = $1",
       [token]
     );
+
+    const firstRow = debugResult.rows[0] as Record<string, unknown> | undefined;
+    console.log("🔍 [DB DEBUG] getSessionByToken:", {
+      tokenLength: token?.length,
+      tokenPrefix: typeof token === "string" ? token.substring(0, 20) : "N/A",
+      foundRows: debugResult.rows.length,
+      rowData: firstRow
+        ? {
+            id: firstRow.id,
+            token:
+              typeof firstRow.token === "string"
+                ? firstRow.token.substring(0, 20)
+                : "N/A",
+            is_active: firstRow.is_active,
+            expires_at: firstRow.expires_at,
+            consumed: firstRow.consumed,
+            expiresInMs:
+              typeof firstRow.expires_at === "string"
+                ? new Date(firstRow.expires_at).getTime() - Date.now()
+                : null,
+          }
+        : null,
+    });
+
+    // CRITICAL: SQLite stores expires_at as ISO string, so we need to compare with ISO string
+    // Use datetime('now') to get current time in ISO format for comparison
+    const result = await this.dbManager.queryMain(
+      "SELECT * FROM sessions WHERE token = $1 AND is_active = 1 AND datetime(expires_at) > datetime('now')",
+      [token]
+    );
+
+    if (result.rows.length === 0 && firstRow) {
+      console.log("⚠️ [DB DEBUG] Session found but filtered out:", {
+        is_active: firstRow.is_active,
+        expires_at: firstRow.expires_at,
+        expiresInMs:
+          typeof firstRow.expires_at === "string"
+            ? new Date(firstRow.expires_at).getTime() - Date.now()
+            : null,
+        currentTime: new Date().toISOString(),
+      });
+    }
 
     if (result.rows.length > 0) {
       // Update last activity
@@ -3504,8 +4247,9 @@ export class DatabaseService {
   }
 
   async getSessionById(sessionId: string): Promise<BackendSession | null> {
+    // CRITICAL: SQLite stores expires_at as ISO string, so we need to compare with ISO string
     const result = await this.dbManager.queryMain(
-      "SELECT * FROM sessions WHERE id = $1 AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP",
+      "SELECT * FROM sessions WHERE id = $1 AND is_active = 1 AND datetime(expires_at) > datetime('now')",
       [sessionId]
     );
 
@@ -3514,31 +4258,18 @@ export class DatabaseService {
   }
 
   async createDefaultAdmin(): Promise<void> {
+    // Use AuthService to get scopes based on role (master_admin gets MASTER scope)
+    const authService = AuthService.getInstance();
+    const scopes = authService.getScopesForRole("master_admin");
+
     const defaultAdmin = {
       username: "admin",
       email: "admin@krapi.local",
       password_hash: await this.hashPassword("admin123"),
       role: "master_admin" as AdminRole,
       access_level: "full" as AccessLevel,
-      permissions: [
-        "users.create",
-        "users.read",
-        "users.update",
-        "users.delete",
-        "projects.create",
-        "projects.read",
-        "projects.update",
-        "projects.delete",
-        "collections.create",
-        "collections.read",
-        "collections.write",
-        "collections.delete",
-        "storage.upload",
-        "storage.read",
-        "storage.delete",
-        "settings.read",
-        "settings.update",
-      ],
+      // Use Scope enum values (as strings) - BackendSDK expects these format
+      permissions: scopes.map((scope) => scope.toString()),
       active: true,
     };
 
@@ -3561,8 +4292,9 @@ export class DatabaseService {
   }
 
   async cleanupExpiredSessions(): Promise<number> {
+    // CRITICAL: SQLite stores expires_at as ISO string, so we need to compare with ISO string
     const result = await this.dbManager.queryMain(
-      "UPDATE sessions SET is_active = 0 WHERE expires_at < CURRENT_TIMESTAMP AND is_active = 1"
+      "UPDATE sessions SET is_active = 0 WHERE datetime(expires_at) < datetime('now') AND is_active = 1"
     );
 
     return result.rowCount ?? 0;
@@ -4642,9 +5374,10 @@ export class DatabaseService {
     await this.ensureReady();
 
     // Sessions are in main DB
+    // CRITICAL: SQLite stores expires_at as ISO string, so we need to compare with ISO string
     const result = await this.dbManager.queryMain(
       `SELECT * FROM sessions 
-       WHERE expires_at > CURRENT_TIMESTAMP AND is_active = 1
+       WHERE datetime(expires_at) > datetime('now') AND is_active = 1
        ORDER BY created_at DESC`
     );
     return result.rows.map((row) => this.mapSession(row));
@@ -4710,6 +5443,20 @@ export class DatabaseService {
 
   // Mapping functions
   private mapAdminUser(row: Record<string, unknown>): AdminUser {
+    // Parse permissions from JSON string (SQLite stores arrays as JSON strings)
+    let permissions: string[] = [];
+    if (row.permissions) {
+      if (typeof row.permissions === "string") {
+        try {
+          permissions = JSON.parse(row.permissions) as string[];
+        } catch {
+          permissions = [];
+        }
+      } else if (Array.isArray(row.permissions)) {
+        permissions = row.permissions as string[];
+      }
+    }
+
     const user: AdminUser = {
       id: row.id as string,
       username: row.username as string,
@@ -4717,7 +5464,7 @@ export class DatabaseService {
       password_hash: row.password_hash as string,
       role: row.role as AdminRole,
       access_level: row.access_level as AccessLevel,
-      permissions: (row.permissions as string[]) || [],
+      permissions,
       active: row.is_active as boolean,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
@@ -4803,7 +5550,8 @@ export class DatabaseService {
     if (lastLogin !== undefined && lastLogin !== null) {
       user.last_login = lastLogin;
     }
-    const role = _row.role as UserRole | null | undefined;
+    // SDK 0.5.0: role is string, not UserRole interface
+    const role = _row.role as string | null | undefined;
     if (role !== undefined && role !== null) {
       user.role = role;
     }
@@ -4891,17 +5639,55 @@ export class DatabaseService {
   }
 
   private mapSession(row: Record<string, unknown>): BackendSession {
+    // Parse scopes from JSON string (SQLite stores arrays as JSON strings)
+    let scopes: Scope[] = [];
+    if (row.scopes) {
+      if (typeof row.scopes === "string") {
+        try {
+          scopes = JSON.parse(row.scopes) as Scope[];
+        } catch {
+          scopes = [];
+        }
+      } else if (Array.isArray(row.scopes)) {
+        scopes = row.scopes as Scope[];
+      }
+    }
+
+    // Parse metadata from JSON string (SQLite stores objects as JSON strings)
+    let metadata: Record<string, unknown> = {};
+    if (row.metadata) {
+      if (typeof row.metadata === "string") {
+        try {
+          metadata = JSON.parse(row.metadata) as Record<string, unknown>;
+        } catch {
+          metadata = {};
+        }
+      } else if (typeof row.metadata === "object") {
+        metadata = row.metadata as Record<string, unknown>;
+      }
+    }
+
+    // Parse consumed flag - SQLite stores as INTEGER 1/0
+    const consumedValue = row.consumed;
+    const consumed =
+      consumedValue === 1 || consumedValue === "1" || consumedValue === true;
+
+    // Parse is_active flag - SQLite stores as INTEGER 1/0
+    const isActiveValue = row.is_active;
+    const isActive =
+      isActiveValue === 1 || isActiveValue === "1" || isActiveValue === true;
+
     const session: BackendSession = {
       id: row.id as string,
       token: row.token as string,
       type: row.type as SessionType,
       user_id: row.user_id as string,
-      scopes: (row.scopes as Scope[]) || [],
-      metadata: (row.metadata as Record<string, unknown>) || {},
+      scopes,
+      metadata,
       expires_at: row.expires_at as string,
       created_at: row.created_at as string,
-      is_active: row.is_active as boolean,
-      consumed: !(row.is_active as boolean),
+      is_active: isActive,
+      consumed,
     };
     const projectId = row.project_id as string | null | undefined;
     if (projectId !== undefined && projectId !== null) {
@@ -7268,13 +8054,16 @@ export class DatabaseService {
       // They should NOT be in the main database
 
       // Add missing essential tables for auth system (main database)
+      // SDK-FIRST: Include both 'type' (for backward compatibility) and 'user_type' (for SDK compatibility)
+      // Also include ip_address and user_agent for SDK compatibility
       await this.dbManager.queryMain(`
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
           user_id TEXT REFERENCES admin_users(id),
           project_id TEXT REFERENCES projects(id),
-          type TEXT NOT NULL CHECK (type IN ('admin', 'project')),
+          type TEXT CHECK (type IN ('admin', 'project')),
+          user_type TEXT CHECK (user_type IN ('admin', 'project')),
           scopes TEXT NOT NULL DEFAULT '[]',
           metadata TEXT DEFAULT '{}',
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -7282,8 +8071,108 @@ export class DatabaseService {
           consumed INTEGER DEFAULT 0,
           consumed_at TEXT,
           last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
-          is_active INTEGER DEFAULT 1
+          is_active INTEGER DEFAULT 1,
+          ip_address TEXT,
+          user_agent TEXT
         )
+      `);
+
+      // Migration: Ensure user_type column exists (for SDK compatibility)
+      try {
+        const tableInfo = await this.dbManager.queryMain(
+          `PRAGMA table_info(sessions)`
+        );
+        const columns = (tableInfo.rows as Array<{ name: string }>).map(
+          (row) => row.name
+        );
+
+        if (!columns.includes("user_type")) {
+          await this.dbManager.queryMain(`
+            ALTER TABLE sessions ADD COLUMN user_type TEXT CHECK (user_type IN ('admin', 'project'))
+          `);
+          await this.dbManager.queryMain(`
+            UPDATE sessions SET user_type = type WHERE user_type IS NULL
+          `);
+          console.log(
+            "✅ Added 'user_type' column to sessions table (SDK compatibility)"
+          );
+        }
+      } catch (error) {
+        // Silently ignore duplicate column errors - column already exists
+        if (
+          error instanceof Error &&
+          !error.message.includes("duplicate column") &&
+          !error.message.includes("duplicate column name")
+        ) {
+          console.warn(
+            "⚠️  Failed to add user_type column:",
+            error.message
+          );
+        }
+      }
+
+      // Activity Logs Table (main DB - system-wide activity)
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS activity_logs (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+          action TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          resource_id TEXT,
+          details TEXT DEFAULT '{}',
+          ip_address TEXT,
+          user_agent TEXT,
+          severity TEXT DEFAULT 'info',
+          metadata TEXT DEFAULT '{}',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Migration: Add timestamp column to existing activity_logs table if it doesn't exist
+      try {
+        const tableInfo = await this.dbManager.queryMain(
+          `PRAGMA table_info(activity_logs)`
+        );
+        const columns = (tableInfo.rows as Array<{ name: string }>).map(
+          (row) => row.name
+        );
+
+        if (!columns.includes("timestamp")) {
+          await this.dbManager.queryMain(`
+            ALTER TABLE activity_logs ADD COLUMN timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+          `);
+          // Update existing rows to set timestamp = created_at
+          await this.dbManager.queryMain(`
+            UPDATE activity_logs SET timestamp = created_at WHERE timestamp IS NULL
+          `);
+          console.log(
+            "✅ Added 'timestamp' column to activity_logs table (SDK compatibility)"
+          );
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (
+          !errorMsg.includes("duplicate column") &&
+          !errorMsg.includes("duplicate column name")
+        ) {
+          console.warn(`⚠️  Failed to add timestamp column: ${errorMsg}`);
+        }
+      }
+
+      // Create indexes for activity_logs
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id)
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_project_id ON activity_logs(project_id)
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at)
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action)
       `);
 
       await this.dbManager.queryMain(`
@@ -7319,7 +8208,10 @@ export class DatabaseService {
           encrypted INTEGER DEFAULT 0,
           version TEXT DEFAULT '2.0.0',
           description TEXT,
-          file_path TEXT NOT NULL
+          file_path TEXT NOT NULL,
+          snapshot_id TEXT,
+          unique_size INTEGER,
+          file_count INTEGER
         )
       `);
 

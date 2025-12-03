@@ -1,9 +1,9 @@
 /**
  * Streamlined User Dialog Component
- * 
+ *
  * Comprehensive dialog for creating and editing admin users with role-based permissions.
  * Supports master admin, project admin, and limited admin account types.
- * 
+ *
  * @module components/users/StreamlinedUserDialog
  * @example
  * <StreamlinedUserDialog
@@ -50,12 +50,12 @@ import {
 } from "@/components/ui/select";
 import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { AdminUser } from "@/lib/krapi";
-import { Scope, AdminRole, AccessLevel } from "@/lib/krapi-constants";
+import { Scope } from "@/lib/krapi-constants";
 import { UserFormData, ExtendedAdminUser } from "@/lib/types/extended";
 
 /**
  * Streamlined User Dialog Props
- * 
+ *
  * @interface StreamlinedUserDialogProps
  * @property {boolean} open - Whether dialog is open
  * @property {Function} onOpenChange - Open/close change handler
@@ -71,14 +71,14 @@ interface StreamlinedUserDialogProps {
 
 /**
  * Account Type
- * 
+ *
  * @typedef {"master_admin" | "project_admin" | "limited_admin"} AccountType
  */
 type AccountType = "master_admin" | "project_admin" | "limited_admin";
 
 /**
  * Account Type Info Interface
- * 
+ *
  * @interface AccountTypeInfo
  * @property {string} title - Account type title
  * @property {string} description - Account type description
@@ -295,24 +295,25 @@ export function StreamlinedUserDialog({
       let response: { success: boolean; error?: string };
       if (editUser) {
         // For update, we need to send the data in the format the API expects
-        const updateData: Partial<AdminUser> = {
+        // SDK 0.5.0: role must be "admin" | "user"
+        const updateData = {
           email: userData.email,
           username: userData.username,
-          role: userData.role as AdminRole,
-          access_level: userData.access_level as AccessLevel,
-          permissions: [], // Will be derived from scopes on backend
+          role: userData.role as "admin" | "user",
+          is_active: true,
+          permissions: [] as string[], // Will be derived from scopes on backend
         };
         const result = await krapi.admin.updateUser(editUser.id, updateData);
         response = result as unknown as { success: boolean; error?: string };
       } else {
         // For create, the API expects a different structure
+        // SDK 0.5.0: role must be "admin" | "user"
         const createData = {
           email: userData.email,
           username: userData.username,
           password: userData.password!,
-          role: userData.role,
-          access_level: userData.access_level,
-          permissions: [], // Will be derived from scopes on backend
+          role: userData.role as "admin" | "user",
+          permissions: [] as string[], // Will be derived from scopes on backend
         };
         const result = await krapi.admin.createUser(createData);
         response = result as unknown as { success: boolean; error?: string };

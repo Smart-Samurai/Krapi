@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function DELETE(
@@ -22,36 +23,22 @@ export async function DELETE(
     }
 
     const { backupId } = await params;
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
 
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/backups/${backupId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    // SDK 0.4.0+: Use backup.delete() instead of backups
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await sdk.backup.delete(backupId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to delete backup",
-        },
-        { status: response.status }
-      );
-    }
-
-    const deleteData = await response.json();
-    return NextResponse.json(deleteData);
+    // SDK adapter now properly handles the response (fixed double unwrapping issue)
+    // It checks for "success" in response and returns { success: response.success }
+    // Return the result from the SDK
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to delete backup",
+        error:
+          error instanceof Error ? error.message : "Failed to delete backup",
       },
       { status: 500 }
     );

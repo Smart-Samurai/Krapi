@@ -1,33 +1,27 @@
 /**
  * System Settings Page
- * 
+ *
  * Page for managing system-wide settings including general, security, email, and database configuration.
  * Provides settings management and email testing functionality.
- * 
+ *
  * @module app/(sidebar)/settings/page
  * @example
  * // Automatically rendered at /settings route
  */
 "use client";
 
-import {
-  Settings,
-  Shield,
-  Save,
-  RefreshCw,
-  Mail,
-  Database,
-} from "lucide-react";
-import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { z } from "zod";
+import { Settings, Shield, Save, RefreshCw, Mail, Database } from "lucide-react";
+import React from "react";
 
-import {
-  PageLayout,
-  PageHeader,
-  ActionButton,
-} from "@/components/common";
+import { PageLayout, PageHeader, ActionButton } from "@/components/common";
 import { Form, FormField } from "@/components/forms";
+import {
+  generalSettingsSchema,
+  securitySettingsSchema,
+  emailSettingsSchema,
+  databaseSettingsSchema,
+  useSettings,
+} from "@/components/settings";
 import { InfoBlock } from "@/components/styled/InfoBlock";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,330 +32,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// Settings schema
-const generalSettingsSchema = z.object({
-  siteName: z.string().min(1, "Site name is required"),
-  siteUrl: z.string().url("Please enter a valid URL"),
-  adminEmail: z.string().email("Please enter a valid email"),
-  timezone: z.string().min(1, "Timezone is required"),
-  defaultLanguage: z.string().min(1, "Language is required"),
-});
+/**
+ * Tab configuration
+ */
+const tabs = [
+  { id: "general", label: "General", icon: Settings },
+  { id: "security", label: "Security", icon: Shield },
+  { id: "email", label: "Email", icon: Mail },
+  { id: "database", label: "Database", icon: Database },
+];
 
-const securitySettingsSchema = z.object({
-  requireTwoFactor: z.boolean(),
-  sessionTimeout: z.number().min(5).max(1440), // minutes
-  passwordMinLength: z.number().min(6).max(32),
-  passwordRequireUppercase: z.boolean(),
-  passwordRequireNumbers: z.boolean(),
-  passwordRequireSymbols: z.boolean(),
-  maxLoginAttempts: z.number().min(3).max(10),
-  networkInterface: z.enum(["localhost", "0.0.0.0"]),
-  allowedOrigins: z.string().optional(),
-});
-
-const emailSettingsSchema = z.object({
-  smtpHost: z.string().min(1, "SMTP host is required"),
-  smtpPort: z.number().min(1).max(65535),
-  smtpUsername: z.string().min(1, "Username is required"),
-  smtpPassword: z.string().optional(),
-  smtpSecure: z.boolean(),
-  fromEmail: z.string().email("Please enter a valid email"),
-  fromName: z.string().min(1, "From name is required"),
-});
-
-const databaseSettingsSchema = z.object({
-  connectionPoolSize: z.number().min(5).max(100),
-  queryTimeout: z.number().min(1000).max(60000), // milliseconds
-  enableQueryLogging: z.boolean(),
-  backupSchedule: z.enum(["disabled", "daily", "weekly", "monthly"]),
-  backupRetentionDays: z.number().min(1).max(365),
-});
-
-type GeneralSettingsData = z.infer<typeof generalSettingsSchema>;
-type SecuritySettingsData = z.infer<typeof securitySettingsSchema>;
-type EmailSettingsData = z.infer<typeof emailSettingsSchema>;
-type DatabaseSettingsData = z.infer<typeof databaseSettingsSchema>;
-
-interface SystemSettings {
-  general: GeneralSettingsData;
-  security: SecuritySettingsData;
-  email: EmailSettingsData;
-  database: DatabaseSettingsData;
-}
-
+/**
+ * System Settings Page Component
+ *
+ * Provides system settings management interface with tabs.
+ *
+ * @returns {JSX.Element} Settings page
+ */
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("general");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [testEmailDialog, setTestEmailDialog] = useState(false);
-  const [testEmail, setTestEmail] = useState("");
-
-  const { sessionToken, user: _user } = useReduxAuth();
-
-  const tabs = [
-    { id: "general", label: "General", icon: Settings },
-    { id: "security", label: "Security", icon: Shield },
-    { id: "email", label: "Email", icon: Mail },
-    { id: "database", label: "Database", icon: Database },
-  ];
-
-  // Fetch settings from backend
-  useEffect(() => {
-    const fetchSettings = async () => {
-      if (!sessionToken) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/system/settings", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch settings");
-        }
-
-        const result = await response.json();
-        if (result.success && result.data) {
-          setSettings(result.data as SystemSettings);
-        } else {
-          // Fallback to default settings if API fails
-          setSettings({
-            general: {
-              siteName: "KRAPI Manager",
-              siteUrl: "http://localhost:3469",
-              adminEmail: "admin@krapi.com",
-              timezone: "UTC",
-              defaultLanguage: "en",
-            },
-            security: {
-              requireTwoFactor: false,
-              sessionTimeout: 60,
-              passwordMinLength: 8,
-              passwordRequireUppercase: true,
-              passwordRequireNumbers: true,
-              passwordRequireSymbols: false,
-              maxLoginAttempts: 5,
-              networkInterface: "localhost",
-              allowedOrigins: "",
-            },
-            email: {
-              smtpHost: "smtp.gmail.com",
-              smtpPort: 587,
-              smtpUsername: "",
-              smtpPassword: "",
-              smtpSecure: true,
-              fromEmail: "noreply@krapi.com",
-              fromName: "KRAPI",
-            },
-            database: {
-              connectionPoolSize: 20,
-              queryTimeout: 30000,
-              enableQueryLogging: false,
-              backupSchedule: "daily",
-              backupRetentionDays: 30,
-            },
-          });
-        }
-      } catch {
-        // Error logged for debugging
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSettings();
-  }, [sessionToken]);
-
-  const handleGeneralSubmit = async (data: GeneralSettingsData) => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const response = await fetch("/api/system/settings", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ general: data }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save settings");
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setSettings((prev) => (prev ? { ...prev, general: data } : null));
-        toast.success("General settings saved successfully!");
-      } else {
-        toast.error(result.error || "Failed to save settings");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Failed to save settings. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSecuritySubmit = async (data: SecuritySettingsData) => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const response = await fetch("/api/system/settings", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ security: data }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save settings");
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setSettings((prev) => (prev ? { ...prev, security: data } : null));
-        toast.success("Security settings saved successfully!");
-      } else {
-        toast.error(result.error || "Failed to save settings");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Failed to save settings. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleEmailSubmit = async (data: EmailSettingsData) => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const response = await fetch("/api/system/settings", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: data }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save settings");
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setSettings((prev) => (prev ? { ...prev, email: data } : null));
-        toast.success("Email settings saved successfully!");
-      } else {
-        toast.error(result.error || "Failed to save settings");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Failed to save settings. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDatabaseSubmit = async (data: DatabaseSettingsData) => {
-    if (!sessionToken) {
-      toast.error("No session token available");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const response = await fetch("/api/system/settings", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ database: data }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save settings");
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        setSettings((prev) => (prev ? { ...prev, database: data } : null));
-        toast.success("Database settings saved successfully!");
-      } else {
-        toast.error(result.error || "Failed to save settings");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Failed to save settings. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleTestEmail = async () => {
-    if (!settings || !sessionToken || !testEmail) {
-      toast.error("Please enter an email address");
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/system/test-email", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: testEmail,
-          emailConfig: settings.email,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Email test failed");
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        toast.success("Email configuration test successful!");
-        setTestEmailDialog(false);
-        setTestEmail("");
-      } else {
-        toast.error(result.error || "Email configuration test failed");
-      }
-    } catch {
-      // Error logged for debugging
-      toast.error("Email configuration test failed. Please try again.");
-    }
-  };
+  const {
+    activeTab,
+    setActiveTab,
+    isLoading,
+    isSaving,
+    settings,
+    testEmailDialog,
+    setTestEmailDialog,
+    testEmail,
+    setTestEmail,
+    handleGeneralSubmit,
+    handleSecuritySubmit,
+    handleEmailSubmit,
+    handleDatabaseSubmit,
+    handleTestEmail,
+  } = useSettings();
 
   if (isLoading) {
     return (
@@ -436,21 +143,18 @@ export default function SettingsPage() {
                   type="text"
                   description="The name of your KRAPI instance"
                 />
-
                 <FormField
                   name="siteUrl"
                   label="Site URL"
                   type="text"
                   description="The public URL of your KRAPI instance"
                 />
-
                 <FormField
                   name="adminEmail"
                   label="Admin Email"
                   type="email"
                   description="Primary contact email for system notifications"
                 />
-
                 <FormField
                   name="timezone"
                   label="Timezone"
@@ -464,7 +168,6 @@ export default function SettingsPage() {
                   ]}
                   description="Default timezone for the system"
                 />
-
                 <FormField
                   name="defaultLanguage"
                   label="Default Language"
@@ -477,13 +180,8 @@ export default function SettingsPage() {
                   ]}
                   description="Default language for the interface"
                 />
-
                 <div className="flex justify-end">
-                  <ActionButton
-                    variant="default"
-                    icon={Save}
-                    disabled={isSaving}
-                  >
+                  <ActionButton variant="default" icon={Save} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save Changes"}
                   </ActionButton>
                 </div>
@@ -514,14 +212,12 @@ export default function SettingsPage() {
                   type="checkbox"
                   description="Require all admin users to enable 2FA"
                 />
-
                 <FormField
                   name="sessionTimeout"
                   label="Session Timeout (minutes)"
                   type="number"
                   description="How long before inactive sessions expire"
                 />
-
                 <FormField
                   name="maxLoginAttempts"
                   label="Max Login Attempts"
@@ -533,7 +229,6 @@ export default function SettingsPage() {
                   <h3 className="text-base font-semibold mb-4">
                     Password Requirements
                   </h3>
-
                   <div className="space-y-4">
                     <FormField
                       name="passwordMinLength"
@@ -541,21 +236,18 @@ export default function SettingsPage() {
                       type="number"
                       description="Minimum number of characters required"
                     />
-
                     <FormField
                       name="passwordRequireUppercase"
                       label="Require Uppercase Letters"
                       type="checkbox"
                       description="Passwords must contain at least one uppercase letter"
                     />
-
                     <FormField
                       name="passwordRequireNumbers"
                       label="Require Numbers"
                       type="checkbox"
                       description="Passwords must contain at least one number"
                     />
-
                     <FormField
                       name="passwordRequireSymbols"
                       label="Require Symbols"
@@ -574,8 +266,8 @@ export default function SettingsPage() {
                     <InfoBlock variant="warning" className="mb-4">
                       <p className="font-semibold">⚠️ Security Warning</p>
                       <p>
-                        Listening on 0.0.0.0 exposes your server to all network interfaces. 
-                        Make sure you have:
+                        Listening on 0.0.0.0 exposes your server to all network
+                        interfaces. Make sure you have:
                       </p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
                         <li>Proper firewall rules configured</li>
@@ -597,7 +289,6 @@ export default function SettingsPage() {
                       ]}
                       description="Network interface to listen on. Use 0.0.0.0 to allow network access (requires restart and proper security configuration)"
                     />
-
                     <FormField
                       name="allowedOrigins"
                       label="Allowed Origins (CORS)"
@@ -609,11 +300,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <ActionButton
-                    variant="default"
-                    icon={Save}
-                    disabled={isSaving}
-                  >
+                  <ActionButton variant="default" icon={Save} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save Changes"}
                   </ActionButton>
                 </div>
@@ -644,21 +331,18 @@ export default function SettingsPage() {
                   type="text"
                   description="Your email server hostname"
                 />
-
                 <FormField
                   name="smtpPort"
                   label="SMTP Port"
                   type="number"
                   description="Usually 587 for TLS or 465 for SSL"
                 />
-
                 <FormField
                   name="smtpUsername"
                   label="SMTP Username"
                   type="text"
                   description="Authentication username for SMTP"
                 />
-
                 <FormField
                   name="smtpPassword"
                   label="SMTP Password"
@@ -666,7 +350,6 @@ export default function SettingsPage() {
                   description="Authentication password for SMTP"
                   placeholder="Leave blank to keep current password"
                 />
-
                 <FormField
                   name="smtpSecure"
                   label="Use Secure Connection (TLS/SSL)"
@@ -678,7 +361,6 @@ export default function SettingsPage() {
                   <h3 className="text-base font-semibold mb-4">
                     Sender Information
                   </h3>
-
                   <div className="space-y-4">
                     <FormField
                       name="fromEmail"
@@ -686,7 +368,6 @@ export default function SettingsPage() {
                       type="email"
                       description="Email address that will appear as sender"
                     />
-
                     <FormField
                       name="fromName"
                       label="From Name"
@@ -705,7 +386,6 @@ export default function SettingsPage() {
                     <Mail className="h-4 w-4 mr-2" />
                     Send Test Email
                   </Button>
-
                   <Button type="submit" className="btn-confirm" disabled={isSaving}>
                     <Save className="h-4 w-4 mr-2" />
                     {isSaving ? "Saving..." : "Save Changes"}
@@ -738,14 +418,12 @@ export default function SettingsPage() {
                   type="number"
                   description="Maximum number of database connections"
                 />
-
                 <FormField
                   name="queryTimeout"
                   label="Query Timeout (ms)"
                   type="number"
                   description="Maximum time for database queries"
                 />
-
                 <FormField
                   name="enableQueryLogging"
                   label="Enable Query Logging"
@@ -757,7 +435,6 @@ export default function SettingsPage() {
                   <h3 className="text-base font-semibold mb-4">
                     Backup Settings
                   </h3>
-
                   <div className="space-y-4">
                     <FormField
                       name="backupSchedule"
@@ -769,24 +446,19 @@ export default function SettingsPage() {
                         { value: "weekly", label: "Weekly" },
                         { value: "monthly", label: "Monthly" },
                       ]}
-                      description="How often to automatically backup the database"
+                      description="How often to create automatic backups"
                     />
-
                     <FormField
                       name="backupRetentionDays"
                       label="Backup Retention (days)"
                       type="number"
-                      description="How long to keep backup files"
+                      description="How long to keep backups before deletion"
                     />
                   </div>
                 </div>
 
                 <div className="flex justify-end">
-                  <ActionButton
-                    variant="default"
-                    icon={Save}
-                    disabled={isSaving}
-                  >
+                  <ActionButton variant="default" icon={Save} disabled={isSaving}>
                     {isSaving ? "Saving..." : "Save Changes"}
                   </ActionButton>
                 </div>
@@ -808,33 +480,24 @@ export default function SettingsPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div>
-              <label className="block text-base font-medium mb-2">
-                Recipient Email
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="testEmail">Recipient Email</Label>
+              <Input
+                id="testEmail"
                 type="email"
+                placeholder="Enter email address"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
-                placeholder="test@example.com"
-                className="w-full px-3 py-2 border border-border  focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setTestEmailDialog(false);
-                setTestEmail("");
-              }}
-            >
+            <Button variant="outline" onClick={() => setTestEmailDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleTestEmail}>
-              <Mail className="h-4 w-4 mr-2" />
-              Send Test Email
+            <Button onClick={handleTestEmail} disabled={isSaving || !testEmail}>
+              {isSaving ? "Sending..." : "Send Test Email"}
             </Button>
           </DialogFooter>
         </DialogContent>

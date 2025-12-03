@@ -1,0 +1,3 @@
+# This directory contains Restic binaries for all platforms
+# Run `npm run download-restic` to download them
+

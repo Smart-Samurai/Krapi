@@ -1,12 +1,13 @@
 /**
  * KRAPI Backend Server
- * 
+ *
  * Main Express application setup and initialization.
- * 
+ *
  * Database Initialization & Health Check System:
- * 
+ *
  * 1. DATABASE INITIALIZATION:
- *    - On startup, the server attempts to connect to PostgreSQL
+ *    - On startup, the server attempts to connect to SQLite database
+ *    - Uses SDK's native SQLite support - no PostgreSQL conversion needed
  *    - Creates all required tables if they don't exist
  *    - Ensures default admin user exists with credentials:
  *      Username: admin
@@ -14,7 +15,7 @@
  *    - Generates a master API key for the default admin (shown once on first run)
  *    - If admin exists but password was changed during development,
  *      it will be reset to the default on startup
- * 
+ *
  * 2. AUTHENTICATION:
  *    - Admin users can authenticate via:
  *      a) Username/password: POST /krapi/k1/auth/admin/login
@@ -22,35 +23,35 @@
  *    - Master API key (mak_*) provides full admin access
  *    - Admin API keys (ak_*) provide admin-level access with custom scopes
  *    - Project API keys (pk_*) provide project-specific access
- * 
+ *
  * 3. ACCESS CONTROL (SCOPES):
  *    The system uses fine-grained scope-based permissions:
- * 
+ *
  *    Master Scope:
  *    - MASTER: Full unrestricted access to everything
- * 
+ *
  *    Admin Scopes:
  *    - admin:read - View admin users and system info
  *    - admin:write - Create/update admin users
  *    - admin:delete - Delete admin users
- * 
+ *
  *    Project Scopes:
  *    - projects:read - View projects
  *    - projects:write - Create/update projects
  *    - projects:delete - Delete projects
- * 
+ *
  *    Resource Scopes (project-specific):
  *    - collections:read/write/delete - Manage data schemas
  *    - documents:read/write/delete - Manage data records
  *    - storage:read/write/delete - Manage files
  *    - email:send/read - Email functionality
  *    - functions:execute/write/delete - Serverless functions
- * 
+ *
  *    Scopes are assigned based on:
  *    - Admin role (master_admin gets MASTER scope)
  *    - API key configuration (custom scopes per key)
  *    - Project API keys get default project scopes
- * 
+ *
  * 4. HEALTH CHECKS:
  *    - GET /krapi/k1/health - Returns comprehensive health status
  *    - POST /krapi/k1/health/repair - Attempts to fix database issues
@@ -59,41 +60,39 @@
  *      - Required tables existence check
  *      - Default admin user check
  *      - Initialization status
- * 
+ *
  * 5. AUTO-REPAIR:
  *    - On startup, if health check fails, auto-repair is attempted
  *    - Repair actions include:
  *      - Creating missing tables
  *      - Fixing default admin user
  *      - Recording repair actions in system_checks table
- * 
+ *
  * 6. ROUTE STRUCTURE:
  *    Admin-level routes:
  *    - /krapi/k1/auth/* - Authentication endpoints
  *    - /krapi/k1/admin/* - Admin user management
  *    - /krapi/k1/projects - Project CRUD operations
- * 
+ *
  *    Project-level routes (all under /projects/:projectId):
  *    - /krapi/k1/projects/:projectId/collections/* - Data collections
  *    - /krapi/k1/projects/:projectId/storage/* - File storage
  *    - /krapi/k1/projects/:projectId/email/* - Email functionality (future)
- * 
+ *
  * 7. ENVIRONMENT VARIABLES:
- *    - DB_HOST: PostgreSQL host (default: localhost)
- *    - DB_PORT: PostgreSQL port (default: 5432)
- *    - DB_NAME: Database name (default: krapi)
- *    - DB_USER: Database user (default: postgres)
- *    - DB_PASSWORD: Database password (default: postgres)
+ *    - DB_PATH: SQLite database path (default: ./data/krapi.db)
+ *    - SQLITE_DB_PATH: Alternative name for DB_PATH
+ *    - PROJECTS_DB_DIR: Directory for project databases (default: ./data/projects)
  *    - DEFAULT_ADMIN_PASSWORD: Default admin password (default: admin123)
- * 
+ *
  * 8. TROUBLESHOOTING:
  *    - Run npm run health-check to verify backend health
  *    - Check logs for detailed error messages
- *    - Ensure PostgreSQL is running and accessible
- *    - Verify database credentials in environment variables
+ *    - Ensure SQLite database directory is writable
+ *    - Verify database path in environment variables
  *    - Master API key is shown only once on first run - save it securely!
  *    - Use appropriate scopes when creating API keys for limited access
- * 
+ *
  * @module app
  */
 
@@ -114,11 +113,12 @@ import helmet from "helmet";
 // Load environment variables from root directory
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
+import { initializeAuthMiddleware } from "./middleware/auth.middleware";
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
 import { BackupSchedulerService } from "./services/backup-scheduler.service";
-import { DatabaseService } from "./services/database.service";
-import { ProjectAwareDbAdapter } from "./services/project-aware-db-adapter";
+import { ResticBackupService } from "./services/restic-backup.service";
+import { SdkDatabaseAdapter } from "./services/sdk-database-adapter";
 import { SDKServiceManager } from "./services/sdk-service-manager";
 
 // Types imported but used in route files
@@ -160,26 +160,38 @@ const app: Express = express();
 
 // Trust proxy - required when behind reverse proxy (Nginx, NPM, etc.)
 // This allows Express to correctly read X-Forwarded-* headers
-app.set('trust proxy', true);
+// Use a number (1) instead of true to avoid rate limiter validation issues
+// 1 means trust the first proxy (frontend)
+app.set("trust proxy", 1);
 
 // Security middleware
 app.use(helmet());
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((origin) =>
+const configuredOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((origin) =>
   origin.trim()
-) || [
-  "http://localhost:3469",
+).filter((origin) => origin) || [];
+
+// Always include localhost origins (for local development and testing)
+const localhostOrigins = [
+  "http://localhost",
   "http://localhost:3498", // Frontend default port
-  "http://localhost:3000", // Alternative frontend port
+  "http://localhost:3470", // Backend port
+  "http://127.0.0.1",
+  "http://127.0.0.1:3498",
+  "http://127.0.0.1:3470",
 ];
+
+// Combine configured origins with localhost origins (localhost always allowed)
+const allowedOrigins = [...new Set([...localhostOrigins, ...configuredOrigins])];
 
 // When behind a reverse proxy (NPM, Nginx, etc.), allow all origins
 // The reverse proxy handles security, and we trust it via trust proxy setting
 // Default is true (most deployments use a reverse proxy for internet access)
 // Only set to false if explicitly disabled (BEHIND_PROXY=false)
 // Production mode always enables proxy mode
-const isBehindProxy = process.env.NODE_ENV === "production" || process.env.BEHIND_PROXY !== "false";
+const isBehindProxy =
+  process.env.NODE_ENV === "production" || process.env.BEHIND_PROXY !== "false";
 
 app.use(
   cors({
@@ -192,15 +204,18 @@ app.use(
       if (isBehindProxy) {
         return callback(null, true);
       }
+      // Always allow localhost origins (for local development)
+      if (
+        origin.startsWith("http://localhost") ||
+        origin.startsWith("http://127.0.0.1")
+      ) {
+        return callback(null, true);
+      }
+      // Check configured allowed origins
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        // In development, allow localhost origins
-        if (process.env.NODE_ENV !== "production" && origin.startsWith("http://localhost:")) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS"));
-        }
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
@@ -246,53 +261,38 @@ const generalLimiter = rateLimit({
   keyGenerator: (req) => {
     // When trust proxy is enabled, req.ip will use X-Forwarded-For
     // But we need to explicitly handle it for rate limiting
-    const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded && typeof forwarded === 'string') {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (forwarded && typeof forwarded === "string") {
       // X-Forwarded-For can contain multiple IPs, take the first one
-      const firstIp = forwarded.split(',')[0];
+      const firstIp = forwarded.split(",")[0];
       if (firstIp) {
         return firstIp.trim();
       }
     }
-    return req.ip || req.socket.remoteAddress || 'unknown';
+    return req.ip || req.socket.remoteAddress || "unknown";
   },
-  // Disable trust proxy validation since we handle it manually
+  // Trust proxy is set to 1 (trust first proxy) in app configuration
+  // Rate limiter will use req.ip which respects trust proxy setting
   validate: {
-    trustProxy: false, // Tell rate limiter we're handling proxy detection ourselves
+    trustProxy: true, // Trust proxy is properly configured
   },
   // Skip rate limiting for health checks
   skip: (req) => {
-    return req.path === '/krapi/k1/health' || req.path === '/health';
+    return req.path === "/krapi/k1/health" || req.path === "/health";
   },
 });
 
 app.use("/krapi/k1", generalLimiter);
 
-// Initialize database service
-const databaseService = DatabaseService.getInstance();
+// Initialize SDK-compatible database adapter
+// Uses SDK's native SQLite support with project-aware routing
+const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH;
+const projectsDbDir = process.env.PROJECTS_DB_DIR;
+const dbAdapter = new SdkDatabaseAdapter(mainDbPath, projectsDbDir);
 
-// Initialize SDK service manager with real database connection
+// Initialize SDK service manager with SDK-native database connection
 const sdkServiceManager = new SDKServiceManager(
   {
-    query: async (sql: string, params?: unknown[]) => {
-      return await databaseService.query(sql, params);
-    },
-    connect: async () => {
-      await databaseService.connect();
-    },
-    end: async () => {
-      await databaseService.end();
-    },
-  },
-  console
-);
-
-// Initialize project-aware database adapter
-const dbAdapter = new ProjectAwareDbAdapter(databaseService);
-
-// Initialize BackendSDK with project-aware database connection
-const backendSDK = new BackendSDK({
-  databaseConnection: {
     query: async (sql: string, params?: unknown[]) => {
       return await dbAdapter.query(sql, params);
     },
@@ -303,9 +303,29 @@ const backendSDK = new BackendSDK({
       await dbAdapter.end();
     },
   },
+  console
+);
+
+const resticRepositoryPath =
+  process.env.RESTIC_REPOSITORY ||
+  path.join(process.cwd(), "data", "backups", "restic-repo");
+const resticDataPath =
+  process.env.RESTIC_DATA_PATH || path.join(process.cwd(), "data");
+const resticBinaryPath = process.env.RESTIC_BINARY_PATH; // Optional
+
+const resticBackupService = new ResticBackupService(
+  resticRepositoryPath,
+  resticDataPath,
+  resticBinaryPath
+);
+
+// Initialize BackendSDK with SDK-native database connection and Restic backup backend
+const backendSDK = new BackendSDK({
+  databaseConnection: dbAdapter,
   logger: console,
   enableAutoFix: true,
   enableHealthChecks: true,
+  backupBackend: resticBackupService, // Use Restic for backups
 });
 
 // Health check endpoint (no auth required)
@@ -333,6 +353,12 @@ app.get("/health", async (_req: Request, res: Response) => {
 
 // Initialize the router with the BackendSDK
 initializeBackendSDK(backendSDK);
+
+// Store BackendSDK in app context for route handlers that need it
+app.set("backendSDK", backendSDK);
+
+// Initialize auth middleware with BackendSDK
+initializeAuthMiddleware(backendSDK);
 
 // System status and logging routes
 app.get("/system/status", (_req, res) => {
@@ -391,7 +417,9 @@ app.get("/system/logs", (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("system", "Failed to get logs", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("system", "Failed to get logs", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: "Failed to get logs",
@@ -411,7 +439,9 @@ app.get("/system/metrics", (_req, res) => {
       },
     });
   } catch (error) {
-    logger.error("system", "Failed to get metrics", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("system", "Failed to get metrics", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: "Failed to get metrics",
@@ -520,6 +550,7 @@ async function startServer() {
         console.log(`🧹 Cleaned up ${cleaned} expired sessions on startup`);
       }
       // Also invalidate very old sessions (older than 30 days)
+      const { DatabaseService } = await import("./services/database.service");
       const dbService = DatabaseService.getInstance();
       await dbService.cleanupOldSessions();
     } catch (error) {
@@ -527,6 +558,8 @@ async function startServer() {
     }
 
     // Initialize backup scheduler
+    const { DatabaseService } = await import("./services/database.service");
+    const databaseService = DatabaseService.getInstance();
     const backupScheduler = new BackupSchedulerService(
       databaseService,
       backendSDK,

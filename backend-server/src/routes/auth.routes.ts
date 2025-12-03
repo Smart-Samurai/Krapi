@@ -21,6 +21,7 @@
  * app.use('/krapi/k1/auth', authRoutes);
  */
 
+import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router, IRouter } from "express";
 import { rateLimit } from "express-rate-limit";
 
@@ -29,6 +30,16 @@ import { authenticate } from "@/middleware/auth.middleware";
 
 const router: IRouter = Router();
 const controller = new AuthController();
+
+/**
+ * Initialize BackendSDK for auth routes
+ * 
+ * @param {BackendSDK} sdk - BackendSDK instance
+ * @returns {void}
+ */
+export const initializeAuthSDK = (sdk: BackendSDK) => {
+  controller.setBackendSDK(sdk);
+};
 
 // Rate limiting for sensitive operations
 const sensitiveLimiter = rateLimit({
@@ -72,6 +83,25 @@ router.post("/admin/login", loginLimiter, controller.adminLogin);
  * @returns {Object} Authentication result with user, token, session_token, expires_at
  */
 router.post("/admin/api-login", controller.adminApiLogin);
+
+/**
+ * User registration
+ * 
+ * POST /krapi/k1/auth/register
+ * 
+ * Registers a new user account.
+ * Rate limited to prevent abuse.
+ * 
+ * @route POST /register
+ * @body {string} username - Username
+ * @body {string} email - Email address
+ * @body {string} password - Password
+ * @body {string} [role] - Optional role
+ * @body {string} [access_level] - Optional access level
+ * @body {string[]} [permissions] - Optional permissions array
+ * @returns {Object} Registration result with success flag and user data
+ */
+router.post("/register", loginLimiter, controller.register);
 
 // ===== Session Management =====
 /**

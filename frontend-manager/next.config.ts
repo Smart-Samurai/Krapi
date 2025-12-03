@@ -19,9 +19,11 @@ const nextConfig = {
   staticPageGenerationTimeout: 120,
 
   // Environment variables
+  // Note: These are defaults - actual values should come from .env files
+  // SDK-FIRST: Use centralized config system instead of hardcoded values
   env: {
-    NEXT_PUBLIC_API_URL: "http://localhost:3470/krapi/k1",
-    PORT: "3498",
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3470/krapi/k1",
+    PORT: process.env.PORT || "3498",
   },
 
   // Optimize images and static assets
@@ -65,8 +67,11 @@ const nextConfig = {
   // server-only code when types are imported. Use webpack for production builds.
   turbopack: {},
 
+  // Suppress source map warnings in development
+  productionBrowserSourceMaps: false,
+  
   // Webpack configuration for backward compatibility (when using --webpack flag)
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       // Configure fallbacks for Node.js modules when running in the browser
       config.resolve.fallback = {
@@ -96,6 +101,18 @@ const nextConfig = {
         fs: "false",
         nodemailer: "false",
       });
+    }
+
+    // Suppress source map warnings in development
+    if (dev) {
+      config.devtool = false; // Disable source maps in development to suppress warnings
+      // Suppress source map warnings
+      config.ignoreWarnings = [
+        ...(config.ignoreWarnings || []),
+        /Failed to parse source map/,
+        /Invalid source map/,
+        /sourceMapURL could not be parsed/,
+      ];
     }
 
     return config;

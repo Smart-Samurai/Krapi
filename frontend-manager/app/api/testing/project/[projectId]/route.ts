@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Delete test project
  * DELETE /api/testing/project/[projectId]
+ *
+ * SDK 0.4.0+: Use testing.cleanup(projectId) instead of testing.deleteTestProject()
  */
 export async function DELETE(
   _request: NextRequest,
@@ -11,9 +13,11 @@ export async function DELETE(
 ) {
   try {
     const { projectId } = await params;
-    await krapi.testing.deleteTestProject(projectId);
+    // SDK 0.4.0+: Use cleanup(projectId) instead of deleteTestProject()
+    const result = await krapi.testing.cleanup(projectId);
     return NextResponse.json({
-      success: true,
+      success: result.success,
+      deleted: result.deleted,
     });
   } catch (error) {
     return NextResponse.json(
@@ -25,4 +29,3 @@ export async function DELETE(
     );
   }
 }
-

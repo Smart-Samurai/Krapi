@@ -5,50 +5,99 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
     const { searchParams } = new URL(request.url);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const queryParams = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      queryParams.append(key, value);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const limit = searchParams.get("limit")
+      ? parseInt(searchParams.get("limit")!, 10)
+      : 10;
+    const projectId = searchParams.get("project_id") || undefined;
+
+    // SDK adapter.query() returns ActivityLog[] directly
+    const queryResult = await sdk.activity.query({
+      ...(projectId ? { project_id: projectId } : {}),
+      limit: limit,
     });
 
-    const response = await fetch(
-      `${backendUrl}/admin/activity/query?${queryParams}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: authHeader,
-        },
-      }
-    );
+    // LOG: What we received from SDK
+    // eslint-disable-next-line no-console
+    console.log("[FRONTEND] activity.recent received from SDK:", {
+      type: typeof queryResult,
+      isArray: Array.isArray(queryResult),
+      isNull: queryResult === null,
+      isUndefined: queryResult === undefined,
+      keys:
+        queryResult && typeof queryResult === "object"
+          ? Object.keys(queryResult)
+          : [],
+      length: Array.isArray(queryResult) ? queryResult.length : "N/A",
+      sample:
+        Array.isArray(queryResult) && queryResult.length > 0
+          ? queryResult[0]
+          : queryResult,
+      fullResult: JSON.stringify(queryResult),
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to get recent activity" },
-        { status: response.status }
+    // SDK adapter should always return an array
+    if (!Array.isArray(queryResult)) {
+      // eslint-disable-next-line no-console
+      console.error("SDK activity.query() returned non-array:", {
+        type: typeof queryResult,
+        isArray: Array.isArray(queryResult),
+        keys:
+          queryResult && typeof queryResult === "object"
+            ? Object.keys(queryResult)
+            : [],
+        queryResult,
+      });
+      throw new Error(
+        `SDK activity.query() returned unexpected format: ${JSON.stringify(
+          queryResult
+        )}. Expected array.`
       );
     }
 
-    const activityData = await response.json();
-    return NextResponse.json(activityData.logs || []);
-  } catch {
+    // Return in ApiResponse format so SDK adapter can properly unwrap it
+    const response = {
+      success: true,
+      data: queryResult,
+    };
+
+    // LOG: What we're returning
+    // eslint-disable-next-line no-console
+    console.log("[FRONTEND] activity.recent returning:", {
+      success: response.success,
+      dataType: typeof response.data,
+      dataIsArray: Array.isArray(response.data),
+      dataLength: Array.isArray(response.data) ? response.data.length : "N/A",
+      fullResponse: JSON.stringify(response),
+    });
+
+    return NextResponse.json(response);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error getting recent activity:", error);
     return NextResponse.json(
-      { error: "Failed to get recent activity" },
+      {
+        success: false,
+        error: "Failed to get recent activity",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
 }
-

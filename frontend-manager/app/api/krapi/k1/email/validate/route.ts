@@ -5,43 +5,33 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const response = await fetch(`${backendUrl}/email/validate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(body),
-    });
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await (sdk.email as unknown as {
+      validate: (email: string) => Promise<{ valid: boolean; reason?: string }>;
+    }).validate(body.email || body.address);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to validate email" },
-        { status: response.status }
-      );
-    }
-
-    const validationData = await response.json();
-    return NextResponse.json(validationData);
-  } catch {
-    
+    return NextResponse.json(result);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error validating email:", error);
     return NextResponse.json(
-      { error: "Failed to validate email" },
+      { error: error instanceof Error ? error.message : "Failed to validate email" },
       { status: 500 }
     );
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function - more permissive to accept any valid UUID format
@@ -45,9 +46,6 @@ export async function GET(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit")
@@ -62,7 +60,7 @@ export async function GET(
     const countOnly = searchParams.get("count") === "true";
 
     // Parse filter parameters
-    let filter: Record<string, string> | undefined = undefined;
+    let filter: Record<string, unknown> | undefined = undefined;
     for (const [key, value] of searchParams.entries()) {
       if (key.startsWith("filter[")) {
         if (!filter) filter = {};
@@ -71,89 +69,35 @@ export async function GET(
       }
     }
 
-    // If count only is requested, return count instead of documents
+    // Use SDK method - frontend should work like third-party app
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+
+    // If count only is requested, use SDK to get documents and count them
+    // Note: SDK may not have a direct count method, so we'll get all and count
     if (countOnly) {
-      const countUrl = `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/count`;
-
-      // Build query parameters for filtering
-      const countParams = new URLSearchParams();
-      if (filter) {
-        for (const [key, value] of Object.entries(filter)) {
-          if (typeof value === "string") {
-            countParams.append(`filter[${key}]`, value);
-          }
-        }
-      }
-
-      const fullCountUrl = countParams.toString()
-        ? `${countUrl}?${countParams.toString()}`
-        : countUrl;
-
-      const countResponse = await fetch(fullCountUrl, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
+      // For count, we can get documents with a high limit and count them
+      // Or use SDK if it has a count method
+      const documents = await sdk.documents.getAll(projectId, collectionName, {
+        filter: filter as Record<string, unknown> | undefined,
+        limit: 10000, // High limit to get all for counting
+        offset: 0,
       });
-
-      if (!countResponse.ok) {
-        const errorData = await countResponse.json();
-        return NextResponse.json(
-          {
-            success: false,
-            error: errorData.error || "Failed to count documents",
-          },
-          { status: countResponse.status }
-        );
-      }
-
-      const backendResponse = await countResponse.json();
-      // Backend returns { success: true, count: number }
-      // Test expects response.data.count to be a number (not nested in data.data.count)
-      // Extract count directly from backend response - don't wrap in data again
-      const countValue = backendResponse.count;
-      // Ensure count is a number
-      const count = typeof countValue === "number" ? countValue : parseInt(String(countValue || 0), 10);
-      
-      // Return directly with success and count (test expects response.data.count, not response.data.data.count)
+      const count = Array.isArray(documents) ? documents.length : 1;
       return NextResponse.json({ success: true, count });
     }
 
-    // Regular document fetching
-    const queryParams = new URLSearchParams({
-      limit: limit.toString(),
-      page: page.toString(),
-      offset: offset.toString(),
+    // Regular document fetching with SDK
+    const documents = await sdk.documents.getAll(projectId, collectionName, {
+      filter: filter as Record<string, unknown> | undefined,
+      limit,
+      offset: offset || ((page - 1) * limit),
     });
 
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents?${queryParams}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to fetch documents",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    // Backend returns { data: [...], total: ..., limit: ..., offset: ... }
-    // Test expects response.data.data to be the array of documents
-    // So we should return { success: true, data: backendResponse.data }
-    return NextResponse.json({ success: true, data: backendResponse.data });
+    // SDK returns documents array directly
+    return NextResponse.json({ 
+      success: true, 
+      data: Array.isArray(documents) ? documents : [documents] 
+    });
   } catch (error) {
     
     return NextResponse.json(
@@ -219,49 +163,15 @@ export async function POST(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const fullBackendUrl = `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`;
+    // Use SDK method - frontend should work like third-party app
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const document = await sdk.documents.create(
+      projectId,
+      collectionName,
+      { data: documentData.data || documentData }
+    );
 
-    const response = await fetch(fullBackendUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(documentData),
-    });
-
-    // Log response body for debugging
-    const responseText = await response.text();
-    
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { error: responseText };
-      }
-      
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to create document",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = JSON.parse(responseText);
-    
-    
-    // Extract document from backend response
-    // Backend returns { success: true, data: document }, extract document
-    const document = backendResponse.data || backendResponse;
-    
-    
-    // Test expects response.data.id, so return document directly in data field
+    // SDK returns document directly
     return NextResponse.json(
       { success: true, ...document },
       { status: 201 }

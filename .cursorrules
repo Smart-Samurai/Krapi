@@ -1,0 +1,97 @@
+# Cursor Rules for Krapi Project
+
+## CRITICAL: SDK-FIRST ARCHITECTURE RULE
+
+**ABSOLUTE REQUIREMENT: All communication between frontend and backend MUST use SDK exclusively.**
+
+### The Rule
+
+1. **NO DIRECT FETCH CALLS**: Frontend routes MUST NEVER use `fetch()` to communicate with backend
+2. **SDK ONLY**: All frontend-to-backend communication MUST go through SDK methods
+3. **SINGLE BACKEND CLIENT**: Use `backendSdkClient` service for all backend connections from frontend
+4. **NO EXCEPTIONS**: Even for routes called by SDK itself (like login), use SDK - solve circular dependencies properly
+5. **VERIFY SDK METHODS**: ALWAYS check actual SDK package code before using any SDK method
+
+### MANDATORY: SDK Method Verification Process
+
+**BEFORE using any SDK method, you MUST:**
+
+1. **Check the actual SDK package code**:
+
+   - Read `node_modules/@smartsamurai/krapi-sdk/dist/**/*.d.ts` (TypeScript definitions)
+   - Read `node_modules/@smartsamurai/krapi-sdk/dist/**/*.js` (actual implementation)
+   - Search SDK source code for method existence and signature
+   - Verify method parameters, return types, and error handling
+
+2. **Verify method signatures match your usage**:
+
+   - Check parameter names and types
+   - Check return value structure
+   - Check error handling patterns
+   - Verify method exists in the SDK version being used
+
+3. **Document findings**:
+   - If method doesn't exist, document what needs to be implemented
+   - If method signature differs, adjust code to match actual signature
+   - Never assume method names or signatures - always verify
+
+**Tools to use for verification:**
+
+- `read_file` tool: Read SDK TypeScript definitions (`*.d.ts` files)
+- `grep` tool: Search SDK source code for method names
+- `codebase_search` tool: Search for SDK method usage examples
+- Check `SDK_TEAM_DOCUMENTATION/` for method references
+
+**Example verification workflow:**
+
+```typescript
+// Step 1: Check if method exists in SDK
+// Read: node_modules/@smartsamurai/krapi-sdk/dist/index.d.ts
+// Search for: auth.adminLogin or auth.login
+
+// Step 2: Verify signature
+// Check parameters: { username: string, password: string }?
+// Check return type: Promise<{ session_token: string, user: ... }>?
+
+// Step 3: Use correct method with verified signature
+const result = await backendSdk.auth.login({ username, password });
+```
+
+### Implementation Pattern
+
+```typescript
+// ✅ CORRECT: Use SDK (after verification)
+import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
+const backendSdk = await getBackendSdkClient();
+// Method verified to exist: auth.login()
+const result = await backendSdk.auth.login({ username, password });
+
+// ❌ FORBIDDEN: Direct fetch
+const response = await fetch(`${backendUrl}/krapi/k1/auth/admin/login`, {...});
+
+// ❌ FORBIDDEN: Using unverified SDK methods
+// Never assume method names - always verify first!
+const result = await backendSdk.auth.adminLogin({ ... }); // WRONG if method doesn't exist
+```
+
+### Architecture
+
+- **Frontend Routes**: Use `backendSdkClient` service (connects to backend URL via SDK)
+- **Backend Controllers**: Use `BackendSDK` (direct database connection)
+- **External Apps**: Use regular `krapi` SDK (connects to frontend URL)
+
+### Why This Matters
+
+- Single source of truth for all API interactions
+- Type safety guaranteed across frontend/backend
+- Consistent error handling
+- No implementation mismatches
+- Automatic validation
+- Proper authentication flow
+- **Prevents hallucinated method calls that don't exist**
+
+### Violations Are Unacceptable
+
+1. Any route that uses `fetch()` to call backend directly violates this rule and must be fixed immediately.
+2. Any code that uses SDK methods without first verifying they exist in the actual package violates this rule.
+3. Any code that assumes method signatures without checking the actual SDK code violates this rule.

@@ -5,16 +5,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
@@ -22,29 +32,20 @@ export async function GET(
     }
 
     const resolvedParams = await params;
-    const response = await fetch(
-      `${backendUrl}/storage/project/${resolvedParams.projectId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: authHeader,
-        },
-      }
-    );
+    const { projectId } = resolvedParams;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to list files" },
-        { status: response.status }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const files = await (sdk.storage as unknown as {
+      listFiles: (projectId: string) => Promise<unknown[]>;
+    }).listFiles(projectId);
 
-    const filesData = await response.json();
-    return NextResponse.json(filesData);
-  } catch {
+    return NextResponse.json(files);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error listing files:", error);
     return NextResponse.json(
-      { error: "Failed to list files" },
+      { error: error instanceof Error ? error.message : "Failed to list files" },
       { status: 500 }
     );
   }

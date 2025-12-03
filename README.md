@@ -109,7 +109,7 @@ Before installing KRAPI, ensure you have the following installed on your system:
 ### Platform-Specific Requirements
 
 - **Linux/macOS**: Bash shell (comes pre-installed)
-- **Windows**: PowerShell 5.1+ or Windows Terminal (or use `krapi-manager.bat`)
+- **Windows**: PowerShell 5.1+ or Windows Terminal
 
 ## 🌐 Hosting & Deployment
 
@@ -124,39 +124,27 @@ For complete hosting instructions, see **[HOSTING.md](./HOSTING.md)**.
 
 ## 🚀 Installation
 
-### Quick Start (Linux/macOS)
+### Quick Start (All Platforms)
 
 ```bash
 # Clone the repository
 git clone https://github.com/GenorTG/Krapi.git
 cd Krapi
 
-# Run the setup script
-chmod +x krapi-manager.sh
-./krapi-manager.sh
+# Install dependencies
+npm install
 
-# Or for development mode
-./krapi-manager.sh --dev
-```
+# Initialize environment
+npm run init-env
 
-### Quick Start (Windows)
+# Start in development mode (interactive menu)
+npm run krapi
 
-**Option 1: Using Batch File (Recommended)**
-
-Double-click `krapi-manager.bat` or run:
-```cmd
-krapi-manager.bat
-```
-
-**Option 2: Using PowerShell**
-
-```powershell
-# Clone the repository
-git clone https://github.com/GenorTG/Krapi.git
-cd Krapi
-
-# Run the setup script
-.\krapi-manager.ps1
+# Or use CLI commands
+npm run krapi start --dev    # Start development mode
+npm run krapi start --prod   # Start production mode
+npm run krapi status         # Check service status
+npm run krapi stop           # Stop services
 ```
 
 ### Manual Installation
@@ -229,29 +217,272 @@ cd Krapi
 
 After installation, configure your environment:
 
-1. **Edit `.env` file** and update:
+1. **Initialize environment files**:
+   ```bash
+   npm run init-env
+   ```
+   This creates `.env` files from examples if they don't exist.
+
+2. **Configure using management script** (recommended):
+   ```bash
+   npm run krapi config list              # View all settings
+   npm run krapi config set <key> <value> # Update settings
+   npm run krapi security show            # View security settings
+   ```
+
+3. **Or manually edit `.env` files**:
+   - Root `.env`: Main application configuration
+   - `frontend-manager/.env.local`: Frontend-specific settings
+   - `backend-server/.env`: Backend-specific settings
+   
+   Important settings to update:
    - `JWT_SECRET`: Generate a secure 256-bit secret key (use `openssl rand -hex 32`)
    - `DEFAULT_ADMIN_PASSWORD`: Change from default `admin`
    - `DB_PASSWORD`: Set a secure database password (if using PostgreSQL)
-   - Other configuration values as needed
+   - `FRONTEND_URL`: Set your public frontend URL for security
+   - `ALLOWED_ORIGINS`: Configure CORS allowed origins
 
-2. **Database Setup**:
+4. **Database Setup**:
    - **SQLite** (default): No additional setup needed, databases are created automatically
    - **PostgreSQL**: Ensure Docker is running or configure connection in `.env`
 
-## 🎯 Quick Start
+## 🎯 Quick Start Guide
 
-### Starting the Application
+### First Time Setup (After Cloning)
 
-Once installed, start the application:
+1. **Clone and install**:
+   ```bash
+   git clone https://github.com/GenorTG/Krapi.git
+   cd Krapi
+   npm install
+   ```
+
+2. **Initialize environment**:
+   ```bash
+   npm run init-env
+   ```
+   This creates `.env` files with default values.
+
+3. **Change default admin password** (IMPORTANT):
+   ```bash
+   # Edit .env file and change:
+   DEFAULT_ADMIN_PASSWORD=your-secure-password-here
+   
+   # Or use the management script:
+   npm run krapi config set app.nodeEnv production
+   ```
+   
+   **Default credentials** (change immediately!):
+   - Username: `admin`
+   - Password: `admin` (change this!)
+   - Email: `admin@yourdomain.com`
+
+4. **Generate secure JWT secret**:
+   ```bash
+   # On Linux/Mac:
+   openssl rand -hex 32
+   
+   # On Windows (PowerShell):
+   -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 64 | % {[char]$_})
+   
+   # Then update .env:
+   JWT_SECRET=your-generated-secret-here
+   ```
+
+5. **Start the application**:
+   ```bash
+   # Interactive mode (recommended for first-time users)
+   npm run krapi
+   
+   # Or use CLI:
+   npm run krapi start --dev    # Development mode
+   npm run krapi start --prod   # Production mode
+   ```
+
+### Accessing the Application
+
+Once started, access KRAPI at:
+
+- **Frontend UI (Web Interface)**: http://localhost:3498
+- **Backend API (Internal Only)**: http://localhost:3470
+
+**Important**: External applications should **always** connect to the Frontend URL (port 3498), never directly to the backend.
+
+### Local Development
+
+For local development and testing:
 
 ```bash
-# Development mode (auto-reloads on changes)
-pnpm run dev:all
+# Start in development mode (auto-reloads on changes)
+npm run krapi start --dev
 
-# Production mode (optimized build)
-pnpm run start:all
+# Check service status
+npm run krapi status
+
+# View logs
+npm run krapi logs
+
+# Stop services
+npm run krapi stop
 ```
+
+**Development Mode Features**:
+- Auto-reload on code changes
+- Detailed error messages
+- Hot module replacement
+- Development tools enabled
+
+### Hosting on Your Local Network
+
+To make KRAPI accessible on your local network:
+
+1. **Configure network access**:
+   ```bash
+   # Set host to 0.0.0.0 to listen on all interfaces
+   npm run krapi config set frontend.host 0.0.0.0
+   npm run krapi config set backend.host 0.0.0.0
+   ```
+
+2. **Find your local IP address**:
+   ```bash
+   # On Linux/Mac:
+   ip addr show | grep "inet " | grep -v 127.0.0.1
+   
+   # On Windows:
+   ipconfig
+   ```
+
+3. **Access from other devices**:
+   - Frontend: `http://YOUR_LOCAL_IP:3498`
+   - Example: `http://192.168.1.100:3498`
+
+4. **Configure firewall** (if needed):
+   - Allow incoming connections on ports 3498 (frontend) and 3470 (backend)
+   - On Linux: `sudo ufw allow 3498` and `sudo ufw allow 3470`
+
+### Hosting on the Web (Production)
+
+For production deployment with a public domain:
+
+1. **Set your public frontend URL**:
+   ```bash
+   npm run krapi config set frontend.url https://your-domain.com
+   ```
+
+2. **Configure CORS allowed origins**:
+   ```bash
+   npm run krapi security set-allowed-origins https://app.your-domain.com,https://api.your-domain.com
+   ```
+
+3. **Set up reverse proxy** (nginx, Caddy, etc.):
+   ```nginx
+   # Example nginx configuration
+   server {
+       listen 80;
+       server_name your-domain.com;
+       
+       location / {
+           proxy_pass http://localhost:3498;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   ```
+
+4. **Enable HTTPS** (recommended):
+   - Use Let's Encrypt with Certbot
+   - Or use Caddy (automatic HTTPS)
+   - Or configure SSL certificates in your reverse proxy
+
+5. **Build and start in production mode**:
+   ```bash
+   # Build for production
+   npm run build:all
+   
+   # Start in production mode
+   npm run krapi start --prod
+   ```
+
+6. **Set production environment**:
+   ```bash
+   npm run krapi config set app.nodeEnv production
+   ```
+
+### Changing Default Credentials
+
+**After first login, change the admin password immediately:**
+
+1. **Via Web UI**:
+   - Log in at http://localhost:3498
+   - Go to Settings → Profile
+   - Change password
+
+2. **Via Configuration** (before first start):
+   ```bash
+   # Edit .env file:
+   DEFAULT_ADMIN_PASSWORD=your-new-secure-password
+   DEFAULT_ADMIN_USERNAME=your-username  # Optional: change username too
+   DEFAULT_ADMIN_EMAIL=your-email@domain.com
+   ```
+
+3. **After changing .env, restart services**:
+   ```bash
+   npm run krapi restart --prod
+   ```
+
+### Security Configuration
+
+**Essential security settings for production**:
+
+1. **Change JWT Secret**:
+   ```bash
+   # Generate secure secret (see above)
+   # Then update .env:
+   JWT_SECRET=your-256-bit-secret-here
+   ```
+
+2. **Configure CORS**:
+   ```bash
+   # Only allow specific origins
+   npm run krapi security set-allowed-origins https://your-app.com,https://your-api.com
+   ```
+
+3. **Set frontend URL**:
+   ```bash
+   # Prevents access from wrong domains
+   npm run krapi security set-frontend-url https://your-domain.com
+   ```
+
+4. **View security settings**:
+   ```bash
+   npm run krapi security show
+   ```
+
+### Configuration Management
+
+The management script provides easy configuration management:
+
+```bash
+# View all configuration
+npm run krapi config list
+
+# Get a specific config value
+npm run krapi config get frontend.url
+
+# Set configuration values
+npm run krapi config set frontend.url https://your-domain.com
+npm run krapi config set frontend.port 8080
+
+# Security settings
+npm run krapi security set-allowed-origins https://app.example.com,https://api.example.com
+npm run krapi security set-frontend-url https://your-domain.com
+npm run krapi security show
+```
+
+**Note**: Configuration changes are automatically synced to `.env` files.
 
 ### Accessing the Application
 
@@ -463,14 +694,15 @@ Krapi/
 │   ├── krapi-error-handler/ # Error handling package
 │   └── krapi-monitor/       # Monitoring package
 ├── scripts/                 # Utility scripts
+│   ├── krapi-manager.js     # Centralized management script
+│   └── init-env.js          # Environment initialization
+├── config/                  # Configuration files
+│   └── krapi-config.json    # Centralized configuration
 ├── data/                    # Application data directory
 │   ├── krapi_main.db        # Main database
 │   ├── projects/            # Project databases
 │   ├── uploads/             # File uploads
 │   └── backups/             # Encrypted backups
-├── krapi-manager.sh         # Linux/macOS management script
-├── krapi-manager.bat        # Windows batch launcher
-├── krapi-manager.ps1        # Windows PowerShell script
 └── README.md                # This file
 ```
 

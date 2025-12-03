@@ -4,11 +4,29 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * System health check
  * GET /api/health/check
+ *
+ * SDK 0.4.0+: Uses health.check() which returns { healthy, message, details?, version }
  */
 export async function GET(_request: NextRequest) {
   try {
-    const health = await krapi.health.check();
-    return NextResponse.json(health);
+    // SDK 0.4.0+: Use health.check() method
+    const healthResult = await krapi.health.check();
+
+    // Return health status with details
+    const healthData: Record<string, unknown> = {
+      healthy: healthResult.healthy,
+      status: healthResult.healthy ? "healthy" : "unhealthy",
+      message: healthResult.message,
+      version: healthResult.version,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Include detailed health if available
+    if (healthResult.details) {
+      healthData.details = healthResult.details;
+    }
+
+    return NextResponse.json(healthData);
   } catch (error) {
     return NextResponse.json(
       {
@@ -21,4 +39,3 @@ export async function GET(_request: NextRequest) {
     );
   }
 }
-

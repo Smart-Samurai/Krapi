@@ -1,8 +1,8 @@
 /**
  * Type Definitions
- * 
+ *
  * Re-exports SDK types and defines backend-specific type extensions.
- * 
+ *
  * @module types/index
  */
 // Re-export all types from the SDK to maintain compatibility
@@ -18,16 +18,15 @@ import type {
   ApiKeyStatus,
   QueryOptions,
   ProjectStatus,
-  UserRole,
 } from "@smartsamurai/krapi-sdk";
 import type { Request as ExpressRequest } from "express";
 
 /**
  * Backend-specific session interface
- * 
+ *
  * Completely separate from SDK Session type.
  * Used internally by the backend for session management.
- * 
+ *
  * @interface BackendSession
  */
 // Backend-specific session interface - completely separate from SDK Session
@@ -135,7 +134,8 @@ export interface BackendProjectUser {
   is_active?: boolean;
   metadata?: Record<string, unknown>;
   // Additional properties for SDK compatibility
-  role?: UserRole;
+  // NOTE: role is string, not UserRole interface (SDK 0.5.0 change)
+  role?: string;
   login_count?: number;
 }
 
@@ -242,6 +242,13 @@ export interface BackendProjectSettings {
   };
   custom_headers?: Record<string, string>;
   environment?: "development" | "staging" | "production";
+  // AI provider credentials for MCP
+  ai_provider_credentials?: {
+    provider?: "openai" | "lmstudio" | "ollama";
+    endpoint?: string;
+    apiKey?: string;
+    default_model?: string;
+  };
 }
 
 // Backend-specific project stats interface - completely separate from SDK ProjectStats
@@ -349,7 +356,7 @@ export type AuthenticatedRequest = ExpressRequest & {
   scope?: string;
   apiKey?: BackendApiKey;
   session?: BackendSession;
-}
+};
 
 // Extended request type for controllers that need backendSDK in app.locals
 // This type properly extends Express Request to include middleware-added properties
@@ -360,7 +367,7 @@ export type ExtendedRequest = AuthenticatedRequest & {
       backendSDK?: import("@smartsamurai/krapi-sdk").BackendSDK;
     };
   };
-}
+};
 
 // Backend-specific scope requirement interface
 export interface ScopeRequirement {

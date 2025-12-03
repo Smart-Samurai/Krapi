@@ -115,7 +115,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const globalBusy = useAppSelector((s) => s.ui?.globalBusyCount ?? 0);
-  const { krapi, hasScope } = useReduxAuth();
+  const { hasScope, isInitialized } = useReduxAuth();
   const projectsState = useAppSelector((s) => s.projects);
   const projects = projectsState.items;
   const loading = projectsState.loading;
@@ -140,17 +140,19 @@ export default function ProjectsPage() {
   });
 
   const loadProjects = useCallback(async () => {
-    if (!krapi || !hasScope(Scope.PROJECTS_READ)) {
+    // Wait for auth to be initialized before loading projects
+    if (!isInitialized) {
+      return;
+    }
+
+    // Check if user has permission to read projects
+    if (!hasScope(Scope.PROJECTS_READ)) {
       return;
     }
 
     dispatch(beginBusy());
     try {
-      // Use Redux thunk with krapi instance
-      if (!krapi) {
-        toast.error("KRAPI client not initialized");
-        return;
-      }
+      // Use Redux thunk which calls the API route
       const action = await dispatch(fetchProjects({}));
       
       if (fetchProjects.rejected.match(action)) {
@@ -162,7 +164,7 @@ export default function ProjectsPage() {
     } finally {
       dispatch(endBusy());
     }
-  }, [krapi, hasScope, dispatch]);
+  }, [isInitialized, hasScope, dispatch]);
 
   useEffect(() => {
     loadProjects();
@@ -179,7 +181,7 @@ export default function ProjectsPage() {
   }, [selectedProject, editForm]);
 
   const handleCreateProject = async (data: CreateProjectFormData) => {
-    if (!krapi || !hasScope(Scope.PROJECTS_WRITE)) {
+    if (!hasScope(Scope.PROJECTS_WRITE)) {
       toast.error("You don't have permission to create projects");
       return;
     }
@@ -187,17 +189,20 @@ export default function ProjectsPage() {
     setIsCreating(true);
     dispatch(beginBusy());
     try {
-      // Use Redux thunk with krapi instance
+      // Use Redux thunk which calls the API route
       const action = await dispatch(createProject({ data }));
       if (createProject.fulfilled.match(action)) {
         toast.success("Project created successfully");
         setIsCreateDialogOpen(false);
         createForm.reset();
         // Projects are automatically updated in Redux store
+      } else if (createProject.rejected.match(action)) {
+        const errorMessage = (action.payload as string) || action.error?.message || "Failed to create project";
+        toast.error(errorMessage);
       }
-    } catch {
-      // Error logged to console for debugging
-      toast.error("Failed to create project");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to create project";
+      toast.error(errorMessage);
     } finally {
       setIsCreating(false);
       dispatch(endBusy());
@@ -205,7 +210,7 @@ export default function ProjectsPage() {
   };
 
   const handleUpdateProject = async (data: EditProjectFormData) => {
-    if (!krapi || !selectedProject || !hasScope(Scope.PROJECTS_WRITE)) {
+    if (!selectedProject || !hasScope(Scope.PROJECTS_WRITE)) {
       toast.error("You don't have permission to update projects");
       return;
     }

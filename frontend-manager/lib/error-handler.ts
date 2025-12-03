@@ -104,8 +104,8 @@ export class ErrorHandler {
         code: error.code,
         context: errorContext,
         suggestions: [
-          "Check if the backend server is running on port 3470",
-          "Verify the API server is accessible at http://localhost:3470",
+          "Check if the backend server is running",
+          "Verify the API server is accessible",
           "Check your network connection and firewall settings",
           "Restart the API server if it's not responding",
         ],

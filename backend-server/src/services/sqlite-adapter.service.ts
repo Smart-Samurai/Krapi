@@ -1,10 +1,9 @@
 /**
  * SQLite Database Adapter Service
  * 
- * Adapter that wraps better-sqlite3 to provide a PostgreSQL-compatible
- * interface for the KRAPI backend. This allows the application to use
- * an embedded SQLite database instead of requiring a separate PostgreSQL
- * server instance.
+ * Adapter that wraps better-sqlite3 to provide a database interface
+ * for the KRAPI backend. SDK now handles SQLite natively, so this adapter
+ * provides a simple async wrapper around better-sqlite3.
  */
 
 // @ts-ignore - better-sqlite3 types may not be available during build
@@ -21,14 +20,13 @@ export interface QueryResult {
 /**
  * SQLite Adapter that provides PostgreSQL-compatible interface
  * 
- * Wraps better-sqlite3 to provide a PostgreSQL-compatible query interface.
- * Automatically converts PostgreSQL-style parameters ($1, $2) to SQLite-style (?).
+ * Wraps better-sqlite3 to provide an async query interface.
+ * SDK now handles SQLite natively, so this adapter provides simple async wrappers.
  * 
  * Features:
- * - PostgreSQL-compatible parameter syntax
  * - Async query interface
  * - Connection management
- * - Automatic parameter conversion
+ * - RETURNING clause support
  * 
  * @class SQLiteAdapter
  * @example
@@ -53,67 +51,18 @@ export class SQLiteAdapter {
   }
 
   /**
-   * Convert PostgreSQL-style parameters ($1, $2, etc.) to SQLite-style (?)
-   */
-  private convertPostgreSQLParams(sql: string): { convertedSql: string; paramMap: number[] } {
-    // Match PostgreSQL parameters ($1, $2, etc.)
-    const pgParamRegex = /\$(\d+)/g;
-    const matches: number[] = [];
-    let match;
-    
-    while ((match = pgParamRegex.exec(sql)) !== null) {
-      const paramIndex = parseInt(match[1] || "0", 10);
-      if (!matches.includes(paramIndex)) {
-        matches.push(paramIndex);
-      }
-    }
-
-    // Sort to ensure proper mapping
-    matches.sort((a, b) => a - b);
-
-    // Replace $1, $2, etc. with ?
-    const convertedSql = sql.replace(/\$(\d+)/g, "?");
-
-    // Create parameter mapping
-    const paramMap = matches;
-
-    return { convertedSql, paramMap };
-  }
-
-  /**
-   * Reorder parameters according to PostgreSQL parameter order
-   */
-  private reorderParams(params: unknown[], paramMap: number[]): unknown[] {
-    if (!params || params.length === 0) {
-      return [];
-    }
-
-    // Map parameters according to PostgreSQL order
-    const reordered: unknown[] = [];
-    for (const index of paramMap) {
-      // PostgreSQL uses 1-based indexing, array uses 0-based
-      const value = params[index - 1];
-      // SQLite requires all parameters, use null for undefined values
-      reordered.push(value !== undefined ? value : null);
-    }
-
-    return reordered;
-  }
-
-  /**
    * Execute a query (async wrapper for synchronous better-sqlite3)
    * 
-   * Executes a SQL query with optional parameters. Automatically converts
-   * PostgreSQL-style parameters ($1, $2) to SQLite-style (?).
+   * Executes a SQL query with optional parameters. SDK now handles SQLite natively.
    * 
-   * @param {string} sql - SQL query string (PostgreSQL-style parameters supported)
+   * @param {string} sql - SQL query string
    * @param {unknown[]} [params] - Query parameters
    * @returns {Promise<QueryResult>} Query results with rows and rowCount
    * @throws {Error} If database is not connected
    * @throws {Error} If query execution fails
    * 
    * @example
-   * const result = await adapter.query('SELECT * FROM users WHERE id = $1', ['user-id']);
+   * const result = await adapter.query('SELECT * FROM users WHERE id = ?', ['user-id']);
    * console.log(result.rows); // Array of matching rows
    */
   async query(
@@ -125,19 +74,14 @@ export class SQLiteAdapter {
     }
 
     try {
-      // Convert PostgreSQL-style parameters to SQLite-style
-      const { convertedSql, paramMap } = this.convertPostgreSQLParams(sql);
-      const reorderedParams = params && paramMap.length > 0
-        ? this.reorderParams(params, paramMap)
-        : params || [];
-
       // Determine if this is a SELECT query (read) or mutation (write)
-      const isSelect = /^\s*(SELECT|WITH|EXPLAIN|PRAGMA)/i.test(convertedSql.trim());
+      const isSelect = /^\s*(SELECT|WITH|EXPLAIN|PRAGMA)/i.test(sql.trim());
+      const hasReturning = /RETURNING/i.test(sql);
 
-      if (isSelect) {
-        // For SELECT queries, use prepare and all
-        const stmt = this.db.prepare(convertedSql);
-        const rows = stmt.all(...reorderedParams) as Record<string, unknown>[];
+      if (isSelect || hasReturning) {
+        // For SELECT queries and queries with RETURNING, use prepare and all
+        const stmt = this.db.prepare(sql);
+        const rows = stmt.all(...(params || [])) as Record<string, unknown>[];
         
         return {
           rows: rows || [],
@@ -145,8 +89,8 @@ export class SQLiteAdapter {
         };
       } else {
         // For mutations (INSERT, UPDATE, DELETE), use prepare and run
-        const stmt = this.db.prepare(convertedSql);
-        const result = stmt.run(...reorderedParams);
+        const stmt = this.db.prepare(sql);
+        const result = stmt.run(...(params || []));
         
         return {
           rows: [],

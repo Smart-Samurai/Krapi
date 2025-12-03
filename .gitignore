@@ -51,3 +51,4 @@ coverage/
 # Documentation build
 docs/_build/
 docs/.vitepress/dist/ 
+.env

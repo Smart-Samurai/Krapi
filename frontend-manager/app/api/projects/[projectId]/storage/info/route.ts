@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function
@@ -39,33 +40,24 @@ export async function GET(
       );
     }
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const infoUrl = `${backendUrl}/krapi/k1/projects/${projectId}/storage/info`;
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    // Type assertion needed as SDK types may not be fully updated
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const storageService = sdk.storage as unknown as {
+      getInfo: (projectId: string) => Promise<{
+        total_files: number;
+        total_size: number;
+        storage_used_percentage: number;
+        quota: number;
+      }>;
+    };
+    const storageInfo = await storageService.getInfo(projectId);
 
-    const response = await fetch(infoUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
+    // SDK returns storage info object
+    return NextResponse.json({
+      success: true,
+      data: storageInfo,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to get storage info",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    // Backend returns { success: true, data: {...} }
-    // Return it directly
-    return NextResponse.json(backendResponse);
   } catch (error) {
     
     return NextResponse.json(

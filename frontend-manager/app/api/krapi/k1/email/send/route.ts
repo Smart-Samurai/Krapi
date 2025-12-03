@@ -5,43 +5,38 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const response = await fetch(`${backendUrl}/email/send`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const projectId = body.projectId || body.project_id;
+    if (!projectId) {
       return NextResponse.json(
-        { error: errorData.error || "Failed to send email" },
-        { status: response.status }
+        { error: "projectId is required" },
+        { status: 400 }
       );
     }
+    const result = await sdk.email.send(projectId, body);
 
-    const emailData = await response.json();
-    return NextResponse.json(emailData);
-  } catch {
-    
+    return NextResponse.json(result);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error sending email:", error);
     return NextResponse.json(
-      { error: "Failed to send email" },
+      { error: error instanceof Error ? error.message : "Failed to send email" },
       { status: 500 }
     );
   }

@@ -80,6 +80,17 @@ router.get(
   requireScopes({
     scopes: [Scope.PROJECTS_READ],
   }),
+  // Debug middleware to log request headers
+  (req: Request, _res: Response, next: NextFunction) => {
+    console.log("🔍 [PROJECT GET ALL DEBUG] Request headers:", {
+      "X-Project-ID": req.headers["x-project-id"],
+      "X-Project-ID (lowercase)": req.headers["x-project-id"],
+      "authorization": req.headers.authorization ? "present" : "missing",
+      url: req.url,
+      method: req.method,
+    });
+    next();
+  },
   controller.getAllProjects
 );
 
@@ -98,6 +109,18 @@ router.post(
     scopes: [Scope.PROJECTS_WRITE],
   }),
   validate(validationSchemas.createProject),
+  // Debug middleware to log request headers
+  (req: Request, _res: Response, next: NextFunction) => {
+    console.log("🔍 [PROJECT CREATE DEBUG] Request headers:", {
+      "X-Project-ID": req.headers["x-project-id"],
+      "X-Project-ID (lowercase)": req.headers["x-project-id"],
+      "authorization": req.headers.authorization ? "present" : "missing",
+      url: req.url,
+      method: req.method,
+      body: req.body,
+    });
+    next();
+  },
   controller.createProject
 );
 
@@ -206,6 +229,26 @@ router.post(
   asRequestHandler(collectionsController.validateCollectionSchema.bind(collectionsController))
 );
 
+// POST route for count at collection level (SDK calls /collections/:collectionName/count)
+router.post(
+  "/:projectId/collections/:collectionName/count",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  asRequestHandler(collectionsController.countDocuments.bind(collectionsController))
+);
+
+// POST route for search at collection level (SDK calls /collections/:collectionName/search)
+router.post(
+  "/:projectId/collections/:collectionName/search",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  asRequestHandler(collectionsController.searchDocuments.bind(collectionsController))
+);
+
 // Collection statistics
 router.get(
   "/:projectId/collections/:collectionName/statistics",
@@ -236,6 +279,16 @@ router.get(
 );
 
 router.get(
+  "/:projectId/collections/:collectionName/documents/count",
+  requireScopes({
+    scopes: [Scope.COLLECTIONS_READ],
+    projectSpecific: true,
+  }),
+  asRequestHandler(collectionsController.countDocuments.bind(collectionsController))
+);
+
+// POST route for count (SDK uses POST with filter in body)
+router.post(
   "/:projectId/collections/:collectionName/documents/count",
   requireScopes({
     scopes: [Scope.COLLECTIONS_READ],

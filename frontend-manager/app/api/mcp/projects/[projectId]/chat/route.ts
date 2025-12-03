@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
+
 /**
  * MCP Project Chat API Route
  *
@@ -24,19 +33,19 @@ export async function POST(
 
     const { projectId } = await params;
     const body = await request.json();
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    // MCP routes proxy directly to backend (frontend client functionality)
+    // SDK-FIRST: Use centralized config for backend URL
+    const { config } = await import("@/lib/config");
+    const backendApiUrl = config.backend.getApiUrl(`/mcp/projects/${projectId}/chat`);
 
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/mcp/projects/${projectId}/chat`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(body),
-      }
-    );
+    const response = await fetch(backendApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(body),
+    });
 
     if (!response.ok) {
       let errorData: { error?: string; message?: string };

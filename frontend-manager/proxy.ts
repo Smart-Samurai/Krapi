@@ -14,11 +14,13 @@ const publicPaths = ["/login", "/api/auth", "/api/krapi"];
  */
 async function validateTokenWithBackend(token: string): Promise<boolean> {
   try {
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
+    // SDK-FIRST: Use centralized config for backend URL
+    const { config } = await import("@/lib/config");
+    const backendApiUrl = config.backend.getApiUrl('/auth/me');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), config.auth.tokenValidationTimeout);
 
-    const response = await fetch(`${backendUrl}/krapi/k1/auth/me`, {
+    const response = await fetch(backendApiUrl, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,

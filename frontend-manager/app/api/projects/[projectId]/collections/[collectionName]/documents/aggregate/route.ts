@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function
@@ -48,35 +49,51 @@ export async function POST(
 
     const requestData = await request.json();
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    // Backend route is /aggregate not /documents/aggregate
-    const aggregateUrl = `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}/aggregate`;
-
-    const response = await fetch(aggregateUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to aggregate documents",
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    
+    // Use backend SDK aggregateDocuments method if available
+    const documentsService = sdk as unknown as {
+      aggregateDocuments: (
+        projectId: string,
+        collectionName: string,
+        pipeline: unknown[]
+      ) => Promise<unknown[]>;
+    };
+    
+    // Convert request format to backend pipeline format
+    const groupBy = requestData.group_by || requestData.groupBy || [];
+    const aggregations = requestData.aggregations || [];
+    
+    // Build aggregation pipeline
+    const pipeline = [
+      {
+        $group: {
+          _id: groupBy.reduce(
+            (acc: Record<string, unknown>, field: string) => ({
+              ...acc,
+              [field]: `$${field}`,
+            }),
+            {}
+          ),
+          count: { $sum: 1 },
         },
-        { status: response.status }
-      );
-    }
+      },
+      ...aggregations,
+    ];
+    
+    const result = await documentsService.aggregateDocuments(
+      projectId,
+      collectionName,
+      pipeline
+    );
 
-    const backendResponse = await response.json();
-    // Backend returns { success: true, groups: [...], ... }
-    // Return it directly
-    return NextResponse.json(backendResponse);
+    return NextResponse.json({
+      success: true,
+      groups: Array.isArray(result) ? result : [],
+      total_groups: Array.isArray(result) ? result.length : 0,
+      aggregations: aggregations || [],
+    });
   } catch (error) {
     
     return NextResponse.json(

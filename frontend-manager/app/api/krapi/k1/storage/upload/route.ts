@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -21,34 +22,32 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     // Get the form data from the request
     const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const projectId = formData.get("project_id") as string;
 
-    // Call the backend directly
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const uploadUrl = `${backendUrl}/storage/upload`;
-
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!file || !projectId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to upload file",
-        },
-        { status: response.status }
+        { success: false, error: "File and project ID are required" },
+        { status: 400 }
       );
     }
 
-    const uploadData = await response.json();
-    return NextResponse.json({ success: true, data: uploadData });
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    // SDK 0.4.0+: Use storage.uploadFile() instead of storage.upload()
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const folder = formData.get("folder") as string | undefined;
+    const filename = formData.get("filename") as string | undefined;
+    const fileInfo = await sdk.storage.uploadFile(projectId, file, {
+      folder,
+      filename,
+      metadata: Object.fromEntries(formData.entries()) as Record<
+        string,
+        unknown
+      >,
+    });
+
+    return NextResponse.json({ success: true, data: fileInfo });
   } catch (error) {
-    
     return NextResponse.json(
       {
         success: false,

@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
+
+// Force dynamic rendering
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
 
 // UUID validation function - more permissive to accept any valid UUID format
 function isValidUUID(uuid: string): boolean {
@@ -38,35 +48,18 @@ export async function GET(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/settings`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const settings = await sdk.projects.getSettings(projectId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to fetch project settings",
-        },
-        { status: response.status }
-      );
-    }
-
-    const settings = await response.json();
-    // Extract the data from the backend response and return it directly
-    return NextResponse.json(settings.data);
+    // SDK returns settings object directly
+    return NextResponse.json({
+      success: true,
+      data: settings,
+    });
   } catch (error) {
-    
+    // eslint-disable-next-line no-console
+    console.error("Error fetching project settings:", error);
     return NextResponse.json(
       {
         success: false,
@@ -110,36 +103,37 @@ export async function PUT(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/settings`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ settings: updates }), // Backend expects settings wrapped
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to update project settings",
-        },
-        { status: response.status }
-      );
+    // Get current settings to merge
+    let currentSettings = {};
+    try {
+      currentSettings = await sdk.projects.getSettings(projectId);
+    } catch (_err) {
+      // Ignore errors when fetching current settings
     }
 
-    const settings = await response.json();
-    // Extract the data from the backend response and return it directly
-    return NextResponse.json(settings.data);
+    // Merge current settings with updates
+    const mergedSettings = {
+      ...(typeof currentSettings === "object" && currentSettings !== null
+        ? currentSettings
+        : {}),
+      ...updates,
+    };
+
+    // Update settings using SDK
+    const updatedSettings = await sdk.projects.updateSettings(
+      projectId,
+      mergedSettings
+    );
+
+    // SDK returns updated settings
+    return NextResponse.json({
+      success: true,
+      data: updatedSettings,
+    });
   } catch (error) {
-    
     return NextResponse.json(
       {
         success: false,

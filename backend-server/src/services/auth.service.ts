@@ -307,16 +307,30 @@ export class AuthService {
   async validateSessionToken(
     token: string
   ): Promise<{ valid: boolean; session?: BackendSession }> {
+    console.log("🔍 [AUTH DEBUG] Validating session token:", {
+      tokenLength: token?.length,
+      tokenPrefix: token?.substring(0, 10),
+    });
     const session = await this.db.getSessionByToken(token);
 
     if (!session) {
+      console.log("❌ [AUTH DEBUG] Token validation failed: { valid: false }");
       return { valid: false };
     }
+
+    console.log("✅ [AUTH DEBUG] Session found:", {
+      id: session.id,
+      token: `${session.token?.substring(0, 10)}...`,
+      is_active: session.is_active,
+      consumed: session.consumed,
+      expires_at: session.expires_at,
+      expiresIn: new Date(session.expires_at).getTime() - Date.now(),
+    });
 
     // Check if expired
     if (new Date(session.expires_at) < new Date()) {
       // Mark expired session as consumed and update last activity
-      await this.db.updateSession(session.id, {
+      await this.db.updateSession(session.token, {
         consumed: true,
         last_activity: true,
       });
@@ -329,7 +343,7 @@ export class AuthService {
     }
 
     // Update last activity for valid session
-    const updatedSession = await this.db.updateSession(session.id, {
+    const updatedSession = await this.db.updateSession(session.token, {
       last_activity: true,
     });
 

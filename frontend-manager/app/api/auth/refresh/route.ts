@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
 /**
  * Auth Refresh API Route
  *
@@ -18,38 +21,25 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const token = authorization.substring(7);
-
-    // Call backend directly for session refresh
-    const response = await fetch(
-      `${
-        process.env.BACKEND_URL || "http://localhost:3470"
-      }/krapi/k1/auth/refresh`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
+    const authToken = getAuthToken(request.headers);
+    if (!authToken) {
       return NextResponse.json(
-        { success: false, error: errorData.error || "Session refresh failed" },
-        { status: response.status }
+        { success: false, error: "Authorization header required" },
+        { status: 401 }
       );
     }
 
-    const refreshResult = await response.json();
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    // SDK 0.4.0+: Use auth.refreshSession() instead of refreshToken()
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await sdk.auth.refreshSession();
 
-    // Flatten the response to match what the tests expect
-    if (refreshResult.success && refreshResult.data) {
-      return NextResponse.json(refreshResult.data);
-    } else {
-      return NextResponse.json(refreshResult);
-    }
+    // SDK returns { session_token: string, expires_at: string }
+    return NextResponse.json({
+      success: true,
+      session_token: result.session_token,
+      expires_at: result.expires_at,
+    });
   } catch (error) {
     return NextResponse.json(
       {

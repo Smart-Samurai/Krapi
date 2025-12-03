@@ -5,49 +5,36 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
     const { searchParams } = new URL(request.url);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const queryParams = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      queryParams.append(key, value);
-    });
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const projectId = searchParams.get("project_id") || undefined;
+    const days = searchParams.get("days") ? parseInt(searchParams.get("days")!) : undefined;
 
-    const response = await fetch(
-      `${backendUrl}/email/analytics?${queryParams}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: authHeader,
-        },
-      }
-    );
+    const analytics = await (sdk.email as unknown as {
+      getAnalytics: (projectId?: string, options?: { days?: number }) => Promise<Record<string, unknown>>;
+    }).getAnalytics(projectId, { days });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to get email analytics" },
-        { status: response.status }
-      );
-    }
-
-    const analyticsData = await response.json();
-    return NextResponse.json(analyticsData);
-  } catch {
-    
+    return NextResponse.json(analytics);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error getting email analytics:", error);
     return NextResponse.json(
-      { error: "Failed to get email analytics" },
+      { error: error instanceof Error ? error.message : "Failed to get email analytics" },
       { status: 500 }
     );
   }

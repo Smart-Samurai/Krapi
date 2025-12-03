@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
+
 /**
  * Auth Change Password API Route
  *
@@ -18,7 +21,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    const token = authorization.substring(7);
+    const authToken = getAuthToken(request.headers);
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: "Authorization header required" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     if (!body.current_password || !body.new_password) {
@@ -31,34 +41,13 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Call backend directly for password change
-    const response = await fetch(
-      `${
-        process.env.BACKEND_URL || "http://localhost:3470"
-      }/krapi/k1/auth/change-password`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          current_password: body.current_password,
-          new_password: body.new_password,
-        }),
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await sdk.auth.changePassword(body.current_password, body.new_password);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { success: false, error: errorData.error || "Password change failed" },
-        { status: response.status }
-      );
-    }
-
-    const changeResult = await response.json();
-    return NextResponse.json(changeResult);
+    return NextResponse.json({
+      success: result.success !== false,
+    });
   } catch (error) {
     return NextResponse.json(
       {

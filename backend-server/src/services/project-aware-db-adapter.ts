@@ -70,6 +70,7 @@ export class ProjectAwareDbAdapter {
     "email_templates",
     "system_checks",
     "migrations",
+    "activity_logs",
   ];
 
   /**

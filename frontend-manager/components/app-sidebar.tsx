@@ -17,7 +17,6 @@ import {
   Settings,
   User,
   TestTube2,
-  Database,
   FileText,
   KeyRound,
   HardDrive,
@@ -171,11 +170,6 @@ function ProjectSidebar() {
       title: "Collections",
       icon: FolderOpen,
       href: `/projects/${projectId}/collections` as const,
-    },
-    {
-      title: "Documents",
-      icon: Database,
-      href: `/projects/${projectId}/documents` as const,
     },
     {
       title: "Users",

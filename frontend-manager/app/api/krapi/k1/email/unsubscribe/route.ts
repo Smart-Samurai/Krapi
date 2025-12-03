@@ -5,43 +5,33 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const response = await fetch(`${backendUrl}/email/unsubscribe`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(body),
-    });
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await (sdk.email as unknown as {
+      unsubscribe: (projectId: string, email: string) => Promise<{ success: boolean }>;
+    }).unsubscribe(body.project_id || body.projectId, body.email || body.address);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to handle email unsubscribe" },
-        { status: response.status }
-      );
-    }
-
-    const unsubscribeData = await response.json();
-    return NextResponse.json(unsubscribeData);
-  } catch {
-    
+    return NextResponse.json(result);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error handling email unsubscribe:", error);
     return NextResponse.json(
-      { error: "Failed to handle email unsubscribe" },
+      { error: error instanceof Error ? error.message : "Failed to handle email unsubscribe" },
       { status: 500 }
     );
   }

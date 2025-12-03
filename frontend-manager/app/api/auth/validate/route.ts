@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+
 /**
  * Auth Validate API Route
  *
  * POST /api/auth/validate - Validate session token
- * Forwards to backend /krapi/k1/auth/session/validate
+ *
+ * SDK-FIRST: Uses krapi SDK instead of direct fetch calls
  */
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -18,40 +21,21 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Call backend directly for session validation
-    const response = await fetch(
-      `${
-        process.env.KRAPI_BACKEND_URL || "http://localhost:3470"
-      }/krapi/k1/auth/session/validate`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: body.token,
-        }),
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    // SDK 0.4.0+: Use auth.validateSession() instead of validateToken()
+    const sdk = await createAuthenticatedBackendSdk(body.token);
+    const result = await sdk.auth.validateSession(body.token);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Session validation failed",
-        },
-        { status: response.status }
-      );
-    }
-
-    const validationResult = await response.json();
-
-    // Flatten the response to match what the tests expect
-    if (validationResult.success && validationResult.data) {
-      return NextResponse.json(validationResult.data);
+    // Response format: { valid: boolean, session?: {...} }
+    if (result.valid && result.session) {
+      return NextResponse.json({
+        valid: true,
+        session: result.session,
+      });
     } else {
-      return NextResponse.json(validationResult);
+      return NextResponse.json({
+        valid: false,
+      });
     }
   } catch (error) {
     return NextResponse.json(

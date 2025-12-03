@@ -20,7 +20,6 @@
 "use client";
 
 import {
-  Database,
   HardDrive,
   Upload,
   FileText,
@@ -41,7 +40,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useKrapi } from "@/lib/hooks/useKrapi";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 /**
  * Storage Statistics Interface
@@ -93,20 +92,40 @@ export default function StoragePage() {
     throw new Error("Project ID is required");
   }
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
+  const { sessionToken } = useReduxAuth();
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadStorageStats = useCallback(async () => {
-    if (!krapi) return;
+    if (!sessionToken) {
+      setError("Authentication required");
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
-      const response = await krapi.storage.getStatistics(projectId);
-      setStorageStats(response);
+      const response = await fetch(`/api/storage?project_id=${projectId}`, {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to load storage statistics" }));
+        throw new Error(errorData.error || `Server returned ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setStorageStats(result.data);
+      } else {
+        throw new Error(result.error || "Invalid response format");
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to load storage statistics"
@@ -114,7 +133,7 @@ export default function StoragePage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, krapi]);
+  }, [projectId, sessionToken]);
 
   useEffect(() => {
     loadStorageStats();
@@ -179,7 +198,7 @@ export default function StoragePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium">Storage Limit</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
+            <HardDrive className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-base font-bold">

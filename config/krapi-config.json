@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "app": {
+    "name": "KRAPI",
+    "version": "2.0.0",
+    "nodeEnv": "development"
+  },
+  "frontend": {
+    "url": "http://127.0.0.1:3498",
+    "port": 3498,
+    "host": "localhost",
+    "allowedOrigins": []
+  },
+  "backend": {
+    "url": "http://127.0.0.1:3470",
+    "port": 3470,
+    "host": "localhost"
+  },
+  "security": {
+    "allowedOrigins": [
+      "https://test-allowed.example.com",
+      "https://app1.example.com",
+      "https://app2.example.com",
+      "https://app3.example.com"
+    ],
+    "behindProxy": true,
+    "enableCors": true
+  },
+  "database": {
+    "path": "./data/krapi.db",
+    "projectsDir": "./data/projects"
+  }
+}

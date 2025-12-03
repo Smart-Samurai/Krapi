@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function - more permissive to accept any valid UUID format
@@ -45,46 +46,46 @@ export async function GET(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const collection = await sdk.collections.get(projectId, collectionName);
 
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!collection) {
       return NextResponse.json(
         {
           success: false,
-          error: errorData.error || "Failed to fetch collection",
+          error: `Collection '${collectionName}' not found in project '${projectId}'`,
         },
-        { status: response.status }
+        { status: 404 }
       );
     }
 
-    const backendResponse = await response.json();
-    
-    // Wrap response to match expected format: { success: true, collection: ... }
-    const collection = backendResponse.collection || backendResponse.data || backendResponse;
-    
     return NextResponse.json({
       success: true,
       collection,
     });
   } catch (error) {
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch collection";
+
+    // Check if it's a "not found" error
+    if (
+      errorMessage.toLowerCase().includes("not found") ||
+      errorMessage.toLowerCase().includes("does not exist")
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch collection",
+        error: errorMessage,
       },
       { status: 500 }
     );
@@ -128,35 +129,9 @@ export async function PUT(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(collectionData),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to update collection",
-        },
-        { status: response.status }
-      );
-    }
-
-    const backendResponse = await response.json();
-    
-    // Wrap response to match expected format: { success: true, collection: ... }
-    const collection = backendResponse.collection || backendResponse.data || backendResponse;
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const collection = await sdk.collections.update(projectId, collectionName, collectionData);
     
     return NextResponse.json({
       success: true,
@@ -213,29 +188,9 @@ export async function DELETE(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/collections/${collectionName}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to delete collection",
-        },
-        { status: response.status }
-      );
-    }
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    await sdk.collections.delete(projectId, collectionName);
 
     return NextResponse.json({
       success: true,

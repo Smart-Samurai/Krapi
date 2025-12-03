@@ -13,6 +13,7 @@
 import { MessageSquare, Send, Bot, User, Wrench, Plug, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 import {
   PageLayout,
@@ -84,6 +85,8 @@ export default function ProjectMcpPage() {
   } | null>(null);
   const [checkingCapabilities, setCheckingCapabilities] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [savingCredentials, setSavingCredentials] = useState(false);
+  const [loadingCredentials, setLoadingCredentials] = useState(true);
 
   // Preset configurations
   const presets = {
@@ -197,12 +200,84 @@ export default function ProjectMcpPage() {
     }
   }, [model, endpoint, provider, apiKey, sessionToken]);
 
+  // Load saved credentials on mount
+  useEffect(() => {
+    const loadSavedCredentials = async () => {
+      if (!sessionToken) {
+        setLoadingCredentials(false);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/projects/${projectId}/settings`, {
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Handle both direct data and wrapped response
+          const settings = data.data || data;
+          const credentials = settings?.ai_provider_credentials;
+          if (credentials) {
+            if (credentials.provider) setProvider(credentials.provider);
+            if (credentials.endpoint) setEndpoint(credentials.endpoint);
+            if (credentials.apiKey) setApiKey(credentials.apiKey);
+            if (credentials.default_model) setModel(credentials.default_model);
+          }
+        }
+      } catch (_err) {
+        // Ignore errors when loading credentials
+      } finally {
+        setLoadingCredentials(false);
+      }
+    };
+    loadSavedCredentials();
+  }, [projectId, sessionToken]);
+
   // Check capabilities when model changes
   useEffect(() => {
     if (model && connected) {
       checkModelCapabilities();
     }
   }, [model, connected, checkModelCapabilities]);
+
+  const saveCredentials = async () => {
+    if (!sessionToken) {
+      setError("Please log in to continue");
+      return;
+    }
+    setSavingCredentials(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/settings`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ai_provider_credentials: {
+            provider,
+            endpoint,
+            apiKey: apiKey || undefined,
+            default_model: model || undefined,
+          },
+        }),
+      });
+      if (response.ok) {
+        toast.success("AI provider credentials saved as default");
+        setError(null);
+      } else {
+        const json = await response.json();
+        setError(json.error || "Failed to save credentials");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save credentials");
+    } finally {
+      setSavingCredentials(false);
+    }
+  };
 
   const send = async () => {
     if (!input || !endpoint || !model) return;
@@ -427,26 +502,46 @@ export default function ProjectMcpPage() {
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-2">
                 <Label htmlFor="model">Model</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={initializeConnection}
-                  disabled={loadingModels || !endpoint}
-                  className="ml-auto"
-                >
-                  {loadingModels ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Plug className="mr-2 h-4 w-4" />
-                      {connected ? "Refresh Models" : "Connect & Load Models"}
-                    </>
-                  )}
-                </Button>
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={saveCredentials}
+                    disabled={savingCredentials || !endpoint || loadingCredentials}
+                  >
+                    {savingCredentials ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Save as Default
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={initializeConnection}
+                    disabled={loadingModels || !endpoint}
+                  >
+                    {loadingModels ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Plug className="mr-2 h-4 w-4" />
+                        {connected ? "Refresh Models" : "Connect & Load Models"}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               {availableModels.length > 0 ? (
                 <Select

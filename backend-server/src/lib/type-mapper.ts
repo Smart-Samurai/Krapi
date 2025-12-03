@@ -8,8 +8,6 @@ import {
   StorageStats,
   AdminRole,
   AccessLevel,
-  UserRole,
-  UserStatus,
 } from "@smartsamurai/krapi-sdk";
 
 import {
@@ -40,37 +38,29 @@ export class TypeMapper {
    * const sdkUser = TypeMapper.mapProjectUser(backendUser);
    */
   static mapProjectUser(backendUser: BackendProjectUser): ProjectUser {
-    const role: UserRole = (backendUser.role || "user") as UserRole;
-    const status: UserStatus = (backendUser.status as UserStatus) || "active";
-    const baseUser = {
+    // SDK 0.5.0: role is string, not UserRole interface
+    const role: string = backendUser.role || "user";
+    
+    const projectUser: ProjectUser = {
       id: backendUser.id,
       project_id: backendUser.project_id,
       username: backendUser.username || "",
       email: backendUser.email || "",
-      role: role as UserRole,
-      status: status as UserStatus,
+      role,
+      permissions: backendUser.permissions || [],
+      metadata: backendUser.metadata || {},
+      is_active: backendUser.is_active ?? backendUser.status === "active",
+      login_count: backendUser.login_count || 0,
       created_at: backendUser.created_at,
       updated_at: backendUser.updated_at,
     };
     
-    const optionalFields: Record<string, unknown> = {};
+    // Add optional fields if they exist
     if (backendUser.last_login !== undefined) {
-      optionalFields.last_login = backendUser.last_login;
-    }
-    if (backendUser.phone !== undefined) {
-      optionalFields.phone = backendUser.phone;
-    }
-    if (backendUser.is_verified !== undefined) {
-      optionalFields.is_verified = backendUser.is_verified;
-    }
-    if (backendUser.scopes !== undefined) {
-      optionalFields.scopes = backendUser.scopes;
-    }
-    if (backendUser.permissions !== undefined) {
-      optionalFields.permissions = backendUser.permissions;
+      projectUser.last_login = backendUser.last_login;
     }
     
-    return { ...baseUser, ...optionalFields } as unknown as ProjectUser;
+    return projectUser;
   }
 
   /**
@@ -227,22 +217,8 @@ export class TypeMapper {
   }
 
   static mapFileInfo(backendFile: BackendFileRecord): FileInfo {
-    return {
-      id: backendFile.id,
-      project_id: backendFile.project_id,
-      name: backendFile.filename,
-      filename: backendFile.filename, // Alias for backward compatibility
-      original_name: backendFile.original_name,
-      mime_type: backendFile.mime_type,
-      size: backendFile.size,
-      path: backendFile.path,
-      url: backendFile.url,
-      uploaded_by: backendFile.uploaded_by,
-      // relations not available in SDK FileInfo
-      created_at: backendFile.created_at,
-      updated_at: backendFile.updated_at || backendFile.created_at, // Use created_at as fallback
-      public: false,
-    };
+    // BackendFileRecord extends FileInfo, so just return it cast properly
+    return backendFile as unknown as FileInfo;
   }
 
   static mapStorageStats(backendStats: Record<string, unknown>): StorageStats {

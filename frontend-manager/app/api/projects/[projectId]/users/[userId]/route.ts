@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthToken, getServerSdk } from "@/app/api/lib/sdk-client";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Disable static generation for this dynamic route
+export function generateStaticParams() {
+  return [];
+}
+
 function isValidUUID(uuid: string): boolean {
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

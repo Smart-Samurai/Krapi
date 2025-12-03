@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // UUID validation function - more permissive to accept any valid UUID format
@@ -38,33 +39,15 @@ export async function GET(
       );
     }
 
-    // Call the backend directly since the SDK method is not implemented for server mode
-    const backendUrl = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
-    const response = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/statistics`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const statistics = await sdk.projects.getStatistics(projectId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        {
-          success: false,
-          error: errorData.error || "Failed to fetch project statistics",
-        },
-        { status: response.status }
-      );
-    }
-
-    const stats = await response.json();
-    // Extract the data from the backend response and return it directly
-    return NextResponse.json(stats.data);
+    // SDK returns statistics object directly
+    return NextResponse.json({
+      success: true,
+      data: statistics,
+    });
   } catch (error) {
     
     return NextResponse.json(

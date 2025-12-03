@@ -1,23 +1,25 @@
 /**
- * KRAPI Frontend API Proxy
+ * KRAPI Frontend API Catch-All Route
  *
- * This route proxies all KRAPI API requests from external applications
- * through the frontend to the backend server.
+ * This route handles all KRAPI API requests that don't have specific route handlers.
+ * According to architecture rules, all routes should use SDK exclusively.
+ * This catch-all returns proper error responses for invalid/missing routes.
  *
- * External apps can use: https://your-frontend.com/api/krapi/k1/...
- * Which will proxy to: https://your-backend.com/krapi/k1/...
+ * External apps should use specific routes like:
+ * - /api/krapi/k1/auth/login
+ * - /api/krapi/k1/projects
+ * - /api/krapi/k1/collections
+ * etc.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-
-const BACKEND_URL = process.env.KRAPI_BACKEND_URL || "http://localhost:3470";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ krapi: string[] }> }
 ) {
   const resolvedParams = await params;
-  return proxyRequest(request, resolvedParams, "GET");
+  return handleRequest(request, resolvedParams, "GET");
 }
 
 export async function POST(
@@ -25,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ krapi: string[] }> }
 ) {
   const resolvedParams = await params;
-  return proxyRequest(request, resolvedParams, "POST");
+  return handleRequest(request, resolvedParams, "POST");
 }
 
 export async function PUT(
@@ -33,7 +35,7 @@ export async function PUT(
   { params }: { params: Promise<{ krapi: string[] }> }
 ) {
   const resolvedParams = await params;
-  return proxyRequest(request, resolvedParams, "PUT");
+  return handleRequest(request, resolvedParams, "PUT");
 }
 
 export async function DELETE(
@@ -41,7 +43,7 @@ export async function DELETE(
   { params }: { params: Promise<{ krapi: string[] }> }
 ) {
   const resolvedParams = await params;
-  return proxyRequest(request, resolvedParams, "DELETE");
+  return handleRequest(request, resolvedParams, "DELETE");
 }
 
 export async function PATCH(
@@ -49,134 +51,129 @@ export async function PATCH(
   { params }: { params: Promise<{ krapi: string[] }> }
 ) {
   const resolvedParams = await params;
-  return proxyRequest(request, resolvedParams, "PATCH");
+  return handleRequest(request, resolvedParams, "PATCH");
 }
 
-async function proxyRequest(
+async function handleRequest(
   request: NextRequest,
   params: { krapi: string[] },
   method: string
 ) {
   try {
-    // Build the backend URL
     const pathSegments = params.krapi || [];
-    
-    // CRITICAL: Exclude MCP routes - these have specific handlers at /api/krapi/k1/mcp/*
-    // The catch-all route should NOT handle MCP routes - they have dedicated route handlers
-    // Check if this is an MCP route BEFORE processing
-    if (pathSegments.length >= 3 && 
-        pathSegments[0] === "krapi" && 
-        pathSegments[1] === "k1" && 
-        pathSegments[2] === "mcp") {
-      // MCP routes have specific handlers - this catch-all should never handle them
-      // If we get here, Next.js didn't find the specific route (route file issue or build cache)
-      // eslint-disable-next-line no-console
-      console.error("ERROR: Catch-all route matched MCP route - specific route should handle this!");
-      // eslint-disable-next-line no-console
-      console.error("Path segments:", pathSegments.join("/"));
-      // eslint-disable-next-line no-console
-      console.error(`Expected route: /api/krapi/k1/mcp/${pathSegments.slice(3).join("/")}`);
+    const requestedPath = pathSegments.join("/");
+
+    // Validate request path format
+    if (pathSegments.length === 0) {
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: "MCP route should be handled by specific route handler. Route file may be missing or not recognized by Next.js." 
+          error: "Invalid API path",
+          message:
+            "API path is required. Use format: /api/krapi/k1/{resource}/{action}",
+          availableEndpoints: [
+            "/api/krapi/k1/auth/login",
+            "/api/krapi/k1/auth/logout",
+            "/api/krapi/k1/auth/me",
+            "/api/krapi/k1/projects",
+            "/api/krapi/k1/collections",
+            "/api/krapi/k1/documents",
+            "/api/krapi/k1/storage",
+            "/api/krapi/k1/backup",
+            "/api/krapi/k1/email",
+            "/api/krapi/k1/activity",
+            "/api/krapi/k1/apikeys",
+          ],
         },
-        { status: 404 }
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": "application/json",
+          },
+        }
       );
     }
-    
-    // Remove 'krapi' and 'k1' from the beginning if they exist to avoid duplication
-    const cleanSegments =
+
+    // Check if path starts with krapi/k1 (should be normalized by Next.js routing)
+    const normalizedPath =
       pathSegments[0] === "krapi" && pathSegments[1] === "k1"
-        ? pathSegments.slice(2)
-        : pathSegments;
-    
-    const backendPath = `/krapi/k1/${cleanSegments.join("/")}`;
-    const backendUrl = `${BACKEND_URL}${backendPath}`;
+        ? pathSegments.slice(2).join("/")
+        : requestedPath;
 
-    // Get query parameters
-    const url = new URL(request.url);
-    const searchParams = url.searchParams.toString();
-    const fullBackendUrl = searchParams
-      ? `${backendUrl}?${searchParams}`
-      : backendUrl;
+    // Validate authentication for non-public endpoints
+    const authHeader = request.headers.get("authorization");
+    const isPublicEndpoint =
+      normalizedPath.startsWith("auth/login") ||
+      normalizedPath.startsWith("health") ||
+      normalizedPath.startsWith("mcp");
 
-    // Debug logging removed for production
-
-    // Prepare headers (exclude host and other problematic headers)
-    const headers = new Headers();
-    request.headers.forEach((value, key) => {
-      const lowerKey = key.toLowerCase();
-      if (
-        !lowerKey.startsWith("host") &&
-        !lowerKey.startsWith("x-forwarded") &&
-        !lowerKey.startsWith("x-vercel") &&
-        !lowerKey.startsWith("x-middleware") &&
-        lowerKey !== "connection" &&
-        lowerKey !== "content-length"
-      ) {
-        headers.set(key, value);
-      }
-    });
-
-    // Add proxy headers
-    headers.set("X-Forwarded-For", "unknown"); // request.ip not available in Next.js 15
-    headers.set("X-Forwarded-Host", request.headers.get("host") || "unknown");
-    headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));
-
-    // Prepare request body for non-GET requests
-    let body: string | undefined;
-    if (method !== "GET" && method !== "DELETE") {
-      try {
-        body = await request.text();
-      } catch {
-        // Failed to read request body, continue without body
-      }
+    if (!isPublicEndpoint && !authHeader) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication required",
+          message:
+            "This endpoint requires authentication. Please provide a valid Authorization header.",
+        },
+        {
+          status: 401,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": "application/json",
+            "WWW-Authenticate": "Bearer",
+          },
+        }
+      );
     }
 
-    // Make the request to the backend
-    const response = await fetch(fullBackendUrl, {
-      method,
-      headers,
-      body: body || undefined,
-    });
-
-    // Get response data
-    const responseText = await response.text();
-    let responseData;
-
-    try {
-      responseData = JSON.parse(responseText);
-    } catch {
-      responseData = responseText;
-    }
-
-    // Return the response
-    return NextResponse.json(responseData, {
-      status: response.status,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods":
-          "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-        "Access-Control-Allow-Headers":
-          "Content-Type, Authorization, X-API-Key",
-        "Content-Type": "application/json",
-      },
-    });
-  } catch {
+    // Return 404 for routes that don't have specific handlers
+    // This means the route doesn't exist or wasn't properly configured
     return NextResponse.json(
       {
-        error: "Proxy Error",
-        message: "Failed to proxy request to backend",
+        success: false,
+        error: "Route not found",
+        message: `The requested endpoint '${normalizedPath}' does not exist or is not available.`,
+        requestedPath: normalizedPath,
+        method,
+        suggestion:
+          "Please check the API documentation for available endpoints.",
+        availableEndpoints: [
+          "/api/krapi/k1/auth/*",
+          "/api/krapi/k1/projects/*",
+          "/api/krapi/k1/collections/*",
+          "/api/krapi/k1/documents/*",
+          "/api/krapi/k1/storage/*",
+          "/api/krapi/k1/backup/*",
+          "/api/krapi/k1/email/*",
+          "/api/krapi/k1/activity/*",
+          "/api/krapi/k1/apikeys/*",
+        ],
+      },
+      {
+        status: 404,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[CATCH-ALL] Error handling request:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       },
       {
         status: 500,
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods":
-            "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-          "Access-Control-Allow-Headers":
-            "Content-Type, Authorization, X-API-Key",
           "Content-Type": "application/json",
         },
       }

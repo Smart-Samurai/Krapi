@@ -52,8 +52,12 @@ import {
 export function HelpMenu() {
   const [open, setOpen] = useState(false);
 
+  // SDK-FIRST: Use centralized config for API URL
+  // Note: Client-side components can't import server-side config directly
+  // Use environment variable or derive from current URL
   const currentUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/krapi/k1", "") || currentUrl.replace(":3498", ":3470");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/krapi/k1", "") || 
+                 (currentUrl.includes(":3498") ? currentUrl.replace(":3498", ":3470") : currentUrl);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -246,7 +250,7 @@ export default function MyComponent() {
                           </ul>
                         </li>
                         <li>Click <strong>Create</strong></li>
-                        <li className="font-semibold text-warning">⚠️ Copy the API key immediately - it's only shown once!</li>
+                        <li className="font-semibold text-warning">⚠️ Copy the API key immediately - it&apos;s only shown once!</li>
                       </ol>
                     </div>
 
@@ -349,9 +353,9 @@ export default function MyComponent() {
                       <h4 className="font-semibold mb-2">Custom Domain</h4>
                       <p className="text-sm mb-2">To use your own domain:</p>
                       <ol className="list-decimal list-inside space-y-2 text-sm">
-                        <li>Point your domain to your server's IP</li>
+                        <li>Point your domain to your server&apos;s IP</li>
                         <li>Configure reverse proxy (Nginx/Caddy)</li>
-                        <li>Enable HTTPS with Let's Encrypt</li>
+                        <li>Enable HTTPS with Let&apos;s Encrypt</li>
                         <li>Update <strong>Site URL</strong> in Settings → General</li>
                         <li>Update <strong>Allowed Origins</strong> in Settings → Security</li>
                       </ol>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getServerSdk } from "@/app/api/lib/sdk-client";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 /**
  * Collections API Routes
@@ -21,11 +22,17 @@ export async function GET(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Get collections for the project using SDK
-    const sdk = await getServerSdk();
-    const collections = await sdk.collections.getCollectionsByProject(
-      projectId
-    );
+    // SDK-FIRST: Use authenticated SDK
+    const authToken = getAuthToken(request.headers);
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const collections = await sdk.collections.getAll(projectId);
 
     return NextResponse.json({ success: true, data: collections });
   } catch (error) {
@@ -51,9 +58,16 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // Create collection using SDK
-    // SDK expects: collections.create(projectId, collectionData)
-    const sdk = await getServerSdk();
+    // SDK-FIRST: Use authenticated SDK
+    const authToken = getAuthToken(request.headers);
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const sdk = await createAuthenticatedBackendSdk(authToken);
     const collection = await sdk.collections.create(
       collectionData.project_id,
       {

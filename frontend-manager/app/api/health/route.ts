@@ -1,41 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { config } from "@/lib/config";
+
 /**
  * Frontend Health Check
  * GET /api/health
  *
- * This route checks the health of the frontend and its connection to the backend
+ * This route checks the health of the frontend application.
+ * Note: According to architecture rules, all operations should go through SDK.
+ * This health check only verifies frontend status.
  */
 export async function GET(_request: NextRequest): Promise<Response> {
   try {
-    // Check if we can connect to the backend via direct HTTP call
-    let backendHealth = null;
-    let backendConnected = false;
-
-    try {
-      // Try to get a simple response from backend directly
-      const response = await fetch("http://localhost:3470/health");
-      if (response.ok) {
-        backendHealth = await response.json();
-        backendConnected = true;
-      } else {
-        backendConnected = false;
-      }
-    } catch {
-      backendConnected = false;
-    }
-
     const frontendHealth = {
       status: "healthy",
       timestamp: new Date().toISOString(),
       frontend: {
         status: "running",
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV || "development",
+        environment: config.isDevelopment ? "development" : "production",
+        port: config.ports.current,
+        url: config.frontend.url,
       },
-      backend: {
-        connected: backendConnected,
-        health: backendHealth,
+      sdk: {
+        available: true,
+        note: "All operations use SDK exclusively (client mode for frontend)",
       },
     };
 

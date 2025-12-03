@@ -48,7 +48,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useKrapi } from "@/lib/hooks/useKrapi";
 import type { Project, ProjectSettings } from "@/lib/krapi";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjectById, updateProject } from "@/store/projectsSlice";
@@ -81,7 +80,6 @@ export default function ProjectSettingsPage() {
     throw new Error("Project ID is required");
   }
   const projectId = params.projectId as string;
-  const krapi = useKrapi();
   const dispatch = useAppDispatch();
   const projectsState = useAppSelector((s) => s.projects);
   const project = projectsState.items.find((p) => p.id === projectId) || null;
@@ -179,11 +177,6 @@ export default function ProjectSettingsPage() {
 
   const onSubmit = async (data: ProjectSettingsFormData) => {
     try {
-      if (!krapi) {
-        toast.error("KRAPI client not initialized");
-        dispatch(endBusy());
-        return;
-      }
       dispatch(beginBusy());
       const action = await dispatch(
         updateProject({
@@ -197,6 +190,7 @@ export default function ProjectSettingsPage() {
       );
       if (updateProject.fulfilled.match(action)) {
         toast.success("Project settings updated successfully");
+        setError(null);
       } else {
         const msg =
           (action as { payload?: string }).payload ||
@@ -204,8 +198,10 @@ export default function ProjectSettingsPage() {
         setError(String(msg));
         toast.error("Failed to update project settings");
       }
-    } catch {
-      setError("An error occurred while updating project settings");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while updating project settings";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       dispatch(endBusy());
     }

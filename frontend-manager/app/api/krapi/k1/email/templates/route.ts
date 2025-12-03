@@ -6,49 +6,49 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:3499";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
     const { searchParams } = new URL(request.url);
+    const limit = searchParams.get("limit")
+      ? parseInt(searchParams.get("limit")!)
+      : undefined;
+    const offset = searchParams.get("offset")
+      ? parseInt(searchParams.get("offset")!)
+      : undefined;
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const queryParams = new URLSearchParams();
-    searchParams.forEach((value, key) => {
-      queryParams.append(key, value);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const projectId =
+      searchParams.get("project_id") || searchParams.get("projectId") || "";
+
+    // SDK 0.4.0+: Use email.getTemplates() instead of email.templates.list()
+    const templates = await sdk.email.getTemplates(projectId, {
+      limit,
+      offset,
     });
 
-    const response = await fetch(
-      `${backendUrl}/email/templates?${queryParams}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: authHeader,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: errorData.error || "Failed to get email templates" },
-        { status: response.status }
-      );
-    }
-
-    const templatesData = await response.json();
-    return NextResponse.json(templatesData);
-  } catch {
-    
+    return NextResponse.json(templates);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error getting email templates:", error);
     return NextResponse.json(
-      { error: "Failed to get email templates" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get email templates",
+      },
       { status: 500 }
     );
   }
@@ -57,40 +57,40 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const authHeader = request.headers.get("authorization");
+    const authToken = getAuthToken(request.headers);
 
-    if (!authHeader) {
+    if (!authToken) {
       return NextResponse.json(
         { error: "Authorization header required" },
         { status: 401 }
       );
     }
 
-    const response = await fetch(`${backendUrl}/email/templates`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
+    // SDK-FIRST: Use backend SDK client (connects to backend URL)
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const projectId = body.projectId || body.project_id;
+    if (!projectId) {
       return NextResponse.json(
-        { error: errorData.error || "Failed to create email template" },
-        { status: response.status }
+        { error: "projectId is required" },
+        { status: 400 }
       );
     }
 
-    const templateData = await response.json();
-    return NextResponse.json(templateData);
-  } catch {
-    
+    // SDK 0.4.0+: Use email.createTemplate() instead of email.templates.create()
+    const template = await sdk.email.createTemplate(projectId, body);
+
+    return NextResponse.json(template);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("Error creating email template:", error);
     return NextResponse.json(
-      { error: "Failed to create email template" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create email template",
+      },
       { status: 500 }
     );
   }
 }
-
