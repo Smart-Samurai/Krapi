@@ -12,8 +12,12 @@ import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
  */
 
 export async function POST(request: NextRequest): Promise<Response> {
+  // eslint-disable-next-line no-console
+  console.log("[FRONTEND] /api/krapi/k1/auth/admin/login called");
   try {
     const body = await request.json();
+    // eslint-disable-next-line no-console
+    console.log("[FRONTEND] Admin login request body:", { username: body.username, hasPassword: !!body.password });
 
     if (!body.username || !body.password) {
       return NextResponse.json(
@@ -34,17 +38,25 @@ export async function POST(request: NextRequest): Promise<Response> {
       body.remember_me
     );
 
-    // SDK expects response wrapped in 'data' property with 'token' field (not 'session_token')
-    // The SDK's auth adapter looks for: response.data.token, response.data.user, response.data.expires_at, response.data.scopes
-    return NextResponse.json({
+    // eslint-disable-next-line no-console
+    console.log("[FRONTEND] Backend SDK login result:", { hasSessionToken: !!result?.session_token, hasUser: !!result?.user, keys: result ? Object.keys(result) : [] });
+
+    // SDK client mode expects response wrapped in { success: true, data: {...} } format (same as backend)
+    // The SDK will unwrap the data field and return { session_token, user, expires_at, scopes }
+    // Backend returns: { success: true, data: { user, token, session_token, expires_at, scopes } }
+    const response = {
       success: true,
       data: {
+        user: result.user,
         token: result.session_token,
-      user: result.user,
+      session_token: result.session_token,
       expires_at: result.expires_at,
       scopes: result.scopes || [],
       },
-    });
+    };
+    // eslint-disable-next-line no-console
+    console.log("[FRONTEND] Returning admin login response:", JSON.stringify(response).substring(0, 200));
+    return NextResponse.json(response);
   } catch (error) {
     // SDK errors are properly formatted
     const errorMessage =

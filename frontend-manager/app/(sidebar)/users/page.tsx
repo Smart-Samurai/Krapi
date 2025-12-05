@@ -91,6 +91,7 @@ export default function ServerAdministrationPage() {
             icon={Plus}
             onClick={() => setIsCreateDialogOpen(true)}
             disabled={!hasScope(Scope.ADMIN_WRITE)}
+            data-testid="create-admin-user-button"
           >
             Add Admin User
           </ActionButton>
@@ -110,6 +111,7 @@ export default function ServerAdministrationPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-secondary bg-background text-text placeholder:text-text/40 focus:outline-none focus:ring-2 focus:ring-primary"
+            data-testid="admin-users-search-input"
           />
         </div>
       </div>

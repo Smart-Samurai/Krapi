@@ -12,7 +12,7 @@ import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router } from "express";
 
 import SystemController from "../controllers/system.controller";
-import { authenticate } from "../middleware/auth.middleware";
+import { authenticate, requireScopes } from "../middleware/auth.middleware";
 
 const router: Router = Router();
 const controller = SystemController;
@@ -91,5 +91,18 @@ router.get("/info", controller.getSystemInfo);
  * @returns {Object} Database health status
  */
 router.get("/database-health", controller.getDatabaseHealth);
+
+/**
+ * Reset all database data (hard reset)
+ * 
+ * POST /krapi/k1/system/reset-database
+ * 
+ * WARNING: This is a destructive operation that will delete ALL data.
+ * Requires MASTER scope or ADMIN_DELETE scope.
+ * 
+ * @route POST /reset-database
+ * @returns {Object} Reset statistics
+ */
+router.post("/reset-database", requireScopes({ scopes: ["MASTER", "admin:delete"] }), controller.resetDatabase);
 
 export default router;

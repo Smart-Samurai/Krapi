@@ -276,6 +276,55 @@ export class SystemController {
       } as ApiResponse);
     }
   };
+
+  /**
+   * Reset all database data (hard reset)
+   * 
+   * POST /krapi/k1/system/reset-database
+   * 
+   * WARNING: This is a destructive operation that will delete ALL data.
+   * Requires MASTER scope or ADMIN_DELETE scope.
+   * 
+   * @param {Request} req - Express request
+   * @param {Response} res - Express response
+   * @returns {Promise<void>}
+   */
+  resetDatabase = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      // SDK-FIRST ARCHITECTURE: Use ONLY SDK methods - NO database fallbacks
+      if (!this.backendSDK) {
+        res.status(500).json({
+          success: false,
+          error: "BackendSDK not initialized",
+        } as ApiResponse);
+        return;
+      }
+
+      try {
+        // Import DatabaseService to access resetAllData
+        const { DatabaseService } = await import("../services/database.service");
+        const dbService = DatabaseService.getInstance();
+
+        const result = await dbService.resetAllData();
+
+        res.status(200).json({
+          success: true,
+          data: result,
+          message: "Database reset successfully. All data has been deleted.",
+        } as ApiResponse);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Failed to reset database",
+        } as ApiResponse);
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error",
+      } as ApiResponse);
+    }
+  };
 }
 
 export default new SystemController();

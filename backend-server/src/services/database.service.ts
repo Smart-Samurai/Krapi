@@ -4797,13 +4797,14 @@ export class DatabaseService {
     // Project API keys go to project-specific database
     await this.dbManager.queryProject(
       apiKey.project_id,
-      `INSERT INTO api_keys (id, key, name, type, owner_id, scopes, expires_at, metadata, is_active, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO api_keys (id, key, name, type, project_id, owner_id, scopes, expires_at, metadata, is_active, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         apiKeyId,
         key,
         apiKey.name,
         "project",
+        apiKey.project_id,
         apiKey.user_id,
         JSON.stringify(apiKey.scopes),
         apiKey.expires_at || null,
@@ -7235,6 +7236,87 @@ export class DatabaseService {
       console.log("Reset all test data");
     } catch (error) {
       console.error("Error resetting all test data:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset all database data (hard reset)
+   * 
+   * WARNING: This will delete ALL data including:
+   * - All projects and their databases
+   * - All admin users (except default admin)
+   * - All sessions
+   * - All API keys
+   * - All email templates
+   * - All activity logs
+   * 
+   * This is a destructive operation and cannot be undone!
+   * 
+   * @returns {Promise<{ deletedProjects: number; deletedAdminUsers: number; deletedSessions: number }>} Reset statistics
+   */
+  async resetAllData(): Promise<{
+    deletedProjects: number;
+    deletedAdminUsers: number;
+    deletedSessions: number;
+  }> {
+    try {
+      await this.ensureReady();
+
+      // Get all projects
+      const allProjects = await this.getAllProjects();
+      let deletedProjects = 0;
+
+      // Delete all projects and their databases
+      for (const project of allProjects) {
+        try {
+          await this.deleteProject(project.id);
+          deletedProjects++;
+        } catch (error) {
+          console.error(`Failed to delete project ${project.id}:`, error);
+        }
+      }
+
+      // Delete all admin users except default admin (username: 'admin')
+      const deleteAdminResult = await this.dbManager.queryMain(
+        "DELETE FROM admin_users WHERE username != 'admin'"
+      );
+      const deletedAdminUsers = deleteAdminResult.rowCount || 0;
+
+      // Delete all sessions
+      const deleteSessionsResult = await this.dbManager.queryMain(
+        "DELETE FROM sessions"
+      );
+      const deletedSessions = deleteSessionsResult.rowCount || 0;
+
+      // Delete all API keys
+      await this.dbManager.queryMain("DELETE FROM api_keys").catch(() => ({}));
+
+      // Delete all email templates
+      await this.dbManager.queryMain("DELETE FROM email_templates").catch(() => ({}));
+
+      // Delete all activity logs
+      await this.dbManager.queryMain("DELETE FROM activity_logs").catch(() => ({}));
+
+      // Delete all system checks
+      await this.dbManager.queryMain("DELETE FROM system_checks").catch(() => ({}));
+
+      // Reset default admin password to default (admin123)
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
+      await this.dbManager.queryMain(
+        "UPDATE admin_users SET password = $1 WHERE username = 'admin'",
+        [defaultPassword]
+      ).catch(() => ({}));
+
+      console.log(`✅ Database reset complete: ${deletedProjects} projects, ${deletedAdminUsers} admin users, ${deletedSessions} sessions deleted`);
+
+      return {
+        deletedProjects,
+        deletedAdminUsers,
+        deletedSessions,
+      };
+    } catch (error) {
+      console.error("Error resetting all data:", error);
       throw error;
     }
   }

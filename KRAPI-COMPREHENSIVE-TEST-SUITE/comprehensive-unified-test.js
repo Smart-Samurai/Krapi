@@ -32,8 +32,8 @@ import {
  * This ensures we test the same path that real external apps would use.
  */
 // Total number of tests in the suite (used for progress tracking)
-// Updated: Added 20 missing tests to reach 100% coverage (120 tests total)
-const TOTAL_TESTS_IN_SUITE = 120;
+// Current total: 117 tests across all test files
+const TOTAL_TESTS_IN_SUITE = 117;
 
 class ComprehensiveTestSuite {
   constructor(sessionToken = null, testProject = null, selectedTests = null) {
@@ -74,6 +74,8 @@ class ComprehensiveTestSuite {
       minimal: process.env.VERBOSE !== "true", // Minimal mode unless verbose
       environment: this.environment,
     });
+    // Set expected total tests for accurate success rate calculation
+    this.logger.setTotalExpectedTests(TOTAL_TESTS_IN_SUITE);
   }
 
   /**
@@ -1013,7 +1015,7 @@ class ComprehensiveTestSuite {
   printResults() {
     const totalTests = this.testResults.passed + this.testResults.failed;
     const duration = Date.now() - this.startTime;
-    const totalExpectedTests = this.totalTestsInSuite || 79; // Always use 79 as total expected
+    const totalExpectedTests = TOTAL_TESTS_IN_SUITE; // Always use the constant value (120)
 
     // Calculate performance metrics
     const avgTestTime = totalTests > 0 ? Math.round(duration / totalTests) : 0;

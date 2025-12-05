@@ -9,6 +9,8 @@
  * For concurrent operations, consider using createInstance() instead.
  */
 
+import { NextRequest } from "next/server";
+
 import { config, SDK_RETRY_CONFIG } from "@/lib/config";
 
 // Store the SDK instance once loaded
@@ -107,14 +109,36 @@ export async function createAuthenticatedSdk(
 }
 
 /**
- * Extract auth token from request headers
- * @param headers Request headers
+ * Extract auth token from request headers or cookies
+ * @param request NextRequest object (for accessing headers and cookies)
  * @returns Auth token or undefined
  */
-export function getAuthToken(headers: Headers): string | undefined {
+export function getAuthToken(request: NextRequest | Headers): string | undefined {
+  // Handle both NextRequest and Headers for backward compatibility
+  let headers: Headers;
+  let cookies: { get: (name: string) => { value: string } | undefined } | undefined;
+  
+  if (request instanceof Headers) {
+    headers = request;
+    cookies = undefined;
+  } else {
+    headers = request.headers;
+    cookies = request.cookies;
+  }
+
+  // First, try Authorization header
   const authorization = headers.get("authorization");
   if (authorization?.startsWith("Bearer ")) {
     return authorization.substring(7);
   }
+
+  // Fallback to cookie if header not present
+  if (cookies) {
+    const sessionTokenCookie = cookies.get("session_token");
+    if (sessionTokenCookie?.value) {
+      return sessionTokenCookie.value;
+    }
+  }
+
   return undefined;
 }

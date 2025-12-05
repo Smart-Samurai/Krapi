@@ -21,7 +21,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, ArrowRight, Settings } from "lucide-react";
+import { Plus, ArrowRight, Settings, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
@@ -126,6 +126,7 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const createForm = useForm<CreateProjectFormData>({
     resolver: zodResolver(createProjectSchema),
@@ -250,24 +251,37 @@ export default function ProjectsPage() {
     }
   };
 
+  // Show loading skeleton while projects are loading
   if (loading) {
     return (
       <PageLayout>
-        <Skeleton className="h-8 w-48" />
+        <PageHeader
+          title="Projects"
+          description="Manage your KRAPI projects"
+          action={
+            <Skeleton className="h-10 w-32" />
+          }
+        />
         <div 
           className="grid gap-4 w-full max-w-full overflow-x-hidden"
           style={{
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
           }}
+          data-testid="projects-container"
         >
-          {Array.from({ length: 3 }, (_, i) => (
-            <Card key={`projects-skeleton-card-${i}`} className="min-w-0 max-w-full">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Card key={`projects-skeleton-card-${i}`} className="min-w-0 max-w-full" data-testid="projects-skeleton-card">
               <CardHeader>
-                <Skeleton className="h-6 w-32" />
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <Skeleton className="h-6 w-32 mb-2" />
                 <Skeleton className="h-4 w-48" />
+                  </div>
+                  <Skeleton className="h-5 w-16" />
+                </div>
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-20" />
+                <Skeleton className="h-10 w-full" />
               </CardContent>
             </Card>
           ))}
@@ -302,6 +316,7 @@ export default function ProjectsPage() {
                 icon={Plus}
                 onClick={() => setIsCreateDialogOpen(true)}
                 disabled={isBusy}
+                data-testid="create-project-button"
               >
                 Create Project
               </ActionButton>
@@ -310,8 +325,45 @@ export default function ProjectsPage() {
         }
       />
 
+      {/* Search Bar */}
+      {projects.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Search projects by name or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="projects-search-input"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <ScopeGuard scopes={Scope.PROJECTS_READ}>
-        {projects.length === 0 ? (
+        {(() => {
+          // Filter projects based on search query
+          const filteredProjects = searchQuery
+            ? projects.filter(
+                (p) =>
+                  p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (p.description || "").toLowerCase().includes(searchQuery.toLowerCase())
+              )
+            : projects;
+
+          return filteredProjects.length === 0 ? (
+            searchQuery ? (
+              <EmptyState
+                icon={Settings}
+                title="No projects found"
+                description={`No projects match "${searchQuery}"`}
+                data-testid="empty-state-projects-search"
+              />
+            ) : (
           <ScopeGuard
             scopes={Scope.PROJECTS_WRITE}
             fallback={
@@ -331,28 +383,46 @@ export default function ProjectsPage() {
                 onClick: () => setIsCreateDialogOpen(true),
                 icon: Plus,
               }}
+              data-testid="empty-state-projects"
             />
           </ScopeGuard>
-        ) : (
+            )
+          ) : (
           <div 
             className="grid gap-4 w-full max-w-full overflow-x-hidden"
             style={{
               gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
             }}
+            data-testid="projects-container"
           >
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <Card
                 key={project.id}
-                className="krapi-card-hover min-w-0 max-w-full flex flex-col"
-                onClick={() => router.push(`/projects/${project.id}`)}
+                className="krapi-card-hover min-w-0 max-w-full flex flex-col cursor-pointer transition-all hover:shadow-md"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/projects/${project.id}`);
+                }}
+                data-testid="project-card"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    router.push(`/projects/${project.id}`);
+                  }
+                }}
+                aria-label={`View project ${project.name}`}
               >
                 <CardHeader className="flex-shrink-0 min-w-0">
                   <div className="flex justify-between items-start gap-2 min-w-0">
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base font-semibold truncate">
+                      <CardTitle className="text-base font-semibold truncate" data-testid="project-name">
                         {project.name}
                       </CardTitle>
-                      <CardDescription className="text-base line-clamp-2 text-ellipsis overflow-hidden">
+                      <CardDescription className="text-base line-clamp-2 text-ellipsis overflow-hidden" data-testid="project-description">
                         {project.description || "No description"}
                       </CardDescription>
                     </div>
@@ -369,14 +439,20 @@ export default function ProjectsPage() {
                     variant="outline"
                     icon={ArrowRight}
                     className="w-full"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      router.push(`/projects/${project.id}`);
+                    }}
                   >
                     Enter Project
                   </ActionButton>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          );
+        })()}
       </ScopeGuard>
 
       {/* Create Project Dialog */}
@@ -389,6 +465,7 @@ export default function ProjectsPage() {
         onSubmit={createForm.handleSubmit(handleCreateProject)}
         isSubmitting={isCreating}
         disabled={isCreating}
+        data-testid="create-project-dialog"
       >
         <Form {...createForm}>
           <FormField
@@ -398,7 +475,7 @@ export default function ProjectsPage() {
               <FormItem>
                 <FormLabel>Project Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="My Awesome Project" {...field} />
+                  <Input placeholder="My Awesome Project" {...field} data-testid="project-form-name" />
                 </FormControl>
                 <FormDescription>
                   Choose a unique name for your project
@@ -417,6 +494,7 @@ export default function ProjectsPage() {
                   <Textarea
                     placeholder="A brief description of your project..."
                     {...field}
+                    data-testid="project-form-description"
                   />
                 </FormControl>
                 <FormMessage />

@@ -144,33 +144,147 @@ async function startServices(mode = "dev") {
     warn("Environment initialization skipped or failed");
   }
   
-  // Start services
-  const command = mode === "dev" ? "npm run dev:all" : "npm run start:all";
-  const child = spawn("npm", ["run", mode === "dev" ? "dev:all" : "start:all"], {
+  // Create .logs directory if it doesn't exist
+  const logsDir = path.join(rootDir, ".logs");
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+  
+  // Create log file paths with timestamp
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backendLogPath = path.join(logsDir, `backend-${timestamp}.log`);
+  const frontendLogPath = path.join(logsDir, `frontend-${timestamp}.log`);
+  
+  // Create write streams for log files
+  const backendLogStream = fs.createWriteStream(backendLogPath, { flags: "a" });
+  const frontendLogStream = fs.createWriteStream(frontendLogPath, { flags: "a" });
+  
+  info(`Backend logs: ${backendLogPath}`);
+  info(`Frontend logs: ${frontendLogPath}`);
+  
+  // Start backend and frontend separately to capture their logs
+  const config = utils.loadConfig();
+  
+  // Start backend
+  const backendCommand = mode === "dev" ? "dev:backend" : "start:backend";
+  const backendProcess = spawn("npm", ["run", backendCommand], {
     cwd: rootDir,
-    stdio: "inherit",
     shell: true,
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  
+  // Pipe backend stdout and stderr to log file and console
+  backendProcess.stdout.on("data", (data) => {
+    const output = data.toString();
+    backendLogStream.write(`[${new Date().toISOString()}] ${output}`);
+    process.stdout.write(`[Backend] ${output}`);
+  });
+  
+  backendProcess.stderr.on("data", (data) => {
+    const output = data.toString();
+    backendLogStream.write(`[${new Date().toISOString()}] ${output}`);
+    process.stderr.write(`[Backend] ${output}`);
+  });
+  
+  // Start frontend
+  const frontendCommand = mode === "dev" ? "dev:frontend" : "start:frontend";
+  const frontendProcess = spawn("npm", ["run", frontendCommand], {
+    cwd: rootDir,
+    shell: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  
+  // Pipe frontend stdout and stderr to log file and console
+  frontendProcess.stdout.on("data", (data) => {
+    const output = data.toString();
+    frontendLogStream.write(`[${new Date().toISOString()}] ${output}`);
+    process.stdout.write(`[Frontend] ${output}`);
+  });
+  
+  frontendProcess.stderr.on("data", (data) => {
+    const output = data.toString();
+    frontendLogStream.write(`[${new Date().toISOString()}] ${output}`);
+    process.stderr.write(`[Frontend] ${output}`);
+  });
+  
+  // Store processes for cleanup
+  global.backendProcess = backendProcess;
+  global.frontendProcess = frontendProcess;
+  global.backendLogStream = backendLogStream;
+  global.frontendLogStream = frontendLogStream;
   
   // Handle graceful shutdown
-  process.on("SIGINT", () => {
+  const shutdown = () => {
     info("\n🛑 Shutting down services...");
-    child.kill("SIGINT");
-    process.exit(0);
-  });
-  
-  process.on("SIGTERM", () => {
-    info("\n🛑 Shutting down services...");
-    child.kill("SIGTERM");
-    process.exit(0);
-  });
-  
-  child.on("exit", (code) => {
-    if (code !== 0 && code !== null) {
-      error(`Services exited with code ${code}`);
+    if (backendProcess) {
+      backendProcess.kill("SIGINT");
     }
-    process.exit(code || 0);
+    if (frontendProcess) {
+      frontendProcess.kill("SIGINT");
+    }
+    // Close log streams
+    if (backendLogStream) {
+      backendLogStream.end();
+    }
+    if (frontendLogStream) {
+      frontendLogStream.end();
+    }
+    process.exit(0);
+  };
+  
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+  
+  // Handle process exits
+  backendProcess.on("exit", (code) => {
+    if (code !== 0 && code !== null) {
+      error(`Backend exited with code ${code}`);
+    }
+    backendLogStream.end();
   });
+  
+  frontendProcess.on("exit", (code) => {
+    if (code !== 0 && code !== null) {
+      error(`Frontend exited with code ${code}`);
+    }
+    frontendLogStream.end();
+  });
+  
+  // Wait for services to be ready
+  info("Waiting for services to start...");
+  let backendReady = false;
+  let frontendReady = false;
+  
+  const checkBackend = setInterval(async () => {
+    if (await isPortInUse(backendPort)) {
+      backendReady = true;
+      success(`Backend is ready on port ${backendPort}`);
+      clearInterval(checkBackend);
+      if (backendReady && frontendReady) {
+        success("All services are ready!");
+      }
+    }
+  }, 1000);
+  
+  const checkFrontend = setInterval(async () => {
+    if (await isPortInUse(frontendPort)) {
+      frontendReady = true;
+      success(`Frontend is ready on port ${frontendPort}`);
+      clearInterval(checkFrontend);
+      if (backendReady && frontendReady) {
+        success("All services are ready!");
+      }
+    }
+  }, 1000);
+  
+  // Timeout after 60 seconds
+  setTimeout(() => {
+    clearInterval(checkBackend);
+    clearInterval(checkFrontend);
+    if (!backendReady || !frontendReady) {
+      warn("Some services may not have started. Check logs for details.");
+    }
+  }, 60000);
 }
 
 /**
@@ -178,6 +292,26 @@ async function startServices(mode = "dev") {
  */
 async function stopServices() {
   info("Stopping KRAPI services...");
+  
+  // Close log streams if they exist
+  if (global.backendLogStream) {
+    global.backendLogStream.end();
+    global.backendLogStream = null;
+  }
+  if (global.frontendLogStream) {
+    global.frontendLogStream.end();
+    global.frontendLogStream = null;
+  }
+  
+  // Kill processes if they exist
+  if (global.backendProcess) {
+    global.backendProcess.kill("SIGTERM");
+    global.backendProcess = null;
+  }
+  if (global.frontendProcess) {
+    global.frontendProcess.kill("SIGTERM");
+    global.frontendProcess = null;
+  }
   
   const frontendPort = utils.getConfigValue("frontend.port");
   const backendPort = utils.getConfigValue("backend.port");
@@ -420,21 +554,108 @@ function handleSecurityCommand(args) {
       success(`Set frontend URL: ${args[1]}`);
       break;
       
-    case "show":
+    case "set-rate-limit":
+      if (!args[1] || !args[2]) {
+        error("Usage: security set-rate-limit <setting> <value>");
+        console.log("Settings: enabled, login-max, sensitive-max, general-max, window-ms");
+        return;
+      }
+      const setting = args[1];
+      const value = args[2];
+      
       const config = utils.loadConfig();
+      if (!config.security.rateLimit) {
+        config.security.rateLimit = {
+          enabled: true,
+          windowMs: 900000,
+          loginMax: 50,
+          sensitiveMax: 10,
+          generalMax: 1000,
+        };
+      }
+      
+      switch (setting) {
+        case "enabled":
+          config.security.rateLimit.enabled = value === "true";
+          utils.saveConfig(config);
+          utils.syncConfigToEnv(config);
+          success(`Rate limiting ${config.security.rateLimit.enabled ? "enabled" : "disabled"}`);
+          break;
+        case "login-max":
+          const loginMax = parseInt(value);
+          if (isNaN(loginMax)) {
+            error("Value must be a number");
+            return;
+          }
+          config.security.rateLimit.loginMax = loginMax;
+          utils.saveConfig(config);
+          utils.syncConfigToEnv(config);
+          success(`Login rate limit set to ${loginMax} attempts per window`);
+          break;
+        case "sensitive-max":
+          const sensitiveMax = parseInt(value);
+          if (isNaN(sensitiveMax)) {
+            error("Value must be a number");
+            return;
+          }
+          config.security.rateLimit.sensitiveMax = sensitiveMax;
+          utils.saveConfig(config);
+          utils.syncConfigToEnv(config);
+          success(`Sensitive operations rate limit set to ${sensitiveMax} attempts per window`);
+          break;
+        case "general-max":
+          const generalMax = parseInt(value);
+          if (isNaN(generalMax)) {
+            error("Value must be a number");
+            return;
+          }
+          config.security.rateLimit.generalMax = generalMax;
+          utils.saveConfig(config);
+          utils.syncConfigToEnv(config);
+          success(`General rate limit set to ${generalMax} requests per window`);
+          break;
+        case "window-ms":
+          const windowMs = parseInt(value);
+          if (isNaN(windowMs)) {
+            error("Value must be a number (milliseconds)");
+            return;
+          }
+          config.security.rateLimit.windowMs = windowMs;
+          utils.saveConfig(config);
+          utils.syncConfigToEnv(config);
+          success(`Rate limit window set to ${windowMs}ms (${windowMs / 1000 / 60} minutes)`);
+          break;
+        default:
+          error(`Unknown rate limit setting: ${setting}`);
+          console.log("Available settings: enabled, login-max, sensitive-max, general-max, window-ms");
+      }
+      break;
+      
+    case "show":
+      const showConfig = utils.loadConfig();
       // Get actual allowed origins (includes localhost)
-      const actualOrigins = utils.ensureLocalhostInOrigins(config.security.allowedOrigins || []);
+      const actualOrigins = utils.ensureLocalhostInOrigins(showConfig.security.allowedOrigins || []);
       console.log("Security Configuration:");
-      console.log(`  CORS Enabled: ${config.security.enableCors}`);
-      console.log(`  Behind Proxy: ${config.security.behindProxy}`);
+      console.log(`  CORS Enabled: ${showConfig.security.enableCors}`);
+      console.log(`  Behind Proxy: ${showConfig.security.behindProxy}`);
       console.log(`  Allowed Origins: ${actualOrigins.length > 0 ? actualOrigins.join(", ") : "None (all allowed)"}`);
       console.log(`  Note: localhost origins are always allowed`);
-      console.log(`  Frontend URL: ${config.frontend.url}`);
+      console.log(`  Frontend URL: ${showConfig.frontend.url}`);
+      if (showConfig.security.rateLimit) {
+        const rl = showConfig.security.rateLimit;
+        console.log(`  Rate Limiting: ${rl.enabled ? "Enabled" : "Disabled"}`);
+        if (rl.enabled) {
+          console.log(`    Window: ${rl.windowMs / 1000 / 60} minutes`);
+          console.log(`    Login: ${rl.loginMax} attempts per window`);
+          console.log(`    Sensitive: ${rl.sensitiveMax} attempts per window`);
+          console.log(`    General: ${rl.generalMax} requests per window`);
+        }
+      }
       break;
       
     default:
       error(`Unknown security command: ${subcommand}`);
-      console.log("Available commands: set-allowed-origins, set-frontend-url, show");
+      console.log("Available commands: set-allowed-origins, set-frontend-url, set-rate-limit, show");
   }
 }
 
@@ -485,6 +706,7 @@ Commands:
   
   security set-allowed-origins <origins>  Set CORS allowed origins (localhost always included)
   security set-frontend-url <url>        Set frontend URL
+  security set-rate-limit <setting> <val> Set rate limit (enabled, login-max, sensitive-max, general-max, window-ms)
   security show                          Show security settings
   
   help                    Show this help

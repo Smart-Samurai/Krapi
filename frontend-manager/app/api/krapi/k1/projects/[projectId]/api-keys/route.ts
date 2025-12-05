@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
+import { config } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -71,5 +72,84 @@ export async function GET(
   }
 }
 
+/**
+ * Create API key for a project
+ * POST /api/krapi/k1/projects/[projectId]/api-keys
+ */
+export async function POST(
+  request: NextRequest,
+  {
+    params,
+  }: {
+    params: Promise<{ projectId: string }>;
+  }
+): Promise<Response> {
+  try {
+    const authToken = getAuthToken(request.headers);
 
+    if (!authToken) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const { projectId } = await params;
+
+    if (!isValidUUID(projectId)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid project ID format" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const { name, scopes, expires_at } = body;
+
+    // Proxy to backend route directly since SDK client mode doesn't support apiKeys.create
+    const backendUrl = config.backend.url;
+    const backendResponse = await fetch(
+      `${backendUrl}/krapi/k1/projects/${projectId}/api-keys`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          name: name || "Project API Key",
+          scopes: scopes || ["projects:read", "collections:read"],
+          expires_at: expires_at,
+        }),
+      }
+    );
+
+    if (!backendResponse.ok) {
+      const error = await backendResponse.json().catch(() => ({
+        error: "Failed to create API key",
+      }));
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.error || "Failed to create API key",
+        },
+        { status: backendResponse.status }
+      );
+    }
+
+    const result = await backendResponse.json();
+    return NextResponse.json(result);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to create API key";
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+      },
+      { status: 500 }
+    );
+  }
+}
 

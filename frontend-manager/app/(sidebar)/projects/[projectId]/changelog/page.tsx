@@ -182,11 +182,11 @@ export default function ProjectChangelogPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={handleExport}>
+          <Button variant="outline" onClick={handleExport} data-testid="changelog-export-button">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button variant="outline" onClick={fetchChangelog}>
+          <Button variant="outline" onClick={fetchChangelog} data-testid="changelog-refresh-button">
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
@@ -231,7 +231,7 @@ export default function ProjectChangelogPage() {
             </div>
           ) : (
             <>
-              <Table>
+              <Table data-testid="changelog-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Timestamp</TableHead>

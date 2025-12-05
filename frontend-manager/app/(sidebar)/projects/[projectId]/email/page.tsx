@@ -751,6 +751,7 @@ export default function EmailPage() {
                 className="btn-confirm"
                 onClick={handleTestConfig}
                 disabled={isTesting || !testEmail}
+                data-testid="test-email-button"
               >
                 <Send className="mr-2 h-4 w-4" />
                 {isTesting ? "Sending..." : "Send Test Email"}
@@ -772,11 +773,11 @@ export default function EmailPage() {
               onOpenChange={setIsCreateTemplateDialogOpen}
             >
               <DialogTrigger asChild>
-                <ActionButton variant="add" icon={Plus}>
+                <ActionButton variant="add" icon={Plus} data-testid="create-email-template-button">
                   Create Template
                 </ActionButton>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="create-email-template-dialog">
                 <DialogHeader>
                   <DialogTitle>Create Email Template</DialogTitle>
                   <DialogDescription>

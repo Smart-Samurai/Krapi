@@ -109,16 +109,17 @@ export default function DashboardPage() {
         description="Admin dashboard for managing your KRAPI instance"
         action={
           hasScope(Scope.PROJECTS_WRITE) ? (
-            <ActionButton variant="add" icon={Plus} asChild>
+            <ActionButton variant="add" icon={Plus} asChild data-testid="quick-action-create-project">
               <Link href="/projects">Create Project</Link>
             </ActionButton>
           ) : null
         }
+        data-testid="dashboard-welcome"
       />
 
       {/* System Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card data-testid="stat-card-projects">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium">
               Total Projects
@@ -133,7 +134,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="stat-card-active-projects">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium">
               Active Projects
@@ -157,7 +158,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="stat-card-collections">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium">
               Total Collections
@@ -176,7 +177,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="stat-card-documents">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium">
               Total Documents
@@ -256,7 +257,7 @@ export default function DashboardPage() {
 
       {/* Projects List */}
       {projects.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="recent-projects-list">
           {isLoadingProjects
             ? Array.from({ length: 6 }, (_, i) => (
                 <Card key={`dashboard-project-skeleton-card-${i}`}>
@@ -315,6 +316,7 @@ export default function DashboardPage() {
                 icon={Plus}
                 className="h-auto p-4 flex-col items-start gap-2"
                 asChild
+                data-testid="quick-action-create-project"
               >
                 <Link href="/projects" className="flex flex-col items-start gap-2">
                   <div className="font-medium">Create Project</div>

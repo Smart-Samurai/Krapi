@@ -213,9 +213,9 @@ app.use(
       }
       // Check configured allowed origins
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,

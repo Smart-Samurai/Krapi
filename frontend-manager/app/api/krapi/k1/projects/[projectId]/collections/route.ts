@@ -25,7 +25,7 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> }
 ): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       return NextResponse.json(
@@ -75,7 +75,7 @@ export async function POST(
   { params }: { params: Promise<{ projectId: string }> }
 ): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       return NextResponse.json(

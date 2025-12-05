@@ -33,7 +33,7 @@ export async function POST(
   }
 ): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       return NextResponse.json(
@@ -83,6 +83,14 @@ export async function POST(
     );
   }
 }
+
+
+
+
+
+
+
+
 
 
 

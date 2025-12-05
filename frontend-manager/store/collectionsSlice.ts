@@ -42,23 +42,37 @@ export const fetchCollections = createAsyncThunk(
     try {
       const token = getAuthToken();
       if (!token) {
+        // eslint-disable-next-line no-console
+        console.error("[CollectionsSlice] No auth token found in cookies/localStorage");
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch(`/api/projects/${projectId}/collections`, {
+      // eslint-disable-next-line no-console
+      console.log("[CollectionsSlice] Fetching collections for project:", projectId, "Token exists:", !!token);
+
+      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections`, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies in request
       });
+
+      // eslint-disable-next-line no-console
+      console.log("[CollectionsSlice] Response status:", response.status, response.statusText);
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Failed to fetch collections" }));
+        // eslint-disable-next-line no-console
+        console.error("[CollectionsSlice] API error:", error);
         return rejectWithValue(error.error || "Failed to fetch collections");
       }
 
       const result = await response.json();
-      return { projectId, collections: result.success ? (result.data || []) : [] };
+      // API returns { success: true, collections: [...] }
+      const collections = result.success ? (result.collections || result.data || []) : [];
+      return { projectId, collections: Array.isArray(collections) ? collections : [] };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch collections"
@@ -113,13 +127,14 @@ export const createCollection = createAsyncThunk(
         })),
       };
 
-      const response = await fetch(`/api/projects/${projectId}/collections`, {
+      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(sdkData),
+        credentials: "include", // Include cookies in request
       });
 
       if (!response.ok) {
@@ -133,7 +148,8 @@ export const createCollection = createAsyncThunk(
       }
 
       const result = await response.json();
-      return { projectId, collection: result.success ? result.data : null };
+      // API returns { success: true, collection: {...} }
+      return { projectId, collection: result.success ? (result.collection || result.data) : null };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to create collection"
@@ -203,13 +219,14 @@ export const updateCollection = createAsyncThunk(
         }));
       }
 
-      const response = await fetch(`/api/projects/${projectId}/collections/${collectionId}`, {
+      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections/${collectionId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(sdkUpdates),
+        credentials: "include", // Include cookies in request
       });
 
       if (!response.ok) {
@@ -218,7 +235,8 @@ export const updateCollection = createAsyncThunk(
       }
 
       const result = await response.json();
-      return { projectId, collection: result.success ? result.data : null };
+      // API returns { success: true, collection: {...} }
+      return { projectId, collection: result.success ? (result.collection || result.data) : null };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to update collection"
@@ -242,12 +260,13 @@ export const deleteCollection = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch(`/api/projects/${projectId}/collections/${collectionId}`, {
+      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections/${collectionId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies in request
       });
 
       if (!response.ok) {

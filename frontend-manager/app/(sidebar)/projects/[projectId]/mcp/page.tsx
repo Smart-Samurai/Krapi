@@ -544,16 +544,16 @@ export default function ProjectMcpPage() {
                 </div>
               </div>
               {availableModels.length > 0 ? (
-                <Select
-                  value={model}
-                  onValueChange={(value) => {
-                    setModel(value);
-                    checkModelCapabilities();
-                  }}
-                >
-                  <SelectTrigger id="model">
-                    <SelectValue placeholder="Select a model" />
-                  </SelectTrigger>
+              <Select
+                value={model}
+                onValueChange={(value) => {
+                  setModel(value);
+                  checkModelCapabilities();
+                }}
+              >
+                <SelectTrigger id="model" data-testid="mcp-model-select">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
                   <SelectContent>
                     {availableModels.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
@@ -649,12 +649,14 @@ export default function ProjectMcpPage() {
               }}
               placeholder="Ask to list collections, create documents, etc."
               disabled={loading}
+              data-testid="mcp-chat-input"
             />
             <ActionButton
               variant="default"
               icon={Send}
               onClick={send}
               disabled={loading || !endpoint || !model || !input.trim()}
+              data-testid="mcp-send-button"
             >
               {loading ? "Sending..." : "Send"}
             </ActionButton>

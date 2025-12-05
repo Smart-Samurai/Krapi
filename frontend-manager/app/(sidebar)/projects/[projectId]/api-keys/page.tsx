@@ -518,16 +518,16 @@ export default function ApiKeysPage() {
               onOpenChange={setIsCreateDialogOpen}
             >
               <DialogTrigger asChild>
-                <ActionButton variant="add" icon={Plus}>
+                <ActionButton variant="add" icon={Plus} data-testid="create-api-key-button">
                   Create API Key
                 </ActionButton>
               </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New API Key</DialogTitle>
-                <DialogDescription>
-                  Create a new API key with specific permissions and expiry date
-                </DialogDescription>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" data-testid="create-api-key-dialog">
+                <DialogHeader>
+                  <DialogTitle>Create New API Key</DialogTitle>
+                  <DialogDescription>
+                    Create a new API key with specific permissions and expiry date
+                  </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>

@@ -33,6 +33,7 @@ import {
  * @property {string} action.label - Action button label
  * @property {Function} action.onClick - Action button click handler
  * @property {LucideIcon} [action.icon] - Optional action button icon
+ * @property {string} [data-testid] - Optional test ID for the empty state
  */
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -43,6 +44,7 @@ interface EmptyStateProps {
     onClick: () => void;
     icon?: LucideIcon;
   };
+  "data-testid"?: string;
 }
 
 /**
@@ -66,9 +68,10 @@ export function EmptyState({
   title,
   description,
   action,
+  "data-testid": dataTestId,
 }: EmptyStateProps) {
   return (
-    <Card>
+    <Card data-testid={dataTestId}>
       <CardContent className="text-center py-12">
         <Icon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-base font-semibold mb-2">{title}</h3>

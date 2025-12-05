@@ -344,7 +344,7 @@ export default function ProjectSettingsPage() {
               )}
 
               <div className="flex justify-end">
-                <Button type="submit" className="btn-confirm">
+                <Button type="submit" className="btn-confirm" data-testid="save-project-settings-button">
                   <Save className="mr-2 h-4 w-4" /> Save Changes
                 </Button>
               </div>

@@ -43,6 +43,7 @@
     "clean": "npm run clean:all",
     "clean:all": "cd backend-server && rmdir /s /q dist node_modules 2>nul & cd ../frontend-manager && rmdir /s /q .next node_modules 2>nul & rmdir /s /q node_modules 2>nul",
     "reset": "npm run clean:all && npm run install:all",
+    "reset:database": "node scripts/reset-database.js",
     "dev:cleanup": "docker stop krapi-dev-postgres && docker rm krapi-dev-postgres && docker network rm krapi-dev-network"
   },
   "devDependencies": {

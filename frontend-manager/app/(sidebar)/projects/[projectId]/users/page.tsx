@@ -295,11 +295,11 @@ export default function UsersPage() {
             <CodeSnippet context="users" projectId={projectId} />
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <ActionButton variant="add" icon={Plus}>
+                <ActionButton variant="add" icon={Plus} data-testid="create-user-button">
                   Create User
                 </ActionButton>
               </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" data-testid="create-user-dialog">
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
               <DialogDescription>
@@ -476,8 +476,8 @@ export default function UsersPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
+              <Table data-testid="users-table">
+                <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Contact</TableHead>

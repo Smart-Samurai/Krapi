@@ -1,4 +1,0 @@
-
-> krapi-comprehensive-test-suite@0.0.1 test:quick D:\Github Personal\Krapi\KRAPI-COMPREHENSIVE-TEST-SUITE
-> node comprehensive-test-runner.js --stop-on-first-failure
-

@@ -11,13 +11,17 @@
     "test:quick": "node comprehensive-test-runner.js --stop-on-first-failure",
     "test:only": "node comprehensive-test-runner.js --only",
     "test:failing": "node comprehensive-test-runner.js --only-failing",
-    "test:help": "node comprehensive-test-runner.js --help"
+    "test:help": "node comprehensive-test-runner.js --help",
+    "test:ui": "node frontend-ui-test-runner.js",
+    "test:ui:headed": "HEADLESS=false node frontend-ui-test-runner.js",
+    "test:ui:verbose": "VERBOSE=true node frontend-ui-test-runner.js"
   },
   "dependencies": {
     "@smartsamurai/krapi-sdk": "^0.5.18",
     "axios": "^1.11.0",
     "chalk": "^5.3.0",
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "playwright": "^1.57.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0"

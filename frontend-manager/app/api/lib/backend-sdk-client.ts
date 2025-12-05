@@ -46,6 +46,10 @@ export async function getBackendSdkClient(): Promise<typeof krapi> {
  * Note: For concurrent requests, session tokens may still overwrite each other on the singleton.
  * Consider using createInstance() when available for true isolation.
  *
+ * CRITICAL: Pass sessionToken in connect() config so ALL HTTP clients get the token.
+ * The SDK's setSessionToken() only updates the auth client, not other clients.
+ * By reconnecting with sessionToken in config, ALL clients get the token.
+ *
  * @param {string} sessionToken - Session token for authentication
  * @returns {Promise<typeof krapi>} Authenticated SDK instance
  */
@@ -55,10 +59,12 @@ export async function createAuthenticatedBackendSdk(
   const backendUrl = config.backend.url;
   const backendUrlWithPath = `${backendUrl}/krapi/k1`;
 
-  // Connect with session token directly - this initializes the HTTP client with auth
+  // CRITICAL: Reconnect with sessionToken in config so ALL HTTP clients have it
+  // The SDK's setSessionToken() only updates the auth client, not other clients.
+  // By reconnecting with sessionToken in config, ALL clients get the token.
   await krapi.connect({
     endpoint: backendUrlWithPath,
-    sessionToken, // Pass session token directly to connect()
+    sessionToken, // Pass token in config so all clients get it
     retry: SDK_RETRY_CONFIG,
     initializeClients: true,
   });

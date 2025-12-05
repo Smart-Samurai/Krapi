@@ -237,12 +237,12 @@ export default function ProjectBackupPage() {
         </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button data-testid="create-backup-button">
               <Plus className="mr-2 h-4 w-4" />
               Create Backup
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent data-testid="create-backup-dialog">
             <DialogHeader>
               <DialogTitle>Create Project Backup</DialogTitle>
               <DialogDescription>
@@ -325,7 +325,7 @@ export default function ProjectBackupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
+            <Table data-testid="backups-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Description</TableHead>

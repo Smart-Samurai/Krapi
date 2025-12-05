@@ -143,6 +143,7 @@ export function AppSidebar() {
           <button
             onClick={logout}
             className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-left"
+            data-testid="logout-button"
           >
             Logout
           </button>
@@ -270,6 +271,7 @@ function ProjectSidebar() {
           <button
             onClick={logout}
             className="text-base text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-left"
+            data-testid="logout-button"
           >
             Logout
           </button>

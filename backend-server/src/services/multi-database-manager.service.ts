@@ -627,6 +627,48 @@ export class MultiDatabaseManager {
     
     // Fix missing columns in project_users table for SDK compatibility
     this.fixProjectUsersTableColumns(db);
+    
+    // Fix missing columns in api_keys table for SDK compatibility
+    this.fixApiKeysTableColumns(db, projectId);
+  }
+
+  /**
+   * Fix missing columns in api_keys table for SDK compatibility
+   * Adds columns that SDK expects but may be missing in existing databases
+   */
+  private fixApiKeysTableColumns(db: Database.Database, projectId: string): void {
+    try {
+      // Get existing columns
+      const columns = db.prepare("PRAGMA table_info(api_keys)").all() as Array<{ name: string }>;
+      const existingColumns = columns.map((col) => col.name);
+
+      // SDK-required columns that may be missing
+      const requiredColumns = [
+        { name: "project_id", sql: `ALTER TABLE api_keys ADD COLUMN project_id TEXT NOT NULL DEFAULT '${projectId}'` },
+        { name: "metadata", sql: "ALTER TABLE api_keys ADD COLUMN metadata TEXT DEFAULT '{}'" },
+        { name: "updated_at", sql: "ALTER TABLE api_keys ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))" },
+        { name: "last_used", sql: "ALTER TABLE api_keys ADD COLUMN last_used TEXT" },
+      ];
+
+      for (const column of requiredColumns) {
+        if (!existingColumns.includes(column.name)) {
+          try {
+            db.exec(column.sql);
+            console.log(`✅ Added missing '${column.name}' column to api_keys table`);
+          } catch (error) {
+            // Ignore duplicate column errors (race condition)
+            if (error instanceof Error && !error.message.includes("duplicate column")) {
+              console.error(`Failed to add column ${column.name}:`, error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // If table doesn't exist yet, that's fine - it will be created with all columns
+      if (error instanceof Error && !error.message.includes("no such table")) {
+        console.error("Error fixing api_keys table columns:", error);
+      }
+    }
   }
 
   /**

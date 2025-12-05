@@ -321,13 +321,14 @@ export class ApiKeyService {
     // Project API keys go to project-specific database
     await this.dbManager.queryProject(
       apiKey.project_id,
-      `INSERT INTO api_keys (id, key, name, type, owner_id, scopes, expires_at, metadata, is_active, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO api_keys (id, key, name, type, project_id, owner_id, scopes, expires_at, metadata, is_active, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         apiKeyId,
         key,
         apiKey.name,
         "project",
+        apiKey.project_id,
         apiKey.user_id,
         JSON.stringify(apiKey.scopes),
         apiKey.expires_at || null,

@@ -33,7 +33,7 @@ export async function GET(
   }
 ): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       return NextResponse.json(
@@ -116,7 +116,7 @@ export async function PUT(
   }
 ): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       return NextResponse.json(
@@ -201,7 +201,7 @@ export async function DELETE(
   }
 ): Promise<Response> {
   try {
-    const authToken = getAuthToken(request.headers);
+    const authToken = getAuthToken(request);
 
     if (!authToken) {
       return NextResponse.json(

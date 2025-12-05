@@ -40,6 +40,13 @@ const DEFAULT_CONFIG = {
     allowedOrigins: [],
     behindProxy: true,
     enableCors: true,
+    rateLimit: {
+      enabled: true,
+      windowMs: 900000,
+      loginMax: 50,
+      sensitiveMax: 10,
+      generalMax: 1000,
+    },
   },
   database: {
     path: "./data/krapi.db",
@@ -297,6 +304,14 @@ function syncConfigToEnv(config) {
     updateEnvFile(backendEnvPath, "ENABLE_CORS", config.security.enableCors.toString());
     // Always set ALLOWED_ORIGINS (includes localhost)
     updateEnvFile(backendEnvPath, "ALLOWED_ORIGINS", allowedOrigins.join(","));
+    
+    // Sync rate limit settings
+    const rateLimit = config.security.rateLimit || {};
+    updateEnvFile(backendEnvPath, "DISABLE_RATE_LIMIT", (!rateLimit.enabled).toString());
+    updateEnvFile(backendEnvPath, "RATE_LIMIT_WINDOW_MS", (rateLimit.windowMs || 900000).toString());
+    updateEnvFile(backendEnvPath, "LOGIN_RATE_LIMIT_MAX", (rateLimit.loginMax || 50).toString());
+    updateEnvFile(backendEnvPath, "SENSITIVE_RATE_LIMIT_MAX", (rateLimit.sensitiveMax || 10).toString());
+    updateEnvFile(backendEnvPath, "RATE_LIMIT_MAX_REQUESTS", (rateLimit.generalMax || 1000).toString());
   }
 }
 

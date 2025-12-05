@@ -24,7 +24,14 @@
       "https://app3.example.com"
     ],
     "behindProxy": true,
-    "enableCors": true
+    "enableCors": true,
+    "rateLimit": {
+      "enabled": false,
+      "windowMs": 900000,
+      "loginMax": 999999,
+      "sensitiveMax": 999999,
+      "generalMax": 999999
+    }
   },
   "database": {
     "path": "./data/krapi.db",

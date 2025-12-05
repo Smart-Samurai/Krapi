@@ -12,6 +12,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -115,7 +116,7 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             {error && (
-              <Alert variant="destructive" className="mb-6">
+              <Alert variant="destructive" className="mb-6" data-testid="login-error">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -141,6 +142,7 @@ export default function LoginPage() {
                               placeholder="Enter your username"
                               className="pl-10"
                               disabled={loading}
+                              data-testid="login-username"
                             />
                           </div>
                         </FormControl>
@@ -164,6 +166,7 @@ export default function LoginPage() {
                               placeholder="Enter your password"
                               className="pl-10 pr-10"
                               disabled={loading}
+                              data-testid="login-password"
                             />
                             <Button
                               type="button"
@@ -221,7 +224,7 @@ export default function LoginPage() {
                   </Button>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading} data-testid="login-submit">
                   {loading ? "Signing in..." : "Sign in"}
                 </Button>
               </form>
@@ -234,12 +237,9 @@ export default function LoginPage() {
                   variant="link"
                   className="px-0"
                   disabled={loading}
-                  onClick={() => {
-                    // Registration functionality will be implemented in a future update
-                    toast.info("Registration functionality coming soon!");
-                  }}
+                  asChild
                 >
-                  Sign up
+                  <Link href="/register">Sign up</Link>
                 </Button>
               </p>
             </div>

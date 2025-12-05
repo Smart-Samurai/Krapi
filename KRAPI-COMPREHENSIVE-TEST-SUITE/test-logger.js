@@ -35,6 +35,7 @@ class TestLogger {
     };
     this.fullOutputLog = []; // Full output log from test runner (all stdout/stderr)
     this.filesSaved = false; // Track if files have already been saved to prevent duplicates
+    this.totalExpectedTests = null; // Store expected total tests for accurate success rate calculation
   }
 
   /**
@@ -78,6 +79,29 @@ class TestLogger {
   testResult(name, status, duration, error = null) {
     const durationStr =
       duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`;
+
+    // Update suite stats if we have a current suite
+    if (this.currentSuite && this.suiteStats[this.currentSuite]) {
+      if (status === "PASSED") {
+        this.suiteStats[this.currentSuite].passed++;
+      } else {
+        this.suiteStats[this.currentSuite].failed++;
+      }
+    }
+
+    // Update global test results
+    if (status === "PASSED") {
+      this.testResults.passed++;
+    } else {
+      this.testResults.failed++;
+      if (error) {
+        this.testResults.errors.push({
+          name,
+          error: error.message || "Unknown error",
+          stack: error.stack,
+        });
+      }
+    }
 
     if (status === "PASSED") {
       // In minimal mode, only show passed tests if verbose is enabled
@@ -246,12 +270,16 @@ class TestLogger {
   summary(total, passed, failed, duration, totalExpected = null) {
     const isQuickMode = process.env.STOP_ON_FIRST_FAILURE === "true";
     // Always use totalExpected if provided, otherwise fall back to total
-    // totalExpected should always be 79 for the full test suite
-    const totalTests = totalExpected !== null && totalExpected > 0 ? totalExpected : (total || 79);
-    const successRate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+    // totalExpected should always be 117 for the full test suite
+    const totalTests = totalExpected !== null && totalExpected > 0 ? totalExpected : (total || 117);
+    // Calculate success rate based on expected tests, not just tests that ran
+    // If totalExpected is provided, use it; otherwise fall back to actual total
+    const successRate = totalExpected && totalExpected > 0 
+      ? ((passed / totalExpected) * 100).toFixed(1) 
+      : (total > 0 ? ((passed / total) * 100).toFixed(1) : 0);
     
     if (this.minimal && !this.verbose) {
-      // Minimal: compact summary - always show total expected (79)
+      // Minimal: compact summary - always show total expected (117)
       console.log("\n" + "=".repeat(60));
       if (isQuickMode && totalExpected !== null) {
         console.log(`Tests: ${passed}/${totalTests} (${total} executed before failure) | Duration: ${(duration / 1000).toFixed(2)}s`);
@@ -380,6 +408,10 @@ class TestLogger {
     this.testCollection = collection;
   }
 
+  setTotalExpectedTests(totalExpected) {
+    this.totalExpectedTests = totalExpected;
+  }
+
   /**
    * Save results to files (JSON and TXT)
    */
@@ -403,8 +435,11 @@ class TestLogger {
     this.testResults.failed = failedCount;
 
     const duration = Date.now() - this.startTime;
+    // Calculate success rate based on expected tests, not just tests that ran
+    // If totalExpectedTests is set, use it; otherwise fall back to actual total
+    const expectedTotal = this.totalExpectedTests || totalTests;
     const successRate =
-      totalTests > 0 ? ((passedCount / totalTests) * 100).toFixed(1) : "0.0";
+      expectedTotal > 0 ? ((passedCount / expectedTotal) * 100).toFixed(1) : "0.0";
 
     const reportData = {
       summary: {
@@ -457,7 +492,11 @@ class TestLogger {
 
     textReport += "SUMMARY\n";
     textReport += "-".repeat(80) + "\n";
+    if (this.totalExpectedTests && this.totalExpectedTests !== totalTests) {
+      textReport += `Total Tests: ${totalTests} of ${this.totalExpectedTests} expected\n`;
+    } else {
     textReport += `Total Tests: ${totalTests}\n`;
+    }
     textReport += `Passed: ${passedCount}\n`;
     textReport += `Failed: ${failedCount}\n`;
     textReport += `Success Rate: ${successRate}%\n`;

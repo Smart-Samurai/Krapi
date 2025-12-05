@@ -1,9 +1,9 @@
 /**
  * Authentication Routes
- * 
+ *
  * Handles all authentication-related endpoints for both admin and project users.
  * Base path: /krapi/k1/auth
- * 
+ *
  * Routes:
  * - POST /admin/login - Admin login with username/password
  * - POST /admin/api-login - Admin login with API key
@@ -13,7 +13,7 @@
  * - POST /refresh - Refresh session token
  * - POST /logout - Logout and invalidate session
  * - POST /change-password - Change user password
- * 
+ *
  * @module routes/auth.routes
  * @example
  * // Routes are automatically registered when imported
@@ -33,7 +33,7 @@ const controller = new AuthController();
 
 /**
  * Initialize BackendSDK for auth routes
- * 
+ *
  * @param {BackendSDK} sdk - BackendSDK instance
  * @returns {void}
  */
@@ -41,29 +41,47 @@ export const initializeAuthSDK = (sdk: BackendSDK) => {
   controller.setBackendSDK(sdk);
 };
 
+// Rate limiting configuration from environment variables
+// Disable rate limiting in test mode, development mode, or when explicitly disabled
+const RATE_LIMIT_DISABLED =
+  process.env.DISABLE_RATE_LIMIT === "true" ||
+  process.env.NODE_ENV === "test" ||
+  process.env.NODE_ENV === "development";
+const RATE_LIMIT_WINDOW_MS = parseInt(
+  process.env.RATE_LIMIT_WINDOW_MS || "900000"
+); // 15 minutes default
+const SENSITIVE_RATE_LIMIT_MAX = parseInt(
+  process.env.SENSITIVE_RATE_LIMIT_MAX || "10"
+);
+const LOGIN_RATE_LIMIT_MAX = parseInt(
+  process.env.LOGIN_RATE_LIMIT_MAX || (RATE_LIMIT_DISABLED ? "999999" : "50")
+);
+
 // Rate limiting for sensitive operations
 const sensitiveLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Only 10 attempts per 15 minutes for sensitive operations
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: SENSITIVE_RATE_LIMIT_MAX,
   message: "Too many attempts for this operation, please try again later.",
+  skip: () => RATE_LIMIT_DISABLED, // Skip rate limiting if disabled
 });
 
 // Rate limiting for login attempts (more lenient)
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // 50 login attempts per 15 minutes
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: LOGIN_RATE_LIMIT_MAX,
   message: "Too many login attempts, please try again later.",
+  skip: () => RATE_LIMIT_DISABLED, // Skip rate limiting if disabled
 });
 
 // ===== Admin Authentication =====
 /**
  * Admin login with username/password
- * 
+ *
  * POST /krapi/k1/auth/admin/login
- * 
+ *
  * Authenticates an admin user with username and password.
  * Rate limited to prevent brute force attacks.
- * 
+ *
  * @route POST /admin/login
  * @body {string} username - Admin username
  * @body {string} password - Admin password
@@ -73,11 +91,11 @@ router.post("/admin/login", loginLimiter, controller.adminLogin);
 
 /**
  * Admin login with API key
- * 
+ *
  * POST /krapi/k1/auth/admin/api-login
- * 
+ *
  * Authenticates an admin user using an API key.
- * 
+ *
  * @route POST /admin/api-login
  * @body {string} api_key - Admin API key
  * @returns {Object} Authentication result with user, token, session_token, expires_at
@@ -86,12 +104,12 @@ router.post("/admin/api-login", controller.adminApiLogin);
 
 /**
  * User registration
- * 
+ *
  * POST /krapi/k1/auth/register
- * 
+ *
  * Registers a new user account.
  * Rate limited to prevent abuse.
- * 
+ *
  * @route POST /register
  * @body {string} username - Username
  * @body {string} email - Email address
@@ -106,11 +124,11 @@ router.post("/register", loginLimiter, controller.register);
 // ===== Session Management =====
 /**
  * Create admin session from API key
- * 
+ *
  * POST /krapi/k1/auth/admin/session
- * 
+ *
  * Creates a new admin session from an API key.
- * 
+ *
  * @route POST /admin/session
  * @body {string} api_key - Admin API key
  * @returns {Object} Session data with session_token, expires_at, scopes
@@ -119,11 +137,11 @@ router.post("/admin/session", controller.createAdminSession);
 
 /**
  * Create project-specific session
- * 
+ *
  * POST /krapi/k1/auth/project/:projectId/session
- * 
+ *
  * Creates a new project session from an API key.
- * 
+ *
  * @route POST /project/:projectId/session
  * @param {string} projectId - Project ID
  * @body {string} api_key - Project API key
@@ -133,11 +151,11 @@ router.post("/project/:projectId/session", controller.createProjectSession);
 
 /**
  * Validate session token
- * 
+ *
  * POST /krapi/k1/auth/session/validate
- * 
+ *
  * Validates a session token and returns session information if valid.
- * 
+ *
  * @route POST /session/validate
  * @body {string} token - Session token to validate
  * @returns {Object} Validation result with valid flag and optional session data
@@ -146,12 +164,12 @@ router.post("/session/validate", controller.validateSession);
 
 /**
  * Refresh session token
- * 
+ *
  * POST /krapi/k1/auth/refresh
- * 
+ *
  * Refreshes an existing session token, extending its expiration.
  * Requires authentication.
- * 
+ *
  * @route POST /refresh
  * @header Authorization: Bearer <token>
  * @returns {Object} New session data with session_token, expires_at, scopes

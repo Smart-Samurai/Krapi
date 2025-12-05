@@ -524,10 +524,11 @@ class ComprehensiveTestRunner {
 
   async buildServices() {
     this.log("🔨 Building all services...", "INFO");
+    this.log("   Step 1: Detecting package manager...", "INFO");
 
     // Detect package manager
     const packageManager = await this.detectPackageManager();
-    this.log(`   Using package manager: ${packageManager}`, "INFO");
+    this.log(`   ✅ Package manager detected: ${packageManager}`, "SUCCESS");
 
     // Rebuild better-sqlite3 to ensure native bindings are compiled
     // This is critical for SQLite to work - better-sqlite3 requires native bindings
@@ -563,7 +564,7 @@ class ComprehensiveTestRunner {
     }
 
     // Build packages first
-    this.log("   Building packages...", "INFO");
+    this.log("   Step 2: Building packages...", "INFO");
     const packagesResult = await this.runCommand(
       packageManager === "pnpm"
         ? "pnpm run build:packages"
@@ -583,7 +584,7 @@ class ComprehensiveTestRunner {
     this.log("✅ Packages built successfully", "SUCCESS");
 
     // Build backend
-    this.log("   Building backend...", "INFO");
+    this.log("   Step 3: Building backend...", "INFO");
     const backendResult = await this.runCommand(
       packageManager === "pnpm"
         ? "pnpm run build:backend"
@@ -603,7 +604,7 @@ class ComprehensiveTestRunner {
     this.log("✅ Backend built successfully", "SUCCESS");
 
     // Build frontend
-    this.log("   Building frontend...", "INFO");
+    this.log("   Step 4: Building frontend (this includes type checking)...", "INFO");
     const frontendResult = await this.runCommand(
       packageManager === "pnpm"
         ? "pnpm run build:frontend"
@@ -920,6 +921,28 @@ class ComprehensiveTestRunner {
    * Configure app for tests
    * Sets up CORS, security settings, and other test-specific configuration
    */
+  /**
+   * Update or add environment variable in .env file content
+   */
+  updateEnvValue(envContent, key, value) {
+    const lines = envContent.split("\n");
+    let found = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().startsWith(`${key}=`)) {
+        lines[i] = `${key}=${value}`;
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      lines.push(`${key}=${value}`);
+    }
+    
+    return lines.join("\n");
+  }
+
   async configureAppForTests() {
     this.log("⚙️  Configuring app for tests...", "INFO");
     
@@ -952,6 +975,14 @@ class ComprehensiveTestRunner {
       
       config.security.allowedOrigins = testAllowedOrigins;
       config.security.enableCors = true;
+      // Disable rate limiting for tests
+      config.security.rateLimit = {
+        enabled: false,
+        windowMs: 900000,
+        loginMax: 999999,
+        sensitiveMax: 999999,
+        generalMax: 999999,
+      };
       config.frontend.url = "http://127.0.0.1:3498";
       config.backend = config.backend || {};
       config.backend.url = "http://127.0.0.1:3470";
@@ -980,7 +1011,20 @@ class ComprehensiveTestRunner {
           "http://127.0.0.1:3470",
         ];
         const originsWithLocalhost = [...new Set([...localhostOrigins, ...testAllowedOrigins])];
-        await this.syncConfigToEnvFiles(config, originsWithLocalhost);
+        
+        // Sync to backend .env file
+        const backendEnvPath = join(this.projectRoot, "backend-server", ".env");
+        if (existsSync(backendEnvPath)) {
+          let backendEnv = readFileSync(backendEnvPath, "utf8");
+          // Update or add rate limit settings
+          backendEnv = this.updateEnvValue(backendEnv, "DISABLE_RATE_LIMIT", "true");
+          backendEnv = this.updateEnvValue(backendEnv, "LOGIN_RATE_LIMIT_MAX", "999999");
+          backendEnv = this.updateEnvValue(backendEnv, "SENSITIVE_RATE_LIMIT_MAX", "999999");
+          backendEnv = this.updateEnvValue(backendEnv, "RATE_LIMIT_MAX_REQUESTS", "999999");
+          backendEnv = this.updateEnvValue(backendEnv, "ALLOWED_ORIGINS", originsWithLocalhost.join(","));
+          writeFileSync(backendEnvPath, backendEnv, "utf8");
+        }
+        
         this.log("   ✅ Configuration synced to .env files", "SUCCESS");
       } catch (syncError) {
         this.log(
@@ -1352,8 +1396,16 @@ class ComprehensiveTestRunner {
       });
 
       // Login using SDK (not direct axios)
-      this.log("   Logging in via SDK...", "INFO");
-      const loginResult = await krapi.auth.login("admin", "admin123");
+      this.log("   Logging in via SDK (calling /api/krapi/k1/auth/login)...", "INFO");
+      let loginResult;
+      try {
+        loginResult = await krapi.auth.login("admin", "admin123");
+        this.log(`   ✅ Login response received: ${JSON.stringify({ hasSessionToken: !!loginResult?.session_token, hasUser: !!loginResult?.user, keys: loginResult ? Object.keys(loginResult) : [], type: typeof loginResult })}`, "INFO");
+      } catch (loginError) {
+        this.log(`   ❌ Login error details: ${loginError.message}`, "ERROR");
+        this.log(`   ❌ Login error stack: ${loginError.stack}`, "ERROR");
+        throw loginError;
+      }
 
       if (!loginResult.session_token) {
         throw new Error("No session token received from SDK login");

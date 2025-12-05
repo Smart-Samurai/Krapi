@@ -65,6 +65,7 @@ export function ActionButtons({
  * @property {boolean} [asChild=false] - Render as child element
  * @property {string} [className] - Additional CSS classes
  * @property {"default" | "sm" | "lg" | "icon"} [size="default"] - Button size
+ * @property {string} [data-testid] - Optional test ID for the button
  */
 interface ActionButtonProps {
   children: ReactNode;
@@ -75,6 +76,7 @@ interface ActionButtonProps {
   asChild?: boolean;
   className?: string;
   size?: "default" | "sm" | "lg" | "icon";
+  "data-testid"?: string;
 }
 
 /**
@@ -99,6 +101,7 @@ export function ActionButton({
   asChild = false,
   className = "",
   size = "default",
+  "data-testid": dataTestId,
 }: ActionButtonProps) {
   const variantClasses = {
     add: "btn-add",
@@ -141,6 +144,15 @@ export function ActionButton({
     );
   }
 
+  // When asChild is true, we need to pass data-testid to the child element
+  if (asChild && isValidElement(children) && dataTestId) {
+    const childElement = children as React.ReactElement<Record<string, unknown>>;
+    return cloneElement(childElement, {
+      "data-testid": dataTestId,
+      ...childElement.props,
+    });
+  }
+
   return (
     <Button
       variant={buttonVariant}
@@ -149,6 +161,7 @@ export function ActionButton({
       onClick={onClick}
       disabled={disabled}
       asChild={asChild}
+      data-testid={dataTestId}
     >
       {buttonContent}
     </Button>

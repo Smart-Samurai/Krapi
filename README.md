@@ -290,7 +290,7 @@ After installation, configure your environment:
    ```
 
 5. **Start the application**:
-   ```bash
+```bash
    # Interactive mode (recommended for first-time users)
    npm run krapi
    

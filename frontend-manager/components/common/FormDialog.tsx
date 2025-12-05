@@ -46,6 +46,7 @@ import {
  * @property {string} [submitClassName="btn-add"] - Submit button CSS class
  * @property {"sm" | "md" | "lg" | "xl" | "2xl" | "4xl"} [maxWidth="md"] - Maximum dialog width
  * @property {boolean} [disabled=false] - Whether submit is disabled
+ * @property {string} [data-testid] - Optional test ID for the dialog
  */
 interface FormDialogProps {
   open: boolean;
@@ -61,6 +62,7 @@ interface FormDialogProps {
   submitClassName?: string;
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "4xl";
   disabled?: boolean;
+  "data-testid"?: string;
 }
 
 /**
@@ -96,6 +98,7 @@ export function FormDialog({
   submitClassName = "btn-add",
   maxWidth = "md",
   disabled = false,
+  "data-testid": dataTestId,
 }: FormDialogProps) {
   const maxWidthClasses = {
     sm: "max-w-sm",
@@ -118,6 +121,7 @@ export function FormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={`${maxWidthClasses[maxWidth]} max-h-[80vh] overflow-y-auto`}
+        data-testid={dataTestId}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

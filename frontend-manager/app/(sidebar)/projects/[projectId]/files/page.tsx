@@ -615,22 +615,24 @@ export default function FilesPage() {
               }}
               className="hidden"
               accept="*/*"
+              data-testid="file-upload-input"
             />
             <ActionButton
               variant="add"
               icon={Upload}
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
+              data-testid="upload-files-button"
             >
               {isUploading ? "Uploading..." : "Upload Files"}
             </ActionButton>
             <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
               <DialogTrigger asChild>
-                <ActionButton variant="outline" icon={FolderPlus}>
+                <ActionButton variant="outline" icon={FolderPlus} data-testid="create-folder-button">
                   New Folder
                 </ActionButton>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent data-testid="create-folder-dialog">
                 <DialogHeader>
                   <DialogTitle>Create New Folder</DialogTitle>
                   <DialogDescription>
@@ -938,6 +940,7 @@ stats = response.json()`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
+                  data-testid="files-search-input"
                 />
               </div>
             </div>
@@ -1038,7 +1041,7 @@ stats = response.json()`}
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table>
+              <Table data-testid="files-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>File</TableHead>

@@ -10,8 +10,8 @@
  */
 "use client";
 
-import { Settings, Shield, Save, RefreshCw, Mail, Database } from "lucide-react";
-import React from "react";
+import { Settings, Shield, Save, RefreshCw, Mail, Database, Trash2 } from "lucide-react";
+import React, { useState } from "react";
 
 import { PageLayout, PageHeader, ActionButton } from "@/components/common";
 import { Form, FormField } from "@/components/forms";
@@ -69,6 +69,10 @@ export default function SettingsPage() {
     handleDatabaseSubmit,
     handleTestEmail,
   } = useSettings();
+
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState("");
 
   if (isLoading) {
     return (
@@ -498,6 +502,184 @@ export default function SettingsPage() {
             </Button>
             <Button onClick={handleTestEmail} disabled={isSaving || !testEmail}>
               {isSaving ? "Sending..." : "Send Test Email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Database Dialog */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Reset All Database Data</DialogTitle>
+            <DialogDescription>
+              This will permanently delete ALL data from the database. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <InfoBlock variant="error">
+              <p className="font-semibold">⚠️ Final Warning</p>
+              <p>
+                Type <strong>RESET</strong> in the field below to confirm you want to delete all data.
+              </p>
+            </InfoBlock>
+            <div className="space-y-2">
+              <Label htmlFor="resetConfirm">Confirmation</Label>
+              <Input
+                id="resetConfirm"
+                type="text"
+                placeholder="Type RESET to confirm"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                data-testid="reset-database-confirm-input"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setResetDialogOpen(false);
+              setResetConfirmText("");
+            }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (resetConfirmText !== "RESET") {
+                  return;
+                }
+
+                setIsResetting(true);
+                try {
+                  const token = localStorage.getItem("authToken");
+                  if (!token) {
+                    throw new Error("Authentication required");
+                  }
+
+                  const response = await fetch("/api/krapi/k1/system/reset-database", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                  });
+
+                  if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: "Reset failed" }));
+                    throw new Error(error.error || "Failed to reset database");
+                  }
+
+                  const result = await response.json();
+                  
+                  // Show success message
+                  alert(`Database reset successfully!\n\nDeleted:\n- ${result.data.deletedProjects} projects\n- ${result.data.deletedAdminUsers} admin users\n- ${result.data.deletedSessions} sessions\n\nYou will be logged out and redirected to login.`);
+
+                  // Clear auth and redirect to login
+                  localStorage.removeItem("authToken");
+                  window.location.href = "/login";
+                } catch (error) {
+                  alert(`Failed to reset database: ${error instanceof Error ? error.message : "Unknown error"}`);
+                } finally {
+                  setIsResetting(false);
+                  setResetDialogOpen(false);
+                  setResetConfirmText("");
+                }
+              }}
+              disabled={isResetting || resetConfirmText !== "RESET"}
+              data-testid="reset-database-confirm-button"
+            >
+              {isResetting ? "Resetting..." : "Reset Database"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Database Dialog */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Reset All Database Data</DialogTitle>
+            <DialogDescription>
+              This will permanently delete ALL data from the database. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <InfoBlock variant="error">
+              <p className="font-semibold">⚠️ Final Warning</p>
+              <p>
+                Type <strong>RESET</strong> in the field below to confirm you want to delete all data.
+              </p>
+            </InfoBlock>
+            <div className="space-y-2">
+              <Label htmlFor="resetConfirm">Confirmation</Label>
+              <Input
+                id="resetConfirm"
+                type="text"
+                placeholder="Type RESET to confirm"
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                data-testid="reset-database-confirm-input"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setResetDialogOpen(false);
+              setResetConfirmText("");
+            }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (resetConfirmText !== "RESET") {
+                  return;
+                }
+
+                setIsResetting(true);
+                try {
+                  const token = localStorage.getItem("authToken");
+                  if (!token) {
+                    throw new Error("Authentication required");
+                  }
+
+                  const response = await fetch("/api/krapi/k1/system/reset-database", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                  });
+
+                  if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: "Reset failed" }));
+                    throw new Error(error.error || "Failed to reset database");
+                  }
+
+                  const result = await response.json();
+                  
+                  // Show success message
+                  alert(`Database reset successfully!\n\nDeleted:\n- ${result.data.deletedProjects} projects\n- ${result.data.deletedAdminUsers} admin users\n- ${result.data.deletedSessions} sessions\n\nYou will be logged out and redirected to login.`);
+
+                  // Clear auth and redirect to login
+                  localStorage.removeItem("authToken");
+                  window.location.href = "/login";
+                } catch (error) {
+                  alert(`Failed to reset database: ${error instanceof Error ? error.message : "Unknown error"}`);
+                } finally {
+                  setIsResetting(false);
+                  setResetDialogOpen(false);
+                  setResetConfirmText("");
+                }
+              }}
+              disabled={isResetting || resetConfirmText !== "RESET"}
+              data-testid="reset-database-confirm-button"
+            >
+              {isResetting ? "Resetting..." : "Reset Database"}
             </Button>
           </DialogFooter>
         </DialogContent>

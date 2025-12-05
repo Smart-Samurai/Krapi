@@ -194,7 +194,9 @@ export default function CollectionsPage() {
   );
   const collections = collectionsBucket?.items || [];
   const isLoading = collectionsBucket?.loading || false;
+  const reduxError = collectionsBucket?.error || null;
   const [error, setError] = useState<string | null>(null);
+  const displayError = error || reduxError;
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
@@ -410,16 +412,34 @@ export default function CollectionsPage() {
     setIsEditDialogOpen(true);
   };
 
+  // Show loading skeleton while collections are loading
   if (isLoading) {
     return (
       <PageLayout>
+        <PageHeader
+          title="Collections"
+          description="Manage collections for this project"
+          action={<Skeleton className="h-10 w-32" />}
+        />
+        <div className="grid gap-4" data-testid="collections-container">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Card key={`collections-skeleton-item-${i}`}>
+              <CardHeader>
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <div className="flex-1 min-w-0">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-48" />
         </div>
-        <div className="grid gap-4">
-          {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={`collections-skeleton-item-${i}`} className="h-32 w-full" />
+                  </div>
+                  <Skeleton className="h-9 w-16" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-24 w-full" />
+              </CardContent>
+            </Card>
           ))}
         </div>
       </PageLayout>
@@ -439,11 +459,11 @@ export default function CollectionsPage() {
               onOpenChange={setIsCreateDialogOpen}
             >
               <DialogTrigger asChild>
-                <ActionButton variant="add" icon={Plus}>
+                <ActionButton variant="add" icon={Plus} data-testid="create-collection-button">
                   Create Collection
                 </ActionButton>
               </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" data-testid="create-collection-dialog">
               <DialogHeader>
                 <DialogTitle>Create New Collection</DialogTitle>
                 <DialogDescription>
@@ -460,6 +480,7 @@ export default function CollectionsPage() {
                       setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
                     placeholder="e.g., users, posts, products"
+                    data-testid="collection-form-name"
                   />
                 </div>
                 <div>
@@ -794,13 +815,13 @@ response = requests.delete(
       }
       />
 
-      {error && (
+      {displayError && (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{displayError}</AlertDescription>
         </Alert>
       )}
 
-      {collections.length === 0 ? (
+      {!displayError && collections.length === 0 && !isLoading ? (
         <EmptyState
           icon={Database}
           title="No Collections Yet"
@@ -810,9 +831,10 @@ response = requests.delete(
             onClick: () => setIsCreateDialogOpen(true),
             icon: Plus,
           }}
+          data-testid="collections-empty-state"
         />
-      ) : (
-        <div className="grid gap-4">
+      ) : !displayError && collections.length > 0 ? (
+        <div className="grid gap-4" data-testid="collections-container">
           {collections.map((collection) => (
             <Card key={collection.id}>
               <CardHeader>

@@ -102,16 +102,36 @@ export default function ProjectDetailPage() {
     setStats((prev) => ({ ...prev, collections: collections.length }));
   }, [collections]);
 
-  if (isLoading && !project) {
+  // Show loading skeleton while project or collections are loading
+  if (isLoading) {
     return (
       <PageLayout>
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-96" />
+        <PageHeader
+          title={<Skeleton className="h-8 w-64" />}
+          description={<Skeleton className="h-4 w-96" />}
+        />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Card key={`stat-skeleton-${i}`}>
+              <CardHeader>
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-16" />
+              </CardHeader>
+            </Card>
+          ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
+        <div className="grid gap-4 md:grid-cols-2 mt-6">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Card key={`nav-skeleton-${i}`}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="h-4 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-10 w-full" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </PageLayout>
     );

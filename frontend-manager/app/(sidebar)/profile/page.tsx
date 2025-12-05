@@ -42,9 +42,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Scope } from "@/lib/krapi-constants";
 import { ExtendedAdminUser } from "@/lib/types/extended";
+import { useAppDispatch } from "@/store/hooks";
+import { refreshSession } from "@/store/authSlice";
 
 export default function ProfilePage() {
   const { user, scopes, sessionToken, loading: authLoading, isInitialized } = useReduxAuth();
+  const dispatch = useAppDispatch();
   const extendedUser = user as ExtendedAdminUser;
 
   // Password state
@@ -57,6 +60,7 @@ export default function ProfilePage() {
     confirm: false,
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isRefreshingSession, setIsRefreshingSession] = useState(false);
 
   // API Key state
   const [showApiKey, setShowApiKey] = useState(false);
@@ -205,6 +209,24 @@ export default function ProfilePage() {
       );
     } finally {
       setIsRegeneratingKey(false);
+    }
+  };
+
+  const handleRefreshSession = async () => {
+    if (!sessionToken) {
+      toast.error("No session token available");
+      return;
+    }
+
+    setIsRefreshingSession(true);
+    try {
+      await dispatch(refreshSession({})).unwrap();
+    } catch (error) {
+      // Error is already handled by the thunk (toast shown in reducer)
+      // eslint-disable-next-line no-console
+      console.error("Session refresh error:", error);
+    } finally {
+      setIsRefreshingSession(false);
     }
   };
 
@@ -400,6 +422,27 @@ export default function ProfilePage() {
 
           {/* Security Tab */}
           <TabsContent value="security">
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle>Session Management</CardTitle>
+                <CardDescription>Refresh your session token</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-base text-muted-foreground mb-3">
+                    Refresh your session token to extend your session duration. This will generate a new token with a fresh expiration time.
+                  </p>
+                  <Button
+                    onClick={handleRefreshSession}
+                    disabled={isRefreshingSession || !sessionToken}
+                    data-testid="refresh-session-button"
+                  >
+                    {isRefreshingSession ? "Refreshing..." : "Refresh Session"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Change Password</CardTitle>
@@ -415,6 +458,7 @@ export default function ProfilePage() {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Enter current password"
+                      data-testid="profile-current-password"
                     />
                     <Button
                       type="button"
@@ -446,6 +490,7 @@ export default function ProfilePage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Enter new password"
+                      data-testid="profile-new-password"
                     />
                     <Button
                       type="button"
@@ -480,6 +525,7 @@ export default function ProfilePage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm new password"
+                      data-testid="profile-confirm-password"
                     />
                     <Button
                       type="button"
@@ -510,6 +556,7 @@ export default function ProfilePage() {
                     !newPassword ||
                     !confirmPassword
                   }
+                  data-testid="profile-change-password-button"
                 >
                   {isChangingPassword
                     ? "Changing Password..."

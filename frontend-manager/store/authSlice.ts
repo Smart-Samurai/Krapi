@@ -274,18 +274,22 @@ export const login = createAsyncThunk(
 
     const responseData = await response.json();
 
-    if (responseData.success && responseData.session_token && responseData.user) {
-      const userScopes = responseData.scopes || [];
+    // Response format: { success: true, data: { session_token, user, expires_at, scopes } }
+    // OR flat format: { success: true, session_token, user, expires_at, scopes }
+    const sessionToken = responseData.data?.session_token || responseData.session_token;
+    const user = responseData.data?.user || responseData.user;
+    const userScopes = responseData.data?.scopes || responseData.scopes || [];
 
+    if (responseData.success && sessionToken && user) {
       // Store in both localStorage and cookies
-      localStorage.setItem("session_token", responseData.session_token);
-      setCookie("session_token", responseData.session_token);
+      localStorage.setItem("session_token", sessionToken);
+      setCookie("session_token", sessionToken);
       localStorage.setItem("user_scopes", JSON.stringify(userScopes));
 
       return {
-        user: responseData.user as AdminUser & { scopes?: string[] },
+        user: user as AdminUser & { scopes?: string[] },
         scopes: userScopes,
-        sessionToken: responseData.session_token,
+        sessionToken: sessionToken,
       };
     } else {
       const errorMsg = responseData.error || "Unknown error";
@@ -332,6 +336,49 @@ export const loginWithApiKey = createAsyncThunk(
       };
     } else {
       throw new Error("API key login failed");
+    }
+  }
+);
+
+export const refreshSession = createAsyncThunk(
+  "auth/refreshSession",
+  async (_args: Record<string, never> = {}, { getState }) => {
+    const state = getState() as RootState;
+    const { sessionToken } = state.auth;
+
+    if (!sessionToken) {
+      throw new Error("No session token available");
+    }
+
+    const response = await fetch("/api/krapi/k1/auth/refresh", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "Session refresh failed" }));
+      throw new Error(error.error || "Session refresh failed");
+    }
+
+    const responseData = await response.json();
+
+    if (responseData.success && responseData.data?.session_token) {
+      const newToken = responseData.data.session_token;
+      const expiresAt = responseData.data.expires_at;
+
+      // Store in both localStorage and cookies
+      localStorage.setItem("session_token", newToken);
+      setCookie("session_token", newToken);
+
+      return {
+        sessionToken: newToken,
+        expiresAt,
+      };
+    } else {
+      throw new Error("Session refresh failed: Invalid response");
     }
   }
 );
@@ -495,6 +542,23 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || "API key login failed";
         toast.error(action.error.message || "Invalid API key");
+      })
+
+      // Refresh session
+      .addCase(refreshSession.pending, (state: AuthState) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(refreshSession.fulfilled, (state: AuthState, action) => {
+        state.sessionToken = action.payload.sessionToken;
+        state.loading = false;
+        state.error = null;
+        toast.success("Session refreshed successfully");
+      })
+      .addCase(refreshSession.rejected, (state: AuthState, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Session refresh failed";
+        toast.error(action.error.message || "Failed to refresh session");
       })
 
       // Logout
