@@ -653,8 +653,7 @@ export class DatabaseService {
       }
 
       // Skip migrations for fresh database (test environment)
-      console.log("Skipping migrations for fresh database...");
-      repairs.push("Skipped migrations (fresh database)");
+      // Note: We use direct table initialization instead of migrations
 
       // Initialize tables directly instead of running migrations
       console.log("Initializing tables directly...");
@@ -741,7 +740,7 @@ export class DatabaseService {
         }
 
         // Skip migrations for fresh database (test environment)
-        console.log("Skipping migrations - using direct table initialization");
+        // Note: We use direct table initialization instead of migrations
 
         // Resolve the ready promise on successful initialization
         this.readyResolve();
@@ -1971,7 +1970,12 @@ export class DatabaseService {
           ];
 
           for (const col of requiredColumns) {
-            if (!existingFilesColumns.includes(col.name)) {
+            // Check if column exists (case-insensitive comparison)
+            const colExists = existingFilesColumns.some(
+              (existingCol) => existingCol.toLowerCase() === col.name.toLowerCase()
+            );
+            
+            if (!colExists) {
               try {
                 await this.dbManager.queryProject(
                   projectId,
@@ -1979,12 +1983,15 @@ export class DatabaseService {
                 );
                 console.log(`Added missing '${col.name}' column to files table in project ${projectId}`);
               } catch (error) {
+                // Silently ignore duplicate column errors - column might have been added concurrently
                 if (
                   error instanceof Error &&
-                  !error.message.includes("duplicate column")
+                  !error.message.includes("duplicate column") &&
+                  !error.message.includes("duplicate column name")
                 ) {
                   console.error(`Failed to add column ${col.name} to files table in project ${projectId}:`, error);
                 }
+                // For duplicate column errors, just continue silently
               }
             }
           }

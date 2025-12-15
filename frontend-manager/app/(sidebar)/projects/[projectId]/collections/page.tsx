@@ -948,7 +948,7 @@ response = requests.delete(
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

@@ -68,7 +68,7 @@ export default function ProjectChangelogPage() {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    action_type: "",
+    action_type: "all",
     limit: 50,
     offset: 0,
   });
@@ -86,7 +86,7 @@ export default function ProjectChangelogPage() {
         limit: filters.limit.toString(),
         offset: filters.offset.toString(),
       });
-      if (filters.action_type) {
+      if (filters.action_type && filters.action_type !== "all") {
         queryParams.append("action_type", filters.action_type);
       }
       const response = await fetch(
@@ -206,14 +206,14 @@ export default function ProjectChangelogPage() {
             <Select
               value={filters.action_type}
               onValueChange={(value) =>
-                setFilters({ ...filters, action_type: value, offset: 0 })
+                setFilters({ ...filters, action_type: value === "all" ? "all" : value, offset: 0 })
               }
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by action" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Actions</SelectItem>
+                <SelectItem value="all">All Actions</SelectItem>
                 <SelectItem value="create">Created</SelectItem>
                 <SelectItem value="update">Updated</SelectItem>
                 <SelectItem value="delete">Deleted</SelectItem>

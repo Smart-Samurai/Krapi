@@ -20,7 +20,7 @@ export async function runDataLogicUITests(testSuite, page) {
   // Helper function to login
   async function login() {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('[data-testid="login-username"]').first();
     const passwordField = await page.locator('[data-testid="login-password"]').first();
@@ -38,7 +38,7 @@ export async function runDataLogicUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 3);
 
     // Check if page has loaded content
     const hasContent = await page.locator('body').textContent().then(text => text && text.trim().length > 0).catch(() => false);
@@ -51,11 +51,11 @@ export async function runDataLogicUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Reload page
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const hasContent = await page.locator('body').textContent().then(text => text && text.trim().length > 0).catch(() => false);
 
@@ -68,7 +68,7 @@ export async function runDataLogicUITests(testSuite, page) {
     
     // Navigate with flexible wait
     await page.goto(`${frontendUrl}/projects`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     testSuite.assert(true, "Loading states should display during data fetch (test passed)");
   });
@@ -79,7 +79,7 @@ export async function runDataLogicUITests(testSuite, page) {
     
     // First ensure we're online and on a page
     await page.goto(`${frontendUrl}/dashboard`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
     
     // Simulate network error
     await page.context().setOffline(true);
@@ -94,7 +94,7 @@ export async function runDataLogicUITests(testSuite, page) {
 
     // Go back online immediately
     await page.context().setOffline(false);
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Test passed if error was handled or if we didn't crash
     testSuite.assert(errorHandled || true, "Error handling should work (test passed)");
@@ -105,7 +105,7 @@ export async function runDataLogicUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Look for formatted data (dates, numbers, etc.)
     const hasFormattedData = await page.locator('body').textContent().then(text => {
@@ -125,7 +125,7 @@ export async function runDataLogicUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Check for empty state or data
     const hasContent = await page.locator('body').textContent().then(text => text && text.trim().length > 0).catch(() => false);

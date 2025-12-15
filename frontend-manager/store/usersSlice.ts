@@ -54,7 +54,7 @@ export const fetchUsers = createAsyncThunk(
       searchParams.set("limit", "200");
 
       const response = await fetch(
-        `/api/projects/${projectId}/users?${searchParams.toString()}`,
+        `/api/krapi/k1/projects/${projectId}/users?${searchParams.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -64,12 +64,14 @@ export const fetchUsers = createAsyncThunk(
       );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to fetch users" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to fetch users" }));
         return rejectWithValue(error.error || "Failed to fetch users");
       }
 
       const result = await response.json();
-      return { projectId, users: result.success ? (result.data || []) : [] };
+      return { projectId, users: result.success ? result.data || [] : [] };
     } catch (error: unknown) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to fetch users"
@@ -86,7 +88,7 @@ export const createUser = createAsyncThunk(
       data,
     }: {
       projectId: string;
-      data: { email: string; role?: string; name?: string };
+      data: { email: string; password?: string; username?: string; role?: string; name?: string };
     },
     {
       getState: _getState,
@@ -101,24 +103,30 @@ export const createUser = createAsyncThunk(
 
       // Transform the data to match SDK expectations
       const userData = {
-        username: data.email.split("@")[0] || "user",
+        username: data.username || data.email.split("@")[0] || "user",
         email: data.email,
-        password: Math.random().toString(36).slice(-8),
+        password: data.password || Math.random().toString(36).slice(-8), // Use provided password or fallback
         role: data.role,
         permissions: data.role ? [data.role] : [],
+        name: data.name, // Also pass name if available
       };
 
-      const response = await fetch(`/api/projects/${projectId}/users`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
+      const response = await fetch(
+        `/api/krapi/k1/projects/${projectId}/users`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to create user" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to create user" }));
         return rejectWithValue(error.error || "Failed to create user");
       }
 
@@ -174,17 +182,22 @@ export const updateUser = createAsyncThunk(
         sdkUpdates.last_name = nameParts.slice(1).join(" ") || "";
       }
 
-      const response = await fetch(`/api/projects/${projectId}/users/${userId}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(sdkUpdates),
-      });
+      const response = await fetch(
+        `/api/krapi/k1/projects/${projectId}/users/${userId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(sdkUpdates),
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to update user" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to update user" }));
         return rejectWithValue(error.error || "Failed to update user");
       }
 
@@ -213,16 +226,21 @@ export const deleteUser = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch(`/api/projects/${projectId}/users/${userId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `/api/krapi/k1/projects/${projectId}/users/${userId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to delete user" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to delete user" }));
         return rejectWithValue(error.error || "Failed to delete user");
       }
 
@@ -245,54 +263,96 @@ const usersSlice = createSlice({
   name: "users",
   initialState,
   reducers: {},
-  extraReducers: (_builder: ActionReducerMapBuilder<UsersState>) => {
-    // Temporarily disabled to fix build issues
-    // builder
-    //   .addCase(fetchUsers.pending, (state: UsersState, action) => {
-    //     const { projectId } = action.meta.arg;
-    //     state.byProjectId[projectId] ||= {
-    //       items: [],
-    //       loading: false,
-    //       error: null,
-    //     };
-    //     state.byProjectId[projectId].loading = true;
-    //     state.byProjectId[projectId].error = null;
-    //   })
-    //   .addCase(fetchUsers.fulfilled, (state: UsersState, action) => {
-    //     const { projectId, users } = action.payload;
-    //     state.byProjectId[projectId] = {
-    //       items: users,
-    //       loading: false,
-    //       error: null,
-    //     };
-    //   })
-    //   .addCase(fetchUsers.rejected, (state: UsersState, action) => {
-    //     const { projectId } = action.meta.arg;
-    //     state.byProjectId[projectId] ||= {
-    //       items: [],
-    //       loading: false,
-    //       error: null,
-    //     };
-    //     state.byProjectId[projectId].loading = false;
-    //     state.byProjectId[projectId].error =
-    //       action.payload || "Failed to fetch users";
-    //   })
-    //   .addCase(createUser.fulfilled, (state: UsersState, action) => {
-    //     const { projectId, user } = action.payload;
-    //     state.byProjectId[projectId]?.items.push(user);
-    //   })
-    //   .addCase(updateUser.fulfilled, (state: UsersState, action) => {
-    //     const { projectId, user } = action.payload;
-    //     const bucket = state.byProjectId[projectId];
-    //     if (!bucket) return;
-    //     bucket.items = bucket.items.map((u) => (u.id === user.id ? user : u));
-    //   })
-    //   .addCase(deleteUser.fulfilled, (state: UsersState, action) => {
-    //     const { projectId, userId } = action.payload;
-    //     const bucket = state.byProjectId[projectId];
-    //     if (!bucket) return;
-    //     bucket.items = bucket.items.filter((u) => u.id !== userId);
-    //   });
+  extraReducers: (builder: ActionReducerMapBuilder<UsersState>) => {
+    builder
+      .addCase(fetchUsers.pending, (state: UsersState, action) => {
+        const { projectId } = action.meta.arg;
+        state.byProjectId[projectId] ||= {
+          items: [],
+          loading: false,
+          error: null,
+        };
+        state.byProjectId[projectId].loading = true;
+        state.byProjectId[projectId].error = null;
+      })
+      .addCase(fetchUsers.fulfilled, (state: UsersState, action) => {
+        const { projectId, users } = action.payload as {
+          projectId: string;
+          users: ProjectUser[];
+        };
+        state.byProjectId[projectId] = {
+          items: users,
+          loading: false,
+          error: null,
+        };
+      })
+      .addCase(fetchUsers.rejected, (state: UsersState, action) => {
+        const { projectId } = action.meta.arg;
+        state.byProjectId[projectId] ||= {
+          items: [],
+          loading: false,
+          error: null,
+        };
+        state.byProjectId[projectId].loading = false;
+        state.byProjectId[projectId].error =
+          (action.payload as string) || "Failed to fetch users";
+      })
+      .addCase(createUser.pending, (state: UsersState, action) => {
+        const { projectId } = action.meta.arg;
+        state.byProjectId[projectId] ||= {
+          items: [],
+          loading: false,
+          error: null,
+        };
+        state.byProjectId[projectId].loading = true;
+        state.byProjectId[projectId].error = null;
+      })
+      .addCase(createUser.fulfilled, (state: UsersState, action) => {
+        const { projectId, user } = action.payload as {
+          projectId: string;
+          user: ProjectUser;
+        };
+        if (user) {
+          state.byProjectId[projectId] ||= {
+            items: [],
+            loading: false,
+            error: null,
+          };
+          state.byProjectId[projectId].items.push(user);
+          state.byProjectId[projectId].loading = false;
+        }
+      })
+      .addCase(createUser.rejected, (state: UsersState, action) => {
+        const { projectId } = action.meta.arg;
+        state.byProjectId[projectId] ||= {
+          items: [],
+          loading: false,
+          error: null,
+        };
+        state.byProjectId[projectId].loading = false;
+        state.byProjectId[projectId].error =
+          (action.payload as string) || "Failed to create user";
+      })
+      .addCase(updateUser.fulfilled, (state: UsersState, action) => {
+        const { projectId, user } = action.payload as {
+          projectId: string;
+          user: ProjectUser;
+        };
+        if (user) {
+          const bucket = state.byProjectId[projectId];
+          if (!bucket) return;
+          bucket.items = bucket.items.map((u) => (u.id === user.id ? user : u));
+        }
+      })
+      .addCase(deleteUser.fulfilled, (state: UsersState, action) => {
+        const { projectId, userId } = action.payload as {
+          projectId: string;
+          userId: string;
+        };
+        const bucket = state.byProjectId[projectId];
+        if (!bucket) return;
+        bucket.items = bucket.items.filter((u) => u.id !== userId);
+      });
   },
 });
 

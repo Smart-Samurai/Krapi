@@ -6,6 +6,7 @@
  */
 
 import { CONFIG } from "../../config.js";
+import { getFirstProject } from "../../lib/db-verification.js";
 
 /**
  * Run email UI tests
@@ -19,41 +20,97 @@ export async function runEmailUITests(testSuite, page) {
 
   // Helper function to login and navigate to a project
   async function loginAndGetProject() {
-    await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    // Verify data exists in DB first
+    const projectCheck = await Promise.race([
+      getFirstProject(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("DB verification timeout")),
+          CONFIG.TEST_TIMEOUT / 2
+        )
+      ),
+    ]).catch((error) => ({ project: null, error: error.message }));
 
-    const usernameField = await page.locator('[data-testid="login-username"]').first();
-    const passwordField = await page.locator('[data-testid="login-password"]').first();
-    const submitButton = await page.locator('[data-testid="login-submit"]').first();
+    testSuite.assert(
+      projectCheck.project !== null,
+      `Project should exist in DB: ${projectCheck.error || "OK"}`
+    );
+
+    if (!projectCheck.project) {
+      throw new Error(`No project found in DB: ${projectCheck.error}`);
+    }
+
+    // Login
+    await page.goto(`${frontendUrl}/login`, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+
+    const usernameField = page.locator('[data-testid="login-username"]').first();
+    const passwordField = page.locator('[data-testid="login-password"]').first();
+    const submitButton = page.locator('[data-testid="login-submit"]').first();
 
     await usernameField.fill(CONFIG.ADMIN_CREDENTIALS.username);
     await passwordField.fill(CONFIG.ADMIN_CREDENTIALS.password);
     await submitButton.click();
 
-    await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 10000 });
+    await page.waitForURL(url => !url.pathname.includes("/login"), { 
+      timeout: CONFIG.TEST_TIMEOUT 
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
-
-    const projectLink = await page.locator('a[href*="/projects/"]').first().click().catch(() => null);
-    if (projectLink !== null) {
-      await page.waitForURL(url => url.pathname.match(/\/projects\/[^/]+$/), { timeout: 5000 });
-    }
+    // Navigate directly to the project
+    await page.goto(`${frontendUrl}/projects/${projectCheck.project.id}`, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
   }
 
   // Test 9.1: Email Configuration Form
   await testSuite.test("Email configuration form displays", async () => {
     await loginAndGetProject();
     
-    await page.goto(page.url().replace(/\/$/, "") + "/email");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
-
     const currentUrl = page.url();
-    const isOnEmailPage = currentUrl.includes("/email");
+    const projectIdMatch = currentUrl.match(/\/projects\/([^/]+)/);
+    
+    if (!projectIdMatch) {
+      throw new Error(`Not on a project page. Current URL: ${currentUrl}`);
+    }
+    
+    const projectId = projectIdMatch[1];
+    const emailUrl = `${frontendUrl}/projects/${projectId}/email`;
+    
+    await page.goto(emailUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    testSuite.assert(isOnEmailPage, "Should be on email page");
+    // Wait for page content - email page can show form, empty state, or error
+    const form = page.locator('[data-testid="email-config-form"], form').first();
+    const emptyState = page.locator('[data-testid="email-empty-state"]').first();
+    const emptyStateText = page.locator('text=/no.*email/i').first();
+    
+    await Promise.race([
+      form.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyState.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyStateText.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+    ]);
+
+    const finalUrl = page.url();
+    const isOnEmailPage = finalUrl.includes("/email");
+    const hasForm = await form.isVisible().catch(() => false);
+    const hasEmptyState = await emptyState.isVisible().catch(() => false) || await emptyStateText.isVisible().catch(() => false);
+    const pageText = await page.textContent("body").catch(() => "");
+    const hasEmailText = pageText && pageText.toLowerCase().includes("email");
+
+    // STRICT: Page MUST be on email route and show content
+    testSuite.assert(
+      isOnEmailPage && (hasForm || hasEmptyState || hasEmailText),
+      `Email page MUST display. URL: ${finalUrl}, Has form: ${hasForm}, Has empty state: ${hasEmptyState}, Has email text: ${hasEmailText}`
+    );
   });
 
   // Test 9.2: Email Settings Fields
@@ -61,8 +118,8 @@ export async function runEmailUITests(testSuite, page) {
     await loginAndGetProject();
     
     await page.goto(page.url().replace(/\/$/, "") + "/email");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Look for email configuration fields
     const hasForm = await page.locator(
@@ -77,7 +134,7 @@ export async function runEmailUITests(testSuite, page) {
     await loginAndGetProject();
     
     await page.goto(page.url().replace(/\/$/, "") + "/email");
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const testButton = await page.locator(
       '[data-testid="test-email-button"], button:has-text("Test"), button:has-text("Send Test")'

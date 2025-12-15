@@ -7,6 +7,9 @@
 
 import { CONFIG } from "../../config.js";
 
+// Single timeout constant for all tests
+const TEST_TIMEOUT = CONFIG.TEST_TIMEOUT;
+
 /**
  * Run authentication UI tests
  * @param {Object} testSuite - Test suite instance
@@ -20,12 +23,18 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.1: Login Page Display (CRITICAL - if login page doesn't exist, nothing else matters)
   await testSuite.test("Login page displays correctly", async () => {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2); // Give React time to hydrate
 
     // Check for login form elements (prioritize data-testid)
-    const usernameField = await page.locator('[data-testid="login-username"], input[type="text"], input[name*="username"], input[name*="email"], input[placeholder*="username" i], input[placeholder*="email" i]').first();
-    const passwordField = await page.locator('[data-testid="login-password"], input[type="password"]').first();
-    const submitButton = await page.locator('[data-testid="login-submit"], button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
+    const usernameField = page.locator('[data-testid="login-username"], input[type="text"], input[name*="username"], input[name*="email"], input[placeholder*="username" i], input[placeholder*="email" i]').first();
+    const passwordField = page.locator('[data-testid="login-password"], input[type="password"]').first();
+    const submitButton = page.locator('[data-testid="login-submit"], button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
+
+    // Wait for elements to be visible with timeout
+    await usernameField.waitFor({ state: "visible", timeout: 10000 });
+    await passwordField.waitFor({ state: "visible", timeout: 10000 });
+    await submitButton.waitFor({ state: "visible", timeout: 10000 });
 
     testSuite.assert(await usernameField.isVisible(), "Username field should be visible");
     testSuite.assert(await passwordField.isVisible(), "Password field should be visible");
@@ -35,7 +44,7 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.2: Login Form Functionality
   await testSuite.test("Login form fields are functional", async () => {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[type="text"], input[name*="username"], input[name*="email"]').first();
     const passwordField = await page.locator('input[type="password"]').first();
@@ -53,9 +62,9 @@ export async function runAuthUITests(testSuite, page) {
 
   // Test 1.3: Submit Button Works (CRITICAL - authentication is required for most other tests)
   await testSuite.test("Submit button works", async () => {
-    await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(3000); // Wait for React to hydrate
+    await page.goto(`${frontendUrl}/login`, { waitUntil: "domcontentloaded", timeout: TEST_TIMEOUT });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT); // Wait for React to hydrate
 
     // Find username field (prioritize data-testid)
     const usernameField = await page.locator('[data-testid="login-username"], input[name="username"], input[placeholder*="username" i]').first();
@@ -63,9 +72,9 @@ export async function runAuthUITests(testSuite, page) {
     const submitButton = await page.locator('[data-testid="login-submit"], button[type="submit"], button:has-text("Sign in")').first();
 
     // Wait for fields to be visible and ready
-    await usernameField.waitFor({ state: 'visible', timeout: 10000 });
-    await passwordField.waitFor({ state: 'visible', timeout: 10000 });
-    await submitButton.waitFor({ state: 'visible', timeout: 10000 });
+    await usernameField.waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    await passwordField.waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
+    await submitButton.waitFor({ state: 'visible', timeout: TEST_TIMEOUT });
 
     // Clear and fill fields
     await usernameField.clear();
@@ -73,47 +82,29 @@ export async function runAuthUITests(testSuite, page) {
     await passwordField.clear();
     await passwordField.fill(CONFIG.ADMIN_CREDENTIALS.password);
 
-    // Wait a bit for form to register changes
-    await page.waitForTimeout(1000);
-
+    // No wait needed - form should register immediately
+    
     // Set up navigation listener before clicking
-    const navigationPromise = page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 10000 }).catch(() => null);
+    const navigationPromise = page.waitForURL(url => !url.pathname.includes("/login"), { timeout: TEST_TIMEOUT });
     
     // Click submit
     await submitButton.click();
     
-    // Wait for navigation or timeout
-    await Promise.race([
-      navigationPromise,
-      page.waitForTimeout(5000) // Wait up to 5 seconds
-    ]);
+    // Wait for navigation - STRICT MODE: fail if doesn't redirect
+    await navigationPromise;
 
-    // Check if we're redirected away from login page (success) or still on login (failure)
-    await page.waitForTimeout(2000); // Give it a moment to settle
+    // Check if we're redirected away from login page (success) - STRICT MODE: fail if still on login
     const currentUrl = page.url();
     const isRedirected = !currentUrl.includes("/login");
-
-    // If not redirected, check for error message to provide better feedback
-    if (!isRedirected) {
-      const errorMessage = await page.locator(
-        '[role="alert"], .error, .alert-error, [class*="error"], [class*="alert"]:has-text("error"), [class*="alert"]:has-text("invalid"), [class*="alert"]:has-text("failed")'
-      ).first().textContent().catch(() => null);
-      
-      // Also check page content for error indicators
-      const pageText = await page.textContent('body').catch(() => "");
-      const hasErrorInText = pageText && (pageText.includes("error") || pageText.includes("invalid") || pageText.includes("failed"));
-      
-      const errorInfo = errorMessage ? ` Error: ${errorMessage}` : (hasErrorInText ? " (Error detected in page)" : "");
-      testSuite.assert(isRedirected, `Should redirect after successful login.${errorInfo} Current URL: ${currentUrl}. Credentials used: ${CONFIG.ADMIN_CREDENTIALS.username}/${CONFIG.ADMIN_CREDENTIALS.password}`);
-    } else {
-      testSuite.assert(isRedirected, "Should redirect after successful login");
-    }
+    
+    // STRICT MODE: No error message checking - just fail if not redirected
+    testSuite.assert(isRedirected, `[STRICT MODE] Should redirect after successful login. Current URL: ${currentUrl}. Credentials used: ${CONFIG.ADMIN_CREDENTIALS.username}/${CONFIG.ADMIN_CREDENTIALS.password}`);
   }, { critical: true });
 
   // Test 1.4: Error Messages Display
   await testSuite.test("Error messages display for invalid credentials", async () => {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[type="text"], input[name*="username"], input[name*="email"]').first();
     const passwordField = await page.locator('input[type="password"]').first();
@@ -124,7 +115,7 @@ export async function runAuthUITests(testSuite, page) {
     await submitButton.click();
 
     // Wait for error message to appear
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Look for error messages (could be in various formats)
     const errorMessage = await page.locator(
@@ -140,7 +131,7 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.5: Successful Login Redirects
   await testSuite.test("Successful login redirects to dashboard", async () => {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[type="text"], input[name*="username"], input[name*="email"]').first();
     const passwordField = await page.locator('input[type="password"]').first();
@@ -163,13 +154,13 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.6: Form Validation
   await testSuite.test("Form validation works (empty fields)", async () => {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const submitButton = await page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
 
     // Try to submit without filling fields
     await submitButton.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Check if validation prevents submission (should stay on login page or show validation errors)
     const currentUrl = page.url();
@@ -188,7 +179,7 @@ export async function runAuthUITests(testSuite, page) {
     // Clear cookies/session
     await page.context().clearCookies();
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const currentUrl = page.url();
     const isRedirectedToLogin = currentUrl.includes("/login");
@@ -200,7 +191,7 @@ export async function runAuthUITests(testSuite, page) {
   await testSuite.test("Profile page displays user information", async () => {
     // First login
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[type="text"], input[name*="username"], input[name*="email"]').first();
     const passwordField = await page.locator('input[type="password"]').first();
@@ -215,7 +206,7 @@ export async function runAuthUITests(testSuite, page) {
 
     // Navigate to profile
     await page.goto(`${frontendUrl}/profile`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Check if profile page loaded (not redirected to login)
     const currentUrl = page.url();
@@ -228,7 +219,7 @@ export async function runAuthUITests(testSuite, page) {
   await testSuite.test("Logout functionality works", async () => {
     // Ensure we're logged in
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[type="text"], input[name*="username"], input[name*="email"]').first();
     const passwordField = await page.locator('input[type="password"]').first();
@@ -252,7 +243,7 @@ export async function runAuthUITests(testSuite, page) {
       }
     });
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Check if redirected to login
     const currentUrl = page.url();
@@ -264,7 +255,7 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.10: Registration Page Display
   await testSuite.test("Registration page displays correctly", async () => {
     await page.goto(`${frontendUrl}/register`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Check for registration form elements
     const usernameField = await page.locator('input[name*="username"], input[placeholder*="username" i]').first();
@@ -283,7 +274,7 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.11: Registration Form Functionality
   await testSuite.test("Registration form fields are functional", async () => {
     await page.goto(`${frontendUrl}/register`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[name*="username"], input[placeholder*="username" i]').first();
     const emailField = await page.locator('input[type="email"], input[name*="email"], input[placeholder*="email" i]').first();
@@ -311,7 +302,7 @@ export async function runAuthUITests(testSuite, page) {
   // Test 1.12: Registration Link from Login
   await testSuite.test("Registration link exists on login page", async () => {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const registerLink = await page.locator(
       'a[href*="/register"], button:has-text("Sign up"), button:has-text("Register"), a:has-text("Sign up"), a:has-text("Register")'
@@ -324,7 +315,7 @@ export async function runAuthUITests(testSuite, page) {
   await testSuite.test("Session refresh button works", async () => {
     // First login
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('input[type="text"], input[name*="username"], input[name*="email"]').first();
     const passwordField = await page.locator('input[type="password"]').first();
@@ -337,14 +328,14 @@ export async function runAuthUITests(testSuite, page) {
 
     // Navigate to profile
     await page.goto(`${frontendUrl}/profile`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Find Security tab and click it
     const securityTab = await page.locator('button:has-text("Security"), [role="tab"]:has-text("Security")').first();
     if (await securityTab.isVisible().catch(() => false)) {
       await securityTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     }
 
     // Find refresh session button
@@ -353,7 +344,7 @@ export async function runAuthUITests(testSuite, page) {
 
     if (hasRefreshButton) {
       await refreshButton.click();
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
       // Check for success message or toast
       const successMessage = await page.locator(

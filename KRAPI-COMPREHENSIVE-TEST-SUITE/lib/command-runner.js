@@ -3,9 +3,10 @@
  * Executes shell commands and returns results
  */
 
+import { exec } from "child_process";
+
 export async function runCommand(command, options = {}) {
   return new Promise((resolve) => {
-    const { exec } = await import("child_process");
     exec(
       command,
       {

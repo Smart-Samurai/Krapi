@@ -247,22 +247,26 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
   // Has scope function
   const hasScope = useCallback(
     (scope: string | string[]): boolean => {
-      // Master scope has access to everything
-      if (scopes.includes("master")) return true;
+      // Master scope has access to everything (case-insensitive check)
+      const hasMasterScope = scopes.some((s) => s.toLowerCase() === "master");
+      if (hasMasterScope) return true;
 
       if (Array.isArray(scope)) {
-        // Check if user has any of the required scopes
-        return scope.some((s) => scopes.includes(s));
+        // Check if user has any of the required scopes (case-insensitive)
+        return scope.some((s) => 
+          scopes.some((userScope) => userScope.toLowerCase() === s.toLowerCase())
+        );
       }
 
-      return scopes.includes(scope);
+      // Case-insensitive scope check
+      return scopes.some((userScope) => userScope.toLowerCase() === scope.toLowerCase());
     },
     [scopes]
   );
 
   // Has master access function
   const hasMasterAccess = useCallback((): boolean => {
-    return scopes.includes("master");
+    return scopes.some((s) => s.toLowerCase() === "master");
   }, [scopes]);
 
   return (

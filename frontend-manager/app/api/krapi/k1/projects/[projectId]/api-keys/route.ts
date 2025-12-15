@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
-import { config } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -106,39 +105,18 @@ export async function POST(
     const body = await request.json();
     const { name, scopes, expires_at } = body;
 
-    // Proxy to backend route directly since SDK client mode doesn't support apiKeys.create
-    const backendUrl = config.backend.url;
-    const backendResponse = await fetch(
-      `${backendUrl}/krapi/k1/projects/${projectId}/api-keys`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          name: name || "Project API Key",
-          scopes: scopes || ["projects:read", "collections:read"],
-          expires_at: expires_at,
-        }),
-      }
-    );
+    // SDK-FIRST: Use SDK apiKeys.create() method
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const apiKey = await sdk.apiKeys.create(projectId, {
+      name: name || "Project API Key",
+      scopes: scopes || ["projects:read", "collections:read"],
+      expires_at: expires_at,
+    });
 
-    if (!backendResponse.ok) {
-      const error = await backendResponse.json().catch(() => ({
-        error: "Failed to create API key",
-      }));
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.error || "Failed to create API key",
-        },
-        { status: backendResponse.status }
-      );
-    }
-
-    const result = await backendResponse.json();
-    return NextResponse.json(result);
+    return NextResponse.json({
+      success: true,
+      data: apiKey,
+    });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to create API key";

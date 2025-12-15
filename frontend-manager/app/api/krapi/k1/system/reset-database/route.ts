@@ -27,8 +27,13 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const sdk = await createAuthenticatedBackendSdk(authToken);
 
-    // Make direct HTTP call to backend since SDK may not have this method yet
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3470";
+    // TODO: SDK needs system.resetDatabase() method - this is a known architecture violation
+    // Until SDK adds this method, we must use fetch. This violates SDK-first architecture rule.
+    // When SDK adds system.resetDatabase(), replace this with: await sdk.system.resetDatabase();
+    // 
+    // For now, using config.backend.url instead of process.env for consistency
+    const { config } = await import("@/lib/config");
+    const backendUrl = config.backend.url;
     const response = await fetch(`${backendUrl}/krapi/k1/system/reset-database`, {
       method: "POST",
       headers: {
@@ -65,6 +70,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 }
+
+
 
 
 

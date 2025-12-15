@@ -41,7 +41,11 @@ export class SQLiteAdapter {
 
   constructor(dbPath?: string) {
     // Default to krapi.db in the project root
-    this.dbPath = dbPath || path.join(process.cwd(), "data", "krapi.db");
+    // Use path relative to backend-server directory, not process.cwd()
+    // This ensures databases are always in the same location regardless of where the process starts
+    // __dirname in compiled code is backend-server/dist/services, so go up 2 levels to get backend-server
+    const backendServerDir = path.resolve(__dirname, "..", "..");
+    this.dbPath = dbPath || path.join(backendServerDir, "data", "krapi.db");
     
     // Ensure data directory exists
     const dataDir = path.dirname(this.dbPath);

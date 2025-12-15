@@ -20,7 +20,7 @@ export async function runPerformanceUITests(testSuite, page) {
   // Helper function to login
   async function login() {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('[data-testid="login-username"]').first();
     const passwordField = await page.locator('[data-testid="login-password"]').first();
@@ -39,7 +39,7 @@ export async function runPerformanceUITests(testSuite, page) {
     
     const startTime = Date.now();
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     const loadTime = Date.now() - startTime;
 
     // Acceptable load time: less than 10 seconds
@@ -53,8 +53,8 @@ export async function runPerformanceUITests(testSuite, page) {
     
     const startTime = Date.now();
     await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
     const renderTime = Date.now() - startTime;
 
     // Acceptable render time: less than 5 seconds
@@ -67,8 +67,8 @@ export async function runPerformanceUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Scroll down
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -88,7 +88,7 @@ export async function runPerformanceUITests(testSuite, page) {
     // Navigate multiple times and check if performance degrades
     for (let i = 0; i < 5; i++) {
       await page.goto(`${frontendUrl}/dashboard`);
-      await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
       await page.waitForTimeout(500);
     }
 
@@ -101,7 +101,7 @@ export async function runPerformanceUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Check for images - don't wait for networkidle as it may timeout
     const images = await page.locator('img').all();

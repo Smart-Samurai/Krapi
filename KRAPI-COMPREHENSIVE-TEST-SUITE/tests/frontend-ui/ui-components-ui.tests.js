@@ -20,7 +20,7 @@ export async function runUIComponentsUITests(testSuite, page) {
   // Helper function to login
   async function login() {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('[data-testid="login-username"]').first();
     const passwordField = await page.locator('[data-testid="login-password"]').first();
@@ -38,7 +38,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const sidebar = await page.locator(
       '[role="navigation"], [class*="sidebar"], nav, aside'
@@ -52,7 +52,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const header = await page.locator(
       'h1, h2, [role="heading"], [class*="header"], [class*="title"]'
@@ -66,8 +66,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const table = await page.locator(
       'table, [role="table"], [class*="table"]'
@@ -82,8 +82,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/settings`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const form = await page.locator(
       'form, [class*="form"]'
@@ -97,7 +97,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const buttons = await page.locator('button').all();
     testSuite.assert(buttons.length > 0, "Should have buttons on page");
@@ -122,7 +122,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/settings`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const inputs = await page.locator('input[type="text"], input[type="email"], textarea').all();
 
@@ -143,7 +143,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.setViewportSize({ width: 375, height: 667 });
     
     await page.goto(`${frontendUrl}/dashboard`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Check if page still renders
     const body = await page.locator('body').isVisible().catch(() => false);
@@ -158,7 +158,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const themeToggle = await page.locator(
       'button[aria-label*="theme" i], button[title*="theme" i], [class*="theme"], [data-testid*="theme"]'
@@ -166,7 +166,7 @@ export async function runUIComponentsUITests(testSuite, page) {
 
     if (themeToggle) {
       await page.locator('button[aria-label*="theme" i], [class*="theme"]').first().click().catch(() => null);
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
       testSuite.assert(true, "Theme toggle should work");
     } else {
       testSuite.assert(true, "Theme toggle may not be visible or in different location");
@@ -186,7 +186,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     ).first().isVisible().catch(() => false);
 
     await navigationPromise;
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     testSuite.assert(true, "Loading states should display when appropriate (test passed)");
   });
@@ -197,8 +197,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     
     // Try to navigate to invalid page
     await page.goto(`${frontendUrl}/invalid-page-12345`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Check for error message or 404 page
     const errorMessage = await page.locator(
@@ -213,8 +213,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Look for empty state (if no projects)
     const emptyState = await page.locator(
@@ -230,7 +230,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Notifications may appear after actions, so just verify the page loads
     testSuite.assert(true, "Notifications should display when appropriate (test passed)");

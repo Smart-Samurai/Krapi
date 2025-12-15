@@ -35,6 +35,8 @@ export const CONFIG = {
   CLEANUP_AFTER_TESTS: true,
   VERBOSE_LOGGING: true,
   TIMEOUT_MS: 5000, // Reduced from 30s to 5s max
+  TEST_TIMEOUT: 10000, // Single timeout for all tests - 10 seconds (optimized for speed)
+  PAGE_WAIT_TIMEOUT: 300, // Reduced wait time between page operations - 300ms
 
   // CORS test configuration
   // These origins should be configured as allowed in the app

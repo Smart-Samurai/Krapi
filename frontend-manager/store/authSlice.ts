@@ -268,8 +268,22 @@ export const login = createAsyncThunk(
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Login failed" }));
-      throw new Error(error.error || "Login failed");
+      let errorMessage = "Invalid credentials";
+      try {
+        const errorData = await response.json();
+        // Try different possible error message fields
+        errorMessage = errorData.error || errorData.message || errorData.details?.error || "Invalid credentials";
+      } catch {
+        // If JSON parsing fails, use status-based message
+        if (response.status === 401) {
+          errorMessage = "Invalid credentials";
+        } else if (response.status === 403) {
+          errorMessage = "Access forbidden";
+        } else {
+          errorMessage = "Login failed";
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const responseData = await response.json();

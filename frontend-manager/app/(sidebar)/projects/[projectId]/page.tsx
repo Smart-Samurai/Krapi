@@ -107,8 +107,8 @@ export default function ProjectDetailPage() {
     return (
       <PageLayout>
         <PageHeader
-          title={<Skeleton className="h-8 w-64" />}
-          description={<Skeleton className="h-4 w-96" />}
+          title="Loading..."
+          description="Loading project details..."
         />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
@@ -140,7 +140,7 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <PageLayout>
-        <Alert>
+        <Alert variant="destructive" data-testid="project-not-found-error">
           <AlertDescription>Project not found</AlertDescription>
         </Alert>
       </PageLayout>

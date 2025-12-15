@@ -402,28 +402,7 @@ class ComprehensiveTestRunner {
   }
 
   async detectPackageManager() {
-    // Detect package manager (prefer pnpm, fallback to npm)
-    try {
-      const { stdout } = await execAsync("which pnpm", {
-        cwd: this.projectRoot,
-      });
-      if (stdout && stdout.trim()) {
-        return "pnpm";
-      }
-    } catch {
-      // pnpm not found
-    }
-    try {
-      const { stdout } = await execAsync("which npm", {
-        cwd: this.projectRoot,
-      });
-      if (stdout && stdout.trim()) {
-        return "npm";
-      }
-    } catch {
-      // npm not found
-    }
-    // Default to npm if neither found
+    // Force npm as requested
     return "npm";
   }
 
@@ -435,9 +414,7 @@ class ComprehensiveTestRunner {
 
     // Update dependencies in root
     this.log("   Updating root dependencies...", "INFO");
-    const rootUpdateResult = await this.runCommand(
-      packageManager === "pnpm" ? "pnpm update" : "npm update"
-    );
+    const rootUpdateResult = await this.runCommand("npm update");
     if (!rootUpdateResult.success) {
       this.log(
         `   ⚠️  Root dependency update had issues: ${rootUpdateResult.stderr}`,
@@ -449,9 +426,7 @@ class ComprehensiveTestRunner {
 
     // Install dependencies in root (to get latest SDK)
     this.log("   Installing root dependencies...", "INFO");
-    const rootInstallResult = await this.runCommand(
-      packageManager === "pnpm" ? "pnpm install" : "npm install"
-    );
+    const rootInstallResult = await this.runCommand("npm install");
     if (!rootInstallResult.success) {
       throw new Error(
         `Failed to install root dependencies: ${rootInstallResult.stderr}`
@@ -461,11 +436,7 @@ class ComprehensiveTestRunner {
 
     // Update dependencies in backend-server
     this.log("   Updating backend dependencies...", "INFO");
-    const backendUpdateResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "cd backend-server && pnpm update"
-        : "cd backend-server && npm update"
-    );
+    const backendUpdateResult = await this.runCommand("cd backend-server && npm update");
     if (!backendUpdateResult.success) {
       this.log(
         `   ⚠️  Backend dependency update had issues: ${backendUpdateResult.stderr}`,
@@ -477,11 +448,7 @@ class ComprehensiveTestRunner {
 
     // Install dependencies in backend-server
     this.log("   Installing backend dependencies...", "INFO");
-    const backendInstallResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "cd backend-server && pnpm install"
-        : "cd backend-server && npm install"
-    );
+    const backendInstallResult = await this.runCommand("cd backend-server && npm install");
     if (!backendInstallResult.success) {
       throw new Error(
         `Failed to install backend dependencies: ${backendInstallResult.stderr}`
@@ -491,11 +458,7 @@ class ComprehensiveTestRunner {
 
     // Update dependencies in frontend-manager
     this.log("   Updating frontend dependencies...", "INFO");
-    const frontendUpdateResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "cd frontend-manager && pnpm update"
-        : "cd frontend-manager && npm update"
-    );
+    const frontendUpdateResult = await this.runCommand("cd frontend-manager && npm update");
     if (!frontendUpdateResult.success) {
       this.log(
         `   ⚠️  Frontend dependency update had issues: ${frontendUpdateResult.stderr}`,
@@ -507,11 +470,7 @@ class ComprehensiveTestRunner {
 
     // Install dependencies in frontend-manager
     this.log("   Installing frontend dependencies...", "INFO");
-    const frontendInstallResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "cd frontend-manager && pnpm install"
-        : "cd frontend-manager && npm install"
-    );
+    const frontendInstallResult = await this.runCommand("cd frontend-manager && npm install");
     if (!frontendInstallResult.success) {
       throw new Error(
         `Failed to install frontend dependencies: ${frontendInstallResult.stderr}`
@@ -534,9 +493,7 @@ class ComprehensiveTestRunner {
     // This is critical for SQLite to work - better-sqlite3 requires native bindings
     this.log("   Rebuilding better-sqlite3 native bindings...", "INFO");
     const rebuildResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "cd backend-server && pnpm rebuild better-sqlite3"
-        : "cd backend-server && npm rebuild better-sqlite3",
+      "cd backend-server && npm rebuild better-sqlite3",
       { cwd: this.projectRoot }
     );
     if (!rebuildResult.success) {
@@ -546,9 +503,7 @@ class ComprehensiveTestRunner {
       );
       // Fallback: try rebuilding from root
       const rootRebuildResult = await this.runCommand(
-        packageManager === "pnpm"
-          ? "pnpm rebuild better-sqlite3"
-          : "npm rebuild better-sqlite3 --force",
+        "npm rebuild better-sqlite3 --force",
         { cwd: this.projectRoot }
       );
       if (!rootRebuildResult.success) {
@@ -565,19 +520,12 @@ class ComprehensiveTestRunner {
 
     // Build packages first
     this.log("   Step 2: Building packages...", "INFO");
-    const packagesResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "pnpm run build:packages"
-        : "npm run build:packages"
-    );
+    const packagesResult = await this.runCommand("npm run build:packages");
     if (!packagesResult.success) {
       const buildError = new Error(`Failed to build packages`);
       buildError.buildOutput =
         packagesResult.stdout || packagesResult.stderr || "";
-      buildError.buildCommand =
-        packageManager === "pnpm"
-          ? "pnpm run build:packages"
-          : "npm run build:packages";
+      buildError.buildCommand = "npm run build:packages";
       buildError.buildType = "packages";
       throw buildError;
     }
@@ -585,19 +533,12 @@ class ComprehensiveTestRunner {
 
     // Build backend
     this.log("   Step 3: Building backend...", "INFO");
-    const backendResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "pnpm run build:backend"
-        : "npm run build:backend"
-    );
+    const backendResult = await this.runCommand("npm run build:backend");
     if (!backendResult.success) {
       const buildError = new Error(`Failed to build backend`);
       buildError.buildOutput =
         backendResult.stdout || backendResult.stderr || "";
-      buildError.buildCommand =
-        packageManager === "pnpm"
-          ? "pnpm run build:backend"
-          : "npm run build:backend";
+      buildError.buildCommand = "npm run build:backend";
       buildError.buildType = "backend";
       throw buildError;
     }
@@ -605,19 +546,12 @@ class ComprehensiveTestRunner {
 
     // Build frontend
     this.log("   Step 4: Building frontend (this includes type checking)...", "INFO");
-    const frontendResult = await this.runCommand(
-      packageManager === "pnpm"
-        ? "pnpm run build:frontend"
-        : "npm run build:frontend"
-    );
+    const frontendResult = await this.runCommand("npm run build:frontend");
     if (!frontendResult.success) {
       const buildError = new Error(`Failed to build frontend`);
       buildError.buildOutput =
         frontendResult.stdout || frontendResult.stderr || "";
-      buildError.buildCommand =
-        packageManager === "pnpm"
-          ? "pnpm run build:frontend"
-          : "npm run build:frontend";
+      buildError.buildCommand = "npm run build:frontend";
       buildError.buildType = "frontend";
       throw buildError;
     }

@@ -48,6 +48,7 @@
 KRAPI uses a revolutionary multi-database architecture:
 
 - **Main Database (`krapi_main.db`)**: Stores:
+
   - Admin users
   - Project metadata
   - Global sessions
@@ -83,6 +84,7 @@ KRAPI implements a "plug and socket" architecture where:
 - **SDK (Interface)**: Provides identical methods for both client and server environments
 
 All SDK methods work identically whether called from:
+
 - Frontend (via HTTP)
 - Backend (via direct database connection)
 - External applications (via API)
@@ -124,55 +126,75 @@ For complete hosting instructions, see **[HOSTING.md](./HOSTING.md)**.
 
 ## 🚀 Installation
 
-### Quick Start (All Platforms)
+### Quick Start (All Platforms) - Recommended ⭐
+
+**Simplest way - one command does everything:**
 
 ```bash
-# Clone the repository
+# Clone and enter directory
 git clone https://github.com/GenorTG/Krapi.git
 cd Krapi
 
-# Install dependencies
-npm install
-
-# Initialize environment
-npm run init-env
-
-# Start in development mode (interactive menu)
+# Run interactive setup (installs, builds, and manages everything!)
 npm run krapi
-
-# Or use CLI commands
-npm run krapi start --dev    # Start development mode
-npm run krapi start --prod   # Start production mode
-npm run krapi status         # Check service status
-npm run krapi stop           # Stop services
 ```
+
+The interactive script automatically:
+
+- ✅ Installs all dependencies (`npm install`)
+- ✅ Initializes environment files (`npm run init-env`)
+- ✅ Builds required packages (`npm run build:packages`)
+- ✅ Shows you an interactive menu to start/manage KRAPI
+
+**That's it!** No need to remember multiple commands or steps.
+
+**Alternative ways to run:**
+
+```bash
+# Direct Node.js (works on all platforms)
+node krapi.js
+
+# Platform-specific scripts
+.\krapi.ps1       # Windows PowerShell (recommended)
+krapi.bat          # Windows CMD
+./krapi.sh         # Linux/Mac
+```
+
+### Manual Installation (Advanced)
+
+If you prefer step-by-step control:
 
 ### Manual Installation
 
 #### Using pnpm (Recommended)
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/GenorTG/Krapi.git
    cd Krapi
    ```
 
 2. **Install dependencies**:
+
    ```bash
    pnpm install
    ```
 
 3. **Initialize environment**:
+
    ```bash
    npm run init-env
    ```
 
 4. **Build packages and SDK**:
+
    ```bash
    pnpm run build:packages
    ```
 
 5. **Start the application**:
+
    ```bash
    # Development mode
    pnpm run dev:all
@@ -184,27 +206,32 @@ npm run krapi stop           # Stop services
 #### Using npm
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/GenorTG/Krapi.git
    cd Krapi
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Initialize environment**:
+
    ```bash
    npm run init-env
    ```
 
 4. **Build packages and SDK**:
+
    ```bash
    npm run build:packages
    ```
 
 5. **Start the application**:
+
    ```bash
    # Development mode
    npm run dev:all
@@ -218,12 +245,15 @@ npm run krapi stop           # Stop services
 After installation, configure your environment:
 
 1. **Initialize environment files**:
+
    ```bash
    npm run init-env
    ```
+
    This creates `.env` files from examples if they don't exist.
 
 2. **Configure using management script** (recommended):
+
    ```bash
    npm run krapi config list              # View all settings
    npm run krapi config set <key> <value> # Update settings
@@ -231,11 +261,13 @@ After installation, configure your environment:
    ```
 
 3. **Or manually edit `.env` files**:
+
    - Root `.env`: Main application configuration
    - `frontend-manager/.env.local`: Frontend-specific settings
    - `backend-server/.env`: Backend-specific settings
-   
+
    Important settings to update:
+
    - `JWT_SECRET`: Generate a secure 256-bit secret key (use `openssl rand -hex 32`)
    - `DEFAULT_ADMIN_PASSWORD`: Change from default `admin`
    - `DB_PASSWORD`: Set a secure database password (if using PostgreSQL)
@@ -248,56 +280,223 @@ After installation, configure your environment:
 
 ## 🎯 Quick Start Guide
 
-### First Time Setup (After Cloning)
+### One-Command Setup & Launch
 
-1. **Clone and install**:
-   ```bash
-   git clone https://github.com/GenorTG/Krapi.git
-   cd Krapi
-   npm install
-   ```
+KRAPI includes an interactive setup script that handles everything automatically!
 
-2. **Initialize environment**:
-   ```bash
-   npm run init-env
-   ```
-   This creates `.env` files with default values.
+#### Step 1: Prerequisites
 
-3. **Change default admin password** (IMPORTANT):
-   ```bash
-   # Edit .env file and change:
-   DEFAULT_ADMIN_PASSWORD=your-secure-password-here
-   
-   # Or use the management script:
-   npm run krapi config set app.nodeEnv production
-   ```
-   
-   **Default credentials** (change immediately!):
-   - Username: `admin`
-   - Password: `admin` (change this!)
-   - Email: `admin@yourdomain.com`
+Make sure you have:
 
-4. **Generate secure JWT secret**:
-   ```bash
-   # On Linux/Mac:
-   openssl rand -hex 32
-   
-   # On Windows (PowerShell):
-   -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 64 | % {[char]$_})
-   
-   # Then update .env:
-   JWT_SECRET=your-generated-secret-here
-   ```
+- **Node.js** v18+ installed ([Download](https://nodejs.org/))
+- **npm** v9+ (comes with Node.js)
+- **Git** installed
 
-5. **Start the application**:
+Verify installation:
+
 ```bash
-   # Interactive mode (recommended for first-time users)
-   npm run krapi
-   
-   # Or use CLI:
-   npm run krapi start --dev    # Development mode
-   npm run krapi start --prod   # Production mode
-   ```
+node --version    # Should show v18 or higher
+npm --version     # Should show v9 or higher
+```
+
+#### Step 2: Clone and Run
+
+```bash
+# Clone the repository
+git clone https://github.com/GenorTG/Krapi.git
+cd Krapi
+
+# Run the interactive setup (handles everything!)
+npm run krapi
+
+# Or run directly (Windows/Linux/Mac):
+node krapi.js
+
+# Or use platform-specific scripts:
+# Linux/Mac: ./krapi.sh
+# Windows: krapi.bat
+```
+
+**That's it!** The script will:
+
+1. ✅ Check if dependencies are installed
+2. ✅ Install dependencies if needed (`npm install`)
+3. ✅ Initialize environment files (`npm run init-env`)
+4. ✅ Build packages (`npm run build:packages`)
+5. ✅ Show you an interactive menu to start/manage KRAPI
+
+#### Step 3: Start KRAPI
+
+From the interactive menu, select:
+
+- **Option 1**: Start in Development Mode (recommended for first time)
+- **Option 2**: Start in Production Mode
+
+Or use direct commands:
+
+```bash
+# Start in development mode
+npm run krapi start --dev
+
+# Start in production mode
+npm run krapi start --prod
+```
+
+#### Step 4: Access the Application
+
+Once started, open your browser:
+
+- **Frontend UI**: http://localhost:3498
+- **Login**: `admin` / `admin123` (change immediately!)
+
+**✅ Success!** KRAPI is now running!
+
+---
+
+### Interactive Menu Features
+
+When you run `npm run krapi`, you get an interactive menu with:
+
+- **Start/Stop/Restart** services
+- **Check Status** of running services
+- **View Logs** in real-time
+- **Configuration** management
+- **Security Settings** (CORS, rate limiting, etc.)
+- **Run Setup Again** if needed
+
+All in one place! No need to remember multiple commands.
+
+---
+
+### Quick Commands (Without Interactive Menu)
+
+If you prefer direct commands:
+
+```bash
+# Start in development mode
+npm run krapi start --dev
+
+# Start in production mode
+npm run krapi start --prod
+
+# Stop services
+npm run krapi stop
+
+# Check status
+npm run krapi status
+
+# View logs
+npm run krapi logs
+```
+
+---
+
+### Common Commands Reference
+
+#### Starting/Stopping Services
+
+```bash
+# Start in development mode (auto-reload on changes)
+npm run dev:all
+
+# Start in production mode
+npm run start:all
+
+# Stop services (Ctrl+C in terminal, or):
+npm run krapi stop
+
+# Check service status
+npm run krapi status
+```
+
+#### Building
+
+```bash
+# Build everything (packages + backend + frontend)
+npm run build:all
+
+# Build only packages
+npm run build:packages
+
+# Build only backend
+npm run build:backend
+
+# Build only frontend
+npm run build:frontend
+```
+
+#### Development Workflow
+
+```bash
+# Quick development start (skip build if already built)
+npm run dev:quick
+
+# Run linting
+npm run lint:all
+
+# Fix linting issues
+npm run lint:fix:all
+
+# Type checking
+npm run type-check:all
+
+# Full health check (install + lint + type-check + build)
+npm run health
+```
+
+#### Testing
+
+```bash
+# Run comprehensive test suite (API + SDK tests)
+npm run test:comprehensive
+
+# Run UI tests
+cd KRAPI-COMPREHENSIVE-TEST-SUITE
+npm run test:ui
+```
+
+#### Troubleshooting
+
+```bash
+# Clean everything and reinstall
+npm run reset
+
+# Reset database only
+npm run reset:database
+
+# View logs
+npm run krapi logs
+```
+
+---
+
+### Quick Start Summary (Copy-Paste Ready)
+
+**Simplest way - just 2 commands:**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/GenorTG/Krapi.git
+cd Krapi
+
+# 2. Run interactive setup (handles everything!)
+npm run krapi
+```
+
+The script will automatically:
+
+- Install dependencies
+- Initialize environment
+- Build packages
+- Show you an interactive menu
+
+Then from the menu:
+
+- Select **Option 1** to start in development mode
+- Open http://localhost:3498 in your browser
+- Login with: `admin` / `admin123`
+
+**That's it!** You're ready to use KRAPI. 🚀
 
 ### Accessing the Application
 
@@ -327,6 +526,7 @@ npm run krapi stop
 ```
 
 **Development Mode Features**:
+
 - Auto-reload on code changes
 - Detailed error messages
 - Hot module replacement
@@ -337,6 +537,7 @@ npm run krapi stop
 To make KRAPI accessible on your local network:
 
 1. **Configure network access**:
+
    ```bash
    # Set host to 0.0.0.0 to listen on all interfaces
    npm run krapi config set frontend.host 0.0.0.0
@@ -344,15 +545,17 @@ To make KRAPI accessible on your local network:
    ```
 
 2. **Find your local IP address**:
+
    ```bash
    # On Linux/Mac:
    ip addr show | grep "inet " | grep -v 127.0.0.1
-   
+
    # On Windows:
    ipconfig
    ```
 
 3. **Access from other devices**:
+
    - Frontend: `http://YOUR_LOCAL_IP:3498`
    - Example: `http://192.168.1.100:3498`
 
@@ -365,22 +568,25 @@ To make KRAPI accessible on your local network:
 For production deployment with a public domain:
 
 1. **Set your public frontend URL**:
+
    ```bash
    npm run krapi config set frontend.url https://your-domain.com
    ```
 
 2. **Configure CORS allowed origins**:
+
    ```bash
    npm run krapi security set-allowed-origins https://app.your-domain.com,https://api.your-domain.com
    ```
 
 3. **Set up reverse proxy** (nginx, Caddy, etc.):
+
    ```nginx
    # Example nginx configuration
    server {
        listen 80;
        server_name your-domain.com;
-       
+
        location / {
            proxy_pass http://localhost:3498;
            proxy_http_version 1.1;
@@ -393,15 +599,17 @@ For production deployment with a public domain:
    ```
 
 4. **Enable HTTPS** (recommended):
+
    - Use Let's Encrypt with Certbot
    - Or use Caddy (automatic HTTPS)
    - Or configure SSL certificates in your reverse proxy
 
 5. **Build and start in production mode**:
+
    ```bash
    # Build for production
    npm run build:all
-   
+
    # Start in production mode
    npm run krapi start --prod
    ```
@@ -416,11 +624,13 @@ For production deployment with a public domain:
 **After first login, change the admin password immediately:**
 
 1. **Via Web UI**:
+
    - Log in at http://localhost:3498
    - Go to Settings → Profile
    - Change password
 
 2. **Via Configuration** (before first start):
+
    ```bash
    # Edit .env file:
    DEFAULT_ADMIN_PASSWORD=your-new-secure-password
@@ -438,6 +648,7 @@ For production deployment with a public domain:
 **Essential security settings for production**:
 
 1. **Change JWT Secret**:
+
    ```bash
    # Generate secure secret (see above)
    # Then update .env:
@@ -445,12 +656,14 @@ For production deployment with a public domain:
    ```
 
 2. **Configure CORS**:
+
    ```bash
    # Only allow specific origins
    npm run krapi security set-allowed-origins https://your-app.com,https://your-api.com
    ```
 
 3. **Set frontend URL**:
+
    ```bash
    # Prevents access from wrong domains
    npm run krapi security set-frontend-url https://your-domain.com
@@ -494,11 +707,13 @@ Once started, access the application at:
 ### Connection Guide
 
 **For External Applications:**
+
 - ✅ Connect to **Frontend URL** (port 3498): `http://localhost:3498` or `https://your-domain.com`
 - ✅ The frontend proxies requests to the backend automatically
 - ✅ Handles CORS, authentication, and routing
 
 **For Internal/Server-Side Code:**
+
 - ✅ Can connect directly to **Backend URL** (port 3470) for faster access
 - ✅ Use when building custom API layers (see [NEXTJS_API_ROUTES.md](./NEXTJS_API_ROUTES.md))
 
@@ -522,20 +737,24 @@ On first run, a default admin account is created:
 
 ```typescript
 // In your external application (web app, mobile app, etc.)
-import { krapi } from '@smartsamurai/krapi-sdk';
+import { krapi } from "@smartsamurai/krapi-sdk";
 
 // Connect to the FRONTEND URL (port 3498)
 await krapi.connect({
-  endpoint: 'https://your-krapi-instance.com', // Frontend URL (port 3498)
-  apiKey: 'your-api-key-here'
+  endpoint: "https://your-krapi-instance.com", // Frontend URL (port 3498)
+  apiKey: "your-api-key-here",
 });
 
 // Use it - no custom API calls needed!
 const projects = await krapi.projects.list();
-const documents = await krapi.collections.documents.list('project-id', 'collection-name');
+const documents = await krapi.collections.documents.list(
+  "project-id",
+  "collection-name"
+);
 ```
 
 **Why the Frontend URL?**
+
 - The frontend (port 3498) acts as a proxy and handles CORS, routing, and authentication
 - The backend (port 3470) is internal-only and should not be exposed to external clients
 - The SDK automatically appends `/api/krapi/k1/` to your endpoint URL
@@ -544,12 +763,14 @@ const documents = await krapi.collections.documents.list('project-id', 'collecti
 The SDK now includes automatic endpoint validation, health checks, retry logic, and improved error messages. All features are documented in the [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk).
 
 **URL Examples:**
+
 - ✅ **Correct**: `https://your-krapi-instance.com` (frontend, port 3498)
 - ✅ **Correct**: `http://localhost:3498` (local development, frontend)
 - ❌ **Wrong**: `https://your-krapi-instance.com:3470` (backend port)
 - ❌ **Wrong**: `http://localhost:3470` (backend port)
 
 **Install the SDK:**
+
 ```bash
 npm install @smartsamurai/krapi-sdk
 # or
@@ -557,6 +778,7 @@ pnpm add @smartsamurai/krapi-sdk
 ```
 
 For complete SDK documentation and architecture details, see:
+
 - [@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 - [ARCHITECTURE_DATA_FLOW.md](./ARCHITECTURE_DATA_FLOW.md) - Complete architecture and data flow documentation
 
@@ -590,6 +812,7 @@ For complete SDK documentation and architecture details, see:
 - **[@smartsamurai/krapi-sdk npm package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)** - Official SDK documentation with all features and usage examples
 
 **Quick Links:**
+
 - 📦 [NPM Package](https://www.npmjs.com/package/@smartsamurai/krapi-sdk)
 - 🏢 [GitHub Organization](https://github.com/Smart-Samurai)
 - 👤 [Author GitHub](https://github.com/GenorTG)
@@ -793,6 +1016,7 @@ All code in this repository is owned by **GenorTG** and contributors as specifie
 ### Contributing
 
 When contributing to this project:
+
 - You retain copyright of your contributions
 - You grant GenorTG and the project maintainers a license to use your contributions
 - All contributions must comply with the MIT License
@@ -800,6 +1024,7 @@ When contributing to this project:
 ### Attribution
 
 If you use this project, please:
+
 - Maintain attribution to the original authors
 - Include the LICENSE file
 - Credit the project in your documentation

@@ -11,6 +11,13 @@ export const runtime = 'nodejs';
  * 
  * Proxies requests to the backend MCP admin chat endpoint with authentication
  * POST /api/mcp/admin/chat
+ * 
+ * NOTE: MCP (Model Context Protocol) routes are special LLM tool calling endpoints.
+ * These routes handle LLM interactions and tool calling, which is a specialized use case.
+ * The comprehensive test suite does not test MCP via SDK methods - it only tests the MCP server package structure.
+ * 
+ * TODO: If SDK adds MCP methods (e.g., sdk.mcp.admin.chat()), replace fetch with SDK method.
+ * For now, these routes remain as proxy routes since MCP is a special LLM tool calling interface.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
@@ -24,8 +31,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     const body = await request.json();
-    // MCP routes proxy directly to backend (frontend client functionality)
-    // SDK-FIRST: Use centralized config for backend URL
+    // MCP routes are special LLM tool calling endpoints - proxy to backend
+    // TODO: Replace with SDK method when sdk.mcp.admin.chat() is available
     const { config } = await import("@/lib/config");
     const backendApiUrl = config.backend.getApiUrl('/mcp/admin/chat');
 

@@ -38,7 +38,6 @@ export class SdkDatabaseAdapter implements DatabaseConnection {
     "admin_users",
     "projects",
     "sessions",
-    "api_keys",
     "email_templates",
     "system_checks",
     "migrations",
@@ -59,6 +58,7 @@ export class SdkDatabaseAdapter implements DatabaseConnection {
     "file_permissions",
     "file_versions",
     "user_activities",
+    "api_keys", // Project-level API keys go to project DB
   ];
 
   /**

@@ -12,6 +12,10 @@ export const runtime = 'nodejs';
  * Connects directly to OpenAI-compatible LLM endpoints (LM Studio, Ollama, OpenAI)
  * to fetch available models.
  * POST /api/mcp/models
+ * 
+ * NOTE: This route calls EXTERNAL LLM endpoints (not KRAPI backend), so it's acceptable
+ * to use fetch() directly. This is not a violation of SDK-first architecture since
+ * we're not communicating with the KRAPI backend.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {

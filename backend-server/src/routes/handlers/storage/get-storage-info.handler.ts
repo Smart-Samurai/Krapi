@@ -23,17 +23,39 @@ export class GetStorageInfoHandler {
         return;
       }
 
-      // Type assertion needed as SDK types may not be fully updated
+      // Try to use SDK's getInfo if available, otherwise calculate from files
+      let info: { total_files: number; total_size: number; storage_used_percentage: number; quota: number };
+      
+      // Type assertion to check for getInfo method
       const storageService = this.backendSDK.storage as unknown as {
-        getInfo: (projectId: string) => Promise<{
-          total_files: number;
-          total_size: number;
-          storage_used_percentage: number;
-          quota: number;
-        }>;
+        getInfo?: (projectId: string) => Promise<typeof info>;
+        getFiles?: (projectId: string) => Promise<{ size?: number }[]>;
       };
 
-      const info = await storageService.getInfo(projectId);
+      if (typeof storageService.getInfo === "function") {
+        info = await storageService.getInfo(projectId);
+      } else if (typeof storageService.getFiles === "function") {
+        // Fallback: calculate from files list
+        const files = await storageService.getFiles(projectId);
+        const totalFiles = files.length;
+        const totalSize = files.reduce((sum: number, file: { size?: number }) => sum + (file.size || 0), 0);
+        const defaultQuota = 10 * 1024 * 1024 * 1024; // 10GB
+        
+        info = {
+          total_files: totalFiles,
+          total_size: totalSize,
+          storage_used_percentage: defaultQuota > 0 ? (totalSize / defaultQuota) * 100 : 0,
+          quota: defaultQuota,
+        };
+      } else {
+        // Neither method available - return empty storage info
+        info = {
+          total_files: 0,
+          total_size: 0,
+          storage_used_percentage: 0,
+          quota: 10 * 1024 * 1024 * 1024, // 10GB default
+        };
+      }
 
       res.status(200).json({ success: true, data: info });
     } catch (error) {

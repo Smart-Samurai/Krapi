@@ -390,45 +390,230 @@ async function restartServices(mode = "dev") {
 /**
  * Show logs
  */
-async function showLogs(follow = false) {
-  const logDir = path.join(rootDir, "backend-server", "logs");
-  if (!fs.existsSync(logDir)) {
-    warn("No log directory found");
-    return;
+/**
+ * Color codes for log levels
+ */
+function colorizeLogLine(line) {
+  if (!line || line.trim() === "") return line;
+  
+  // Error patterns
+  if (/\b(error|ERROR|Error|failed|FAILED|Failed|exception|EXCEPTION|Exception|fatal|FATAL|Fatal)\b/i.test(line)) {
+    return `\x1b[31m${line}\x1b[0m`; // Red
   }
   
-  const logFiles = fs.readdirSync(logDir).filter((f) => f.endsWith(".log")).sort().reverse();
+  // Warning patterns
+  if (/\b(warn|WARN|Warn|warning|WARNING|Warning|deprecated|DEPRECATED|Deprecated)\b/i.test(line)) {
+    return `\x1b[33m${line}\x1b[0m`; // Yellow
+  }
+  
+  // Info patterns
+  if (/\b(info|INFO|Info|started|STARTED|Started|listening|LISTENING|Listening|connected|CONNECTED|Connected)\b/i.test(line)) {
+    return `\x1b[36m${line}\x1b[0m`; // Cyan
+  }
+  
+  // Success patterns
+  if (/\b(success|SUCCESS|Success|completed|COMPLETED|Completed|ready|READY|Ready)\b/i.test(line)) {
+    return `\x1b[32m${line}\x1b[0m`; // Green
+  }
+  
+  return line;
+}
+
+/**
+ * Filter log lines based on level
+ */
+function filterLogLines(lines, filter) {
+  if (filter === "all") return lines;
+  
+  return lines.filter((line) => {
+    const lowerLine = line.toLowerCase();
+    if (filter === "errors") {
+      return /\b(error|failed|exception|fatal)\b/.test(lowerLine);
+    }
+    if (filter === "warnings") {
+      return /\b(warn|warning|deprecated)\b/.test(lowerLine);
+    }
+    return true;
+  });
+}
+
+/**
+ * Find log files for a service
+ */
+function findLogFiles(service) {
+  const logFiles = [];
+  
+  // Check .logs directory (created by krapi-manager)
+  const logsDir = path.join(rootDir, ".logs");
+  if (fs.existsSync(logsDir)) {
+    const files = fs.readdirSync(logsDir)
+      .filter((f) => f.endsWith(".log"))
+      .filter((f) => {
+        if (service === "frontend") return f.startsWith("frontend-");
+        if (service === "backend") return f.startsWith("backend-");
+        return true; // both
+      })
+      .map((f) => ({
+        path: path.join(logsDir, f),
+        name: f,
+        service: f.startsWith("frontend-") ? "frontend" : "backend",
+        mtime: fs.statSync(path.join(logsDir, f)).mtime,
+      }));
+    logFiles.push(...files);
+  }
+  
+  // Check backend-server/logs directory (backend logger)
+  if (service === "backend" || service === "both") {
+    const backendLogDir = path.join(rootDir, "backend-server", "logs");
+    if (fs.existsSync(backendLogDir)) {
+      const files = fs.readdirSync(backendLogDir)
+        .filter((f) => f.endsWith(".log"))
+        .map((f) => ({
+          path: path.join(backendLogDir, f),
+          name: f,
+          service: "backend",
+          mtime: fs.statSync(path.join(backendLogDir, f)).mtime,
+        }));
+      logFiles.push(...files);
+    }
+  }
+  
+  // Sort by modification time (newest first)
+  return logFiles.sort((a, b) => b.mtime - a.mtime);
+}
+
+async function showLogs(follow = false, service = "both", filter = "all", lines = 50) {
+  const logFiles = findLogFiles(service);
+  
   if (logFiles.length === 0) {
     warn("No log files found");
+    info(`Checked directories:`);
+    info(`  - ${path.join(rootDir, ".logs")}`);
+    if (service === "backend" || service === "both") {
+      info(`  - ${path.join(rootDir, "backend-server", "logs")}`);
+    }
     return;
   }
   
-  const latestLog = path.join(logDir, logFiles[0]);
-  info(`Showing logs from: ${logFiles[0]}`);
+  // Show available log files
+  console.log("\n📋 Available log files:");
+  logFiles.slice(0, 10).forEach((file, idx) => {
+    const size = (fs.statSync(file.path).size / 1024).toFixed(2);
+    const date = file.mtime.toLocaleString();
+    console.log(`  ${idx + 1}. [${file.service}] ${file.name} (${size} KB, ${date})`);
+  });
+  console.log();
   
   if (follow) {
-    // Tail the log file
-    const tail = spawn(process.platform === "win32" ? "powershell" : "tail", 
-      process.platform === "win32" 
-        ? ["-Command", `Get-Content -Path "${latestLog}" -Wait -Tail 50`]
-        : ["-f", latestLog],
-      { stdio: "inherit" }
-    );
+    // For follow mode, use platform-specific tail commands
+    const latestFiles = service === "both" 
+      ? [
+          logFiles.find((f) => f.service === "frontend"),
+          logFiles.find((f) => f.service === "backend"),
+        ].filter(Boolean)
+      : [logFiles[0]];
     
-    process.on("SIGINT", () => {
-      tail.kill();
-      process.exit(0);
-    });
-  } else {
-    // Show last 50 lines
-    try {
-      const content = fs.readFileSync(latestLog, "utf8");
-      const lines = content.split("\n");
-      const lastLines = lines.slice(-50).join("\n");
-      console.log(lastLines);
-    } catch (err) {
-      error(`Error reading log file: ${err.message}`);
+    if (latestFiles.length === 0) {
+      warn("No log files to follow");
+      return;
     }
+    
+    info(`Following ${latestFiles.length} log file(s) (filter: ${filter})...`);
+    info("Press Ctrl+C to stop\n");
+    
+    // Use tail command for following
+    if (latestFiles.length === 1) {
+      // Single file - use tail directly
+      const file = latestFiles[0];
+      const tailCmd = process.platform === "win32" 
+        ? ["powershell", ["-Command", `Get-Content -Path "${file.path}" -Wait -Tail ${lines}`]]
+        : ["tail", ["-f", "-n", lines.toString(), file.path]];
+      
+      const tail = spawn(tailCmd[0], tailCmd[1], { stdio: "pipe" });
+      
+      tail.stdout.on("data", (data) => {
+        const logLines = data.toString().split("\n");
+        logLines.forEach((line) => {
+          if (line.trim()) {
+            const filtered = filterLogLines([line], filter);
+            if (filtered.length > 0) {
+              const prefix = `[${file.service.toUpperCase()}] `;
+              console.log(colorizeLogLine(prefix + filtered[0]));
+            }
+          }
+        });
+      });
+      
+      tail.stderr.on("data", (data) => {
+        process.stderr.write(data);
+      });
+      
+      process.on("SIGINT", () => {
+        tail.kill();
+        process.exit(0);
+      });
+    } else {
+      // Multiple files - show each with prefix
+      const tails = latestFiles.map((file) => {
+        const tailCmd = process.platform === "win32"
+          ? ["powershell", ["-Command", `Get-Content -Path "${file.path}" -Wait -Tail ${lines}`]]
+          : ["tail", ["-f", "-n", lines.toString(), file.path]];
+        
+        const tail = spawn(tailCmd[0], tailCmd[1], { stdio: "pipe" });
+        
+        tail.stdout.on("data", (data) => {
+          const lines = data.toString().split("\n");
+          lines.forEach((line) => {
+            if (line.trim()) {
+              const filtered = filterLogLines([line], filter);
+              if (filtered.length > 0) {
+                const prefix = `[${file.service.toUpperCase()}] `;
+                console.log(colorizeLogLine(prefix + filtered[0]));
+              }
+            }
+          });
+        });
+        
+        tail.stderr.on("data", (data) => {
+          process.stderr.write(data);
+        });
+        
+        return tail;
+      });
+      
+      process.on("SIGINT", () => {
+        tails.forEach((tail) => tail.kill());
+        process.exit(0);
+      });
+    }
+  } else {
+    // Show last N lines from latest file(s)
+    const latestFiles = service === "both"
+      ? [
+          logFiles.find((f) => f.service === "frontend"),
+          logFiles.find((f) => f.service === "backend"),
+        ].filter(Boolean)
+      : [logFiles[0]];
+    
+    latestFiles.forEach((file) => {
+      try {
+        info(`\n📄 [${file.service.toUpperCase()}] ${file.name}`);
+        const content = fs.readFileSync(file.path, "utf8");
+        const allLines = content.split("\n").filter((l) => l.trim());
+        const filtered = filterLogLines(allLines, filter);
+        const lastLines = filtered.slice(-lines);
+        
+        lastLines.forEach((line) => {
+          console.log(colorizeLogLine(line));
+        });
+        
+        if (filtered.length === 0 && filter !== "all") {
+          warn(`  No ${filter} found in this log file`);
+        }
+      } catch (err) {
+        error(`Error reading ${file.name}: ${err.message}`);
+      }
+    });
   }
 }
 
@@ -653,9 +838,24 @@ function handleSecurityCommand(args) {
       }
       break;
       
+    case "reset":
+      const defaultConfig = utils.DEFAULT_CONFIG;
+      const currentConfig = utils.loadConfig();
+      
+      // Reset security settings to defaults
+      currentConfig.security.allowedOrigins = defaultConfig.security.allowedOrigins;
+      currentConfig.security.behindProxy = defaultConfig.security.behindProxy;
+      currentConfig.security.enableCors = defaultConfig.security.enableCors;
+      currentConfig.security.rateLimit = { ...defaultConfig.security.rateLimit };
+      
+      utils.saveConfig(currentConfig);
+      utils.syncConfigToEnv(currentConfig);
+      success("Security settings reset to defaults");
+      break;
+      
     default:
       error(`Unknown security command: ${subcommand}`);
-      console.log("Available commands: set-allowed-origins, set-frontend-url, set-rate-limit, show");
+      console.log("Available commands: set-allowed-origins, set-frontend-url, set-rate-limit, show, reset");
   }
 }
 
@@ -913,7 +1113,29 @@ async function main() {
         
       case "logs":
         const follow = args.includes("--follow");
-        await showLogs(follow);
+        let service = "both";
+        let filter = "all";
+        let lines = 50;
+        
+        // Parse --service argument
+        const serviceArg = args.find((a) => a.startsWith("--service="));
+        if (serviceArg) {
+          service = serviceArg.split("=")[1] || "both";
+        }
+        
+        // Parse --filter argument
+        const filterArg = args.find((a) => a.startsWith("--filter="));
+        if (filterArg) {
+          filter = filterArg.split("=")[1] || "all";
+        }
+        
+        // Parse --lines argument
+        const linesArg = args.find((a) => a.startsWith("--lines="));
+        if (linesArg) {
+          lines = parseInt(linesArg.split("=")[1]) || 50;
+        }
+        
+        await showLogs(follow, service, filter, lines);
         break;
         
       case "config":

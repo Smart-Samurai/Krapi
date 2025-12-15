@@ -10,9 +10,8 @@ export async function buildFrontend(projectRoot, log) {
   log("🔨 Building frontend for production...", "INFO");
   
   const packageManager = await detectPackageManager();
-  const buildCommand = packageManager === "pnpm" 
-    ? "pnpm run build:frontend" 
-    : "npm run build:frontend";
+  // Force npm as requested
+  const buildCommand = "npm run build:frontend";
 
   log(`   Running: ${buildCommand}`, "INFO");
   const result = await runCommand(buildCommand, { cwd: projectRoot });

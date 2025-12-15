@@ -252,6 +252,12 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Rate limiting
+// Disable rate limiting in test mode, development mode, or when explicitly disabled
+const RATE_LIMIT_DISABLED =
+  process.env.DISABLE_RATE_LIMIT === "true" ||
+  process.env.NODE_ENV === "test" ||
+  process.env.NODE_ENV === "development";
+
 // When behind a proxy, use a custom key generator that uses X-Forwarded-For header
 const generalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"), // 15 minutes
@@ -276,9 +282,9 @@ const generalLimiter = rateLimit({
   validate: {
     trustProxy: true, // Trust proxy is properly configured
   },
-  // Skip rate limiting for health checks
+  // Skip rate limiting for health checks or when disabled
   skip: (req) => {
-    return req.path === "/krapi/k1/health" || req.path === "/health";
+    return RATE_LIMIT_DISABLED || req.path === "/krapi/k1/health" || req.path === "/health";
   },
 });
 

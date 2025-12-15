@@ -128,14 +128,19 @@ export class MultiDatabaseManager {
   /**
    * Create a new MultiDatabaseManager instance
    *
-   * @param {string} [mainDbPath] - Path to main database (defaults to data/krapi.db)
-   * @param {string} [projectsDbDir] - Directory for project databases (defaults to data/projects)
+   * @param {string} [mainDbPath] - Path to main database (defaults to backend-server/data/krapi.db)
+   * @param {string} [projectsDbDir] - Directory for project databases (defaults to backend-server/data/projects)
    */
   constructor(mainDbPath?: string, projectsDbDir?: string) {
+    // Use path relative to backend-server directory, not process.cwd()
+    // This ensures databases are always in the same location regardless of where the process starts
+    // __dirname in compiled code is backend-server/dist/services, so go up 2 levels to get backend-server
+    const backendServerDir = path.resolve(__dirname, "..", "..");
+    
     this.mainDbPath =
-      mainDbPath || path.join(process.cwd(), "data", "krapi.db");
+      mainDbPath || path.join(backendServerDir, "data", "krapi.db");
     this.projectsDbDir =
-      projectsDbDir || path.join(process.cwd(), "data", "projects");
+      projectsDbDir || path.join(backendServerDir, "data", "projects");
 
     // Ensure directories exist
     this.ensureDirectories();
@@ -209,6 +214,7 @@ export class MultiDatabaseManager {
       if (db) {
         // Always check and fix missing columns when accessing existing database
         this.fixProjectUsersTableColumns(db);
+        this.fixApiKeysTableColumns(db, projectId);
         return db;
       }
     }
@@ -236,6 +242,7 @@ export class MultiDatabaseManager {
     } else {
       // For existing databases, fix missing columns
       this.fixProjectUsersTableColumns(db);
+      this.fixApiKeysTableColumns(db, projectId);
     }
 
     return db;
@@ -884,6 +891,15 @@ export class MultiDatabaseManager {
         return { rows: [], rowCount: result.changes };
       }
     } catch (error) {
+      // Don't log duplicate column errors - they're expected during migrations
+      if (
+        error instanceof Error &&
+        (error.message.includes("duplicate column") ||
+          error.message.includes("duplicate column name"))
+      ) {
+        // Silently ignore duplicate column errors
+        throw error; // Still throw so caller can handle it, but don't log
+      }
       console.error(`Error querying project ${projectId}:`, error);
       throw error;
     }

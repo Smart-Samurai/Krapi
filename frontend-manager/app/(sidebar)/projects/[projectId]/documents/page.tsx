@@ -124,6 +124,7 @@ export default function DocumentsPage() {
     () => collectionsBucket?.items || [],
     [collectionsBucket?.items]
   );
+  const [selectedCollection, setSelectedCollection] = useState<string>("");
   const documents = useAppSelector((s) =>
     selectedCollection
       ? s.documents.byKey[`${projectId}:${selectedCollection}`] || []
@@ -138,7 +139,6 @@ export default function DocumentsPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
-  const [selectedCollection, setSelectedCollection] = useState<string>("");
 
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -351,6 +351,11 @@ export default function DocumentsPage() {
       data: { ...(document.data as Record<string, unknown>) },
     });
     setIsEditDialogOpen(true);
+  };
+
+  const openViewDialog = (document: Document) => {
+    setViewingDocument(document);
+    setIsViewDialogOpen(true);
   };
 
   const getCurrentCollection = () => {
@@ -961,7 +966,7 @@ search_results = response.json()`}
       )}
 
       {!selectedCollection ? (
-        <Card>
+        <Card data-testid="documents-no-collection-state">
           <CardContent className="text-center py-12">
             <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-base font-semibold mb-2">
@@ -1014,7 +1019,7 @@ search_results = response.json()`}
           </CardContent>
         </Card>
       ) : documents.length === 0 ? (
-        <Card>
+        <Card data-testid="documents-empty-state">
           <CardContent className="text-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-base font-semibold mb-2">No Documents Yet</h3>

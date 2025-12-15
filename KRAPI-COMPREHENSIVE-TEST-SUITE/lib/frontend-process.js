@@ -92,19 +92,35 @@ export async function stopFrontend(frontendProcess, log) {
   if (frontendProcess) {
     log("🛑 Stopping frontend...", "INFO");
     try {
-      frontendProcess.kill("SIGTERM");
+      const pid = frontendProcess.pid;
       
-      await new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          frontendProcess.kill("SIGKILL");
-          resolve();
-        }, 5000);
-        
-        frontendProcess.on("exit", () => {
-          clearTimeout(timeout);
-          resolve();
+      // On Windows, use taskkill with /T to kill process tree
+      if (process.platform === "win32" && pid) {
+        const { exec } = await import("child_process");
+        await new Promise((resolve) => {
+          exec(`taskkill /PID ${pid} /T /F`, (error) => {
+            // Ignore errors - process might already be gone
+            resolve();
+          });
         });
-      });
+        // Give Windows time to clean up
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } else {
+        // Unix: SIGTERM then SIGKILL
+        frontendProcess.kill("SIGTERM");
+        
+        await new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            frontendProcess.kill("SIGKILL");
+            resolve();
+          }, 5000);
+          
+          frontendProcess.on("exit", () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+        });
+      }
       
       log("✅ Frontend stopped", "SUCCESS");
     } catch (error) {

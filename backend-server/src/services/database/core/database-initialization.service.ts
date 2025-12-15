@@ -57,7 +57,7 @@ export class DatabaseInitializationService {
         }
 
         // Skip migrations for fresh database (test environment)
-        console.log("Skipping migrations - using direct table initialization");
+        // Note: We use direct table initialization instead of migrations
 
         // Resolve the ready promise on successful initialization
         this.core.resolveReady();

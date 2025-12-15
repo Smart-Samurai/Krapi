@@ -439,9 +439,7 @@ export default function ProjectsPage() {
                     variant="outline"
                     icon={ArrowRight}
                     className="w-full"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
+                    onClick={() => {
                       router.push(`/projects/${project.id}`);
                     }}
                   >

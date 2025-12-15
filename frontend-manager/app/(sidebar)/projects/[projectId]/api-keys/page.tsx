@@ -1,19 +1,19 @@
 /**
  * API Keys Page
- * 
+ *
  * Page for managing API keys for a project.
  * Provides API key creation, editing, deletion, and scope management.
- * 
+ *
  * @module app/(sidebar)/projects/[projectId]/api-keys/page
  * @example
  * // Automatically rendered at /projects/[projectId]/api-keys route
  */
 /**
  * API Keys Page
- * 
+ *
  * Page for managing project API keys with scope configuration.
  * Provides API key creation, editing, deletion, and scope management.
- * 
+ *
  * @module app/(sidebar)/projects/[projectId]/api-keys/page
  * @example
  * // Automatically rendered at /projects/[projectId]/api-keys route
@@ -115,10 +115,10 @@ import { ProjectScope } from "@/lib/krapi-constants";
 
 /**
  * Scope Labels Mapping
- * 
+ *
  * Maps project scopes to human-readable labels.
  * Project-specific scopes only - global scopes like "projects:read" are reserved for admin users.
- * 
+ *
  * @constant {Record<string, string>}
  */
 // Project-specific scopes only - these are for managing THIS project only
@@ -143,9 +143,9 @@ const scopeLabels: Record<string, string> = {
 
 /**
  * API Keys Page Component
- * 
+ *
  * Displays and manages API keys for a project.
- * 
+ *
  * @returns {JSX.Element} API keys page
  */
 export default function ApiKeysPage() {
@@ -163,6 +163,7 @@ export default function ApiKeysPage() {
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
   const [editingApiKey, setEditingApiKey] = useState<ApiKey | null>(null);
   const [showApiKey, setShowApiKey] = useState<string | null>(null);
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null); // State for the secret key
 
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -189,25 +190,41 @@ export default function ApiKeysPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/krapi/k1/apikeys?project_id=${projectId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `/api/krapi/k1/projects/${projectId}/api-keys`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch API keys");
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Failed to fetch API keys" }));
+        throw new Error(
+          errorData.error || `Failed to fetch API keys: ${response.status}`
+        );
       }
 
       const result = await response.json();
       if (result.success && Array.isArray(result.data)) {
         setApiKeys(result.data as ApiKey[]);
+      } else if (result.success && result.data === null) {
+        // Empty result is valid
+        setApiKeys([]);
       } else {
-        setError("Invalid response format");
+        setError(result.error || "Invalid response format");
       }
-    } catch {
-      setError("An error occurred while loading API keys");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while loading API keys";
+      setError(errorMessage);
+      console.error("Error loading API keys:", error);
     } finally {
       setIsLoading(false);
     }
@@ -225,23 +242,27 @@ export default function ApiKeysPage() {
     }
 
     try {
-      const response = await fetch(`/api/krapi/k1/apikeys`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          project_id: projectId,
-          name: formData.name,
-          scopes: formData.scopes,
-          expires_at: formData.expires_at || undefined,
-          metadata: formData.metadata,
-        }),
-      });
+      const response = await fetch(
+        `/api/krapi/k1/projects/${projectId}/api-keys`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            scopes: formData.scopes,
+            expires_at: formData.expires_at || undefined,
+            metadata: formData.metadata,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to create API key" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to create API key" }));
         setError(error.error || "Failed to create API key");
         return;
       }
@@ -249,6 +270,10 @@ export default function ApiKeysPage() {
       const result = await response.json();
       if (result.success) {
         setIsCreateDialogOpen(false);
+        // Capture the secret key from the response
+        if (result.data && result.data.key) {
+          setNewlyCreatedKey(result.data.key);
+        }
         setFormData({
           name: "",
           scopes: [],
@@ -274,24 +299,29 @@ export default function ApiKeysPage() {
     }
 
     try {
-      const response = await fetch(`/api/krapi/k1/apikeys/${editingApiKey.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          project_id: projectId,
-          name: formData.name,
-          scopes: formData.scopes,
-          expires_at: formData.expires_at || undefined,
-          is_active: editingApiKey.is_active,
-          metadata: formData.metadata,
-        }),
-      });
+      const response = await fetch(
+        `/api/krapi/k1/apikeys/${editingApiKey.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            name: formData.name,
+            scopes: formData.scopes,
+            expires_at: formData.expires_at || undefined,
+            is_active: editingApiKey.is_active,
+            metadata: formData.metadata,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to update API key" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to update API key" }));
         setError(error.error || "Failed to update API key");
         return;
       }
@@ -340,7 +370,9 @@ export default function ApiKeysPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to delete API key" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to delete API key" }));
         setError(error.error || "Failed to delete API key");
         return;
       }
@@ -372,17 +404,22 @@ export default function ApiKeysPage() {
     }
 
     try {
-      const response = await fetch(`/api/krapi/k1/apikeys/${keyId}/regenerate`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ project_id: projectId }),
-      });
+      const response = await fetch(
+        `/api/krapi/k1/apikeys/${keyId}/regenerate`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ project_id: projectId }),
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Failed to regenerate API key" }));
+        const error = await response
+          .json()
+          .catch(() => ({ error: "Failed to regenerate API key" }));
         setError(error.error || "Failed to regenerate API key");
         return;
       }
@@ -394,7 +431,11 @@ export default function ApiKeysPage() {
         setError("Failed to regenerate API key");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "An error occurred while regenerating API key");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while regenerating API key"
+      );
     }
   };
 
@@ -498,7 +539,10 @@ export default function ApiKeysPage() {
         </div>
         <div className="grid gap-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <Skeleton key={`api-keys-skeleton-item-${i}`} className="h-32 w-full" />
+            <Skeleton
+              key={`api-keys-skeleton-item-${i}`}
+              className="h-32 w-full"
+            />
           ))}
         </div>
       </PageLayout>
@@ -518,100 +562,119 @@ export default function ApiKeysPage() {
               onOpenChange={setIsCreateDialogOpen}
             >
               <DialogTrigger asChild>
-                <ActionButton variant="add" icon={Plus} data-testid="create-api-key-button">
+                <ActionButton
+                  variant="add"
+                  icon={Plus}
+                  data-testid="create-api-key-button"
+                >
                   Create API Key
                 </ActionButton>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" data-testid="create-api-key-dialog">
+              <DialogContent
+                className="max-w-2xl max-h-[80vh] overflow-y-auto"
+                data-testid="create-api-key-dialog"
+              >
                 <DialogHeader>
                   <DialogTitle>Create New API Key</DialogTitle>
                   <DialogDescription>
-                    Create a new API key with specific permissions and expiry date
+                    Create a new API key with specific permissions and expiry
+                    date
                   </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">API Key Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    placeholder="e.g., Production API, Development API"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expires_at">Expiry Date (Optional)</Label>
-                  <Input
-                    id="expires_at"
-                    type="datetime-local"
-                    value={formData.expires_at}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        expires_at: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Permissions (Scopes)</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {Object.entries(scopeLabels).map(([scope, label]) => (
-                      <div key={scope} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={scope}
-                          checked={formData.scopes.includes(scope)}
-                          onCheckedChange={() => toggleScope(scope)}
-                        />
-                        <Label htmlFor={scope} className="text-base font-normal">
-                          {label}
-                        </Label>
-                      </div>
-                    ))}
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">API Key Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., Production API, Development API"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="expires_at">Expiry Date (Optional)</Label>
+                    <Input
+                      id="expires_at"
+                      type="datetime-local"
+                      value={formData.expires_at}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          expires_at: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Permissions (Scopes)</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {Object.entries(scopeLabels).map(([scope, label]) => (
+                        <div
+                          key={scope}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={scope}
+                            checked={formData.scopes.includes(scope)}
+                            onCheckedChange={() => toggleScope(scope)}
+                          />
+                          <Label
+                            htmlFor={scope}
+                            className="text-base font-normal"
+                          >
+                            {label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <ActionButton
-                  variant="outline"
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </ActionButton>
-                <ActionButton
-                  variant="add"
-                  onClick={handleCreateApiKey}
-                  disabled={!formData.name}
-                >
-                  Create API Key
-                </ActionButton>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <ActionButton
+                    variant="outline"
+                    onClick={() => setIsCreateDialogOpen(false)}
+                  >
+                    Cancel
+                  </ActionButton>
+                  <ActionButton
+                    variant="add"
+                    onClick={handleCreateApiKey}
+                    disabled={!formData.name}
+                  >
+                    Create API Key
+                  </ActionButton>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
               <DialogTrigger asChild>
                 <ActionButton variant="outline" icon={BookOpen}>
                   API Docs
                 </ActionButton>
               </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Code2 className="h-5 w-5" />
-                  API Keys Documentation
-                </DialogTitle>
-                <DialogDescription>
-                  Code examples for integrating with KRAPI API Keys
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
-                  <div className="bg-muted p-4 ">
-                    <pre className="text-base overflow-x-auto">
-                      {`// Initialize KRAPI client (like Appwrite!)
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Code2 className="h-5 w-5" />
+                    API Keys Documentation
+                  </DialogTitle>
+                  <DialogDescription>
+                    Code examples for integrating with KRAPI API Keys
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-semibold mb-3">
+                      TypeScript SDK
+                    </h3>
+                    <div className="bg-muted p-4 ">
+                      <pre className="text-base overflow-x-auto">
+                        {`// Initialize KRAPI client (like Appwrite!)
 import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
 
 const krapi = new KrapiClient({
@@ -654,17 +717,17 @@ const clientWithKey = new KrapiClient({
   endpoint: 'http://localhost:3470',
   apiKey: 'your-generated-api-key'
 });`}
-                    </pre>
+                      </pre>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <h3 className="text-base font-semibold mb-3">
-                    Python Requests
-                  </h3>
-                  <div className="bg-muted p-4 ">
-                    <pre className="text-base overflow-x-auto">
-                      {`import requests
+                  <div>
+                    <h3 className="text-base font-semibold mb-3">
+                      Python Requests
+                    </h3>
+                    <div className="bg-muted p-4 ">
+                      <pre className="text-base overflow-x-auto">
+                        {`import requests
 import json
 from datetime import datetime, timedelta
 
@@ -741,42 +804,42 @@ headers_with_key = {
     "Authorization": f"ApiKey your-generated-api-key",
     "Content-Type": "application/json"
 }`}
-                    </pre>
+                      </pre>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <h3 className="text-base font-semibold mb-3">
-                    Available Scopes
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 text-base">
-                    <div>
-                      <h4 className="font-medium mb-2">Data Scopes:</h4>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li>? data:read - Read documents</li>
-                        <li>? data:write - Create/update documents</li>
-                        <li>? data:delete - Delete documents</li>
-                        <li>? collections:read - Read collections</li>
-                        <li>? collections:write - Manage collections</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="font-medium mb-2">System Scopes:</h4>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li>? files:read - Read files</li>
-                        <li>? files:write - Upload files</li>
-                        <li>? files:delete - Delete files</li>
-                        <li>? users:read - Read users</li>
-                        <li>? users:write - Manage users</li>
-                      </ul>
+                  <div>
+                    <h3 className="text-base font-semibold mb-3">
+                      Available Scopes
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-base">
+                      <div>
+                        <h4 className="font-medium mb-2">Data Scopes:</h4>
+                        <ul className="space-y-1 text-muted-foreground">
+                          <li>? data:read - Read documents</li>
+                          <li>? data:write - Create/update documents</li>
+                          <li>? data:delete - Delete documents</li>
+                          <li>? collections:read - Read collections</li>
+                          <li>? collections:write - Manage collections</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">System Scopes:</h4>
+                        <ul className="space-y-1 text-muted-foreground">
+                          <li>? files:read - Read files</li>
+                          <li>? files:write - Upload files</li>
+                          <li>? files:delete - Delete files</li>
+                          <li>? users:read - Read users</li>
+                          <li>? users:write - Manage users</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      }
+              </DialogContent>
+            </Dialog>
+          </div>
+        }
       />
 
       {/* Filters and Search */}
@@ -889,13 +952,13 @@ headers_with_key = {
                             {showApiKey === apiKey.id
                               ? apiKey.key || "N/A"
                               : apiKey.key
-                                ? `${apiKey.key.substring(
-                                    0,
-                                    8
-                                  )}...${apiKey.key.substring(
-                                    apiKey.key.length - 4
-                                  )}`
-                                : "N/A"}
+                              ? `${apiKey.key.substring(
+                                  0,
+                                  8
+                                )}...${apiKey.key.substring(
+                                  apiKey.key.length - 4
+                                )}`
+                              : "N/A"}
                           </code>
                           <Button
                             variant="ghost"
@@ -1090,6 +1153,52 @@ headers_with_key = {
             >
               Update API Key
             </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Success Dialog for New API Key */}
+      <Dialog open={!!newlyCreatedKey} onOpenChange={(open) => !open && setNewlyCreatedKey(null)}>
+        <DialogContent className="max-w-md" data-testid="api-key-success-modal">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="h-5 w-5" />
+              API Key Created Successfully
+            </DialogTitle>
+            <DialogDescription>
+              Please copy your API key now. You will not be able to see it again!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Your API Key</Label>
+              <div className="relative">
+                <Input 
+                  readOnly 
+                  value={newlyCreatedKey || ""} 
+                  className="pr-10 font-mono text-sm bg-muted"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="absolute right-1 top-1 h-8 w-8 p-0"
+                  onClick={() => newlyCreatedKey && copyApiKey(newlyCreatedKey)}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Make sure to store this key securely.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setNewlyCreatedKey(null)}>
+              I have copied it
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

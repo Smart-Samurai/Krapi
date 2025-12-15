@@ -6,6 +6,7 @@
  */
 
 import { CONFIG } from "../../config.js";
+import { getFirstProject } from "../../lib/db-verification.js";
 
 /**
  * Run settings UI tests
@@ -20,7 +21,7 @@ export async function runSettingsUITests(testSuite, page) {
   // Helper function to login
   async function login() {
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = await page.locator('[data-testid="login-username"]').first();
     const passwordField = await page.locator('[data-testid="login-password"]').first();
@@ -38,8 +39,8 @@ export async function runSettingsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/settings`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const currentUrl = page.url();
     const isOnSettingsPage = currentUrl.includes("/settings");
@@ -52,8 +53,8 @@ export async function runSettingsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/settings`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Look for settings sections
     const hasSettings = await page.locator(
@@ -65,27 +66,78 @@ export async function runSettingsUITests(testSuite, page) {
 
   // Test 11.3: Project Settings
   await testSuite.test("Project settings page loads", async () => {
-    await login();
-    
-    await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    // Verify data exists in DB first
+    const projectCheck = await Promise.race([
+      getFirstProject(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("DB verification timeout")),
+          CONFIG.TEST_TIMEOUT / 2
+        )
+      ),
+    ]).catch((error) => ({ project: null, error: error.message }));
 
-    const projectLink = await page.locator('a[href*="/projects/"]').first().click().catch(() => null);
-    if (projectLink !== null) {
-      await page.waitForURL(url => url.pathname.match(/\/projects\/[^/]+$/), { timeout: 5000 });
-      
-      await page.goto(page.url().replace(/\/$/, "") + "/settings");
-      await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(2000);
+    testSuite.assert(
+      projectCheck.project !== null,
+      `Project should exist in DB: ${projectCheck.error || "OK"}`
+    );
 
-      const currentUrl = page.url();
-      const isOnProjectSettings = currentUrl.includes("/settings");
-
-      testSuite.assert(isOnProjectSettings, "Should be on project settings page");
-    } else {
-      testSuite.assert(true, "No project available to test settings");
+    if (!projectCheck.project) {
+      throw new Error(`No project found in DB: ${projectCheck.error}`);
     }
+
+    // Login
+    await page.goto(`${frontendUrl}/login`, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+
+    const usernameField = page.locator('[data-testid="login-username"]').first();
+    const passwordField = page.locator('[data-testid="login-password"]').first();
+    const submitButton = page.locator('[data-testid="login-submit"]').first();
+
+    await usernameField.fill(CONFIG.ADMIN_CREDENTIALS.username);
+    await passwordField.fill(CONFIG.ADMIN_CREDENTIALS.password);
+    await submitButton.click();
+
+    await page.waitForURL(url => !url.pathname.includes("/login"), { 
+      timeout: CONFIG.TEST_TIMEOUT 
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+
+    // Navigate directly to project settings
+    const settingsUrl = `${frontendUrl}/projects/${projectCheck.project.id}/settings`;
+    
+    await page.goto(settingsUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+
+    // Wait for page content - settings page can show form, empty state, or error
+    const form = page.locator('[data-testid="project-settings-form"], form').first();
+    const emptyState = page.locator('[data-testid="settings-empty-state"]').first();
+    const emptyStateText = page.locator('text=/no.*setting/i').first();
+    
+    await Promise.race([
+      form.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyState.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyStateText.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+    ]);
+
+    const finalUrl = page.url();
+    const isOnProjectSettings = finalUrl.includes("/settings");
+    const hasForm = await form.isVisible().catch(() => false);
+    const hasEmptyState = await emptyState.isVisible().catch(() => false) || await emptyStateText.isVisible().catch(() => false);
+    const pageText = await page.textContent("body").catch(() => "");
+    const hasSettingsText = pageText && pageText.toLowerCase().includes("setting");
+
+    // STRICT: Page MUST be on settings route and show content
+    testSuite.assert(
+      isOnProjectSettings && (hasForm || hasEmptyState || hasSettingsText),
+      `Project settings page MUST display. URL: ${finalUrl}, Has form: ${hasForm}, Has empty state: ${hasEmptyState}, Has settings text: ${hasSettingsText}`
+    );
   });
 
   testSuite.logger.suiteEnd("Frontend UI: Settings Tests");

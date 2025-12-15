@@ -598,7 +598,7 @@ export default function EmailPage() {
         </TabsList>
 
         <TabsContent value="config" className="space-y-6">
-          <Card>
+          <Card data-testid="email-config-form">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />

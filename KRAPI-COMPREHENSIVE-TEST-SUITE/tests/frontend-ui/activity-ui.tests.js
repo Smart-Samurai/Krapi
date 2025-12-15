@@ -6,6 +6,7 @@
  */
 
 import { CONFIG } from "../../config.js";
+import { getFirstProject } from "../../lib/db-verification.js";
 
 /**
  * Run activity UI tests
@@ -19,41 +20,101 @@ export async function runActivityUITests(testSuite, page) {
 
   // Helper function to login and navigate to a project
   async function loginAndGetProject() {
-    await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    // Verify data exists in DB first
+    const projectCheck = await Promise.race([
+      getFirstProject(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("DB verification timeout")),
+          CONFIG.TEST_TIMEOUT / 2
+        )
+      ),
+    ]).catch((error) => ({ project: null, error: error.message }));
 
-    const usernameField = await page.locator('[data-testid="login-username"]').first();
-    const passwordField = await page.locator('[data-testid="login-password"]').first();
-    const submitButton = await page.locator('[data-testid="login-submit"]').first();
+    testSuite.assert(
+      projectCheck.project !== null,
+      `Project should exist in DB: ${projectCheck.error || "OK"}`
+    );
+
+    if (!projectCheck.project) {
+      throw new Error(`No project found in DB: ${projectCheck.error}`);
+    }
+
+    // Login
+    await page.goto(`${frontendUrl}/login`, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+
+    const usernameField = page.locator('[data-testid="login-username"]').first();
+    const passwordField = page.locator('[data-testid="login-password"]').first();
+    const submitButton = page.locator('[data-testid="login-submit"]').first();
 
     await usernameField.fill(CONFIG.ADMIN_CREDENTIALS.username);
     await passwordField.fill(CONFIG.ADMIN_CREDENTIALS.password);
     await submitButton.click();
 
-    await page.waitForURL(url => !url.pathname.includes("/login"), { timeout: 10000 });
+    await page.waitForURL(url => !url.pathname.includes("/login"), { 
+      timeout: CONFIG.TEST_TIMEOUT 
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
-
-    const projectLink = await page.locator('a[href*="/projects/"]').first().click().catch(() => null);
-    if (projectLink !== null) {
-      await page.waitForURL(url => url.pathname.match(/\/projects\/[^/]+$/), { timeout: 5000 });
-    }
+    // Navigate directly to the project
+    await page.goto(`${frontendUrl}/projects/${projectCheck.project.id}`, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
   }
 
   // Test 13.1: Changelog List Displays
   await testSuite.test("Changelog list displays", async () => {
     await loginAndGetProject();
     
-    await page.goto(page.url().replace(/\/$/, "") + "/changelog");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
-
     const currentUrl = page.url();
-    const isOnChangelogPage = currentUrl.includes("/changelog");
+    const projectIdMatch = currentUrl.match(/\/projects\/([^/]+)/);
+    
+    if (!projectIdMatch) {
+      throw new Error(`Not on a project page. Current URL: ${currentUrl}`);
+    }
+    
+    const projectId = projectIdMatch[1];
+    const changelogUrl = `${frontendUrl}/projects/${projectId}/changelog`;
+    
+    await page.goto(changelogUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    testSuite.assert(isOnChangelogPage, "Should be on changelog page");
+    // Wait for page content - changelog page can show table, loading state, empty state, or error
+    const table = page.locator('[data-testid="changelog-table"]').first();
+    const loadingText = page.locator('text=/loading.*changelog/i').first();
+    const emptyStateText = page.locator('text=/no.*changelog.*found/i, text=/no.*changelog/i').first();
+    const exportButton = page.locator('[data-testid="changelog-export-button"]').first();
+    
+    await Promise.race([
+      table.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      loadingText.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyStateText.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      exportButton.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+    ]);
+
+    const finalUrl = page.url();
+    const isOnChangelogPage = finalUrl.includes("/changelog");
+    const hasTable = await table.isVisible().catch(() => false);
+    const hasLoading = await loadingText.isVisible().catch(() => false);
+    const hasEmptyState = await emptyStateText.isVisible().catch(() => false);
+    const hasExportButton = await exportButton.isVisible().catch(() => false);
+    const pageText = await page.textContent("body").catch(() => "");
+    const hasChangelogText = pageText && (pageText.toLowerCase().includes("changelog") || pageText.toLowerCase().includes("activity"));
+
+    // STRICT: Page MUST be on changelog route and show content
+    testSuite.assert(
+      isOnChangelogPage && (hasTable || hasLoading || hasEmptyState || hasExportButton || hasChangelogText),
+      `Changelog page MUST display. URL: ${finalUrl}, Has table: ${hasTable}, Has loading: ${hasLoading}, Has empty state: ${hasEmptyState}, Has export button: ${hasExportButton}, Has changelog text: ${hasChangelogText}`
+    );
   });
 
   // Test 13.2: Changelog Entries Load
@@ -61,8 +122,8 @@ export async function runActivityUITests(testSuite, page) {
     await loginAndGetProject();
     
     await page.goto(page.url().replace(/\/$/, "") + "/changelog");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 3);
 
     const changelogContainer = await page.locator(
       '[data-testid="changelog-table"], table, [class*="changelog"], [class*="activity"]'
@@ -76,7 +137,7 @@ export async function runActivityUITests(testSuite, page) {
     await loginAndGetProject();
     
     await page.goto(page.url().replace(/\/$/, "") + "/changelog");
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const filterInput = await page.locator(
       'input[type="search"], input[placeholder*="filter" i], select'
@@ -84,7 +145,7 @@ export async function runActivityUITests(testSuite, page) {
 
     if (filterInput) {
       await page.locator('input[type="search"], input[placeholder*="filter" i]').first().fill("test").catch(() => null);
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
       testSuite.assert(true, "Filter input should accept input");
     } else {

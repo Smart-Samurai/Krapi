@@ -14,6 +14,8 @@ import { setupTestDataWithReset, resetTestData } from "./tests/frontend-ui/test-
 
 // Import modular components
 import { buildFrontend } from "./lib/frontend-build.js";
+import { cleanupPorts } from "./lib/port-cleanup.js";
+import { startBackend, stopBackend } from "./lib/backend-process.js";
 import { startFrontend, stopFrontend } from "./lib/frontend-process.js";
 import { initializeBrowser, checkFrontendHealth, closeBrowser } from "./lib/browser-manager.js";
 import { createTestSuite } from "./lib/test-suite-factory.js";
@@ -31,6 +33,7 @@ class FrontendUITestRunner {
     this.page = null;
     this.testSuite = null;
     this.startTime = null;
+    this.backendProcess = null;
     this.frontendProcess = null;
     this.packageManager = null;
     this.results = {
@@ -81,6 +84,46 @@ class FrontendUITestRunner {
     return false;
   }
 
+  async cleanupDatabases() {
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      
+      const projectsDbDir = path.join(this.projectRoot, "backend-server", "data", "projects");
+      const mainDbPath = path.join(this.projectRoot, "backend-server", "data", "krapi.db");
+      
+      // Delete all project database files
+      if (fs.existsSync(projectsDbDir)) {
+        const files = fs.readdirSync(projectsDbDir);
+        for (const file of files) {
+          try {
+            fs.unlinkSync(path.join(projectsDbDir, file));
+          } catch (e) {
+            // Ignore errors - file might be locked
+          }
+        }
+        this.log(`   Deleted ${files.length} project database files`, "INFO");
+      }
+      
+      // Delete main database files (krapi.db, krapi.db-wal, krapi.db-shm)
+      const mainDbFiles = [mainDbPath, `${mainDbPath}-wal`, `${mainDbPath}-shm`];
+      for (const dbFile of mainDbFiles) {
+        if (fs.existsSync(dbFile)) {
+          try {
+            fs.unlinkSync(dbFile);
+          } catch (e) {
+            // Ignore errors - file might be locked
+          }
+        }
+      }
+      this.log("   Main database deleted", "INFO");
+      
+      this.log("✅ Database cleanup complete", "SUCCESS");
+    } catch (error) {
+      this.log(`⚠️  Database cleanup error: ${error.message}`, "WARNING");
+    }
+  }
+
   async exitEarly(reason, isCritical = false) {
     this.log("", "INFO");
     this.log("═══════════════════════════════════════════════════════════", isCritical ? "CRITICAL" : "WARNING");
@@ -124,6 +167,14 @@ class FrontendUITestRunner {
     this.log(`   Frontend URL: ${CONFIG.FRONTEND_URL}`, "INFO");
 
     try {
+      // Step 0: Clean up any existing processes on ports
+      this.log("📦 Step 0: Cleaning up ports...", "INFO");
+      await cleanupPorts(this.log.bind(this));
+
+      // Step 0.5: Clean up old database files for fresh schema
+      this.log("🗄️  Step 0.5: Cleaning up database files...", "INFO");
+      await this.cleanupDatabases();
+
       // Step 1: Build frontend for production
       this.log("📦 Step 1: Building frontend for production...", "INFO");
       try {
@@ -144,13 +195,30 @@ class FrontendUITestRunner {
         }
       }
 
-      // Step 2: Start frontend in production mode
-      this.log("📦 Step 2: Starting frontend in production mode...", "INFO");
+      // Step 2: Start backend
+      this.log("📦 Step 2: Starting backend...", "INFO");
+      try {
+        this.backendProcess = await startBackend(this.projectRoot, this.packageManager, this.log.bind(this));
+        this.log("✅ Backend started", "SUCCESS");
+      } catch (error) {
+        this.log(`❌ Backend start error: ${error.message}`, "ERROR");
+        if (this.criticalTestsEnabled) {
+          await this.exitEarly(
+            `Backend startup failed: ${error.message}. Cannot run tests without a running backend.`,
+            true
+          );
+        } else {
+          throw error;
+        }
+      }
+
+      // Step 3: Start frontend in production mode
+      this.log("📦 Step 3: Starting frontend in production mode...", "INFO");
       try {
         this.frontendProcess = await startFrontend(this.projectRoot, this.packageManager, this.log.bind(this));
-        this.log("✅ Start step completed", "SUCCESS");
+        this.log("✅ Frontend started", "SUCCESS");
       } catch (error) {
-        this.log(`❌ Start error: ${error.message}`, "ERROR");
+        this.log(`❌ Frontend start error: ${error.message}`, "ERROR");
         if (this.criticalTestsEnabled) {
           await this.exitEarly(
             `Frontend startup failed: ${error.message}. Cannot run tests without a running frontend.`,
@@ -161,14 +229,14 @@ class FrontendUITestRunner {
         }
       }
 
-      // Step 3: Initialize browser
-      this.log("📦 Step 3: Initializing browser...", "INFO");
+      // Step 4: Initialize browser
+      this.log("📦 Step 4: Initializing browser...", "INFO");
       const browserData = await initializeBrowser(this.log.bind(this));
       this.browser = browserData.browser;
       this.context = browserData.context;
       this.page = browserData.page;
 
-      // Step 4: Check frontend health
+      // Step 5: Check frontend health
       try {
         await checkFrontendHealth(this.page, this.log.bind(this));
       } catch (error) {
@@ -182,7 +250,7 @@ class FrontendUITestRunner {
         }
       }
 
-      // Step 5: Reset database and setup test data
+      // Step 6: Reset database and setup test data
       this.log("🗑️  Resetting database for fresh test state...", "INFO");
       let testData = null;
       try {
@@ -193,7 +261,7 @@ class FrontendUITestRunner {
         testData = { projects: [], collections: [], documents: [], users: [], apiKeys: [] };
       }
 
-      // Step 6: Create test suite
+      // Step 7: Create test suite
       this.testSuite = createTestSuite(
         this.logger,
         this.page,
@@ -206,7 +274,7 @@ class FrontendUITestRunner {
         this.criticalTestsEnabled
       );
 
-      // Step 7: Run all test phases
+      // Step 8: Run all test phases
       const ensureBrowserOnline = async () => {
         try {
           await this.context.setOffline(false);
@@ -267,6 +335,7 @@ class FrontendUITestRunner {
     
     try {
       await stopFrontend(this.frontendProcess, this.log.bind(this));
+      await stopBackend(this.backendProcess, this.log.bind(this));
       await closeBrowser(this.browser, this.context, this.page, this.log.bind(this));
       this.log("✅ Cleanup complete", "SUCCESS");
     } catch (error) {

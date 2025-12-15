@@ -19,17 +19,14 @@ const backendEnvPath = path.join(rootDir, "backend-server", ".env");
  * Default configuration structure
  */
 const DEFAULT_CONFIG = {
-  version: "1.0.0",
   app: {
     name: "KRAPI",
-    version: "2.0.0",
     nodeEnv: "development",
   },
   frontend: {
     url: "http://localhost:3498",
     port: 3498,
     host: "localhost",
-    allowedOrigins: [],
   },
   backend: {
     url: "http://localhost:3470",
@@ -37,7 +34,7 @@ const DEFAULT_CONFIG = {
     host: "localhost",
   },
   security: {
-    allowedOrigins: [],
+    allowedOrigins: ["http://localhost:3498"],
     behindProxy: true,
     enableCors: true,
     rateLimit: {

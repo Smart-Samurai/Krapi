@@ -6,6 +6,11 @@
  */
 
 import { CONFIG } from "../../config.js";
+import {
+  loginAsAdmin as sdkLogin,
+  getSDK,
+  initializeSDK,
+} from "../../lib/sdk-client.js";
 
 /**
  * Setup test data with full database reset
@@ -41,77 +46,16 @@ export const TEST_DATA = {
 
 /**
  * Login and get session token for admin operations
- * Uses direct HTTP call to frontend API
+ * Uses SDK auth.login() method
  */
 async function loginAsAdmin() {
   try {
-    const response = await fetch(
-      `${CONFIG.FRONTEND_URL}/api/krapi/k1/auth/admin/login`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: CONFIG.ADMIN_CREDENTIALS.username,
-          password: CONFIG.ADMIN_CREDENTIALS.password,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Login failed" }));
-      throw new Error(error.error || `Login failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-    // Response format: { success: true, data: { session_token, user, expires_at, scopes } }
-    if (result.success && result.data && result.data.session_token) {
-      return result.data.session_token;
-    } else if (result.success && result.session_token) {
-      // Fallback for flat response format
-      return result.session_token;
-    } else {
-      throw new Error(result.error || "No session token in response");
-    }
+    await initializeSDK();
+    const token = await sdkLogin();
+    return token;
   } catch (error) {
     throw new Error(`Failed to login as admin: ${error.message}`);
   }
-}
-
-/**
- * Make authenticated API call
- */
-async function apiCall(endpoint, method = "GET", body = null, sessionToken) {
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (sessionToken) {
-    headers["Authorization"] = `Bearer ${sessionToken}`;
-  }
-
-  const options = {
-    method,
-    headers,
-  };
-
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-
-  const response = await fetch(`${CONFIG.FRONTEND_URL}${endpoint}`, options);
-
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ error: `HTTP ${response.status}` }));
-    throw new Error(error.error || `API call failed: ${response.status}`);
-  }
-
-  return await response.json();
 }
 
 /**
@@ -145,24 +89,37 @@ export async function resetDatabase() {
       }
     }
 
-    // Call the database reset endpoint
-    const response = await apiCall(
-      "/api/krapi/k1/system/reset-database",
-      "POST",
-      null,
-      sessionToken
+    // Use SDK to reset database - check if SDK has reset method
+    // If not available, we'll need to use a direct API call for this specific endpoint
+    const krapi = getSDK();
+
+    // SDK may not have a reset method, so we'll use fetch for this system endpoint
+    // This is acceptable as it's a system/admin operation, not a regular API operation
+    const response = await fetch(
+      `${CONFIG.FRONTEND_URL}/api/krapi/k1/system/reset-database`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      }
     );
 
-    if (response.success && response.data) {
+    if (!response.ok) {
+      throw new Error(`Database reset failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.data) {
       console.log("✅ Full database reset complete");
+      console.log(`   - Deleted Projects: ${result.data.deletedProjects || 0}`);
       console.log(
-        `   - Deleted Projects: ${response.data.deletedProjects || 0}`
+        `   - Deleted Admin Users: ${result.data.deletedAdminUsers || 0}`
       );
       console.log(
-        `   - Deleted Admin Users: ${response.data.deletedAdminUsers || 0}`
-      );
-      console.log(
-        `   - Deleted Sessions: ${response.data.deletedSessions || 0}`
+        `   - Deleted Sessions: ${result.data.deletedSessions || 0}`
       );
       console.log("   - Default admin reset to: admin / admin123");
 
@@ -173,7 +130,7 @@ export async function resetDatabase() {
       TEST_DATA.users = [];
       TEST_DATA.apiKeys = [];
 
-      return response.data;
+      return result.data;
     } else {
       throw new Error(response.error || "Database reset failed");
     }
@@ -214,28 +171,15 @@ export async function resetTestData() {
       }
     }
 
-    // Get all projects
-    const projectsResponse = await apiCall(
-      "/api/krapi/k1/projects",
-      "GET",
-      null,
-      sessionToken
-    );
-    const projects =
-      projectsResponse.success && projectsResponse.data
-        ? projectsResponse.data
-        : [];
+    // Get all projects using SDK
+    const krapi = getSDK();
+    const projects = await krapi.projects.getAll();
     console.log(`   Found ${projects.length} project(s) to delete...`);
 
     // Delete ALL projects for a fresh database
     for (const project of projects) {
       try {
-        await apiCall(
-          `/api/krapi/k1/projects/${project.id}`,
-          "DELETE",
-          null,
-          sessionToken
-        );
+        await krapi.projects.delete(project.id);
         console.log(`   ✅ Deleted project: ${project.name}`);
       } catch (error) {
         console.log(
@@ -265,33 +209,19 @@ export async function createTestProject(name = null) {
   const projectName = name || CONFIG.TEST_PROJECT_NAME;
 
   try {
-    const sessionToken = await loginAsAdmin();
+    await loginAsAdmin(); // Initialize SDK and login
+    const krapi = getSDK();
 
     // Check if project with same name already exists and delete it
     try {
-      const projectsResponse = await apiCall(
-        "/api/krapi/k1/projects",
-        "GET",
-        null,
-        sessionToken
-      );
-      const projects =
-        projectsResponse.success && projectsResponse.data
-          ? projectsResponse.data
-          : [];
-
+      const projects = await krapi.projects.getAll();
       const existingProject = projects.find((p) => p.name === projectName);
       if (existingProject) {
         console.log(
           `   ⚠️  Project "${projectName}" already exists, deleting it first...`
         );
         try {
-          await apiCall(
-            `/api/krapi/k1/projects/${existingProject.id}`,
-            "DELETE",
-            null,
-            sessionToken
-          );
+          await krapi.projects.delete(existingProject.id);
           console.log(`   ✅ Deleted existing project: ${projectName}`);
         } catch (deleteError) {
           console.log(
@@ -306,18 +236,11 @@ export async function createTestProject(name = null) {
       );
     }
 
-    const response = await apiCall(
-      "/api/krapi/k1/projects",
-      "POST",
-      {
-        name: projectName,
-        description: `Test project for UI testing - ${new Date().toISOString()}`,
-      },
-      sessionToken
-    );
+    const project = await krapi.projects.create({
+      name: projectName,
+      description: `Test project for UI testing - ${new Date().toISOString()}`,
+    });
 
-    const project =
-      response.success && response.data ? response.data : response;
     TEST_DATA.projects.push(project);
     console.log(`   ✅ Created test project: ${project.name} (${project.id})`);
 
@@ -334,25 +257,19 @@ export async function createTestCollection(projectId, name = null) {
   const requestedName = name || CONFIG.TEST_COLLECTION_NAME;
 
   try {
-    const sessionToken = await loginAsAdmin();
+    await loginAsAdmin(); // Initialize SDK and login
+    const krapi = getSDK();
 
-    const response = await apiCall(
-      `/api/krapi/k1/projects/${projectId}/collections`,
-      "POST",
-      {
-        name: requestedName,
-        fields: [
-          { name: "name", type: "string", required: true },
-          { name: "age", type: "number", required: false },
-          { name: "email", type: "string", required: true },
-          { name: "active", type: "boolean", required: false },
-        ],
-      },
-      sessionToken
-    );
+    const collection = await krapi.collections.create(projectId, {
+      name: requestedName,
+      fields: [
+        { name: "name", type: "string", required: true },
+        { name: "age", type: "number", required: false },
+        { name: "email", type: "string", required: true },
+        { name: "active", type: "boolean", required: false },
+      ],
+    });
 
-    const collection =
-      response.success && response.data ? response.data : response;
     TEST_DATA.collections.push({ projectId, collection });
     const actualCollectionName = collection?.name || requestedName || "unknown";
     console.log(
@@ -376,25 +293,19 @@ export async function createTestDocuments(
   const documents = [];
 
   try {
-    const sessionToken = await loginAsAdmin();
+    await loginAsAdmin(); // Initialize SDK and login
+    const krapi = getSDK();
 
     for (let i = 0; i < count; i++) {
-      const response = await apiCall(
-        `/api/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`,
-        "POST",
-        {
-          data: {
-            name: `Test User ${i + 1}`,
-            age: 20 + i,
-            email: `testuser${i + 1}@example.com`,
-            active: i % 2 === 0,
-          },
+      const document = await krapi.documents.create(projectId, collectionName, {
+        data: {
+          name: `Test User ${i + 1}`,
+          age: 20 + i,
+          email: `testuser${i + 1}@example.com`,
+          active: i % 2 === 0,
         },
-        sessionToken
-      );
+      });
 
-      const document =
-        response.success && response.data ? response.data : response;
       documents.push(document);
       TEST_DATA.documents.push({ projectId, collectionName, document });
     }
@@ -415,24 +326,19 @@ export async function createTestUser(projectId, email = null) {
   const userEmail = email || CONFIG.TEST_USER_EMAIL;
 
   try {
-    const sessionToken = await loginAsAdmin();
+    await loginAsAdmin(); // Initialize SDK and login
+    const krapi = getSDK();
 
     // Extract username from email (before @)
     const username = userEmail.split("@")[0];
-    
-    const response = await apiCall(
-      `/api/krapi/k1/projects/${projectId}/users`,
-      "POST",
-      {
-        username: username,
-        email: userEmail,
-        name: "Test User",
-        scopes: ["read", "write"],
-      },
-      sessionToken
-    );
 
-    const user = response.success && response.data ? response.data : response;
+    const user = await krapi.users.create(projectId, {
+      username: username,
+      email: userEmail,
+      name: "Test User",
+      scopes: ["read", "write"],
+    });
+
     TEST_DATA.users.push({ projectId, user });
     console.log(
       `   ✅ Created test user: ${user.email} in project ${projectId}`
@@ -449,19 +355,36 @@ export async function createTestUser(projectId, email = null) {
  */
 export async function createTestApiKey(projectId, name = "Test API Key") {
   try {
-    const sessionToken = await loginAsAdmin();
-
-    const response = await apiCall(
-      `/api/krapi/k1/projects/${projectId}/api-keys`,
-      "POST",
+    const token = await loginAsAdmin(); // Initialize SDK and login
+    
+    // Direct API call to bypass SDK client-mode restriction
+    const response = await fetch(
+      `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${projectId}/api-keys`,
       {
-        name: name,
-        scopes: ["read", "write"],
-      },
-      sessionToken
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name,
+          scopes: ["read", "write"],
+        }),
+      }
     );
 
-    const apiKey = response.success && response.data ? response.data : response;
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(error.error || response.statusText);
+    }
+
+    const result = await response.json();
+    if (!result.success || !result.data) {
+        throw new Error("Failed to create API Key: Invalid response");
+    }
+
+    const apiKey = result.data;
+    // Normalized format if needed
     TEST_DATA.apiKeys.push({ projectId, apiKey });
     console.log(
       `   ✅ Created test API key: ${apiKey.name} in project ${projectId}`

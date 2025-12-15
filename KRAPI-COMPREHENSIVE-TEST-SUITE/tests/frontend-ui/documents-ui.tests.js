@@ -6,6 +6,10 @@
  */
 
 import { CONFIG } from "../../config.js";
+import { getFirstProject, getFirstCollection, verifyDocumentsExist } from "../../lib/db-verification.js";
+
+// Single timeout constant for all tests
+const TEST_TIMEOUT = CONFIG.TEST_TIMEOUT;
 
 /**
  * Run documents UI tests
@@ -21,7 +25,7 @@ export async function runDocumentsUITests(testSuite, page) {
   async function loginAndGetProject() {
     // Login
     await page.goto(`${frontendUrl}/login`);
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     const usernameField = page
       .locator('[data-testid="login-username"]')
@@ -39,12 +43,12 @@ export async function runDocumentsUITests(testSuite, page) {
     await page.waitForURL((url) => !url.pathname.includes("/login"), {
       timeout: 10000,
     });
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Navigate to projects page
     await page.goto(`${frontendUrl}/projects`);
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000); // Give page time to initialize
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT); // Give page time to initialize
 
     // Wait for the projects container to appear first (this should always be present)
     const projectsContainer = page.locator(
@@ -84,8 +88,8 @@ export async function runDocumentsUITests(testSuite, page) {
       
       // If we're halfway through and still nothing, try refreshing once
       if (i === 7) {
-        await page.reload({ waitUntil: "networkidle" });
-        await page.waitForTimeout(1000);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
         // Re-check after reload
         const reloadSkeletonCount = await skeletonCard.count();
         const reloadCardCount = await projectCard.count();
@@ -160,7 +164,7 @@ export async function runDocumentsUITests(testSuite, page) {
     await page.waitForURL((url) => url.pathname.match(/\/projects\/[^/]+$/), {
       timeout: 6000,
     });
-    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     await page.waitForTimeout(500); // Brief wait for page to render
 
     // Verify we're on a project detail page
@@ -176,38 +180,118 @@ export async function runDocumentsUITests(testSuite, page) {
   await testSuite.test(
     "Documents table displays",
     async () => {
-      await loginAndGetProject();
-
-      // Verify we're on a project detail page
-      const currentUrl = page.url();
-      const projectIdMatch = currentUrl.match(/\/projects\/([^/]+)$/);
-      testSuite.assert(
-        projectIdMatch,
-        `Should be on project detail page, but URL is: ${currentUrl}`
-      );
-
-      if (!projectIdMatch) {
-        throw new Error(
-          `Failed to navigate to project detail page. Current URL: ${currentUrl}`
-        );
+      // Verify data exists in DB first - find a project WITH collections - fail fast on timeout
+      const projectCheck = await Promise.race([
+        getFirstProject(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("DB verification timeout")), 3000))
+      ]).catch((error) => ({ project: null, error: error.message }));
+      
+      testSuite.assert(projectCheck.project !== null, `Project should exist in DB: ${projectCheck.error || "OK"}`);
+      
+      if (!projectCheck.project) {
+        throw new Error(`No project found in DB: ${projectCheck.error}`);
       }
-
-      const projectId = projectIdMatch[1];
+      
+      // Try to find a collection, but if none exists, the documents page should still work (empty state)
+      const collectionCheck = await Promise.race([
+        getFirstCollection(projectCheck.project.id),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Collection DB verification timeout")), CONFIG.TEST_TIMEOUT / 2))
+      ]).catch((error) => ({ collection: null, error: error.message }));
+      
+      // If no collection exists, we'll test the empty state instead
+      if (!collectionCheck.collection) {
+        // Navigate to documents page - it should show empty state or collection selector
+        const projectId = projectCheck.project.id;
+        const documentsUrl = `${frontendUrl}/projects/${projectId}/documents`;
+        
+        // Login first
+        await page.goto(`${frontendUrl}/login`, { waitUntil: "domcontentloaded", timeout: CONFIG.TEST_TIMEOUT });
+        await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+        
+        const usernameField = page.locator('[data-testid="login-username"]').first();
+        const passwordField = page.locator('[data-testid="login-password"]').first();
+        const submitButton = page.locator('[data-testid="login-submit"]').first();
+        
+        await usernameField.fill(CONFIG.ADMIN_CREDENTIALS.username);
+        await passwordField.fill(CONFIG.ADMIN_CREDENTIALS.password);
+        await submitButton.click();
+        
+        await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: CONFIG.TEST_TIMEOUT });
+        await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+        
+        // Wait for auth to initialize
+        await page.waitForFunction(() => {
+          return localStorage.getItem("session_token") !== null && localStorage.getItem("user_scopes") !== null;
+        }, { timeout: CONFIG.TEST_TIMEOUT });
+        
+        // Navigate to documents page
+        await page.goto(documentsUrl, { waitUntil: "domcontentloaded", timeout: CONFIG.TEST_TIMEOUT });
+        await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+        await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
+        
+        // Check for empty state or collection selector
+        const emptyState = page.locator('[data-testid="documents-empty-state"], text=/no.*collection/i, text=/no.*document/i').first();
+        const collectionSelector = page.locator('select, [role="combobox"]').first();
+        const pageText = await page.textContent("body").catch(() => "");
+        const hasDocumentText = pageText && pageText.toLowerCase().includes("document");
+        
+        const hasEmptyState = await emptyState.isVisible().catch(() => false);
+        const hasSelector = await collectionSelector.isVisible().catch(() => false);
+        const finalUrl = page.url();
+        const isOnDocumentsPage = finalUrl.includes("/documents");
+        
+        testSuite.assert(
+          isOnDocumentsPage && (hasEmptyState || hasSelector || hasDocumentText),
+          `Documents page should display (empty state or collection selector). URL: ${finalUrl}, Empty state: ${hasEmptyState}, Selector: ${hasSelector}, Has text: ${hasDocumentText}`
+        );
+        return; // Test passes with empty state
+      }
+      
+      const documentsCheck = await Promise.race([
+        verifyDocumentsExist(projectCheck.project.id, collectionCheck.collection.name, 0),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Documents DB verification timeout")), 3000))
+      ]).catch(() => ({ exists: false, count: 0, documents: [] }));
+      
+      testSuite.assert(documentsCheck !== null, "Should be able to verify documents in DB");
+      
+      // Login and navigate directly to the project with collections
+      await page.goto(`${frontendUrl}/login`);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+      
+      const usernameField = page.locator('[data-testid="login-username"]').first();
+      const passwordField = page.locator('[data-testid="login-password"]').first();
+      const submitButton = page.locator('[data-testid="login-submit"]').first();
+      
+      await usernameField.fill(CONFIG.ADMIN_CREDENTIALS.username);
+      await passwordField.fill(CONFIG.ADMIN_CREDENTIALS.password);
+      await submitButton.click();
+      
+      await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 10000 });
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+      
+      // Navigate directly to the project that has collections
+      const projectId = projectCheck.project.id;
       const documentsUrl = `${frontendUrl}/projects/${projectId}/documents`;
 
       await page.goto(documentsUrl);
-      await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(5000); // Wait for documents page to load
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 3); // Wait for documents page to load
+
+      // Wait for page content to appear
+      const table = page.locator('[data-testid="documents-table"], table, [role="table"]');
+      const emptyState = page.locator('[data-testid="documents-empty-state"], text=/no.*document/i');
+      
+      await Promise.race([
+        table.waitFor({ state: "visible", timeout: TEST_TIMEOUT }),
+        emptyState.waitFor({ state: "visible", timeout: TEST_TIMEOUT }),
+      ]);
 
       const finalUrl = page.url();
       const isOnDocumentsPage = finalUrl.includes("/documents");
 
       // Check for any content on the page (table, empty state, or error)
-      const hasTable = await page
-        .locator('[data-testid="documents-table"]')
-        .first()
-        .isVisible()
-        .catch(() => false);
+      const hasTable = await table.first().isVisible().catch(() => false);
+      const hasEmptyState = await emptyState.first().isVisible().catch(() => false);
       const hasError = await page
         .locator('[role="alert"], .alert')
         .first()
@@ -234,7 +318,7 @@ export async function runDocumentsUITests(testSuite, page) {
       await loginAndGetProject();
 
       await page.goto(page.url().replace(/\/$/, "") + "/documents");
-      await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
       await page.waitForTimeout(5000); // Wait for documents page to load
 
       // Check for documents table or any content indicating the page loaded
@@ -263,34 +347,70 @@ export async function runDocumentsUITests(testSuite, page) {
   await testSuite.test("Create Document button works", async () => {
     await loginAndGetProject();
 
-    await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
+    const currentUrl = page.url();
+    const projectIdMatch = currentUrl.match(/\/projects\/([^/]+)/);
+    
+    if (!projectIdMatch) {
+      throw new Error(`Not on a project page. Current URL: ${currentUrl}`);
+    }
+    
+    const projectId = projectIdMatch[1];
+    const documentsUrl = `${frontendUrl}/projects/${projectId}/documents`;
+    
+    await page.goto(documentsUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT); // Brief wait for initial render
 
-    const createButton = await page
-      .locator('[data-testid="create-document-button"]')
-      .first()
-      .isVisible()
-      .catch(() => false);
+    // Wait for page content - documents page can show:
+    // 1. documents-table (when loading or has documents)
+    // 2. documents-empty-state (when no documents but collection selected)
+    // 3. documents-no-collection-state (when no collection selected)
+    const table = page.locator('[data-testid="documents-table"]').first();
+    const emptyState = page.locator('[data-testid="documents-empty-state"]').first();
+    const noCollectionState = page.locator('[data-testid="documents-no-collection-state"]').first();
+    
+    // Wait for one of these states to appear
+    await Promise.race([
+      table.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyState.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      noCollectionState.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+    ]);
 
-    if (createButton) {
-      await page
-        .locator('[data-testid="create-document-button"]')
-        .first()
-        .click();
-      await page.waitForTimeout(1000);
+    // STRICT: Create Document button MUST exist and be visible
+    const createButton = page.locator('[data-testid="create-document-button"]').first();
+    await createButton.waitFor({ state: "visible", timeout: CONFIG.TEST_TIMEOUT / 2 });
+    
+    const isButtonVisible = await createButton.isVisible();
+    const isButtonEnabled = await createButton.isEnabled();
+    
+    testSuite.assert(
+      isButtonVisible,
+      "Create Document button MUST be visible on documents page"
+    );
 
-      const hasModal = await page
-        .locator('[data-testid="create-document-dialog"], [role="dialog"]')
-        .first()
-        .isVisible()
-        .catch(() => false);
+    // STRICT: Button must be clickable (may be disabled if no collection selected, but must exist)
+    if (isButtonEnabled) {
+      await createButton.click();
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
+      // STRICT: Dialog MUST open when button is clicked
+      const dialog = page.locator('[data-testid="create-document-dialog"]').first();
+      await dialog.waitFor({ state: "visible", timeout: CONFIG.TEST_TIMEOUT / 2 });
+      
+      const hasModal = await dialog.isVisible();
       testSuite.assert(
         hasModal,
-        "Create Document button should open modal or form"
+        "Create Document button MUST open dialog when clicked"
       );
     } else {
-      testSuite.assert(true, "Create button may not be visible");
+      // Button is disabled - this is acceptable if no collection is selected
+      // But we still verified the button exists and is visible
+      testSuite.assert(
+        true,
+        "Create Document button exists but is disabled (no collection selected - this is expected)"
+      );
     }
   });
 
@@ -299,8 +419,8 @@ export async function runDocumentsUITests(testSuite, page) {
     await loginAndGetProject();
 
     await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const searchInput = await page
       .locator(
@@ -317,7 +437,7 @@ export async function runDocumentsUITests(testSuite, page) {
         )
         .first()
         .fill("test");
-      await page.waitForTimeout(2000); // Wait for debounced search
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2); // Wait for debounced search
 
       // Check if search is processing (loading indicator or results change)
       const isSearching = await page
@@ -347,8 +467,8 @@ export async function runDocumentsUITests(testSuite, page) {
     await loginAndGetProject();
 
     await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     // Look for sortable column headers
     const sortableHeaders = await page
@@ -357,7 +477,7 @@ export async function runDocumentsUITests(testSuite, page) {
 
     if (sortableHeaders.length > 0) {
       await sortableHeaders[0].click().catch(() => null);
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
       testSuite.assert(true, "Sortable headers should be clickable");
     } else {
@@ -373,8 +493,8 @@ export async function runDocumentsUITests(testSuite, page) {
     await loginAndGetProject();
 
     await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
     const pagination = await page
       .locator(
@@ -391,7 +511,7 @@ export async function runDocumentsUITests(testSuite, page) {
         .click()
         .catch(() => null);
       if (nextButton !== null) {
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
         testSuite.assert(true, "Pagination should work");
       } else {
         testSuite.assert(
@@ -409,8 +529,8 @@ export async function runDocumentsUITests(testSuite, page) {
     await loginAndGetProject();
 
     await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 3);
 
     // Check for select all checkbox
     const selectAllCheckbox = await page
@@ -421,7 +541,7 @@ export async function runDocumentsUITests(testSuite, page) {
 
     if (selectAllCheckbox) {
       await page.locator('[data-testid="select-all-checkbox"]').first().click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
       // Check if bulk actions button appears
       const bulkActionsButton = await page
@@ -443,8 +563,8 @@ export async function runDocumentsUITests(testSuite, page) {
     await loginAndGetProject();
 
     await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 3);
 
     // Select a document
     const documentCheckbox = await page
@@ -455,7 +575,7 @@ export async function runDocumentsUITests(testSuite, page) {
 
     if (documentCheckbox) {
       await page.locator('[data-testid^="select-document-"]').first().click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
       // Click bulk actions button
       const bulkActionsButton = await page
@@ -487,71 +607,75 @@ export async function runDocumentsUITests(testSuite, page) {
   await testSuite.test("Document aggregation UI works", async () => {
     await loginAndGetProject();
 
-    await page.goto(page.url().replace(/\/$/, "") + "/documents");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(3000);
+    const currentUrl = page.url();
+    const projectIdMatch = currentUrl.match(/\/projects\/([^/]+)/);
+    
+    if (!projectIdMatch) {
+      throw new Error(`Not on a project page. Current URL: ${currentUrl}`);
+    }
+    
+    const projectId = projectIdMatch[1];
+    const documentsUrl = `${frontendUrl}/projects/${projectId}/documents`;
+    
+    await page.goto(documentsUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: CONFIG.TEST_TIMEOUT,
+    });
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    // Find aggregate button
-    const aggregateButton = await page
-      .locator(
-        '[data-testid="document-aggregate-button"], button:has-text("Aggregate")'
-      )
-      .first()
-      .isVisible()
-      .catch(() => false);
+    // Wait for page content
+    const table = page.locator('[data-testid="documents-table"]').first();
+    const emptyState = page.locator('[data-testid="documents-empty-state"]').first();
+    const noCollectionState = page.locator('[data-testid="documents-no-collection-state"]').first();
+    
+    await Promise.race([
+      table.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      emptyState.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+      noCollectionState.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
+    ]);
 
-    if (aggregateButton) {
-      await page
-        .locator(
-          '[data-testid="document-aggregate-button"], button:has-text("Aggregate")'
-        )
-        .first()
-        .click();
-      await page.waitForTimeout(1000);
+    // STRICT: Aggregate button MUST exist
+    const aggregateButton = page.locator('[data-testid="document-aggregate-button"]').first();
+    await aggregateButton.waitFor({ state: "visible", timeout: CONFIG.TEST_TIMEOUT / 2 });
+    
+    const isButtonVisible = await aggregateButton.isVisible();
+    testSuite.assert(
+      isButtonVisible,
+      "Aggregate button MUST be visible on documents page"
+    );
 
-      // Check if aggregation dialog opens
-      const aggregationDialog = await page
-        .locator(
-          '[role="dialog"]:has-text("Aggregate"), [class*="dialog"]:has-text("Aggregate")'
-        )
-        .first()
-        .isVisible()
-        .catch(() => false);
+    // STRICT: Button must be clickable (may be disabled if no collection, but must exist)
+    const isButtonEnabled = await aggregateButton.isEnabled();
+    
+    if (isButtonEnabled) {
+      await aggregateButton.click();
+      await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-      if (aggregationDialog) {
-        // Check for aggregation form elements
-        const groupByField = await page
-          .locator('select, [role="combobox"]')
-          .first()
-          .isVisible()
-          .catch(() => false);
-        const aggregationType = await page
-          .locator('select, [role="combobox"]')
-          .nth(1)
-          .isVisible()
-          .catch(() => false);
-        const runButton = await page
-          .locator(
-            '[data-testid="run-aggregation-button"], button:has-text("Run")'
-          )
-          .first()
-          .isVisible()
-          .catch(() => false);
+      // STRICT: Aggregation dialog MUST open
+      const aggregationDialog = page.locator('[role="dialog"]:has-text("Aggregate")').first();
+      await aggregationDialog.waitFor({ state: "visible", timeout: CONFIG.TEST_TIMEOUT / 2 });
+      
+      const hasDialog = await aggregationDialog.isVisible();
+      testSuite.assert(
+        hasDialog,
+        "Aggregation dialog MUST open when button is clicked"
+      );
 
-        testSuite.assert(
-          groupByField || aggregationType || runButton,
-          "Aggregation dialog should have form elements"
-        );
-      } else {
-        testSuite.assert(
-          true,
-          "Aggregation dialog may open in different format"
-        );
-      }
+      // STRICT: Aggregation form elements MUST exist
+      const runButton = page.locator('[data-testid="run-aggregation-button"]').first();
+      await runButton.waitFor({ state: "visible", timeout: CONFIG.TEST_TIMEOUT / 2 });
+      
+      const hasRunButton = await runButton.isVisible();
+      testSuite.assert(
+        hasRunButton,
+        "Run aggregation button MUST be visible in dialog"
+      );
     } else {
+      // Button is disabled - this is acceptable if no collection is selected
+      // But we still verified the button exists and is visible
       testSuite.assert(
         true,
-        "Aggregation button may not be visible or implemented"
+        "Aggregate button exists but is disabled (no collection selected - this is expected)"
       );
     }
   });
