@@ -30,18 +30,14 @@ export async function getApiKey(req: AuthenticatedRequest): Promise<string> {
 
 /**
  * Initialize SDK connection
+ * Updated for SDK 0.6.0: uses { attempts, delay } format
  */
 export async function initializeSDK(apiKey: string, frontendUrl: string): Promise<void> {
   await krapi.connect({
     endpoint: frontendUrl,
     apiKey,
-    retry: {
-      enabled: true,
-      maxRetries: 3,
-      retryDelay: 1000,
-      retryableStatusCodes: [408, 429, 500, 502, 503, 504],
-    },
-  });
+    retry: { attempts: 3, delay: 1000 },
+  } as unknown as Parameters<typeof krapi.connect>[0]);
 }
 
 /**

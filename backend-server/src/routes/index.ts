@@ -72,8 +72,7 @@ import testingRoutes from "./testing.routes";
 import usersRoutes, { initializeUsersSDK } from "./users.routes";
 
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
-import { ExtendedRequest } from "@/types";
-import { Scope } from "@/types";
+import { ExtendedRequest , Scope } from "@/types";
 
 // Import handlers
 

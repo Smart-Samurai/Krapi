@@ -27,34 +27,12 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     const sdk = await createAuthenticatedBackendSdk(authToken);
 
-    // TODO: SDK needs system.resetDatabase() method - this is a known architecture violation
-    // Until SDK adds this method, we must use fetch. This violates SDK-first architecture rule.
-    // When SDK adds system.resetDatabase(), replace this with: await sdk.system.resetDatabase();
-    // 
-    // For now, using config.backend.url instead of process.env for consistency
-    const { config } = await import("@/lib/config");
-    const backendUrl = config.backend.url;
-    const response = await fetch(`${backendUrl}/krapi/k1/system/reset-database`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Reset failed" }));
-      return NextResponse.json(
-        { success: false, error: error.error || "Failed to reset database" },
-        { status: response.status }
-      );
-    }
-
-    const result = await response.json();
+    // SDK-FIRST: Use SDK system.resetDatabase() method
+    const result = await sdk.system.resetDatabase();
 
     return NextResponse.json({
-      success: true,
-      data: result.data,
+      success: result.success,
+      data: (result as { data?: unknown }).data || null,
       message: result.message || "Database reset successfully",
     });
   } catch (error) {

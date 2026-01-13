@@ -179,8 +179,62 @@ export class AuthAdapterService {
     }
 
     // Try project user authentication
-    // Note: This would need to be implemented in AuthService
-    // For now, return null
+    // Project users are stored in project-specific databases (in project_users table via SDK)
+    // We need to search across all projects to find the user
+    try {
+      // Get all projects
+      const projects = await this.db.getAllProjects();
+      console.log(`[AUTH DEBUG] Searching for project user ${credentials.username} across ${projects.length} project(s)`);
+      
+      // Search for user across all projects
+      for (const project of projects) {
+        try {
+          console.log(`[AUTH DEBUG] Checking project ${project.id} for user ${credentials.username}`);
+          // Get user from project's project_users table (SDK stores users here)
+          const user = await this.db.getProjectUserByUsername(project.id, credentials.username);
+          
+          if (user) {
+            console.log(`[AUTH DEBUG] User ${credentials.username} found in project ${project.id}`);
+            // Verify password
+            // SDK stores password hash in 'password_hash' field in project_users table
+            // Legacy users store it in 'password' field in users collection
+            // Prioritize password_hash (SDK standard) over password (legacy)
+            const userWithPassword = user as { password?: string; password_hash?: string };
+            const passwordHash = userWithPassword.password_hash || userWithPassword.password;
+            
+            if (!passwordHash) {
+              console.log(`[AUTH DEBUG] User ${credentials.username} found in project ${project.id} but no password hash available. User object keys: ${Object.keys(user).join(", ")}`);
+              continue; // No password hash, skip this user
+            }
+            
+            console.log(`[AUTH DEBUG] Verifying password for user ${credentials.username} in project ${project.id}, hash length: ${passwordHash.length}`);
+            const isValid = await this.verifyPassword(credentials.password, passwordHash);
+            
+            if (isValid) {
+              console.log(`[AUTH DEBUG] Password verified successfully for user ${credentials.username} in project ${project.id}`);
+              // Return project user (convert BackendProjectUser to ProjectUser format)
+              // Use TypeMapper to ensure correct mapping
+              const { TypeMapper } = await import("@/lib/type-mapper");
+              const projectUser = TypeMapper.mapProjectUser(user as BackendProjectUser);
+              return projectUser;
+            } else {
+              console.log(`[AUTH DEBUG] Password verification failed for user ${credentials.username} in project ${project.id}`);
+            }
+          } else {
+            console.log(`[AUTH DEBUG] User ${credentials.username} not found in project ${project.id}`);
+          }
+        } catch (error) {
+          // Continue searching in other projects if this one fails
+          console.log(`[AUTH DEBUG] Error searching for user ${credentials.username} in project ${project.id}: ${error instanceof Error ? error.message : String(error)}`);
+          continue;
+        }
+      }
+      console.log(`[AUTH DEBUG] User ${credentials.username} not found in any project`);
+    } catch (error) {
+      // If project user search fails, return null
+      console.error(`[AUTH DEBUG] Error searching for project user ${credentials.username}:`, error);
+    }
+    
     return null;
   }
 

@@ -1,16 +1,19 @@
-import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
+
+import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
 
 /**
  * System health check
  * GET /api/health/check
  *
+ * PROXY ROUTE: Connects to backend URL for health check
  * SDK 0.4.0+: Uses health.check() which returns { healthy, message, details?, version }
  */
 export async function GET(_request: NextRequest) {
   try {
+    const backendSdk = await getBackendSdkClient();
     // SDK 0.4.0+: Use health.check() method
-    const healthResult = await krapi.health.check();
+    const healthResult = await backendSdk.health.check();
 
     // Return health status with details
     const healthData: Record<string, unknown> = {

@@ -98,14 +98,16 @@ export async function runSDKIntegrationTests(testSuite) {
 
     // Test 3: Health Check
     await testSuite.test("SDK health check works", async () => {
-      if (typeof testSuite.krapi.healthCheck !== "function") {
-        throw new Error("healthCheck() method not available");
+      // SDK 0.6.0: Use health.check() instead of healthCheck()
+      if (typeof testSuite.krapi.health?.check !== "function") {
+        throw new Error("krapi.health.check() method not available");
       }
 
-      const isHealthy = await testSuite.krapi.healthCheck();
+      const healthResult = await testSuite.krapi.health.check();
+      const isHealthy = healthResult.healthy;
       testSuite.assert(
         typeof isHealthy === "boolean",
-        "Health check should return boolean"
+        "Health check should return object with healthy boolean"
       );
       testSuite.assert(
         isHealthy === true,

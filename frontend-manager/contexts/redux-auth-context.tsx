@@ -137,15 +137,17 @@ export function ReduxAuthProvider({ children }: { children: React.ReactNode }) {
         errorObj?.isApiError === true;
 
       if (isAuthError) {
-        // Clear auth data
-        dispatch(clearAuthData());
-
         // Only redirect if we're not already on the login page and not on the home page
         const currentPath = window.location.pathname;
         if (currentPath !== "/login" && currentPath !== "/") {
+          // Clear auth data and redirect to login page
+          dispatch(clearAuthData());
           const loginUrl = `/login?from=${encodeURIComponent(currentPath)}`;
           router.push(loginUrl);
         }
+        // If we're already on the login page, don't clear auth data
+        // This allows the error to be displayed to the user
+        // The error is already set in Redux state by the login.rejected action
         return true; // Indicates that auth error was handled
       }
 

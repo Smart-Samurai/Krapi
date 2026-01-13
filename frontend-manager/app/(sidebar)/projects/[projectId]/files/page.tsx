@@ -233,7 +233,7 @@ export default function FilesPage() {
     }
     // Folders API route will be implemented in a future update
     try {
-      const response = await fetch(`/api/krapi/k1/storage/project/${projectId}/folders`, {
+      const response = await fetch(`/api/client/krapi/k1/storage/project/${projectId}/folders`, {
         headers: {
           Authorization: `Bearer ${sessionToken}`,
           "Content-Type": "application/json",
@@ -309,7 +309,7 @@ export default function FilesPage() {
     }
 
     try {
-      const response = await fetch(`/api/krapi/k1/storage/${file.id}/download`, {
+      const response = await fetch(`/api/client/krapi/k1/storage/${file.id}/download`, {
         headers: {
           Authorization: `Bearer ${sessionToken}`,
         },
@@ -345,7 +345,7 @@ export default function FilesPage() {
 
     try {
       dispatch(beginBusy());
-      const response = await fetch(`/api/krapi/k1/storage/${fileId}`, {
+      const response = await fetch(`/api/client/krapi/k1/storage/${fileId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${sessionToken}`,
@@ -406,7 +406,7 @@ export default function FilesPage() {
 
     try {
       dispatch(beginBusy());
-      const response = await fetch(`/api/krapi/k1/storage/metadata/${editingFile.id}`, {
+      const response = await fetch(`/api/client/krapi/k1/storage/metadata/${editingFile.id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${sessionToken}`,
@@ -450,7 +450,7 @@ export default function FilesPage() {
 
     try {
       dispatch(beginBusy());
-      const response = await fetch(`/api/krapi/k1/storage/project/${projectId}/folders`, {
+      const response = await fetch(`/api/client/krapi/k1/storage/project/${projectId}/folders`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${sessionToken}`,
@@ -595,6 +595,8 @@ export default function FilesPage() {
       <PageHeader
         title="Files"
         description="Manage your project's file storage"
+        showBackButton
+        backButtonFallback={`/projects/${projectId}`}
         action={
           <div className="flex items-center gap-2">
             <CodeSnippet context="storage" projectId={projectId} />
@@ -732,11 +734,12 @@ export default function FilesPage() {
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
                   <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
-                      {`// Initialize KRAPI client (like Appwrite!)
-import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
+                      {`// Connect to KRAPI as a 3rd party application
+import { krapi } from '@smartsamurai/krapi-sdk';
 
-const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
+// Connect to FRONTEND URL (port 3498), not backend!
+await krapi.connect({
+  endpoint: 'https://your-krapi-instance.com', // Frontend URL
   apiKey: 'your-api-key'
 });
 
@@ -749,6 +752,7 @@ const fileInfo = await krapi.storage.getFileInfo(projectId, fileId);
 // Upload a file
 const file = new File(['file content'], 'filename.txt', { type: 'text/plain' });
 const uploadedFile = await krapi.storage.uploadFile(projectId, file, (progress) => {
+  console.log('Upload progress:', progress);
 });
 
 // Download a file
@@ -779,8 +783,8 @@ const fileUrl = krapi.storage.getFileUrl(projectId, fileId);`}
                       {`import requests
 import json
 
-# Base configuration
-BASE_URL = "http://localhost:3470"
+# Connect to KRAPI FRONTEND URL (port 3498), not backend!
+BASE_URL = "https://your-krapi-instance.com"  # Frontend URL
 API_KEY = "your-api-key"
 PROJECT_ID = "your-project-id"
 
@@ -791,31 +795,31 @@ headers = {
 
 # Get all files
 response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/storage/files",
     headers=headers
 )
 files = response.json()
 
 # Get file info
 response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files/{file_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/storage/files/{file_id}",
     headers=headers
 )
 file_info = response.json()
 
 # Upload a file
 with open('file.txt', 'rb') as f:
-    files = {'file': f}
+    files_data = {'file': f}
     response = requests.post(
-        f"{BASE_URL}/projects/{PROJECT_ID}/storage/files",
+        f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/storage/files",
         headers={"Authorization": f"Bearer {API_KEY}"},
-        files=files
+        files=files_data
     )
 uploaded_file = response.json()
 
 # Download a file
 response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files/{file_id}/download",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/storage/files/{file_id}/download",
     headers=headers
 )
 with open('downloaded_file.txt', 'wb') as f:
@@ -823,13 +827,13 @@ with open('downloaded_file.txt', 'wb') as f:
 
 # Delete a file
 response = requests.delete(
-    f"{BASE_URL}/projects/{PROJECT_ID}/storage/files/{file_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/storage/files/{file_id}",
     headers=headers
 )
 
 # Get storage statistics
 response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/storage/stats",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/storage/stats",
     headers=headers
 )
 stats = response.json()`}
@@ -874,8 +878,7 @@ stats = response.json()`}
       />
 
       {/* Storage Stats */}
-      {storageStats && (
-        <Card>
+      {storageStats ? <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <HardDrive className="h-5 w-5" />
@@ -917,8 +920,7 @@ stats = response.json()`}
               </div>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card> : null}
 
       {/* Filters and Search */}
       <Card>
@@ -1002,14 +1004,11 @@ stats = response.json()`}
         </CardContent>
       </Card>
 
-      {error && (
-        <Alert variant="destructive">
+      {error ? <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        </Alert> : null}
 
-      {isUploading && (
-        <Alert>
+      {isUploading ? <Alert>
           <AlertDescription>
             <div className="flex items-center gap-2">
               <Upload className="h-4 w-4 animate-pulse" />
@@ -1017,8 +1016,7 @@ stats = response.json()`}
             </div>
             <Progress value={uploadProgress} className="mt-2" />
           </AlertDescription>
-        </Alert>
-      )}
+        </Alert> : null}
 
       {sortedFiles.length === 0 ? (
         <EmptyState
@@ -1149,8 +1147,7 @@ stats = response.json()`}
               Detailed information about the selected file
             </DialogDescription>
           </DialogHeader>
-          {selectedFile && (
-            <div className="space-y-4">
+          {selectedFile ? <div className="space-y-4">
               <div className="flex items-center gap-3">
                 {(() => {
                   const FileIcon = getFileIcon(selectedFile.mime_type);
@@ -1205,8 +1202,7 @@ stats = response.json()`}
                 </div>
               </div>
 
-              {selectedFile.relations && selectedFile.relations.length > 0 && (
-                <div>
+              {selectedFile.relations && selectedFile.relations.length > 0 ? <div>
                   <Label>Relations</Label>
                   <div className="space-y-2">
                     {selectedFile.relations.map((relation: { id: string; type: string; target_id: string; target_type: string; metadata?: Record<string, unknown> }) => (
@@ -1224,10 +1220,8 @@ stats = response.json()`}
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                </div> : null}
+            </div> : null}
           <DialogFooter>
             <Button
               variant="outline"
@@ -1235,12 +1229,10 @@ stats = response.json()`}
             >
               Close
             </Button>
-            {selectedFile && (
-              <Button onClick={() => handleDownload(selectedFile)}>
+            {selectedFile ? <Button onClick={() => handleDownload(selectedFile)}>
                 <Download className="mr-2 h-4 w-4" />
                 Download
-              </Button>
-            )}
+              </Button> : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1254,8 +1246,7 @@ stats = response.json()`}
               Update file name and custom metadata
             </DialogDescription>
           </DialogHeader>
-          {editingFile && (
-            <div className="space-y-4">
+          {editingFile ? <div className="space-y-4">
               <div>
                 <Label htmlFor="edit-original-name">File Name</Label>
                 <Input
@@ -1316,8 +1307,7 @@ stats = response.json()`}
                   Enter metadata as JSON object
                 </p>
               </div>
-            </div>
-          )}
+            </div> : null}
           <DialogFooter>
             <ActionButton
               variant="outline"

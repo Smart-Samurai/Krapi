@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAuthToken, getServerSdk } from "@/app/api/lib/sdk-client";
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
+import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -55,10 +56,9 @@ export async function GET(
       );
     }
 
-    // Use SDK instead of direct fetch
-    const sdk = await getServerSdk();
-    sdk.auth.setSessionToken(authToken);
-    const user = await sdk.users.get(projectId, userId);
+    // Use backend SDK client with authentication
+    const backendSdk = await createAuthenticatedBackendSdk(authToken);
+    const user = await backendSdk.users.get(projectId, userId);
 
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
@@ -171,10 +171,9 @@ export async function PUT(
 
     const userData = await request.json();
 
-    // Use SDK instead of direct fetch
-    const sdk = await getServerSdk();
-    sdk.auth.setSessionToken(authToken);
-    const user = await sdk.users.update(projectId, userId, userData);
+    // Use backend SDK client with authentication
+    const backendSdk = await createAuthenticatedBackendSdk(authToken);
+    const user = await backendSdk.users.update(projectId, userId, userData);
 
     return NextResponse.json({ success: true, data: user });
   } catch (error) {
@@ -229,10 +228,9 @@ export async function DELETE(
       );
     }
 
-    // Use SDK instead of direct fetch
-    const sdk = await getServerSdk();
-    sdk.auth.setSessionToken(authToken);
-    await sdk.users.delete(projectId, userId);
+    // Use backend SDK client with authentication
+    const backendSdk = await createAuthenticatedBackendSdk(authToken);
+    await backendSdk.users.delete(projectId, userId);
 
     return NextResponse.json({ success: true, message: "User deleted successfully" });
   } catch (error) {

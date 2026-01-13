@@ -889,7 +889,7 @@ export class DatabaseService {
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
-          user_id TEXT REFERENCES admin_users(id),
+          user_id TEXT NOT NULL,
           project_id TEXT REFERENCES projects(id),
           type TEXT CHECK (type IN ('admin', 'project')),
           user_type TEXT CHECK (user_type IN ('admin', 'project')),
@@ -907,9 +907,9 @@ export class DatabaseService {
         )
       `);
 
-      // Migration: Add user_type column to existing sessions table if it doesn't exist
-      // This ensures SDK compatibility even if table was created with old schema
-      // NOTE: This migration is only needed for tables created before user_type was added to CREATE TABLE
+      // Migration: Fix sessions table foreign key constraint and add user_type column
+      // This ensures project users can create sessions (removes FK constraint to admin_users)
+      // Also ensures SDK compatibility by adding user_type column if missing
       try {
         // Check if table exists first
         const tableExists = await this.dbManager.queryMain(`
@@ -917,7 +917,9 @@ export class DatabaseService {
         `);
 
         if (tableExists.rows.length > 0) {
-          // Table exists, check if column exists
+          // Check if table has foreign key constraint on user_id
+          // SQLite stores FK info in sqlite_master, but it's complex to check
+          // Instead, we'll check the table schema and recreate if needed
           const tableInfo = await this.dbManager.queryMain(
             `PRAGMA table_info(sessions)`
           );
@@ -925,7 +927,63 @@ export class DatabaseService {
             (row) => row.name
           );
 
-          if (!columns.includes("user_type")) {
+          // Check if user_id column has NOT NULL (our new schema) or if it references admin_users (old schema)
+          const userIdColumn = tableInfo.rows.find((row: Record<string, unknown>) => row.name === "user_id");
+          const hasForeignKey = userIdColumn && (userIdColumn as { name: string; dflt_value: unknown; notnull: number }).notnull === 0;
+          
+          // Also check if user_type column exists
+          const needsUserType = !columns.includes("user_type");
+          
+          // If we need to fix the foreign key constraint or add user_type, recreate the table
+          if (hasForeignKey || needsUserType) {
+            console.log("🔄 Migrating sessions table to remove foreign key constraint and add user_type...");
+            
+            // Create backup table
+            await this.dbManager.queryMain(`
+              CREATE TABLE IF NOT EXISTS sessions_backup AS SELECT * FROM sessions
+            `);
+            
+            // Drop old table
+            await this.dbManager.queryMain(`DROP TABLE IF EXISTS sessions`);
+            
+            // Recreate table without foreign key constraint
+            await this.dbManager.queryMain(`
+              CREATE TABLE sessions (
+                id TEXT PRIMARY KEY,
+                token TEXT UNIQUE NOT NULL,
+                user_id TEXT NOT NULL,
+                project_id TEXT REFERENCES projects(id),
+                type TEXT CHECK (type IN ('admin', 'project')),
+                user_type TEXT CHECK (user_type IN ('admin', 'project')),
+                scopes TEXT NOT NULL DEFAULT '[]',
+                metadata TEXT DEFAULT '{}',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                expires_at TEXT NOT NULL,
+                consumed INTEGER DEFAULT 0,
+                consumed_at TEXT,
+                last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 1,
+                ip_address TEXT,
+                user_agent TEXT
+              )
+            `);
+            
+            // Copy data back (only if backup has data)
+            const backupCount = await this.dbManager.queryMain(`SELECT COUNT(*) as count FROM sessions_backup`);
+            if (backupCount.rows.length > 0 && (backupCount.rows[0] as { count: number }).count > 0) {
+              await this.dbManager.queryMain(`
+                INSERT INTO sessions (id, token, user_id, project_id, type, user_type, scopes, metadata, created_at, expires_at, consumed, consumed_at, last_activity, last_used_at, is_active, ip_address, user_agent)
+                SELECT id, token, user_id, project_id, type, COALESCE(user_type, type) as user_type, scopes, metadata, created_at, expires_at, consumed, consumed_at, last_activity, COALESCE(last_used_at, last_activity) as last_used_at, is_active, ip_address, user_agent
+                FROM sessions_backup
+              `);
+            }
+            
+            // Drop backup table
+            await this.dbManager.queryMain(`DROP TABLE IF EXISTS sessions_backup`);
+            
+            console.log("✅ Sessions table migrated successfully");
+          } else if (!columns.includes("user_type")) {
             try {
               await this.dbManager.queryMain(`
                 ALTER TABLE sessions ADD COLUMN user_type TEXT CHECK (user_type IN ('admin', 'project'))
@@ -1092,6 +1150,27 @@ export class DatabaseService {
         )
       `);
 
+      // System secrets table (main DB) - stores encrypted secrets like encryption keys
+      // eslint-disable-next-line no-warning-comments
+      // TODO: MIGRATE TO SDK - This table should be managed by SDK's system module
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS system_secrets (
+          id TEXT PRIMARY KEY,
+          key_name TEXT UNIQUE NOT NULL,
+          encrypted_value TEXT NOT NULL,
+          encryption_method TEXT DEFAULT 'aes-256-gcm',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          metadata TEXT DEFAULT '{}'
+        )
+      `);
+
+      // Create index on key_name for fast lookups
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_system_secrets_key_name ON system_secrets(key_name)
+      `);
+
       // Create triggers for updated_at (SQLite doesn't support functions, triggers directly)
       // Note: better-sqlite3 doesn't support multiple statements in one query
       // So we must execute DROP and CREATE separately
@@ -1199,31 +1278,67 @@ export class DatabaseService {
         ["admin"]
       );
 
-      let adminId: string;
-      let masterApiKey: string;
+      let adminId: string | undefined;
+      let masterApiKey: string | undefined;
+      let insertSucceeded = false;
 
       if (result.rows.length === 0) {
         // Create default master admin with API key
-        const hashedPassword = await this.hashPassword("admin123");
-        masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+        // Handle race condition: user might be created by ensureDefaultAdmin() concurrently
+        try {
+          const hashedPassword = await this.hashPassword("admin123");
+          masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        adminId = uuidv4();
-        await this.dbManager.queryMain(
-          `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            adminId,
-            "admin",
-            "admin@krapi.com",
-            hashedPassword,
-            "master_admin",
-            "full",
-            masterApiKey,
-          ]
-        );
-        // SQLite doesn't support RETURNING, so use the generated ID
-      } else {
-        adminId = result.rows[0]?.id as string;
+          adminId = uuidv4();
+          await this.dbManager.queryMain(
+            `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              adminId,
+              "admin",
+              "admin@krapi.com",
+              hashedPassword,
+              "master_admin",
+              "full",
+              masterApiKey,
+            ]
+          );
+          // SQLite doesn't support RETURNING, so use the generated ID
+          insertSucceeded = true;
+        } catch (insertError: unknown) {
+          // Handle race condition: if user was created by another process, fetch existing user
+          const error = insertError as { code?: string };
+          if (error.code === "SQLITE_CONSTRAINT_UNIQUE" || error.code === "23505") {
+            // User already exists (created by ensureDefaultAdmin or another process)
+            // Fetch the existing user and continue with update logic
+            const existingResult = await this.dbManager.queryMain(
+              "SELECT id, api_key FROM admin_users WHERE username = $1",
+              ["admin"]
+            );
+            if (existingResult.rows.length > 0) {
+              adminId = existingResult.rows[0]?.id as string;
+              masterApiKey = (existingResult.rows[0]?.api_key as string) || undefined;
+              // Will fall through to else branch logic to ensure password and API key are set
+            } else {
+              // Unexpected: error said unique constraint but user doesn't exist
+              throw insertError;
+            }
+          } else {
+            throw insertError;
+          }
+        }
+      }
+      
+      // If admin exists and INSERT didn't succeed, ensure password and API key are correct
+      if ((result.rows.length > 0 || adminId) && !insertSucceeded) {
+        if (!adminId) {
+          if (result.rows.length > 0) {
+            adminId = result.rows[0]?.id as string;
+          } else {
+            // Should not happen, but TypeScript needs this
+            throw new Error("Admin ID not found after race condition handling");
+          }
+        }
 
         // Ensure default admin has correct password and generate API key if missing
         const defaultPassword =
@@ -1259,7 +1374,7 @@ export class DatabaseService {
       }
 
       // Create or update master API key in api_keys table (main DB)
-      if (masterApiKey) {
+      if (masterApiKey && adminId) {
         // Check if key already exists
         const existingKey = await this.dbManager.queryMain(
           "SELECT id FROM api_keys WHERE key = $1",
@@ -1594,12 +1709,29 @@ export class DatabaseService {
   async fixMissingColumns(): Promise<void> {
     try {
       // Check and add missing columns to sessions table (SQLite uses PRAGMA table_info) - main DB
-      const sessionColumns = await this.dbManager.queryMain(
-        `PRAGMA table_info(sessions)`
-      );
-      const existingSessionColumns = (
-        sessionColumns.rows as Array<{ name: string }>
-      ).map((row) => row.name);
+      let sessionColumns: Array<{ name: string }>;
+      try {
+        const result = await this.dbManager.queryMain(
+          `PRAGMA table_info(sessions)`
+        );
+        sessionColumns = result.rows as Array<{ name: string }>;
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.toLowerCase().includes("no such table: sessions")
+        ) {
+          // Create essential tables (includes sessions) then retry
+          await this.createEssentialTables();
+          const result = await this.dbManager.queryMain(
+            `PRAGMA table_info(sessions)`
+          );
+          sessionColumns = result.rows as Array<{ name: string }>;
+        } else {
+          throw error;
+        }
+      }
+
+      const existingSessionColumns = sessionColumns.map((row) => row.name);
 
       // Add consumed column if it doesn't exist (with error handling)
       if (!existingSessionColumns.includes("consumed")) {
@@ -1737,6 +1869,73 @@ export class DatabaseService {
         console.log(
           "✅ 'last_used_at' column already exists in sessions table"
         );
+      }
+
+      // Ensure system_secrets table exists (main DB)
+      try {
+        await this.dbManager.queryMain(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name='system_secrets'`
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.toLowerCase().includes("no such table")
+        ) {
+          await this.createEssentialTables();
+        } else {
+          throw error;
+        }
+      }
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS system_secrets (
+          id TEXT PRIMARY KEY,
+          key_name TEXT UNIQUE NOT NULL,
+          encrypted_value TEXT NOT NULL,
+          encryption_method TEXT DEFAULT 'aes-256-gcm',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          metadata TEXT DEFAULT '{}'
+        )
+      `);
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_system_secrets_key_name ON system_secrets(key_name)
+      `);
+
+      // Ensure project files tables include url column
+      const projectIds = this.dbManager.getAllProjectIds();
+      for (const projectId of projectIds) {
+        try {
+          const fileColumnsResult = await this.dbManager.queryProject(
+            projectId,
+            `PRAGMA table_info(files)`
+          );
+          const fileColumns = (fileColumnsResult.rows as Array<{ name: string }>).map(
+            (row) => row.name
+          );
+          if (!fileColumns.includes("url")) {
+            try {
+              await this.dbManager.queryProject(
+                projectId,
+                `ALTER TABLE files ADD COLUMN url TEXT`
+              );
+              console.log(
+                `Added missing 'url' column to files table for project ${projectId}`
+              );
+            } catch (error) {
+              if (
+                !(
+                  error instanceof Error &&
+                  error.message.toLowerCase().includes("duplicate column")
+                )
+              ) {
+                throw error;
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fixing files table for project ${projectId}:`, error);
+        }
       }
 
       // Check and add missing columns to projects table - main DB
@@ -1967,6 +2166,10 @@ export class DatabaseService {
             { name: 'is_deleted', type: 'INTEGER DEFAULT 0' },
             { name: 'tags', type: 'TEXT DEFAULT \'[]\'' },
             { name: 'uploaded_by', type: 'TEXT' },
+            { name: 'last_accessed', type: 'TEXT' },
+            { name: 'access_count', type: 'INTEGER DEFAULT 0' },
+            { name: 'deleted_at', type: 'TEXT' },
+            { name: 'deleted_by', type: 'TEXT' },
           ];
 
           for (const col of requiredColumns) {
@@ -2014,7 +2217,7 @@ export class DatabaseService {
                 projectId,
                 `UPDATE files SET name = filename WHERE (name IS NULL OR name = '') AND filename IS NOT NULL AND filename != ''`
               );
-            } catch (error) {
+            } catch {
               // Ignore migration errors
             }
           }
@@ -2030,7 +2233,7 @@ export class DatabaseService {
                 projectId,
                 `UPDATE files SET path = file_path WHERE (path IS NULL OR path = '') AND file_path IS NOT NULL AND file_path != ''`
               );
-            } catch (error) {
+            } catch {
               // Ignore migration errors
             }
           }
@@ -2040,7 +2243,7 @@ export class DatabaseService {
                 projectId,
                 `UPDATE files SET file_size = size WHERE file_size IS NULL`
               );
-            } catch (error) {
+            } catch {
               // Ignore migration errors
             }
           }
@@ -2050,7 +2253,7 @@ export class DatabaseService {
               projectId,
               `UPDATE files SET uploaded_by = created_by WHERE uploaded_by IS NULL OR uploaded_by = ''`
             );
-          } catch (error) {
+          } catch {
             // Ignore migration errors
           }
         }
@@ -2063,7 +2266,7 @@ export class DatabaseService {
                 projectId,
                 `UPDATE files SET path = file_path WHERE (path IS NULL OR path = '') AND file_path IS NOT NULL AND file_path != ''`
               );
-            } catch (error) {
+            } catch {
               // Ignore migration errors
             }
           }
@@ -2743,41 +2946,103 @@ export class DatabaseService {
     userId: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    // Project users are stored in the "users" collection as documents
-    const document = await this.getDocument(projectId, "users", userId);
-    if (!document) {
-      return null;
+    
+    // CRITICAL: SDK stores users in project_users table, not users collection
+    // Check project_users table first (where SDK stores users)
+    try {
+      const projectUserResult = await this.dbManager.queryProject(
+        projectId,
+        "SELECT * FROM project_users WHERE project_id = $1 AND id = $2 LIMIT 1",
+        [projectId, userId]
+      );
+
+      if (projectUserResult.rows.length > 0) {
+        const row = projectUserResult.rows[0];
+        if (!row) {
+          // TypeScript guard - should never happen but satisfies type checker
+          return null;
+        }
+        const user: BackendProjectUser = {
+          id: row.id as string,
+          project_id: projectId,
+          username: (row.username as string) || "",
+          email: (row.email as string) || "",
+          is_verified: (row.is_verified as number) === 1 || (row.is_verified as boolean) === true,
+          scopes: (typeof row.scopes === "string" ? JSON.parse(row.scopes) : (row.scopes as string[])) || [],
+          permissions: (typeof row.permissions === "string" ? JSON.parse(row.permissions) : (row.permissions as string[])) || [],
+          created_at: (row.created_at as string) || new Date().toISOString(),
+          updated_at: (row.updated_at as string) || new Date().toISOString(),
+          status: ((row.is_active as number) === 0 || (row.is_active as boolean) === false ? "inactive" : "active") as
+            | "active"
+            | "inactive"
+            | "suspended",
+          is_active: (row.is_active as number) !== 0 && (row.is_active as boolean) !== false,
+          login_count: (row.login_count as number) || 0,
+          role: (row.role as string) || "user",
+          metadata: (typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata as Record<string, unknown>)) || {},
+        };
+        
+        // Check both password_hash and password fields (SDK uses password_hash, legacy uses password)
+        if (row.password_hash) {
+          user.password = row.password_hash as string;
+          user.password_hash = row.password_hash as string;
+        } else if (row.password) {
+          user.password = row.password as string;
+        }
+        
+        if (row.phone) {
+          user.phone = row.phone as string;
+        }
+        
+        return user;
+      }
+    } catch (error) {
+      // If project_users table doesn't exist or query fails, fall back to users collection
+      if (error instanceof Error && !error.message.includes("no such table")) {
+        console.log(`[getProjectUser] Error querying project_users table: ${error.message}`);
+      }
     }
 
-    // Map document data to BackendProjectUser format
-    const userData = document.data as Record<string, unknown>;
-    const user: BackendProjectUser = {
-      id: document.id,
-      project_id: projectId,
-      username: (userData.username as string) || "",
-      email: (userData.email as string) || "",
-      is_verified: userData.confirmation_state === "confirmed",
-      scopes: (userData.scopes as string[]) || [],
-      permissions: [],
-      created_at: document.created_at,
-      updated_at: document.updated_at,
-      status: (userData.is_active === false ? "inactive" : "active") as
-        | "active"
-        | "inactive"
-        | "suspended",
-      is_active: userData.is_active !== false,
-      login_count: (userData.login_count as number) || 0,
-      // SDK 0.5.0: role is string, not UserRole interface
-      role: (userData.role as string) || "user",
-      metadata: (userData.metadata as Record<string, unknown>) || {},
-    };
-    if (userData.phone) {
-      user.phone = userData.phone as string;
+    // Fallback: Check users collection (for legacy users stored as documents)
+    try {
+      const document = await this.getDocument(projectId, "users", userId);
+      if (!document) {
+        return null;
+      }
+
+      // Map document data to BackendProjectUser format
+      const userData = document.data as Record<string, unknown>;
+      const user: BackendProjectUser = {
+        id: document.id,
+        project_id: projectId,
+        username: (userData.username as string) || "",
+        email: (userData.email as string) || "",
+        is_verified: userData.confirmation_state === "confirmed",
+        scopes: (userData.scopes as string[]) || [],
+        permissions: [],
+        created_at: document.created_at,
+        updated_at: document.updated_at,
+        status: (userData.is_active === false ? "inactive" : "active") as
+          | "active"
+          | "inactive"
+          | "suspended",
+        is_active: userData.is_active !== false,
+        login_count: (userData.login_count as number) || 0,
+        // SDK 0.5.0: role is string, not UserRole interface
+        role: (userData.role as string) || "user",
+        metadata: (userData.metadata as Record<string, unknown>) || {},
+      };
+      if (userData.phone) {
+        user.phone = userData.phone as string;
+      }
+      if (userData.password) {
+        user.password = userData.password as string;
+      }
+      return user;
+    } catch (error) {
+      console.log(`[getProjectUser] Error querying users collection: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
     }
-    if (userData.password) {
-      user.password = userData.password as string;
-    }
-    return user;
   }
 
   async getProjectUserById(
@@ -2795,48 +3060,110 @@ export class DatabaseService {
     email: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    // Project users are stored in the "users" collection as documents
-    const result = await this.getDocuments(projectId, "users", {
-      limit: 1,
-      where: { email },
-    });
+    
+    // CRITICAL: SDK stores users in project_users table, not users collection
+    // Check project_users table first (where SDK stores users)
+    try {
+      const projectUserResult = await this.dbManager.queryProject(
+        projectId,
+        "SELECT * FROM project_users WHERE project_id = $1 AND email = $2 LIMIT 1",
+        [projectId, email]
+      );
 
-    if (result.documents.length === 0) {
+      if (projectUserResult.rows.length > 0) {
+        const row = projectUserResult.rows[0];
+        if (!row) {
+          // TypeScript guard - should never happen but satisfies type checker
+          return null;
+        }
+        const user: BackendProjectUser = {
+          id: row.id as string,
+          project_id: projectId,
+          username: (row.username as string) || "",
+          email: (row.email as string) || "",
+          is_verified: (row.is_verified as number) === 1 || (row.is_verified as boolean) === true,
+          scopes: (typeof row.scopes === "string" ? JSON.parse(row.scopes) : (row.scopes as string[])) || [],
+          permissions: (typeof row.permissions === "string" ? JSON.parse(row.permissions) : (row.permissions as string[])) || [],
+          created_at: (row.created_at as string) || new Date().toISOString(),
+          updated_at: (row.updated_at as string) || new Date().toISOString(),
+          status: ((row.is_active as number) === 0 || (row.is_active as boolean) === false ? "inactive" : "active") as
+            | "active"
+            | "inactive"
+            | "suspended",
+          is_active: (row.is_active as number) !== 0 && (row.is_active as boolean) !== false,
+          login_count: (row.login_count as number) || 0,
+          role: (row.role as string) || "user",
+          metadata: (typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata as Record<string, unknown>)) || {},
+        };
+        
+        // Check both password_hash and password fields (SDK uses password_hash, legacy uses password)
+        if (row.password_hash) {
+          user.password = row.password_hash as string;
+          user.password_hash = row.password_hash as string;
+        } else if (row.password) {
+          user.password = row.password as string;
+        }
+        
+        if (row.phone) {
+          user.phone = row.phone as string;
+        }
+        
+        return user;
+      }
+    } catch (error) {
+      // If project_users table doesn't exist or query fails, fall back to users collection
+      if (error instanceof Error && !error.message.includes("no such table")) {
+        console.log(`[getProjectUserByEmail] Error querying project_users table: ${error.message}`);
+      }
+    }
+
+    // Fallback: Check users collection (for legacy users stored as documents)
+    try {
+      const result = await this.getDocuments(projectId, "users", {
+        limit: 1,
+        where: { email },
+      });
+
+      if (result.documents.length === 0) {
+        return null;
+      }
+
+      const document = result.documents[0];
+      if (!document) {
+        return null;
+      }
+      const userData = document.data as Record<string, unknown>;
+      const user: BackendProjectUser = {
+        id: document.id,
+        project_id: projectId,
+        username: (userData.username as string) || "",
+        email: (userData.email as string) || "",
+        is_verified: userData.confirmation_state === "confirmed",
+        scopes: (userData.scopes as string[]) || [],
+        permissions: [],
+        created_at: document.created_at,
+        updated_at: document.updated_at,
+        status: (userData.is_active === false ? "inactive" : "active") as
+          | "active"
+          | "inactive"
+          | "suspended",
+        is_active: userData.is_active !== false,
+        login_count: (userData.login_count as number) || 0,
+        // SDK 0.5.0: role is string, not UserRole interface
+        role: (userData.role as string) || "user",
+        metadata: (userData.metadata as Record<string, unknown>) || {},
+      };
+      if (userData.phone) {
+        user.phone = userData.phone as string;
+      }
+      if (userData.password) {
+        user.password = userData.password as string;
+      }
+      return user;
+    } catch (error) {
+      console.log(`[getProjectUserByEmail] Error querying users collection: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
-
-    const document = result.documents[0];
-    if (!document) {
-      return null;
-    }
-    const userData = document.data as Record<string, unknown>;
-    const user: BackendProjectUser = {
-      id: document.id,
-      project_id: projectId,
-      username: (userData.username as string) || "",
-      email: (userData.email as string) || "",
-      is_verified: userData.confirmation_state === "confirmed",
-      scopes: (userData.scopes as string[]) || [],
-      permissions: [],
-      created_at: document.created_at,
-      updated_at: document.updated_at,
-      status: (userData.is_active === false ? "inactive" : "active") as
-        | "active"
-        | "inactive"
-        | "suspended",
-      is_active: userData.is_active !== false,
-      login_count: (userData.login_count as number) || 0,
-      // SDK 0.5.0: role is string, not UserRole interface
-      role: (userData.role as string) || "user",
-      metadata: (userData.metadata as Record<string, unknown>) || {},
-    };
-    if (userData.phone) {
-      user.phone = userData.phone as string;
-    }
-    if (userData.password) {
-      user.password = userData.password as string;
-    }
-    return user;
   }
 
   async getProjectUserByUsername(
@@ -2844,48 +3171,127 @@ export class DatabaseService {
     username: string
   ): Promise<BackendProjectUser | null> {
     await this.ensureReady();
-    // Project users are stored in the "users" collection as documents
-    const result = await this.getDocuments(projectId, "users", {
-      limit: 1,
-      where: { username },
-    });
+    
+    // CRITICAL: SDK stores users in project_users table, not users collection
+    // Check project_users table first (where SDK stores users)
+    try {
+      const projectUserResult = await this.dbManager.queryProject(
+        projectId,
+        "SELECT * FROM project_users WHERE project_id = $1 AND username = $2 LIMIT 1",
+        [projectId, username]
+      );
 
-    if (result.documents.length === 0) {
+      if (projectUserResult.rows.length > 0) {
+        const row = projectUserResult.rows[0];
+        if (!row) {
+          // TypeScript guard - should never happen but satisfies type checker
+          return null;
+        }
+        const user: BackendProjectUser = {
+          id: row.id as string,
+          project_id: projectId,
+          username: (row.username as string) || "",
+          email: (row.email as string) || "",
+          is_verified: (row.is_verified as number) === 1 || (row.is_verified as boolean) === true,
+          scopes: (typeof row.scopes === "string" ? JSON.parse(row.scopes) : (row.scopes as string[])) || [],
+          permissions: (typeof row.permissions === "string" ? JSON.parse(row.permissions) : (row.permissions as string[])) || [],
+          created_at: (row.created_at as string) || new Date().toISOString(),
+          updated_at: (row.updated_at as string) || new Date().toISOString(),
+          status: ((row.is_active as number) === 0 || (row.is_active as boolean) === false ? "inactive" : "active") as
+            | "active"
+            | "inactive"
+            | "suspended",
+          is_active: (row.is_active as number) !== 0 && (row.is_active as boolean) !== false,
+          login_count: (row.login_count as number) || 0,
+          role: (row.role as string) || "user",
+          metadata: (typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata as Record<string, unknown>)) || {},
+        };
+        
+        // Check both password_hash and password fields (SDK uses password_hash, legacy uses password)
+        const passwordHash = (row.password_hash as string | null | undefined) || 
+                            (row.password as string | null | undefined);
+        
+        if (passwordHash && passwordHash.trim() !== '') {
+          user.password = passwordHash;
+          user.password_hash = passwordHash;
+          console.log(`[getProjectUserByUsername] Found password hash for user ${username}, length: ${passwordHash.length}`);
+        } else {
+          // Debug: Log all row keys to see what's actually available
+          const rowKeys = Object.keys(row);
+          console.log(`[getProjectUserByUsername] WARNING: No password hash found for user ${username}. Available fields: ${rowKeys.join(", ")}`);
+          // Check if password_hash exists but is null/empty
+          if ('password_hash' in row) {
+            console.log(`[getProjectUserByUsername] password_hash field exists but value is: ${JSON.stringify(row.password_hash)}`);
+          }
+          if ('password' in row) {
+            console.log(`[getProjectUserByUsername] password field exists but value is: ${JSON.stringify(row.password)}`);
+          }
+        }
+        
+        if (row.phone) {
+          user.phone = row.phone as string;
+        }
+        
+        return user;
+      } else {
+        console.log(`[getProjectUserByUsername] User ${username} not found in project_users table for project ${projectId}`);
+      }
+    } catch (error) {
+      // If project_users table doesn't exist or query fails, fall back to users collection
+      // This handles legacy users stored in the users collection
+      if (error instanceof Error && !error.message.includes("no such table")) {
+        console.log(`[getProjectUserByUsername] Error querying project_users table: ${error.message}`);
+      }
+    }
+
+    // Fallback: Check users collection (for legacy users stored as documents)
+    try {
+      const result = await this.getDocuments(projectId, "users", {
+        limit: 1,
+        where: { username },
+      });
+
+      if (result.documents.length === 0) {
+        return null;
+      }
+
+      const document = result.documents[0];
+      if (!document) {
+        return null;
+      }
+      const userData = document.data as Record<string, unknown>;
+      const user: BackendProjectUser = {
+        id: document.id,
+        project_id: projectId,
+        username: (userData.username as string) || "",
+        email: (userData.email as string) || "",
+        is_verified: userData.confirmation_state === "confirmed",
+        scopes: (userData.scopes as string[]) || [],
+        permissions: [],
+        created_at: document.created_at,
+        updated_at: document.updated_at,
+        status: (userData.is_active === false ? "inactive" : "active") as
+          | "active"
+          | "inactive"
+          | "suspended",
+        is_active: userData.is_active !== false,
+        login_count: (userData.login_count as number) || 0,
+        // SDK 0.5.0: role is string, not UserRole interface
+        role: (userData.role as string) || "user",
+        metadata: (userData.metadata as Record<string, unknown>) || {},
+      };
+      if (userData.phone) {
+        user.phone = userData.phone as string;
+      }
+      if (userData.password) {
+        user.password = userData.password as string;
+      }
+      return user;
+    } catch (error) {
+      // If both methods fail, return null
+      console.log(`[getProjectUserByUsername] Error querying users collection: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
-
-    const document = result.documents[0];
-    if (!document) {
-      return null;
-    }
-    const userData = document.data as Record<string, unknown>;
-    const user: BackendProjectUser = {
-      id: document.id,
-      project_id: projectId,
-      username: (userData.username as string) || "",
-      email: (userData.email as string) || "",
-      is_verified: userData.confirmation_state === "confirmed",
-      scopes: (userData.scopes as string[]) || [],
-      permissions: [],
-      created_at: document.created_at,
-      updated_at: document.updated_at,
-      status: (userData.is_active === false ? "inactive" : "active") as
-        | "active"
-        | "inactive"
-        | "suspended",
-      is_active: userData.is_active !== false,
-      login_count: (userData.login_count as number) || 0,
-      // SDK 0.5.0: role is string, not UserRole interface
-      role: (userData.role as string) || "user",
-      metadata: (userData.metadata as Record<string, unknown>) || {},
-    };
-    if (userData.phone) {
-      user.phone = userData.phone as string;
-    }
-    if (userData.password) {
-      user.password = userData.password as string;
-    }
-    return user;
   }
 
   async getProjectUsers(
@@ -3983,7 +4389,10 @@ export class DatabaseService {
 
   // File Methods (files are stored in project-specific databases)
   async createFile(
-    data: Omit<FileRecord, "id" | "createdAt">
+    data: Omit<FileRecord, "id" | "createdAt"> & {
+      folder_id?: string | null;
+      metadata?: Record<string, unknown>;
+    }
   ): Promise<FileRecord> {
     const fileId = uuidv4();
     const projectId = data.project_id;
@@ -3991,8 +4400,8 @@ export class DatabaseService {
     // Insert into project DB
     await this.dbManager.queryProject(
       projectId,
-      `INSERT INTO files (id, project_id, filename, original_name, mime_type, size, path, url, uploaded_by, metadata) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO files (id, project_id, filename, original_name, mime_type, size, path, url, uploaded_by, metadata, folder_id, created_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         fileId,
         projectId,
@@ -4004,6 +4413,8 @@ export class DatabaseService {
         data.url || data.path, // Use path as URL if not provided
         data.uploaded_by,
         JSON.stringify(data.metadata || {}),
+        data.folder_id || null,
+        data.uploaded_by,
       ]
     );
 
@@ -5631,19 +6042,46 @@ export class DatabaseService {
   }
 
   private mapFile(row: Record<string, unknown>): FileRecord {
-    return {
+    let metadata: Record<string, unknown> | undefined;
+    if (row.metadata !== undefined && row.metadata !== null) {
+      try {
+        metadata =
+          typeof row.metadata === "string"
+            ? (JSON.parse(row.metadata) as Record<string, unknown>)
+            : (row.metadata as Record<string, unknown>);
+      } catch {
+        metadata = undefined;
+      }
+    }
+
+    const base: FileRecord & {
+      folder_id?: string | null;
+      metadata?: Record<string, unknown>;
+    } = {
       id: row.id as string,
       project_id: row.project_id as string,
       filename: row.filename as string,
       original_name: row.original_name as string,
       mime_type: row.mime_type as string,
-      size: parseInt(row.size as string),
+      size:
+        typeof row.size === "number"
+          ? row.size
+          : parseInt(String(row.size ?? 0), 10),
       path: row.path as string,
-      uploaded_by: row.created_by as string,
+      uploaded_by: (row.uploaded_by as string) || (row.created_by as string),
       created_at: row.created_at as string,
-      url: (row.url as string) || "",
+      url: (row.url as string) || (row.path as string) || "",
       updated_at: (row.updated_at as string) || (row.created_at as string),
     };
+
+    if (row.folder_id !== undefined && row.folder_id !== null) {
+      base.folder_id = row.folder_id as string;
+    }
+    if (metadata) {
+      base.metadata = metadata;
+    }
+
+    return base;
   }
 
   private mapSession(row: Record<string, unknown>): BackendSession {
@@ -8149,7 +8587,7 @@ export class DatabaseService {
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
-          user_id TEXT REFERENCES admin_users(id),
+          user_id TEXT NOT NULL,
           project_id TEXT REFERENCES projects(id),
           type TEXT CHECK (type IN ('admin', 'project')),
           user_type TEXT CHECK (user_type IN ('admin', 'project')),
@@ -8160,6 +8598,7 @@ export class DatabaseService {
           consumed INTEGER DEFAULT 0,
           consumed_at TEXT,
           last_activity TEXT DEFAULT CURRENT_TIMESTAMP,
+          last_used_at TEXT DEFAULT CURRENT_TIMESTAMP,
           is_active INTEGER DEFAULT 1,
           ip_address TEXT,
           user_agent TEXT
@@ -8426,6 +8865,85 @@ export class DatabaseService {
       this.readyResolve();
     } catch (error) {
       console.error("Ultra-fast initialization failed:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get system secret from database
+   * TODO: MIGRATE TO SDK - This should be handled by SDK's system module
+   *
+   * @param {string} keyName - Name of the secret key
+   * @returns {Promise<string | null>} Decrypted secret value or null if not found
+   */
+  async getSystemSecret(keyName: string): Promise<string | null> {
+    await this.waitForReady();
+
+    try {
+      const result = await this.dbManager.queryMain(
+        "SELECT encrypted_value FROM system_secrets WHERE key_name = $1",
+        [keyName]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      if (!row || !row.encrypted_value) {
+        return null;
+      }
+
+      // Return encrypted value (will be decrypted by SecretEncryptionService)
+      return row.encrypted_value as string;
+    } catch (error) {
+      console.error(`Error getting system secret ${keyName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set system secret in database
+   * TODO: MIGRATE TO SDK - This should be handled by SDK's system module
+   *
+   * @param {string} keyName - Name of the secret key
+   * @param {string} encryptedValue - Encrypted secret value (should be encrypted before calling)
+   * @param {string} [createdBy] - ID of user who created/updated the secret
+   * @returns {Promise<void>}
+   */
+  async setSystemSecret(
+    keyName: string,
+    encryptedValue: string,
+    createdBy?: string
+  ): Promise<void> {
+    await this.waitForReady();
+
+    try {
+      // Check if secret already exists
+      const existing = await this.dbManager.queryMain(
+        "SELECT id FROM system_secrets WHERE key_name = $1",
+        [keyName]
+      );
+
+      if (existing.rows.length > 0) {
+        // Update existing secret
+        await this.dbManager.queryMain(
+          `UPDATE system_secrets 
+           SET encrypted_value = $1, updated_at = CURRENT_TIMESTAMP, created_by = COALESCE($2, created_by)
+           WHERE key_name = $3`,
+          [encryptedValue, createdBy || null, keyName]
+        );
+      } else {
+        // Insert new secret
+        const secretId = uuidv4();
+        await this.dbManager.queryMain(
+          `INSERT INTO system_secrets (id, key_name, encrypted_value, created_by)
+           VALUES ($1, $2, $3, $4)`,
+          [secretId, keyName, encryptedValue, createdBy || null]
+        );
+      }
+    } catch (error) {
+      console.error(`Error setting system secret ${keyName}:`, error);
       throw error;
     }
   }

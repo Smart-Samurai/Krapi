@@ -91,7 +91,7 @@ export default function RegisterPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/krapi/k1/auth/register", {
+      const response = await fetch("/api/client/krapi/k1/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -148,7 +148,7 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {error && (
+            {Boolean(error) && (
               <Alert variant="destructive" className="mb-6" data-testid="register-error">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>

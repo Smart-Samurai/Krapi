@@ -1,8 +1,8 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
-import { ApiResponse } from "@/types";
 import { MultiDatabaseManager } from "@/services/multi-database-manager.service";
+import { ApiResponse } from "@/types";
 
 /**
  * Handler for revoking file permission

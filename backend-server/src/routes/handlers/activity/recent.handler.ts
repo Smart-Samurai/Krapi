@@ -39,7 +39,7 @@ export class RecentActivityHandler {
       const queryResult = (await Promise.race([
         this.backendSDK.activity.query({
           ...(projectId ? { project_id: projectId } : {}),
-          limit: limit,
+          limit,
         }),
         timeoutPromise,
       ])) as unknown[] | null | undefined;

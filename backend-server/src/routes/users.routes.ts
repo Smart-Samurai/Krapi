@@ -22,8 +22,8 @@ import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Router, IRouter } from "express";
 
 import { UsersController } from "@/controllers/users.controller";
-import { GetUserStatisticsHandler } from "@/routes/handlers/users/get-statistics.handler";
 import { authenticate, requireScopes } from "@/middleware/auth.middleware";
+import { GetUserStatisticsHandler } from "@/routes/handlers/users/get-statistics.handler";
 import { Scope } from "@/types";
 
 // Use mergeParams: true to merge params from parent route (/projects/:projectId/users)

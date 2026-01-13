@@ -23,30 +23,66 @@ export class DatabaseSeedService {
         ["admin"]
       );
 
-      let adminId: string;
-      let masterApiKey: string;
+      let adminId: string | undefined;
+      let masterApiKey: string | undefined;
+      let insertSucceeded = false;
 
       if (result.rows.length === 0) {
         // Create default master admin with API key
-        const hashedPassword = await this.hashPassword("admin123");
-        masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
+        // Handle race condition: user might be created by ensureDefaultAdmin() concurrently
+        try {
+          const hashedPassword = await this.hashPassword("admin123");
+          masterApiKey = `mak_${uuidv4().replace(/-/g, "")}`;
 
-        adminId = uuidv4();
-        await this.dbManager.queryMain(
-          `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            adminId,
-            "admin",
-            "admin@krapi.com",
-            hashedPassword,
-            "master_admin",
-            "full",
-            masterApiKey,
-          ]
-        );
-      } else {
-        adminId = result.rows[0]?.id as string;
+          adminId = uuidv4();
+          await this.dbManager.queryMain(
+            `INSERT INTO admin_users (id, username, email, password_hash, role, access_level, api_key) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              adminId,
+              "admin",
+              "admin@krapi.com",
+              hashedPassword,
+              "master_admin",
+              "full",
+              masterApiKey,
+            ]
+          );
+          insertSucceeded = true;
+        } catch (insertError: unknown) {
+          // Handle race condition: if user was created by another process, fetch existing user
+          const error = insertError as { code?: string };
+          if (error.code === "SQLITE_CONSTRAINT_UNIQUE" || error.code === "23505") {
+            // User already exists (created by ensureDefaultAdmin or another process)
+            // Fetch the existing user and continue with update logic
+            const existingResult = await this.dbManager.queryMain(
+              "SELECT id, api_key FROM admin_users WHERE username = $1",
+              ["admin"]
+            );
+            if (existingResult.rows.length > 0) {
+              adminId = existingResult.rows[0]?.id as string;
+              masterApiKey = (existingResult.rows[0]?.api_key as string) || undefined;
+              // Will fall through to else branch logic to ensure password and API key are set
+            } else {
+              // Unexpected: error said unique constraint but user doesn't exist
+              throw insertError;
+            }
+          } else {
+            throw insertError;
+          }
+        }
+      }
+      
+      // If admin exists and INSERT didn't succeed, ensure password and API key are correct
+      if ((result.rows.length > 0 || adminId) && !insertSucceeded) {
+        if (!adminId) {
+          if (result.rows.length > 0) {
+            adminId = result.rows[0]?.id as string;
+          } else {
+            // Should not happen, but TypeScript needs this
+            throw new Error("Admin ID not found after race condition handling");
+          }
+        }
 
         // Ensure default admin has correct password and generate API key if missing
         const defaultPassword =
@@ -82,7 +118,7 @@ export class DatabaseSeedService {
       }
 
       // Create or update master API key in api_keys table (main DB)
-      if (masterApiKey) {
+      if (masterApiKey && adminId) {
         // Check if key already exists
         const existingKey = await this.dbManager.queryMain(
           "SELECT id FROM api_keys WHERE key = $1",

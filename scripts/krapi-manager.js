@@ -254,36 +254,57 @@ async function startServices(mode = "dev") {
   info("Waiting for services to start...");
   let backendReady = false;
   let frontendReady = false;
+  let allServicesReady = false;
   
   const checkBackend = setInterval(async () => {
-    if (await isPortInUse(backendPort)) {
+    if (!backendReady && await isPortInUse(backendPort)) {
       backendReady = true;
       success(`Backend is ready on port ${backendPort}`);
       clearInterval(checkBackend);
-      if (backendReady && frontendReady) {
+      if (backendReady && frontendReady && !allServicesReady) {
+        allServicesReady = true;
         success("All services are ready!");
       }
     }
   }, 1000);
   
   const checkFrontend = setInterval(async () => {
-    if (await isPortInUse(frontendPort)) {
+    if (!frontendReady && await isPortInUse(frontendPort)) {
       frontendReady = true;
       success(`Frontend is ready on port ${frontendPort}`);
       clearInterval(checkFrontend);
-      if (backendReady && frontendReady) {
+      if (backendReady && frontendReady && !allServicesReady) {
+        allServicesReady = true;
         success("All services are ready!");
       }
     }
   }, 1000);
   
-  // Timeout after 60 seconds
+  // Timeout after 60 seconds - only warn if services are actually not ready
   setTimeout(() => {
     clearInterval(checkBackend);
     clearInterval(checkFrontend);
-    if (!backendReady || !frontendReady) {
-      warn("Some services may not have started. Check logs for details.");
-    }
+    
+    // Final check - services might have started but the intervals didn't catch it
+    Promise.all([
+      isPortInUse(backendPort),
+      isPortInUse(frontendPort)
+    ]).then(([backendUp, frontendUp]) => {
+      if (!backendUp || !frontendUp) {
+        const missing = [];
+        if (!backendUp) missing.push("Backend");
+        if (!frontendUp) missing.push("Frontend");
+        warn(`${missing.join(" and ")} ${missing.length === 1 ? "has" : "have"} not started. Check logs for details.`);
+      } else if (!allServicesReady) {
+        // Services are up but we didn't catch them in time - this is fine
+        info("All services are running (startup check completed)");
+      }
+    }).catch(() => {
+      // If port check fails, assume services might still be starting
+      if (!backendReady || !frontendReady) {
+        info("Service startup check timed out. Services may still be initializing. Check logs if issues persist.");
+      }
+    });
   }, 60000);
 }
 

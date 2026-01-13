@@ -1,9 +1,12 @@
-import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
+
+import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
 
 /**
  * Project user login
  * POST /api/auth/project-login
+ *
+ * PROXY ROUTE: Connects to backend URL to authenticate project user
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,8 +20,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the SDK to authenticate project user
-    const response = await krapi.auth.login(username, password, remember_me);
+    // Use backend SDK client to authenticate project user
+    const backendSdk = await getBackendSdkClient();
+    const response = await backendSdk.auth.login(username, password, remember_me);
 
     return NextResponse.json({
       success: true,

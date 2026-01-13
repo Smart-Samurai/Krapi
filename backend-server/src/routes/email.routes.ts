@@ -234,12 +234,6 @@ router.post(
     await sendEmailHandler.handle(req, res);
   }
 );
-
-// TODO: Extract remaining routes to handlers
-// POST /email/send - Global email send endpoint
-// POST /email/bulk-send - Global bulk email send endpoint
-// GET /email/status/:emailId - Get email status
-// GET /email/sent - List sent emails
 // POST /email/templates - Global email template creation
 // GET /email/templates - List email templates
 // POST /email/send-template - Send email using a template

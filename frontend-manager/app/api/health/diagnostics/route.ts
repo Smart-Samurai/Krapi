@@ -1,13 +1,17 @@
-import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
+
+import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
 
 /**
  * Run system diagnostics
  * POST /api/health/diagnostics
+ *
+ * PROXY ROUTE: Connects to backend URL to run diagnostics
  */
 export async function POST(_request: NextRequest) {
   try {
-    const diagnostics = await krapi.health.runDiagnostics();
+    const backendSdk = await getBackendSdkClient();
+    const diagnostics = await backendSdk.health.runDiagnostics();
     return NextResponse.json(diagnostics);
   } catch (error) {
     return NextResponse.json(

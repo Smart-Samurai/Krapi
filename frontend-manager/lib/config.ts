@@ -44,12 +44,11 @@ const DEFAULTS = {
 /**
  * SDK retry configuration
  * Used by all SDK clients (backend and frontend)
+ * Updated for SDK 0.6.0: uses { attempts, delay } format
  */
 export const SDK_RETRY_CONFIG = {
-  enabled: true,
-  maxRetries: DEFAULTS.SDK_RETRY_MAX,
-  retryDelay: DEFAULTS.SDK_RETRY_DELAY,
-  retryableStatusCodes: [408, 429, 500, 502, 503, 504] as number[],
+  attempts: DEFAULTS.SDK_RETRY_MAX,
+  delay: DEFAULTS.SDK_RETRY_DELAY,
 };
 
 /**

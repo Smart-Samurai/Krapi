@@ -60,7 +60,7 @@ export const initializeAuth = createAsyncThunk(
     if (storedToken) {
       // Validate session via API route
       try {
-        const response = await fetch("/api/auth/me", {
+        const response = await fetch("/api/client/auth/me", {
           headers: {
             Authorization: `Bearer ${storedToken}`,
             "Content-Type": "application/json",
@@ -107,7 +107,7 @@ export const initializeAuth = createAsyncThunk(
     } else if (storedApiKey) {
       // Validate API key via API route
       try {
-        const response = await fetch("/api/auth/sessions", {
+        const response = await fetch("/api/client/auth/sessions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -167,7 +167,7 @@ export const validateSession = createAsyncThunk(
     thunkAPI
   ) => {
     try {
-      const response = await fetch("/api/auth/me", {
+      const response = await fetch("/api/client/auth/me", {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -212,7 +212,7 @@ export const validateApiKey = createAsyncThunk(
   "auth/validateApiKey",
   async ({ key }: { key: string }, thunkAPI) => {
     try {
-      const response = await fetch("/api/auth/sessions", {
+      const response = await fetch("/api/client/auth/sessions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -258,8 +258,10 @@ export const login = createAsyncThunk(
     }: { username: string; password: string },
     { getState: _getState }
   ) => {
-    // SDK-FIRST: Use SDK-compatible route
-    const response = await fetch("/api/krapi/k1/auth/admin/login", {
+    // SDK-FIRST: Use CLIENT route (uses SDK to call proxy route)
+    // Client routes are for frontend GUI, proxy routes are for external apps
+    // Use regular login route which handles both admin and project users
+    const response = await fetch("/api/client/krapi/k1/auth/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -271,14 +273,29 @@ export const login = createAsyncThunk(
       let errorMessage = "Invalid credentials";
       try {
         const errorData = await response.json();
-        // Try different possible error message fields
-        errorMessage = errorData.error || errorData.message || errorData.details?.error || "Invalid credentials";
+        // Try different possible error message fields - prioritize user-friendly messages
+        errorMessage = errorData.error || 
+                      errorData.message || 
+                      errorData.details?.error ||
+                      errorData.details?.message ||
+                      (typeof errorData === "string" ? errorData : null) ||
+                      "Invalid credentials";
+        
+        // Clean up error message - remove SDK-specific prefixes
+        if (typeof errorMessage === "string") {
+          errorMessage = errorMessage
+            .replace(/^.*?Invalid credentials\s*-?\s*/i, "Invalid credentials")
+            .replace(/^.*?- /, "")
+            .trim();
+        }
       } catch {
         // If JSON parsing fails, use status-based message
         if (response.status === 401) {
           errorMessage = "Invalid credentials";
         } else if (response.status === 403) {
           errorMessage = "Access forbidden";
+        } else if (response.status === 500) {
+          errorMessage = "Server error. Please try again later.";
         } else {
           errorMessage = "Login failed";
         }
@@ -303,7 +320,7 @@ export const login = createAsyncThunk(
       return {
         user: user as AdminUser & { scopes?: string[] },
         scopes: userScopes,
-        sessionToken: sessionToken,
+        sessionToken,
       };
     } else {
       const errorMsg = responseData.error || "Unknown error";
@@ -364,7 +381,7 @@ export const refreshSession = createAsyncThunk(
       throw new Error("No session token available");
     }
 
-    const response = await fetch("/api/krapi/k1/auth/refresh", {
+    const response = await fetch("/api/client/krapi/k1/auth/refresh", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${sessionToken}`,
@@ -405,7 +422,7 @@ export const logout = createAsyncThunk(
 
     try {
       if (sessionToken) {
-        await fetch("/api/auth/logout", {
+        await fetch("/api/client/auth/logout", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${sessionToken}`,
@@ -534,8 +551,25 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state: AuthState, action) => {
         state.loading = false;
-        state.error = action.error.message || "Login failed";
-        toast.error(action.error.message || "Invalid credentials");
+        // Extract error message - handle both Error objects and string messages
+        const rawErrorMessage = action.error?.message || 
+                               (typeof action.payload === "string" ? action.payload : null) ||
+                               "Invalid credentials";
+        // Ensure errorMessage is always a string
+        const errorMessage = String(rawErrorMessage || "Invalid credentials");
+        // Clean up error message - take first line only, remove SDK-specific details
+        const firstLine = errorMessage.split("\n")[0] || errorMessage;
+        // Remove any prefix patterns and clean up
+        let cleanErrorMessage = firstLine
+          .replace(/^.*?Invalid credentials\s*-?\s*/i, "Invalid credentials") // Remove prefix
+          .replace(/^.*?- /, "") // Remove any remaining prefix patterns
+          .trim();
+        // If after cleaning it's empty or too long, use simple message
+        if (!cleanErrorMessage || cleanErrorMessage.length > 100) {
+          cleanErrorMessage = "Invalid credentials";
+        }
+        state.error = cleanErrorMessage;
+        toast.error(state.error);
       })
 
       // Login with API key

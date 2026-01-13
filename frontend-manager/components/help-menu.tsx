@@ -156,16 +156,16 @@ KRAPI_API_KEY=your-api-key-here`}</code>
 
 async function initializeApp() {
   try {
-    // Connect to Krapi Server
+    // Connect to KRAPI FRONTEND URL (port 3498), not backend!
     await krapi.connect({
-      endpoint: process.env.KRAPI_ENDPOINT || '${apiUrl}',
+      endpoint: process.env.KRAPI_ENDPOINT || 'https://your-krapi-instance.com', // Frontend URL
       apiKey: process.env.KRAPI_API_KEY || ''
     });
     
     console.log('✅ Connected to Krapi Server');
     
-    // List all projects
-    const projects = await krapi.projects.list();
+    // Get all projects
+    const projects = await krapi.projects.getAll();
     console.log('Projects:', projects);
     
     // Create a new project
@@ -174,8 +174,8 @@ async function initializeApp() {
       description: 'Project description'
     });
     
-    // Work with collections
-    const collections = await krapi.collections.list(newProject.id);
+    // Get all collections in a project
+    const collections = await krapi.collections.getAll(newProject.id);
     
   } catch (error) {
     console.error('Failed to connect:', error);
@@ -199,12 +199,14 @@ export default function MyComponent() {
   
   useEffect(() => {
     async function loadData() {
+      // Connect to FRONTEND URL (port 3498), not backend!
       await krapi.connect({
-        endpoint: process.env.NEXT_PUBLIC_KRAPI_ENDPOINT!,
+        endpoint: process.env.NEXT_PUBLIC_KRAPI_ENDPOINT!, // e.g., "https://your-krapi-instance.com"
         apiKey: process.env.NEXT_PUBLIC_KRAPI_API_KEY!
       });
       
-      const projectList = await krapi.projects.list();
+      // Get all projects
+      const projectList = await krapi.projects.getAll();
       setProjects(projectList);
     }
     loadData();

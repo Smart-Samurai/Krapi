@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { DatabaseService } from "./database.service";
+import { FileEncryptionService } from "./file-encryption.service";
 import { MultiDatabaseManager } from "./multi-database-manager.service";
 
 import { FileInfo, StorageStats } from "@/types";
@@ -40,6 +41,7 @@ export class StorageService {
   private static instance: StorageService;
   private db: DatabaseService;
   private dbManager: MultiDatabaseManager;
+  private encryptionService: FileEncryptionService;
 
   private constructor() {
     this.db = DatabaseService.getInstance();
@@ -47,6 +49,7 @@ export class StorageService {
     const mainDbPath = process.env.DB_PATH || process.env.SQLITE_DB_PATH || undefined;
     const projectsDbDir = process.env.PROJECTS_DB_DIR || undefined;
     this.dbManager = new MultiDatabaseManager(mainDbPath, projectsDbDir);
+    this.encryptionService = FileEncryptionService.getInstance();
   }
 
   /**
@@ -94,14 +97,22 @@ export class StorageService {
     file: File | Buffer,
     metadata?: Record<string, unknown>
   ): Promise<FileInfo> {
-    const projectId = (metadata as { projectId?: string })?.projectId || "default";
-    
+    const projectId =
+      (metadata as { projectId?: string })?.projectId || "default";
+    const folderId =
+      (metadata as { folderId?: string })?.folderId ||
+      (metadata as { folder_id?: string })?.folder_id;
+    const uploadedBy =
+      (metadata as { uploadedBy?: string })?.uploadedBy || "system";
+    const baseUrl = (metadata as { baseUrl?: string })?.baseUrl;
+
     // Get project-specific files folder: data/projects/{projectId}/files/
     const projectFilesPath = this.dbManager.getProjectFilesPath(projectId);
     await fs.promises.mkdir(projectFilesPath, { recursive: true });
 
     // Generate unique filename
     const originalName =
+      (metadata as { originalName?: string })?.originalName ||
       (file as { originalname?: string; name?: string })?.originalname ||
       (file as { name?: string })?.name ||
       "unknown";
@@ -111,38 +122,58 @@ export class StorageService {
       .substring(2)}${fileExtension}`;
     const filePath = path.join(projectFilesPath, uniqueFilename);
 
-    // Save file to disk
+    // Get file buffer
+    let fileBuffer: Buffer;
     if (file instanceof Buffer) {
-      await fs.promises.writeFile(filePath, file);
+      fileBuffer = file;
     } else {
       // Handle File object (from multer)
       if ("arrayBuffer" in file && typeof file.arrayBuffer === "function") {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        await fs.promises.writeFile(filePath, buffer);
+        fileBuffer = Buffer.from(await file.arrayBuffer());
       } else {
         // Fallback for other file types
-        const buffer = Buffer.from(file as ArrayLike<number>);
-        await fs.promises.writeFile(filePath, buffer);
+        fileBuffer = Buffer.from(file as ArrayLike<number>);
       }
     }
 
+    // Encrypt file before saving
+    const encryptedBuffer = await this.encryptionService.encrypt(fileBuffer);
+
+    // Save encrypted file to disk
+    await fs.promises.writeFile(filePath, encryptedBuffer);
+
     // Create file record in database
     // Store relative path: files/{filename} (relative to project folder)
-    const relativePath = `files/${uniqueFilename}`;
+    const relativePath = path.posix.join("files", uniqueFilename);
+    const normalizedBaseUrl = baseUrl
+      ? baseUrl.endsWith("/")
+        ? baseUrl.slice(0, -1)
+        : baseUrl
+      : "";
+    const url = normalizedBaseUrl
+      ? `${normalizedBaseUrl}/${relativePath}`
+      : relativePath;
+
     const fileRecord = await this.db.createFile({
       project_id: projectId,
       filename: uniqueFilename,
       original_name: originalName,
       mime_type:
-        (file as { mimetype?: string })?.mimetype || "application/octet-stream",
-      size: (file as { size?: number })?.size || 0,
+        (metadata as { mimeType?: string })?.mimeType ||
+        (file as { mimetype?: string })?.mimetype ||
+        "application/octet-stream",
+      size:
+        (metadata as { fileSize?: number })?.fileSize ||
+        (file as { size?: number })?.size ||
+        fileBuffer.length,
       path: relativePath, // Store relative path: files/{filename}
-      url: `${
-        (metadata as { baseUrl?: string })?.baseUrl || ""
-      }/files/${uniqueFilename}`,
-      metadata: metadata || {},
-      uploaded_by:
-        (metadata as { uploadedBy?: string })?.uploadedBy || "system",
+      url,
+      metadata: {
+        ...(metadata || {}),
+        folder_id: folderId,
+      },
+      uploaded_by: uploadedBy,
+      folder_id: folderId || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -156,9 +187,7 @@ export class StorageService {
       path: fileRecord.path,
       mime_type: fileRecord.mime_type,
       size: fileRecord.size,
-      url: `${(metadata as { baseUrl?: string })?.baseUrl || ""}${
-        fileRecord.path
-      }${fileRecord.filename}`,
+      url: fileRecord.url || url,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
       updated_at: fileRecord.updated_at,
@@ -177,10 +206,17 @@ export class StorageService {
     // Construct full file path: data/projects/{projectId}/files/{filename}
     // file.path is stored as relative: files/{filename}
     const projectFilesPath = this.dbManager.getProjectFilesPath(fileRecord.project_id);
-    const filePath = path.join(projectFilesPath, fileRecord.filename);
+    const filePath = path.join(
+      projectFilesPath,
+      path.basename(fileRecord.path || fileRecord.filename)
+    );
 
     try {
-      const buffer = await fs.promises.readFile(filePath);
+      const encryptedBuffer = await fs.promises.readFile(filePath);
+      
+      // Decrypt file when reading
+      const buffer = await this.encryptionService.decrypt(encryptedBuffer);
+      
       return {
         buffer,
         filename: fileRecord.filename,
@@ -215,7 +251,7 @@ export class StorageService {
       path: fileRecord.path,
       mime_type: fileRecord.mime_type,
       size: fileRecord.size,
-      url: `${fileRecord.path}${fileRecord.filename}`,
+      url: fileRecord.url || fileRecord.path,
       uploaded_by: fileRecord.uploaded_by,
       created_at: fileRecord.created_at,
       updated_at: fileRecord.updated_at || fileRecord.created_at, // Use created_at as fallback

@@ -1,7 +1,10 @@
+import { randomBytes } from "crypto";
+
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
 
-import { ApiResponse } from "@/types";
+import { ApiResponse, BackendSession, SessionType } from "@/types";
 import { extractErrorDetails, logError, isAuthError } from "@/utils/error-utils";
 
 /**
@@ -109,6 +112,80 @@ export class AdminLoginHandler {
 
         res.status(200).json(responseData as ApiResponse);
       } catch (error) {
+        // If admin authentication fails, try project user authentication as fallback
+        // This allows the SDK's auth.login() to work for both admin and project users
+        console.log(`[ADMIN LOGIN] Admin authentication failed for ${username}, trying project user authentication...`);
+        
+        try {
+          const { AuthAdapterService } = await import("@/services/auth-adapter.service");
+          const authAdapter = AuthAdapterService.getInstance();
+          const projectUser = await authAdapter.authenticateUser({
+            username,
+            password,
+          });
+
+          // Check if it's a project user (has project_id) vs admin user (has access_level)
+          if (projectUser && "project_id" in projectUser && !("access_level" in projectUser)) {
+            // Found a project user, create session
+            console.log(`[ADMIN LOGIN] Project user ${username} authenticated successfully`);
+            
+            const projectUserData = projectUser as { id: string; project_id?: string; scopes?: string[] };
+            
+            // Create session directly using DatabaseService (same approach as users.controller.ts)
+            const { DatabaseService } = await import("@/services/database.service");
+            const db = DatabaseService.getInstance();
+            
+            const sessionToken = `st_${uuidv4().replace(/-/g, "")}${randomBytes(16).toString("hex")}`;
+            const expiresAt = new Date(Date.now() + (remember_me ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)).toISOString();
+            
+            const sessionData: Omit<BackendSession, "id" | "createdAt" | "lastActivity"> = {
+              token: sessionToken,
+              user_id: projectUserData.id,
+              type: SessionType.PROJECT,
+              user_type: "project" as const,
+              scopes: projectUserData.scopes || [],
+              is_active: true,
+              created_at: new Date().toISOString(),
+              expires_at: expiresAt,
+              consumed: false,
+            };
+            
+            if (projectUserData.project_id) {
+              sessionData.project_id = projectUserData.project_id;
+            }
+            const ipAddress = req.ip || req.socket.remoteAddress;
+            if (ipAddress) {
+              sessionData.ip_address = ipAddress;
+            }
+            const userAgent = req.get("user-agent");
+            if (userAgent) {
+              sessionData.user_agent = userAgent;
+            }
+            
+            console.log(`[ADMIN LOGIN] Creating session for project user ${username} using DatabaseService...`);
+            const session = await db.createSession(sessionData);
+            console.log(`[ADMIN LOGIN] Session created successfully for project user ${username}, token: ${session.token.substring(0, 20)}...`);
+
+            const responseData = {
+              success: true,
+              data: {
+                user: projectUser,
+                token: session.token,
+                session_token: session.token,
+                expires_at: session.expires_at,
+                scopes: session.scopes || projectUserData.scopes || [],
+              },
+            };
+            
+            console.log(`[ADMIN LOGIN] Returning success response for project user ${username}`);
+            res.status(200).json(responseData as ApiResponse);
+            return;
+          }
+        } catch (projectUserError) {
+          console.log(`[ADMIN LOGIN] Project user authentication also failed for ${username}:`, projectUserError instanceof Error ? projectUserError.message : String(projectUserError));
+          // Fall through to return error
+        }
+
         // Use SDK error utilities for detailed error extraction
         const errorDetails = extractErrorDetails(error);
         logError("adminLogin.authenticate", error);

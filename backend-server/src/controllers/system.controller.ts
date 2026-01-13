@@ -1,6 +1,8 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
+import { persistSecurityConfig } from "../utils/runtime-config";
+
 import { ApiResponse, SystemSettings } from "@/types";
 
 /**
@@ -107,7 +109,13 @@ export class SystemController {
    */
   updateSettings = async (req: Request, res: Response): Promise<void> => {
     try {
-      const updates = req.body as Partial<SystemSettings>;
+      const updates = req.body as Partial<SystemSettings> & {
+        security?: Partial<SystemSettings["security"]> & {
+          allowedOrigins?: string | string[];
+          frontendPublicUrl?: string;
+        };
+        frontendPublicUrl?: string;
+      };
 
       // SDK-FIRST ARCHITECTURE: Use ONLY SDK methods - NO database fallbacks
       if (!this.backendSDK) {
@@ -125,6 +133,31 @@ export class SystemController {
           updateSettings: (settings: Partial<SystemSettings>) => Promise<SystemSettings>;
         };
         const updatedSettings = await systemService.updateSettings(updates);
+
+        // Persist CORS/frontend URL overrides to config for future restarts
+        const incomingAllowedOrigins = updates.security?.allowedOrigins;
+        const incomingFrontendUrl =
+          updates.security?.frontendPublicUrl || updates.frontendPublicUrl;
+
+        let allowedOrigins: string[] | undefined;
+        if (typeof incomingAllowedOrigins === "string") {
+          allowedOrigins = incomingAllowedOrigins
+            .split(",")
+            .map((origin) => origin.trim())
+            .filter((origin) => origin.length > 0);
+        } else if (Array.isArray(incomingAllowedOrigins)) {
+          allowedOrigins = incomingAllowedOrigins
+            .map((origin) => `${origin}`.trim())
+            .filter((origin) => origin.length > 0);
+        }
+
+        if (allowedOrigins || incomingFrontendUrl) {
+          const securityUpdate: Partial<import("../utils/runtime-config").SecurityConfig> = {};
+          if (allowedOrigins) {
+            securityUpdate.allowedOrigins = allowedOrigins;
+          }
+          persistSecurityConfig(securityUpdate, incomingFrontendUrl || undefined);
+        }
 
       res.status(200).json({
         success: true,

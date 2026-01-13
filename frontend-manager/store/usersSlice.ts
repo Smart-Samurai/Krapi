@@ -54,7 +54,7 @@ export const fetchUsers = createAsyncThunk(
       searchParams.set("limit", "200");
 
       const response = await fetch(
-        `/api/krapi/k1/projects/${projectId}/users?${searchParams.toString()}`,
+        `/api/client/krapi/k1/projects/${projectId}/users?${searchParams.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

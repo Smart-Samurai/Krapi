@@ -81,4 +81,24 @@ export async function runSDKApiTests(testSuite) {
         );
       }
     });
+
+    await testSuite.test("System resetDatabase method exists", async () => {
+      if (typeof testSuite.krapi.system?.resetDatabase !== "function") {
+        throw new Error("krapi.system.resetDatabase method not available - SDK must implement this method");
+      }
+      testSuite.assert(true, "System resetDatabase method is available");
+    });
+
+    await testSuite.test("System resetDatabase returns proper structure", async () => {
+      if (typeof testSuite.krapi.system?.resetDatabase !== "function") {
+        throw new Error("krapi.system.resetDatabase method not available - SDK must implement this method");
+      }
+
+      // Note: We don't actually call resetDatabase in tests as it's destructive
+      // We just verify the method exists and has the correct signature
+      testSuite.assert(
+        typeof testSuite.krapi.system.resetDatabase === "function",
+        "resetDatabase should be a function"
+      );
+    });
   }

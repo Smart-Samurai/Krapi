@@ -1,13 +1,17 @@
-import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
+
+import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
 
 /**
  * Cleanup test data
  * POST /api/testing/cleanup
+ *
+ * PROXY ROUTE: Connects to backend URL for testing operations
  */
 export async function POST(_request: NextRequest) {
   try {
-    const result = await krapi.testing.cleanup();
+    const backendSdk = await getBackendSdkClient();
+    const result = await backendSdk.testing.cleanup();
     return NextResponse.json({
       success: true,
       data: result,

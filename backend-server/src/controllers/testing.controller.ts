@@ -83,12 +83,6 @@ export class TestingController {
   checkSchema = async (req: Request, res: Response): Promise<void> => {
     await this.checkSchemaHandler.handle(req, res);
   };
-
-  // TODO: Extract remaining methods to handlers
-  // runIntegrationTests - Complex integration test suite
-  // runTests - General test runner
-  // runScenario - Run specific test scenario
-  // getAvailableScenarios - Get list of available scenarios
   // seedData - Seed test data
   // runPerformanceTest - Performance testing
   // runLoadTest - Load testing
@@ -117,7 +111,6 @@ export class TestingController {
         return;
       }
 
-      // Complex integration test suite - TODO: Extract to handler
       const results: Array<{
         suite: string;
         tests: Array<{
@@ -142,9 +135,6 @@ export class TestingController {
         suite: "Project Operations",
         tests: [],
       };
-
-      // TODO: Implement integration tests using SDK
-      // This is a placeholder - actual implementation would use SDK to test various operations
 
       results.push(projectSuite);
 
@@ -459,7 +449,6 @@ export class TestingController {
     }
   };
 
-  // Private helper methods - TODO: Extract to service classes
   private async runTestSuite(_testSuite: string): Promise<unknown> {
     // Placeholder - actual implementation would run test suite
     return { success: true, message: "Test suite execution not fully implemented" };

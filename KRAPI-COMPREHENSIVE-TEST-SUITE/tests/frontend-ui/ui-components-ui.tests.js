@@ -38,11 +38,10 @@ export async function runUIComponentsUITests(testSuite, page) {
     await login();
     
     await page.goto(`${frontendUrl}/dashboard`);
-    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
+    await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2); // Wait longer for sidebar to render
 
-    const sidebar = await page.locator(
-      '[role="navigation"], [class*="sidebar"], nav, aside'
-    ).first().isVisible().catch(() => false);
+    // Try multiple selectors - sidebar might be in different states (mobile/desktop, collapsed/expanded)
+    const sidebar = await page.locator('[data-testid="app-sidebar"], [data-sidebar="sidebar"]').first().isVisible().catch(() => false);
 
     testSuite.assert(sidebar, "Sidebar navigation should be visible");
   });
@@ -54,9 +53,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.goto(`${frontendUrl}/dashboard`);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    const header = await page.locator(
-      'h1, h2, [role="heading"], [class*="header"], [class*="title"]'
-    ).first().isVisible().catch(() => false);
+    const header = await page.locator('[data-testid="page-header"]').first().isVisible().catch(() => false);
 
     testSuite.assert(header, "Page header should be visible");
   });
@@ -69,9 +66,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    const table = await page.locator(
-      'table, [role="table"], [class*="table"]'
-    ).first().isVisible().catch(() => false);
+    const table = await page.locator('[data-testid^="table-"]').first().isVisible().catch(() => false);
 
     // Tables may not be on all pages, so this is optional
     testSuite.assert(true, "Tables should display when present (test passed)");
@@ -85,9 +80,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    const form = await page.locator(
-      'form, [class*="form"]'
-    ).first().isVisible().catch(() => false);
+    const form = await page.locator('[data-testid^="form-"]').first().isVisible().catch(() => false);
 
     testSuite.assert(form || true, "Forms should display when present (test passed)");
   });
@@ -124,7 +117,7 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.goto(`${frontendUrl}/settings`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    const inputs = await page.locator('input[type="text"], input[type="email"], textarea').all();
+    const inputs = await page.locator('[data-testid^="input-"], [data-testid^="form-field-"]').all();
 
     if (inputs.length > 0) {
       await inputs[0].fill("test");
@@ -160,12 +153,10 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.goto(`${frontendUrl}/dashboard`);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    const themeToggle = await page.locator(
-      'button[aria-label*="theme" i], button[title*="theme" i], [class*="theme"], [data-testid*="theme"]'
-    ).first().isVisible().catch(() => false);
+    const themeToggle = await page.locator('[data-testid="theme-toggle-button"]').first().isVisible().catch(() => false);
 
     if (themeToggle) {
-      await page.locator('button[aria-label*="theme" i], [class*="theme"]').first().click().catch(() => null);
+      await page.locator('[data-testid="theme-toggle-button"]').first().click().catch(() => null);
       await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
       testSuite.assert(true, "Theme toggle should work");
     } else {
@@ -180,10 +171,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     // Navigate and check for loading indicators
     const navigationPromise = page.goto(`${frontendUrl}/dashboard`);
     
-    // Look for loading indicators
-    const loadingIndicator = await page.locator(
-      '[class*="loading"], [class*="skeleton"], [class*="spinner"], [aria-busy="true"]'
-    ).first().isVisible().catch(() => false);
+    // Look for loading indicators (data-testid only)
+    const loadingIndicator = await page.locator('[data-testid="loading-indicator"], [data-testid="skeleton-loader"]').first().isVisible().catch(() => false);
 
     await navigationPromise;
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
@@ -200,10 +189,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    // Check for error message or 404 page
-    const errorMessage = await page.locator(
-      'text=/404/i, text=/not found/i, text=/error/i, [class*="error"]'
-    ).first().isVisible().catch(() => false);
+    // Check for error message or 404 page (data-testid only)
+    const errorMessage = await page.locator('[data-testid="error-404"], [data-testid="error-message"]').first().isVisible().catch(() => false);
 
     testSuite.assert(errorMessage || true, "Error states should display for invalid pages (test passed)");
   });
@@ -216,10 +203,8 @@ export async function runUIComponentsUITests(testSuite, page) {
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    // Look for empty state (if no projects)
-    const emptyState = await page.locator(
-      'text=/no.*project/i, text=/empty/i, [class*="empty"]'
-    ).first().isVisible().catch(() => false);
+    // Look for empty state (if no projects) - data-testid only
+    const emptyState = await page.locator('[data-testid="empty-state-projects"]').first().isVisible().catch(() => false);
 
     // Empty state is optional - if there's data, that's fine too
     testSuite.assert(true, "Empty states should display when appropriate (test passed)");

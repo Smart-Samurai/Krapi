@@ -13,21 +13,13 @@ import {
 } from "../../lib/sdk-client.js";
 
 /**
- * Setup test data with full database reset
- * This performs a complete database reset (deletes ALL data) before setting up test data.
- * Use this for a completely fresh database state.
+ * Setup test data with database reset
+ * This resets test data (deletes all projects) before setting up test data.
+ * Use this for a fresh database state for tests.
  */
 export async function setupTestDataWithReset() {
-  // First, do a full database reset (deletes ALL data)
-  try {
-    await resetDatabase();
-  } catch (error) {
-    console.log(
-      `⚠️  Full database reset failed: ${error.message}. Falling back to test data reset...`
-    );
-    // Fallback to lighter reset if full reset fails
-    await resetTestData();
-  }
+  // Reset test data (deletes all projects)
+  await resetTestData();
 
   // Then set up test data
   return await setupTestData();
@@ -59,91 +51,8 @@ async function loginAsAdmin() {
 }
 
 /**
- * Reset entire database (hard reset)
- * Deletes ALL data including projects, admin users, sessions, API keys, etc.
- * This ensures a completely fresh database state for tests.
- */
-export async function resetDatabase() {
-  console.log("🗑️  Performing full database reset...");
-
-  try {
-    // Add retry logic for rate limiting
-    let sessionToken;
-    let retries = 3;
-    while (retries > 0) {
-      try {
-        sessionToken = await loginAsAdmin();
-        break;
-      } catch (error) {
-        if (error.message.includes("Too many login attempts") && retries > 1) {
-          console.log(
-            `   ⏳ Rate limited, waiting 5 seconds before retry (${
-              retries - 1
-            } retries left)...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-          retries--;
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    // Use SDK to reset database - check if SDK has reset method
-    // If not available, we'll need to use a direct API call for this specific endpoint
-    const krapi = getSDK();
-
-    // SDK may not have a reset method, so we'll use fetch for this system endpoint
-    // This is acceptable as it's a system/admin operation, not a regular API operation
-    const response = await fetch(
-      `${CONFIG.FRONTEND_URL}/api/krapi/k1/system/reset-database`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Database reset failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (result.success && result.data) {
-      console.log("✅ Full database reset complete");
-      console.log(`   - Deleted Projects: ${result.data.deletedProjects || 0}`);
-      console.log(
-        `   - Deleted Admin Users: ${result.data.deletedAdminUsers || 0}`
-      );
-      console.log(
-        `   - Deleted Sessions: ${result.data.deletedSessions || 0}`
-      );
-      console.log("   - Default admin reset to: admin / admin123");
-
-      // Clear test data arrays
-      TEST_DATA.projects = [];
-      TEST_DATA.collections = [];
-      TEST_DATA.documents = [];
-      TEST_DATA.users = [];
-      TEST_DATA.apiKeys = [];
-
-      return result.data;
-    } else {
-      throw new Error(response.error || "Database reset failed");
-    }
-  } catch (error) {
-    console.error(`❌ Failed to reset database: ${error.message}`);
-    throw error;
-  }
-}
-
-/**
  * Reset database by deleting all test data
- * Also attempts to delete all projects for a truly fresh start
- * NOTE: This is a lighter reset - use resetDatabase() for full reset
+ * Deletes all projects for a fresh start
  */
 export async function resetTestData() {
   console.log("🧹 Resetting test data...");
@@ -357,7 +266,8 @@ export async function createTestApiKey(projectId, name = "Test API Key") {
   try {
     const token = await loginAsAdmin(); // Initialize SDK and login
     
-    // Direct API call to bypass SDK client-mode restriction
+    // Use frontend API route which uses backend SDK internally
+    // This route should work because it uses createAuthenticatedBackendSdk
     const response = await fetch(
       `${CONFIG.FRONTEND_URL}/api/krapi/k1/projects/${projectId}/api-keys`,
       {
@@ -368,31 +278,40 @@ export async function createTestApiKey(projectId, name = "Test API Key") {
         },
         body: JSON.stringify({
           name: name,
-          scopes: ["read", "write"],
+          scopes: ["projects:read", "collections:read", "documents:read"],
         }),
       }
     );
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(error.error || response.statusText);
+        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        const errorMessage = errorData.error || errorData.message || response.statusText;
+        
+        // If it's a 500 error, it might be a real issue - log it
+        if (response.status === 500) {
+          console.error(`   ❌ API key creation failed with 500: ${errorMessage}`);
+        }
+        
+        throw new Error(errorMessage);
     }
 
     const result = await response.json();
     if (!result.success || !result.data) {
-        throw new Error("Failed to create API Key: Invalid response");
+        throw new Error("Failed to create API Key: Invalid response format");
     }
 
     const apiKey = result.data;
     // Normalized format if needed
     TEST_DATA.apiKeys.push({ projectId, apiKey });
     console.log(
-      `   ✅ Created test API key: ${apiKey.name} in project ${projectId}`
+      `   ✅ Created test API key: ${apiKey.name || name} in project ${projectId}`
     );
 
     return apiKey;
   } catch (error) {
-    throw new Error(`Failed to create test API key: ${error.message}`);
+    // Re-throw with more context
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to create test API key: ${errorMessage}`);
   }
 }
 
@@ -451,17 +370,11 @@ export async function setupTestData() {
     await createTestUser(project1.id, "testuser1@example.com");
     await createTestUser(project1.id, "testuser2@example.com");
 
-    // Create API keys (optional - skip if it fails)
-    try {
-      await createTestApiKey(project1.id, "Test Read Key");
-    } catch (error) {
-      console.log(`   ⚠️  Skipping API key creation: ${error.message}`);
-    }
-    try {
-      await createTestApiKey(project1.id, "Test Write Key");
-    } catch (error) {
-      console.log(`   ⚠️  Skipping API key creation: ${error.message}`);
-    }
+    // API keys are not required for UI tests - they are tested separately in api-keys-ui.tests.js
+    // API key creation via the frontend API route should work (it uses backend SDK),
+    // but if it fails, it's not critical for other UI tests
+    // Skip API key creation in test data setup to avoid unnecessary warnings
+    // UI tests that need API keys will create them as needed during the test
 
     console.log("✅ Test data setup complete");
     console.log(`   Projects: ${TEST_DATA.projects.length}`);
@@ -512,3 +425,4 @@ export function getFirstTestCollection(projectId) {
   );
   return collection ? collection.collection : null;
 }
+

@@ -42,8 +42,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import { Scope } from "@/lib/krapi-constants";
 import { ExtendedAdminUser } from "@/lib/types/extended";
-import { useAppDispatch } from "@/store/hooks";
 import { refreshSession } from "@/store/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 export default function ProfilePage() {
   const { user, scopes, sessionToken, loading: authLoading, isInitialized } = useReduxAuth();
@@ -184,7 +184,7 @@ export default function ProfilePage() {
 
     setIsRegeneratingKey(true);
     try {
-      const response = await fetch("/api/krapi/k1/apikeys/regenerate", {
+      const response = await fetch("/api/client/krapi/k1/apikeys/regenerate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -247,7 +247,7 @@ export default function ProfilePage() {
     setIsCreatingMasterKey(true);
     try {
       const response = await fetch(
-        `/api/krapi/k1/admin/master-api-keys`,
+        `/api/client/krapi/k1/admin/master-api-keys`,
         {
           method: "POST",
           headers: {
@@ -322,10 +322,10 @@ export default function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h2 className="text-base font-semibold">
+                <h2 className="text-base font-semibold" data-testid="profile-username">
                   {user?.username || "User"}
                 </h2>
-                <p className="text-text/60">{user?.email}</p>
+                <p className="text-text/60" data-testid="profile-email">{user?.email}</p>
                 <div className="flex items-center gap-2 mt-3">
                   <Badge variant="outline">{getRoleDisplay()}</Badge>
                   <Badge variant="outline">{getAccessLevelDisplay()}</Badge>
@@ -341,7 +341,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* Tabs */}
-        <Tabs defaultValue="general" className="space-y-4">
+        <Tabs defaultValue="general" className="space-y-4 w-full">
           <TabsList>
             <TabsTrigger value="general">
               <FiUser className="mr-2 h-4 w-4" />
@@ -362,8 +362,8 @@ export default function ProfilePage() {
           </TabsList>
 
           {/* General Tab */}
-          <TabsContent value="general">
-            <Card>
+          <TabsContent value="general" className="w-full">
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle>Account Information</CardTitle>
                 <CardDescription>Your basic account details</CardDescription>
@@ -421,8 +421,8 @@ export default function ProfilePage() {
           </TabsContent>
 
           {/* Security Tab */}
-          <TabsContent value="security">
-            <Card className="mb-4">
+          <TabsContent value="security" className="w-full">
+            <Card className="mb-4 w-full">
               <CardHeader>
                 <CardTitle>Session Management</CardTitle>
                 <CardDescription>Refresh your session token</CardDescription>
@@ -443,7 +443,7 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle>Change Password</CardTitle>
                 <CardDescription>Update your account password</CardDescription>
@@ -567,8 +567,8 @@ export default function ProfilePage() {
           </TabsContent>
 
           {/* Permissions Tab */}
-          <TabsContent value="permissions">
-            <Card>
+          <TabsContent value="permissions" className="w-full">
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle>Your Permissions</CardTitle>
                 <CardDescription>
@@ -604,15 +604,13 @@ export default function ProfilePage() {
                     </div>
 
                     {extendedUser?.project_ids &&
-                      extendedUser.project_ids.length > 0 && (
-                        <div>
+                      extendedUser.project_ids.length > 0 ? <div>
                           <h4 className="font-medium mb-2">Project Access</h4>
                           <p className="text-base text-muted-foreground">
                             You have access to {extendedUser.project_ids.length}{" "}
                             project(s)
                           </p>
-                        </div>
-                      )}
+                        </div> : null}
                   </div>
                 )}
               </CardContent>
@@ -620,8 +618,8 @@ export default function ProfilePage() {
           </TabsContent>
 
           {/* API Tab */}
-          <TabsContent value="api">
-            <Card>
+          <TabsContent value="api" className="w-full">
+            <Card className="w-full">
               <CardHeader>
                 <CardTitle>API Key</CardTitle>
                 <CardDescription>

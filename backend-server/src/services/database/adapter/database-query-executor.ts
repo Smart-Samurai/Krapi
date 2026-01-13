@@ -78,7 +78,13 @@ export class DatabaseQueryExecutor {
       await this.adapter.commitTransaction();
       return result;
     } catch (error) {
-      await this.adapter.rollbackTransaction();
+      try {
+        await this.adapter.rollbackTransaction();
+        console.error(`[TRANSACTION] Rollback executed due to error: ${error instanceof Error ? error.message : String(error)}`);
+      } catch (rollbackError) {
+        console.error(`[TRANSACTION] Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+        // Re-throw original error, not rollback error
+      }
       throw error;
     }
   }

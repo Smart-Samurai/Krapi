@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     // SDK adapter.query() returns ActivityLog[] directly
     const queryResult = await sdk.activity.query({
       ...(projectId ? { project_id: projectId } : {}),
-      limit: limit,
+      limit,
     });
 
     // LOG: What we received from SDK

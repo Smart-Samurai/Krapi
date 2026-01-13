@@ -71,7 +71,7 @@ export default function UserSettingsModal({
 }: UserSettingsModalProps) {
   const { user } = useReduxAuth();
   const { showSuccess, showError } = useNotification();
-  const krapi = useKrapi();
+  const { krapi } = useKrapi();
 
   // Password state
   const [passwordForm, setPasswordForm] = useState<PasswordChangeData>({
@@ -106,12 +106,17 @@ export default function UserSettingsModal({
 
     setIsChangingPassword(true);
     try {
-      const response = await krapi.auth.changePassword(
-        passwordForm.currentPassword,
-        passwordForm.newPassword
-      );
-
-      if (response.success) {
+      // SDK-FIRST: Use frontend API route which uses SDK
+      const response = await fetch("/api/client/krapi/k1/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
         showSuccess("Password changed successfully");
         setPasswordForm({
           currentPassword: "",
@@ -120,7 +125,7 @@ export default function UserSettingsModal({
         });
         setActiveTab("profile");
       } else {
-        showError("Failed to change password");
+        showError(data.error || "Failed to change password");
       }
     } catch {
       showError("Failed to change password");

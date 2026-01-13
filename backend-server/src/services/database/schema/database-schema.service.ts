@@ -126,7 +126,7 @@ export class DatabaseSchemaService {
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
-          user_id TEXT REFERENCES admin_users(id),
+          user_id TEXT NOT NULL,
           project_id TEXT REFERENCES projects(id),
           type TEXT CHECK (type IN ('admin', 'project')),
           user_type TEXT CHECK (user_type IN ('admin', 'project')),
@@ -176,6 +176,27 @@ export class DatabaseSchemaService {
           last_checked TEXT DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(check_type)
         )
+      `);
+
+      // System secrets table (main DB) - stores encrypted secrets like encryption keys
+      // eslint-disable-next-line no-warning-comments
+      // TODO: MIGRATE TO SDK - This table should be managed by SDK's system module
+      await this.dbManager.queryMain(`
+        CREATE TABLE IF NOT EXISTS system_secrets (
+          id TEXT PRIMARY KEY,
+          key_name TEXT UNIQUE NOT NULL,
+          encrypted_value TEXT NOT NULL,
+          encryption_method TEXT DEFAULT 'aes-256-gcm',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          created_by TEXT,
+          metadata TEXT DEFAULT '{}'
+        )
+      `);
+
+      // Create index on key_name for fast lookups
+      await this.dbManager.queryMain(`
+        CREATE INDEX IF NOT EXISTS idx_system_secrets_key_name ON system_secrets(key_name)
       `);
 
       // Create triggers for updated_at
@@ -350,7 +371,7 @@ export class DatabaseSchemaService {
         CREATE TABLE IF NOT EXISTS sessions (
           id TEXT PRIMARY KEY,
           token TEXT UNIQUE NOT NULL,
-          user_id TEXT REFERENCES admin_users(id),
+          user_id TEXT NOT NULL,
           project_id TEXT REFERENCES projects(id),
           type TEXT CHECK (type IN ('admin', 'project')),
           user_type TEXT CHECK (user_type IN ('admin', 'project')),

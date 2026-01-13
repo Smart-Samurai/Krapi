@@ -36,9 +36,8 @@ export class SystemInfoHandler {
       // Ensure version field exists - if not, add it from package.json or default
       if (!info.version) {
         try {
-          // Use require for synchronous JSON import
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const packageJson = require('../../../../package.json');
+          // Use dynamic import for package.json
+          const packageJson = await import('../../../../package.json');
           info.version = packageJson.version || '1.0.0';
         } catch {
           info.version = '1.0.0';

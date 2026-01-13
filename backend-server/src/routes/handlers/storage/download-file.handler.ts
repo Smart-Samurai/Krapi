@@ -1,12 +1,17 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
+import { StorageService } from "@/services/storage.service";
+
 /**
  * Handler for downloading a file
  * GET /storage/download/:fileId
+ * 
+ * Downloads a file and automatically decrypts it if encrypted.
+ * Uses StorageService which handles decryption automatically.
  */
 export class DownloadFileHandler {
-  constructor(private backendSDK: BackendSDK) {}
+  constructor(_backendSDK: BackendSDK) {}
 
   async handle(req: Request, res: Response): Promise<void> {
     try {
@@ -22,32 +27,42 @@ export class DownloadFileHandler {
         return;
       }
 
-      if (!this.backendSDK) {
-        res.status(500).json({ success: false, error: "BackendSDK not initialized" });
-        return;
+      // Use StorageService to download the file (which handles decryption)
+      const storageService = StorageService.getInstance();
+      const fileInfo = await storageService.getFileInfo(fileId);
+
+      let fileData;
+      try {
+        fileData = await storageService.downloadFile(fileId);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("File not found")) {
+          res.status(404).json({
+            success: false,
+            error: "File not found",
+          });
+          return;
+        }
+        throw error;
       }
 
-      // Type assertion needed as SDK types may not be fully updated
-      const storageService = this.backendSDK.storage as unknown as {
-        download: (projectId: string, fileId: string) => Promise<Blob | Buffer>;
-      };
+      // Set headers for file download
+      const filename =
+        fileInfo?.original_name || fileInfo?.filename || fileData.filename;
 
-      const fileData = await storageService.download(projectId, fileId);
+      res.setHeader(
+        "Content-Type",
+        fileInfo?.mime_type || fileData.mime_type || "application/octet-stream"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
+      res.setHeader("Content-Length", fileData.buffer.length);
 
-      // Convert Blob/Buffer to response
-      if (fileData instanceof Blob) {
-        const buffer = Buffer.from(await fileData.arrayBuffer());
-        res.setHeader("Content-Type", fileData.type || "application/octet-stream");
-        res.setHeader("Content-Length", buffer.length);
-        res.send(buffer);
-      } else if (Buffer.isBuffer(fileData)) {
-        res.setHeader("Content-Type", "application/octet-stream");
-        res.setHeader("Content-Length", fileData.length);
-        res.send(fileData);
-      } else {
-        res.status(500).json({ success: false, error: "Invalid file data format" });
-      }
+      // Send decrypted file
+      res.send(fileData.buffer);
     } catch (error) {
+      console.error("Download file error:", error);
       res.status(500).json({
         success: false,
         error: "Failed to download file",

@@ -114,12 +114,18 @@ import helmet from "helmet";
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 import { initializeAuthMiddleware } from "./middleware/auth.middleware";
+import { createProxyAuthMiddleware, RawBodyRequest } from "./middleware/proxy-auth.middleware";
+import { createRequestQueue } from "./middleware/request-queue.middleware";
 import routes, { initializeBackendSDK } from "./routes";
 import { AuthService } from "./services/auth.service";
 import { BackupSchedulerService } from "./services/backup-scheduler.service";
 import { ResticBackupService } from "./services/restic-backup.service";
 import { SdkDatabaseAdapter } from "./services/sdk-database-adapter";
 import { SDKServiceManager } from "./services/sdk-service-manager";
+import {
+  getRuntimeAllowedOrigins,
+  initializeRuntimeConfig,
+} from "./utils/runtime-config";
 
 // Types imported but used in route files
 
@@ -167,31 +173,9 @@ app.set("trust proxy", 1);
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
-const configuredOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((origin) =>
-  origin.trim()
-).filter((origin) => origin) || [];
-
-// Always include localhost origins (for local development and testing)
-const localhostOrigins = [
-  "http://localhost",
-  "http://localhost:3498", // Frontend default port
-  "http://localhost:3470", // Backend port
-  "http://127.0.0.1",
-  "http://127.0.0.1:3498",
-  "http://127.0.0.1:3470",
-];
-
-// Combine configured origins with localhost origins (localhost always allowed)
-const allowedOrigins = [...new Set([...localhostOrigins, ...configuredOrigins])];
-
-// When behind a reverse proxy (NPM, Nginx, etc.), allow all origins
-// The reverse proxy handles security, and we trust it via trust proxy setting
-// Default is true (most deployments use a reverse proxy for internet access)
-// Only set to false if explicitly disabled (BEHIND_PROXY=false)
-// Production mode always enables proxy mode
-const isBehindProxy =
-  process.env.NODE_ENV === "production" || process.env.BEHIND_PROXY !== "false";
+// Runtime configuration (env + config/krapi-config.json)
+const runtimeConfig = initializeRuntimeConfig();
+const isBehindProxy = runtimeConfig.security.behindProxy;
 
 app.use(
   cors({
@@ -205,17 +189,11 @@ app.use(
         return callback(null, true);
       }
       // Always allow localhost origins (for local development)
-      if (
-        origin.startsWith("http://localhost") ||
-        origin.startsWith("http://127.0.0.1")
-      ) {
-        return callback(null, true);
-      }
-      // Check configured allowed origins
-      if (allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS"));
+      const activeOrigins = getRuntimeAllowedOrigins();
+      if (activeOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
@@ -247,9 +225,34 @@ app.use((req, res, next) => {
   next();
 });
 
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// Body parsing with raw body capture for proxy signature verification
+const captureRawBody = (req: RawBodyRequest, _res: Response, buffer: Buffer) => {
+  if (buffer?.length) {
+    req.rawBody = buffer.toString("utf8");
+  } else {
+    req.rawBody = "";
+  }
+};
+
+app.use(express.json({ limit: "10mb", verify: captureRawBody }));
+app.use(express.urlencoded({ extended: true, limit: "10mb", verify: captureRawBody }));
+
+// Frontend proxy authentication middleware
+app.use(
+  createProxyAuthMiddleware({
+    secret: runtimeConfig.security.proxySecret,
+    proxyId: runtimeConfig.security.proxyId,
+  })
+);
+
+// HTTP Request Queue - Prevents request overload
+// Queue requests before they hit route handlers to prevent server overload
+const requestQueue = createRequestQueue({
+  maxConcurrent: parseInt(process.env.HTTP_QUEUE_MAX_CONCURRENT || "100"),
+  maxQueueSize: parseInt(process.env.HTTP_QUEUE_MAX_SIZE || "1000"),
+  requestTimeout: parseInt(process.env.HTTP_QUEUE_TIMEOUT || "30000"),
+});
+app.use("/krapi/k1", requestQueue);
 
 // Rate limiting
 // Disable rate limiting in test mode, development mode, or when explicitly disabled

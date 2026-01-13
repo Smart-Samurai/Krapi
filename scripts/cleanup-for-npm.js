@@ -24,7 +24,6 @@ const dirsToDelete = [
   "backend-server/packages/krapi-error-handler/node_modules",
   "backend-server/packages/krapi-monitor/node_modules",
   "KRAPI-COMPREHENSIVE-TEST-SUITE/node_modules",
-  "mcp-server/krapi-mcp-server/node_modules",
 ];
 
 let deletedFiles = 0;

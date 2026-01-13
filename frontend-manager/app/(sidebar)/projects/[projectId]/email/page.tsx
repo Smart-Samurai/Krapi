@@ -521,6 +521,8 @@ export default function EmailPage() {
       <PageHeader
         title="Email Configuration"
         description="Configure SMTP settings and manage email templates"
+        showBackButton
+        backButtonFallback={`/projects/${projectId}`}
         action={
           <div className="flex items-center gap-2">
             <Dialog open={isApiDocsOpen} onOpenChange={setIsApiDocsOpen}>
@@ -933,11 +935,9 @@ export default function EmailPage() {
             </CardContent>
           </Card>
 
-          {error && (
-            <Alert variant="destructive">
+          {error ? <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            </Alert> : null}
 
           {sortedTemplates.length === 0 ? (
             <EmptyState

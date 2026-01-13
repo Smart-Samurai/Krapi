@@ -11,14 +11,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
+import { Save } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
+import { BackButton } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -263,11 +263,10 @@ export default function ProjectSettingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild className="cursor-pointer">
-            <Link href={`/projects/${projectId}`}>
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
+          <BackButton
+            fallbackUrl={`/projects/${projectId}`}
+            className="-ml-2"
+          />
           <div>
             <h1 className="text-base font-bold">Project Settings</h1>
             <p className="text-muted-foreground">
@@ -337,11 +336,9 @@ export default function ProjectSettingsPage() {
                 )}
               />
 
-              {error && (
-                <Alert variant="destructive">
+              {error ? <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+                </Alert> : null}
 
               <div className="flex justify-end">
                 <Button type="submit" className="btn-confirm" data-testid="save-project-settings-button">

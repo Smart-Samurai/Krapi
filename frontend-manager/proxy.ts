@@ -1,44 +1,43 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { config as appConfig } from "@/lib/config";
+
 /**
  * List of paths that don't require authentication
  * These paths are accessible without a valid session token
  */
-const publicPaths = ["/login", "/api/auth", "/api/krapi"];
+const publicPaths = [
+  "/login",
+  "/register",
+  "/api/auth",
+  "/api/krapi",
+  "/api/client", // Client routes (used by frontend GUI, like 3rd party app)
+];
 
 /**
- * Validates a session token with the backend
+ * Validates a session token with the backend using SDK
+ * 
+ * SDK-FIRST ARCHITECTURE: Uses backend SDK client to validate tokens.
+ * NO direct fetch calls allowed - all communication goes through SDK.
  * 
  * @param {string} token - The session token to validate
  * @returns {Promise<boolean>} True if token is valid, false otherwise
  */
 async function validateTokenWithBackend(token: string): Promise<boolean> {
   try {
-    // SDK-FIRST: Use centralized config for backend URL
-    const { config } = await import("@/lib/config");
-    const backendApiUrl = config.backend.getApiUrl('/auth/me');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), config.auth.tokenValidationTimeout);
+    // SDK-FIRST: Use backend SDK client (connects to backend URL with API key)
+    // We use API key authentication for the SDK client, then validate the session token
+    const { getBackendSdkClient } = await import("@/app/api/lib/backend-sdk-client");
+    const backendSdk = await getBackendSdkClient();
 
-    const response = await fetch(backendApiUrl, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-    });
+    // Use SDK's auth.validateSession() method to validate the token
+    // This method validates the session token without requiring it to be set in the SDK
+    const result = await backendSdk.auth.validateSession(token);
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const result = await response.json();
-    return result.success === true && result.data !== undefined;
+    // SDK returns { valid: boolean, session?: {...} } format
+    return result?.valid === true;
   } catch (_error) {
-    // If validation fails (network error, timeout, etc.), treat as invalid
+    // If validation fails (network error, timeout, SDK error, etc.), treat as invalid
     return false;
   }
 }
@@ -61,6 +60,43 @@ export function proxy(request: NextRequest): Promise<NextResponse> {
   return handleProxyRequest(request);
 }
 
+function buildAllowedOrigins(): string[] {
+  const envOrigins =
+    process.env.KRAPI_ALLOWED_ORIGINS ||
+    process.env.ALLOWED_ORIGINS ||
+    "";
+  const parsed =
+    envOrigins
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean) || [];
+
+  const defaults = [
+    "http://localhost",
+    "http://localhost:3498",
+    "http://127.0.0.1",
+    "http://127.0.0.1:3498",
+  ];
+
+  const configuredFrontendUrl =
+    process.env.KRAPI_FRONTEND_PUBLIC_URL ||
+    appConfig.frontend.url ||
+    "";
+
+  return Array.from(
+    new Set(
+      [...defaults, configuredFrontendUrl, ...parsed].filter(Boolean)
+    )
+  );
+}
+
+const FRONTEND_ALLOWED_ORIGINS = buildAllowedOrigins();
+
+function isOriginAllowed(origin?: string | null): boolean {
+  if (!origin) return true;
+  return FRONTEND_ALLOWED_ORIGINS.includes(origin);
+}
+
 /**
  * Handles the proxy request logic
  * 
@@ -77,6 +113,12 @@ async function handleProxyRequest(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith("/public/")
   ) {
     return NextResponse.next();
+  }
+
+  // Origin allowlist enforcement (frontend listener)
+  const origin = request.headers.get("origin");
+  if (!isOriginAllowed(origin)) {
+    return new NextResponse("Origin not allowed", { status: 403 });
   }
 
   // Allow public paths without authentication

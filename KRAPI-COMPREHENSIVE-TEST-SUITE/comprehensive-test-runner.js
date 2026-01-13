@@ -62,13 +62,36 @@ class ComprehensiveTestRunner {
     const minimal = process.env.VERBOSE !== "true";
 
     if (minimal) {
-      // In minimal mode, only show critical errors
-      if (level === "CRITICAL" || level === "ERROR") {
+      // In minimal mode, show important progress messages and all errors
+      const importantKeywords = [
+        "Starting",
+        "Building",
+        "Cleaning",
+        "Starting services",
+        "Running",
+        "Test",
+        "Complete",
+        "Failed",
+        "Error",
+        "Setup",
+        "Configuring",
+        "Updating",
+      ];
+      
+      const isImportant = importantKeywords.some(keyword => 
+        message.includes(keyword)
+      );
+      
+      if (level === "CRITICAL" || level === "ERROR" || isImportant || level === "SUCCESS") {
         const levelEmoji = {
           ERROR: "❌",
           CRITICAL: "💥",
+          SUCCESS: "✅",
+          INFO: "ℹ️",
+          WARNING: "⚠️",
         };
-        console.log(`${levelEmoji[level]} ${message}`);
+        const emoji = levelEmoji[level] || "ℹ️";
+        console.log(`${emoji} ${message}`);
       }
       return;
     }
@@ -124,6 +147,69 @@ class ComprehensiveTestRunner {
       }
       return { stdout: error.stdout, stderr: error.stderr, success: false };
     }
+  }
+
+  /**
+   * Run a command with streaming output (for build processes)
+   * Output is shown in real-time while still being captured for error logging
+   */
+  async runCommandStreaming(command, options = {}) {
+    if (!options.silent) {
+      this.log(`Running: ${command}`, "INFO");
+    }
+
+    return new Promise((resolve) => {
+      // Use shell: true to handle complex commands with &&, pipes, etc.
+      // When shell is true, pass command as first arg and empty array as second
+      const childProcess = spawn(command, [], {
+        cwd: options.cwd || this.projectRoot,
+        shell: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      // Stream stdout to console in real-time
+      childProcess.stdout.on('data', (data) => {
+        const output = data.toString();
+        stdout += output;
+        // Print directly to console for real-time visibility
+        process.stdout.write(data);
+      });
+
+      // Stream stderr to console in real-time (filter harmless warnings)
+      childProcess.stderr.on('data', (data) => {
+        const output = data.toString();
+        stderr += output;
+        
+        // Filter out harmless npm warnings
+        const isHarmlessWarning =
+          output.includes('Unknown env config "verify-deps-before-run"') ||
+          output.includes('Unknown env config "_jsr-registry"') ||
+          output.includes('This will stop working in the next major version');
+
+        if (!isHarmlessWarning) {
+          // Print directly to console for real-time visibility
+          process.stderr.write(data);
+        }
+      });
+
+      childProcess.on('close', (code) => {
+        const success = code === 0;
+        if (!success && !options.silent) {
+          this.log(`Command failed with exit code ${code}`, "ERROR");
+        }
+        resolve({ stdout, stderr, success, exitCode: code });
+      });
+
+      childProcess.on('error', (error) => {
+        if (!options.silent) {
+          this.log(`Command error: ${error.message}`, "ERROR");
+        }
+        resolve({ stdout, stderr, success: false, error: error.message });
+      });
+    });
   }
 
   async killProcessOnPort(port) {
@@ -207,6 +293,7 @@ class ComprehensiveTestRunner {
     this.log("🧹 Cleaning up existing test resources...", "INFO");
 
     // Kill processes on test ports FIRST (before trying to delete locked files)
+    console.log("   Killing any existing processes on test ports...");
     this.log("   Killing any existing processes on test ports...", "INFO");
     await this.killProcessOnPort(3498); // Frontend
     await this.killProcessOnPort(3470); // Backend
@@ -250,6 +337,7 @@ class ComprehensiveTestRunner {
     // Verify cleanup was successful
     await this.verifyDatabaseCleanup();
 
+    console.log("✅ Cleanup complete");
     this.log("✅ Cleanup complete", "SUCCESS");
   }
 
@@ -387,19 +475,6 @@ class ComprehensiveTestRunner {
     }
   }
 
-  async setupDockerEnvironment() {
-    this.log(
-      "💾 Using embedded SQLite database - no Docker setup needed",
-      "INFO"
-    );
-    // SQLite database is embedded - no Docker setup required
-    // Database file will be created automatically at backend-server/data/krapi.db
-    this.log(
-      "✅ SQLite database will be initialized on first connection",
-      "SUCCESS"
-    );
-    return true;
-  }
 
   async detectPackageManager() {
     // Force npm as requested
@@ -408,77 +483,20 @@ class ComprehensiveTestRunner {
 
   async updateDependencies() {
     this.log("📦 Updating all dependencies to latest versions...", "INFO");
+    this.log("   Using centralized install script (syncs SDK version automatically)...", "INFO");
 
-    // Detect package manager
-    const packageManager = await this.detectPackageManager();
+    // Use the new centralized install:all script which:
+    // 1. Syncs SDK version across all packages from .sdk-version.json
+    // 2. Installs all dependencies in root and all subdirectories
+    const installResult = await this.runCommand("npm run install:all");
 
-    // Update dependencies in root
-    this.log("   Updating root dependencies...", "INFO");
-    const rootUpdateResult = await this.runCommand("npm update");
-    if (!rootUpdateResult.success) {
-      this.log(
-        `   ⚠️  Root dependency update had issues: ${rootUpdateResult.stderr}`,
-        "WARNING"
-      );
-    } else {
-      this.log("   ✅ Root dependencies updated", "SUCCESS");
-    }
-
-    // Install dependencies in root (to get latest SDK)
-    this.log("   Installing root dependencies...", "INFO");
-    const rootInstallResult = await this.runCommand("npm install");
-    if (!rootInstallResult.success) {
+    if (!installResult.success) {
       throw new Error(
-        `Failed to install root dependencies: ${rootInstallResult.stderr}`
+        `Failed to install dependencies: ${installResult.stderr || installResult.stdout}`
       );
     }
-    this.log("   ✅ Root dependencies installed", "SUCCESS");
 
-    // Update dependencies in backend-server
-    this.log("   Updating backend dependencies...", "INFO");
-    const backendUpdateResult = await this.runCommand("cd backend-server && npm update");
-    if (!backendUpdateResult.success) {
-      this.log(
-        `   ⚠️  Backend dependency update had issues: ${backendUpdateResult.stderr}`,
-        "WARNING"
-      );
-    } else {
-      this.log("   ✅ Backend dependencies updated", "SUCCESS");
-    }
-
-    // Install dependencies in backend-server
-    this.log("   Installing backend dependencies...", "INFO");
-    const backendInstallResult = await this.runCommand("cd backend-server && npm install");
-    if (!backendInstallResult.success) {
-      throw new Error(
-        `Failed to install backend dependencies: ${backendInstallResult.stderr}`
-      );
-    }
-    this.log("   ✅ Backend dependencies installed", "SUCCESS");
-
-    // Update dependencies in frontend-manager
-    this.log("   Updating frontend dependencies...", "INFO");
-    const frontendUpdateResult = await this.runCommand("cd frontend-manager && npm update");
-    if (!frontendUpdateResult.success) {
-      this.log(
-        `   ⚠️  Frontend dependency update had issues: ${frontendUpdateResult.stderr}`,
-        "WARNING"
-      );
-    } else {
-      this.log("   ✅ Frontend dependencies updated", "SUCCESS");
-    }
-
-    // Install dependencies in frontend-manager
-    this.log("   Installing frontend dependencies...", "INFO");
-    const frontendInstallResult = await this.runCommand("cd frontend-manager && npm install");
-    if (!frontendInstallResult.success) {
-      throw new Error(
-        `Failed to install frontend dependencies: ${frontendInstallResult.stderr}`
-      );
-    }
-    this.log("   ✅ Frontend dependencies installed", "SUCCESS");
-
-    this.log("✅ All dependencies updated and installed", "SUCCESS");
+    this.log("✅ All dependencies updated and installed (SDK version synced)", "SUCCESS");
   }
 
   async buildServices() {
@@ -491,36 +509,37 @@ class ComprehensiveTestRunner {
 
     // Rebuild better-sqlite3 to ensure native bindings are compiled
     // This is critical for SQLite to work - better-sqlite3 requires native bindings
-    this.log("   Rebuilding better-sqlite3 native bindings...", "INFO");
-    const rebuildResult = await this.runCommand(
-      "cd backend-server && npm rebuild better-sqlite3",
+    // Use smart rebuild script which will skip if already built
+    this.log("   Rebuilding better-sqlite3 native bindings (if needed)...", "INFO");
+    const rebuildResult = await this.runCommandStreaming(
+      "cd backend-server && node scripts/smart-rebuild-sqlite.js",
       { cwd: this.projectRoot }
     );
     if (!rebuildResult.success) {
       this.log(
-        "   Warning: better-sqlite3 rebuild failed, trying root rebuild...",
+        "   Warning: better-sqlite3 rebuild failed, trying direct rebuild...",
         "WARNING"
       );
-      // Fallback: try rebuilding from root
-      const rootRebuildResult = await this.runCommand(
-        "npm rebuild better-sqlite3 --force",
+      // Fallback: try direct rebuild
+      const directRebuildResult = await this.runCommandStreaming(
+        "cd backend-server && npm rebuild better-sqlite3",
         { cwd: this.projectRoot }
       );
-      if (!rootRebuildResult.success) {
+      if (!directRebuildResult.success) {
         this.log(
-          "   Warning: Root rebuild also failed, continuing anyway",
+          "   Warning: Direct rebuild also failed, continuing anyway",
           "WARNING"
         );
       } else {
-        this.log("   ✅ better-sqlite3 rebuild successful (root)", "SUCCESS");
+        this.log("   ✅ better-sqlite3 rebuild successful (direct)", "SUCCESS");
       }
     } else {
-      this.log("   ✅ better-sqlite3 rebuild successful", "SUCCESS");
+      // Smart rebuild script already logged success/failure
     }
 
     // Build packages first
     this.log("   Step 2: Building packages...", "INFO");
-    const packagesResult = await this.runCommand("npm run build:packages");
+    const packagesResult = await this.runCommandStreaming("npm run build:packages");
     if (!packagesResult.success) {
       const buildError = new Error(`Failed to build packages`);
       buildError.buildOutput =
@@ -533,7 +552,7 @@ class ComprehensiveTestRunner {
 
     // Build backend
     this.log("   Step 3: Building backend...", "INFO");
-    const backendResult = await this.runCommand("npm run build:backend");
+    const backendResult = await this.runCommandStreaming("npm run build:backend");
     if (!backendResult.success) {
       const buildError = new Error(`Failed to build backend`);
       buildError.buildOutput =
@@ -546,7 +565,7 @@ class ComprehensiveTestRunner {
 
     // Build frontend
     this.log("   Step 4: Building frontend (this includes type checking)...", "INFO");
-    const frontendResult = await this.runCommand("npm run build:frontend");
+    const frontendResult = await this.runCommandStreaming("npm run build:frontend");
     if (!frontendResult.success) {
       const buildError = new Error(`Failed to build frontend`);
       buildError.buildOutput =
@@ -1327,6 +1346,11 @@ class ComprehensiveTestRunner {
       await krapi.connect({
         endpoint: "http://127.0.0.1:3498",
         timeout: 5000,
+        initializeClients: true,
+        retry: {
+          attempts: 3,
+          delay: 1000,
+        },
       });
 
       // Login using SDK (not direct axios)
@@ -1357,6 +1381,10 @@ class ComprehensiveTestRunner {
         sessionToken: this.sessionToken, // Pass token in config so all clients get it
         initializeClients: true,
         timeout: 5000,
+        retry: {
+          attempts: 3,
+          delay: 1000,
+        },
       });
       this.log("   ✅ SDK reconnected with session token for all services", "SUCCESS");
 
@@ -1403,7 +1431,7 @@ class ComprehensiveTestRunner {
         const testInstance = new TestClass(this.sessionToken, this.testProject);
         await testInstance.runAll();
 
-        this.log(`✅ ${testFile} PASSED`, "SUCCESS");
+        // Test suite already shows detailed results - no need for redundant pass message
         this.results.passed++;
         resolve(true);
       } catch (error) {
@@ -1415,6 +1443,7 @@ class ComprehensiveTestRunner {
   }
 
   async runAllTests() {
+    console.log("🚀 Starting Comprehensive Test Suite");
     this.log("🚀 Starting Comprehensive Test Suite", "INFO");
     const startTime = Date.now();
     this.startTime = startTime; // Store for global error handlers
@@ -1422,37 +1451,46 @@ class ComprehensiveTestRunner {
 
     try {
       // Clean up existing resources
+      console.log("🧹 Cleaning up existing test resources...");
       await this.cleanupExistingResources();
 
-      // Setup Docker environment
-      await this.setupDockerEnvironment();
-
       // Update all dependencies to latest versions (including SDK)
+      console.log("📦 Updating dependencies...");
       await this.updateDependencies();
 
       // Build all services
+      console.log("🔨 Building all services...");
       try {
         await this.buildServices();
+        console.log("✅ Build complete");
       } catch (buildError) {
         // Build failed - create a build error log file
+        console.log("❌ Build failed");
         await this.logBuildError(buildError);
         throw buildError; // Re-throw to be caught by outer catch
       }
 
       // Configure app for tests (CORS, security settings, etc.)
+      console.log("⚙️  Configuring app for tests...");
       await this.configureAppForTests();
 
       // Start services
+      console.log("🚀 Starting services...");
       await this.startServices();
+      console.log("✅ Services started");
 
       // Setup test environment
+      console.log("🔧 Setting up test environment...");
       const setupSuccess = await this.setupTestEnvironment();
       if (!setupSuccess) {
+        console.log("❌ Test environment setup failed");
         this.log("❌ Test environment setup failed", "ERROR");
         return false;
       }
+      console.log("✅ Test environment ready");
 
       // Load and run all comprehensive test files
+      console.log("🧪 Running comprehensive test suite...");
       this.log("🧪 Running comprehensive test suite...", "INFO");
 
       const testFiles = ["comprehensive-unified-test.js"];
@@ -1590,12 +1628,12 @@ class ComprehensiveTestRunner {
               break;
             }
 
-            // Default behavior: stop on any test failure
+            // Default behavior: continue running all tests and report all errors at the end
             this.log(
-              "🚨 TEST FAILURE DETECTED - STOPPING TEST SUITE IMMEDIATELY",
-              "CRITICAL"
+              "⚠️  Test suite failed, but continuing to run all remaining tests...",
+              "WARNING"
             );
-            throw error;
+            // Don't throw - continue with next test suite
           }
 
           // Collect individual test results from the test framework
@@ -1624,7 +1662,7 @@ class ComprehensiveTestRunner {
 
           if (result === true) {
             this.results.passed++;
-            this.log(`✅ ${testFile} PASSED`, "SUCCESS");
+            // Test suite already shows detailed results - no need for redundant pass message
             this.testDetails.push({
               test: testFile,
               status: "PASSED",
@@ -1647,12 +1685,12 @@ class ComprehensiveTestRunner {
               break;
             }
 
-            // Default behavior: stop on any test failure
+            // Default behavior: continue running all tests and report all errors at the end
             this.log(
-              "🚨 TEST FAILURE DETECTED - STOPPING TEST SUITE IMMEDIATELY",
-              "CRITICAL"
+              "⚠️  Test suite returned false, but continuing to run all remaining tests...",
+              "WARNING"
             );
-            throw new Error(`Test ${testFile} failed - stopping immediately`);
+            // Don't throw - continue with next test suite
           }
           this.results.total++;
         } catch (error) {
@@ -1668,12 +1706,21 @@ class ComprehensiveTestRunner {
             error: error.message,
           });
 
-          // STOP IMMEDIATELY on any error
+          // If STOP_ON_FIRST_FAILURE is enabled, stop immediately
+          if (process.env.STOP_ON_FIRST_FAILURE === "true") {
+            this.log(
+              "⚡ STOP_ON_FIRST_FAILURE mode: Stopping test execution immediately",
+              "CRITICAL"
+            );
+            throw error;
+          }
+
+          // Default behavior: continue running all tests and report all errors at the end
           this.log(
-            "🚨 ERROR DETECTED - STOPPING TEST SUITE IMMEDIATELY",
-            "CRITICAL"
+            "⚠️  Error detected, but continuing to run all remaining tests...",
+            "WARNING"
           );
-          throw error;
+          // Don't throw - continue with next test suite
         }
       }
 
@@ -1793,7 +1840,6 @@ class ComprehensiveTestRunner {
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const testResultsFile = join(logsDir, `test-results-${timestamp}.txt`);
       const testErrorsFile = join(logsDir, `test-errors-${timestamp}.txt`);
       const testResultsJsonFile = join(
         logsDir,
@@ -1849,25 +1895,7 @@ class ComprehensiveTestRunner {
       errorReport += "END OF FATAL ERROR REPORT\n";
       errorReport += "=".repeat(80) + "\n";
 
-      // Create results report
-      let resultsReport = "=".repeat(80) + "\n";
-      resultsReport += "KRAPI TEST SUITE - TEST RESULTS (FATAL ERROR)\n";
-      resultsReport += "=".repeat(80) + "\n\n";
-      resultsReport += `Timestamp: ${new Date().toISOString()}\n`;
-      resultsReport += `Duration: ${duration}ms\n\n`;
-      resultsReport += "SUMMARY\n";
-      resultsReport += "-".repeat(80) + "\n";
-      resultsReport += `Total Suites: ${this.totalSuites}\n`;
-      resultsReport += `Passed: ${this.results.passed}\n`;
-      resultsReport += `Failed: ${this.results.failed}\n`;
-      resultsReport += `Total: ${this.results.total}\n\n`;
-      resultsReport += "FATAL ERROR\n";
-      resultsReport += "-".repeat(80) + "\n";
-      resultsReport += `${error.message}\n`;
-      if (error.stack) {
-        resultsReport += `\nStack Trace:\n${error.stack}\n`;
-      }
-      resultsReport += "\n" + "=".repeat(80) + "\n";
+      // Results are saved in JSON only (no duplicate TXT file)
 
       // Create JSON results
       const jsonResults = {
@@ -1904,9 +1932,8 @@ class ComprehensiveTestRunner {
         serviceLogs: this.serviceLogs,
       };
 
-      // Write all files
+      // Write files (JSON and errors only, no duplicate TXT)
       await writeFile(testErrorsFile, errorReport, "utf-8");
-      await writeFile(testResultsFile, resultsReport, "utf-8");
       await writeFile(
         testResultsJsonFile,
         JSON.stringify(jsonResults, null, 2),
@@ -1914,7 +1941,6 @@ class ComprehensiveTestRunner {
       );
 
       this.log(`📄 Fatal error logged to: ${testErrorsFile}`, "INFO");
-      this.log(`📄 Test results saved to: ${testResultsFile}`, "INFO");
       this.log(`📄 JSON results saved to: ${testResultsJsonFile}`, "INFO");
     } catch (logError) {
       // If we can't log the fatal error, at least log that we tried
@@ -1974,34 +2000,8 @@ class ComprehensiveTestRunner {
       await writeFile(buildErrorFile, errorReport, "utf-8");
       this.log(`📄 Build error logged to: ${buildErrorFile}`, "INFO");
 
-      // Also create a minimal test results file so the test runner can find it
-      const testResultsFile = join(logsDir, `test-results-${timestamp}.txt`);
+      // Also create error file (JSON is created separately if needed)
       const testErrorsFile = join(logsDir, `test-errors-${timestamp}.txt`);
-
-      let resultsReport = "=".repeat(80) + "\n";
-      resultsReport += "KRAPI TEST SUITE - BUILD FAILED\n";
-      resultsReport += "=".repeat(80) + "\n\n";
-      resultsReport += "SUMMARY\n";
-      resultsReport += "-".repeat(80) + "\n";
-      resultsReport += "Total Tests: 0\n";
-      resultsReport += "Passed: 0\n";
-      resultsReport += "Failed: 0\n";
-      resultsReport += "Success Rate: 0%\n";
-      resultsReport += `Duration: 0ms\n`;
-      resultsReport += `Timestamp: ${new Date().toISOString()}\n\n`;
-      resultsReport += "BUILD ERROR\n";
-      resultsReport += "-".repeat(80) + "\n";
-      resultsReport += `Build Type: ${buildError.buildType || "unknown"}\n`;
-      resultsReport += `Error: ${buildError.message}\n`;
-      if (buildError.buildOutput) {
-        resultsReport += `\nBuild Output:\n${buildError.buildOutput.substring(
-          0,
-          2000
-        )}${buildError.buildOutput.length > 2000 ? "\n... (truncated)" : ""}\n`;
-      }
-      resultsReport += "\n" + "=".repeat(80) + "\n";
-
-      await writeFile(testResultsFile, resultsReport, "utf-8");
       await writeFile(testErrorsFile, errorReport, "utf-8");
     } catch (logError) {
       // If we can't log the build error, at least log that we tried
@@ -2016,6 +2016,52 @@ class ComprehensiveTestRunner {
 
     try {
       console.log("🔄 Inside try block");
+      
+      // CRITICAL: Delete all projects via API/SDK BEFORE stopping services
+      // This ensures projects are properly deleted from the database
+      this.log("   Deleting all test projects via API...", "INFO");
+      try {
+        // Only try to delete projects if services are still running
+        // Check if frontend is still accessible
+        const frontendStillRunning = this.services.frontend && 
+          this.services.frontend.exitCode === null && 
+          !this.services.frontend.killed;
+        
+        if (frontendStillRunning && this.sessionToken) {
+          // Try to connect and delete all projects
+          const { default: krapi } = await import("@krapi/sdk");
+          await krapi.connect({
+            endpoint: "http://127.0.0.1:3498",
+            sessionToken: this.sessionToken,
+            timeout: 5000,
+            initializeClients: true,
+          });
+          
+          // Get all projects and delete them
+          const projects = await krapi.projects.getAll();
+          this.log(`   Found ${projects.length} project(s) to delete...`, "INFO");
+          
+          for (const project of projects) {
+            try {
+              await krapi.projects.delete(project.id);
+              this.log(`   ✅ Deleted project: ${project.name} (${project.id})`, "SUCCESS");
+            } catch (error) {
+              this.log(`   ⚠️  Could not delete project ${project.name}: ${error.message}`, "WARNING");
+            }
+          }
+          
+          if (projects.length > 0) {
+            this.log(`   ✅ Deleted ${projects.length} project(s) via API`, "SUCCESS");
+          }
+        } else {
+          this.log("   ⚠️  Services not running or no session token - skipping project deletion via API", "WARNING");
+          this.log("   ℹ️  Projects will be cleaned up via database file deletion", "INFO");
+        }
+      } catch (error) {
+        this.log(`   ⚠️  Error deleting projects via API: ${error.message}`, "WARNING");
+        this.log("   ℹ️  Projects will be cleaned up via database file deletion", "INFO");
+      }
+      
       // Stop services with proper graceful shutdown
       if (this.services.backend) {
         console.log("🔄 Stopping backend...");
@@ -2175,166 +2221,29 @@ class ComprehensiveTestRunner {
   }
 
   displayResults(duration) {
-    this.log(
-      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-      "INFO"
-    );
-    this.log("📊 TEST RESULTS SUMMARY", "INFO");
-    this.log(`   Test Suites: ${this.results.total}`, "INFO");
-    this.log(
-      `   Individual Tests: ${this.individualTestResults.length}`,
-      "INFO"
-    );
-    this.log(`   Passed: ${this.results.passed}`, "INFO");
-    this.log(`   Failed: ${this.results.failed}`, "INFO");
-
-    if (this.failedAtSuite) {
-      const remainingSuites = this.totalSuites - this.results.total;
-      this.log(`   Remaining Suites: ${remainingSuites}`, "INFO");
-    }
-
-    this.log(`   Duration: ${duration}ms`, "INFO");
-
-    if (this.results.failed === 0) {
-      this.log("🎉 ALL TESTS PASSED SUCCESSFULLY!", "SUCCESS");
-    } else {
-      this.log("❌ SOME TESTS FAILED - SEE ERRORS ABOVE", "ERROR");
-
-      // Display collected errors at the end
+    // Simplified summary - only show if there are failures
+    if (this.results.failed > 0) {
+      this.log("", "INFO");
+      this.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", "INFO");
+      this.log("TEST RESULTS SUMMARY", "INFO");
+      this.log(`Duration: ${(duration / 1000).toFixed(2)}s`, "INFO");
+      this.log(`Tests Ran: ${this.results.total}`, "INFO");
+      this.log(`Passed: ${this.results.passed}`, "INFO");
+      this.log(`Failed: ${this.results.failed}`, "ERROR");
+      
+      // Show failed test names
       if (this.errors.length > 0) {
         this.log("", "INFO");
-        this.log("🔍 ERROR SUMMARY:", "ERROR");
+        this.log("Failed Tests:", "ERROR");
         this.errors.forEach((error, index) => {
-          this.log(`   ${index + 1}. ${error}`, "ERROR");
+          // Extract test name from error message (format: "Test Name: error message")
+          const testName = error.split(':')[0].trim();
+          this.log(`  ${index + 1}. ${testName}`, "ERROR");
         });
       }
-
-      // Add error source analysis
-      this.analyzeErrorSources();
-    }
-
-    // Log completion - no setTimeout needed, caller will wait
-    this.log("✅ Results display completed", "SUCCESS");
-  }
-
-  /**
-   * Analyze errors by source (SDK vs Server vs Network)
-   */
-  analyzeErrorSources() {
-    try {
-      // Read the latest JSON results file to get error classification
-      const testLogsDir = join(__dirname, "test-logs");
-      if (!existsSync(testLogsDir)) {
-        return;
-      }
-
-      // Find the latest JSON results file
-      const files = readdirSync(testLogsDir);
-      const jsonFiles = files
-        .filter((f) => f.startsWith("test-results-") && f.endsWith(".json"))
-        .sort()
-        .reverse();
-
-      if (jsonFiles.length === 0) {
-        return;
-      }
-
-      const latestJsonFile = join(testLogsDir, jsonFiles[0]);
-      const jsonContent = readFileSync(latestJsonFile, "utf-8");
-      const results = JSON.parse(jsonContent);
-
-      // Group failed tests by error source
-      const errorsBySource = {
-        SDK: [],
-        SERVER: [],
-        NETWORK: [],
-        UNKNOWN: [],
-      };
-
-      const failedTests = (results.testResults || []).filter(
-        (t) => t.status === "FAILED"
-      );
-      failedTests.forEach((test) => {
-        const source = test.errorSource || "UNKNOWN";
-        if (errorsBySource[source]) {
-          errorsBySource[source].push({
-            test: test.test,
-            category: test.errorCategory || "UNKNOWN",
-            fixLocation: test.fixLocation || "UNKNOWN",
-            error: test.error || "Unknown error",
-          });
-        } else {
-          errorsBySource.UNKNOWN.push({
-            test: test.test,
-            category: test.errorCategory || "UNKNOWN",
-            fixLocation: test.fixLocation || "UNKNOWN",
-            error: test.error || "Unknown error",
-          });
-        }
-      });
-
-      // Display error source summary
-      this.log("", "INFO");
-      this.log("📋 ERROR SOURCE ANALYSIS:", "INFO");
-      this.log(`   SDK Issues: ${errorsBySource.SDK.length}`, "INFO");
-      this.log(`   Server Issues: ${errorsBySource.SERVER.length}`, "INFO");
-      this.log(`   Network Issues: ${errorsBySource.NETWORK.length}`, "INFO");
-      this.log(`   Unknown Issues: ${errorsBySource.UNKNOWN.length}`, "INFO");
-
-      // Display categorized errors
-      if (errorsBySource.SDK.length > 0) {
-        this.log("", "INFO");
-        this.log("   🔧 SDK ISSUES (fix in @smartsamurai/krapi-sdk):", "INFO");
-        errorsBySource.SDK.slice(0, 5).forEach((err, idx) => {
-          this.log(`      ${idx + 1}. ${err.test}`, "INFO");
-          this.log(
-            `         Category: ${err.category} | Fix: ${err.fixLocation}`,
-            "INFO"
-          );
-        });
-        if (errorsBySource.SDK.length > 5) {
-          this.log(
-            `      ... and ${errorsBySource.SDK.length - 5} more SDK issues`,
-            "INFO"
-          );
-        }
-      }
-
-      if (errorsBySource.SERVER.length > 0) {
-        this.log("", "INFO");
-        this.log("   🖥️  SERVER ISSUES (fix in backend/frontend):", "INFO");
-        errorsBySource.SERVER.slice(0, 5).forEach((err, idx) => {
-          this.log(`      ${idx + 1}. ${err.test}`, "INFO");
-          this.log(
-            `         Category: ${err.category} | Fix: ${err.fixLocation}`,
-            "INFO"
-          );
-        });
-        if (errorsBySource.SERVER.length > 5) {
-          this.log(
-            `      ... and ${
-              errorsBySource.SERVER.length - 5
-            } more server issues`,
-            "INFO"
-          );
-        }
-      }
-
-      if (errorsBySource.NETWORK.length > 0) {
-        this.log("", "INFO");
-        this.log("   🌐 NETWORK ISSUES (check connectivity):", "INFO");
-        errorsBySource.NETWORK.slice(0, 5).forEach((err, idx) => {
-          this.log(`      ${idx + 1}. ${err.test}`, "INFO");
-        });
-      }
-    } catch (error) {
-      // Don't fail if error analysis fails
-      this.log(
-        `   ⚠️  Could not analyze error sources: ${error.message}`,
-        "WARNING"
-      );
     }
   }
+
 }
 
 /**
@@ -2353,7 +2262,6 @@ async function saveFatalErrorLogStandalone(error, testSuiteRoot) {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const testErrorsFile = join(logsDir, `test-errors-${timestamp}.txt`);
-    const testResultsFile = join(logsDir, `test-results-${timestamp}.txt`);
     const testResultsJsonFile = join(logsDir, `test-results-${timestamp}.json`);
 
     // Create error report
@@ -2375,20 +2283,7 @@ async function saveFatalErrorLogStandalone(error, testSuiteRoot) {
     errorReport += "END OF FATAL ERROR REPORT\n";
     errorReport += "=".repeat(80) + "\n";
 
-    // Create results report
-    let resultsReport = "=".repeat(80) + "\n";
-    resultsReport += "KRAPI TEST SUITE - TEST RESULTS (UNCAUGHT FATAL ERROR)\n";
-    resultsReport += "=".repeat(80) + "\n\n";
-    resultsReport += `Timestamp: ${new Date().toISOString()}\n\n`;
-    resultsReport += "FATAL ERROR\n";
-    resultsReport += "-".repeat(80) + "\n";
-    resultsReport += `${error.message || String(error)}\n`;
-    if (error.stack) {
-      resultsReport += `\nStack Trace:\n${error.stack}\n`;
-    }
-    resultsReport += "\n" + "=".repeat(80) + "\n";
-
-    // Create JSON results
+    // Create JSON results (no duplicate TXT file)
     const jsonResults = {
       summary: {
         totalTests: 0,
@@ -2409,9 +2304,8 @@ async function saveFatalErrorLogStandalone(error, testSuiteRoot) {
       errors: [error.message || String(error)],
     };
 
-    // Write all files
+    // Write files (JSON and errors only, no duplicate TXT)
     await writeFile(testErrorsFile, errorReport, "utf-8");
-    await writeFile(testResultsFile, resultsReport, "utf-8");
     await writeFile(
       testResultsJsonFile,
       JSON.stringify(jsonResults, null, 2),
@@ -2419,7 +2313,6 @@ async function saveFatalErrorLogStandalone(error, testSuiteRoot) {
     );
 
     console.error(`📄 Fatal error logged to: ${testErrorsFile}`);
-    console.error(`📄 Test results saved to: ${testResultsFile}`);
     console.error(`📄 JSON results saved to: ${testResultsJsonFile}`);
   } catch (logError) {
     // If we can't log the fatal error, at least log that we tried
@@ -2500,24 +2393,41 @@ async function readLatestTestLog() {
     }
 
     const files = await readdir(testLogsDir);
-    const errorFiles = files
-      .filter((f) => f.startsWith("test-errors-") && f.endsWith(".txt"))
-      .sort()
-      .reverse(); // Most recent first
-
-    if (errorFiles.length === 0) {
-      return null;
-    }
-
-    const latestErrorFile = join(testLogsDir, errorFiles[0]);
-    const errorContent = await readFile(latestErrorFile, "utf-8");
-
-    // Also read JSON file to get error classification
+    
+    // Find result files (JSON and TXT) - these exist even when all tests pass
     const jsonFiles = files
       .filter((f) => f.startsWith("test-results-") && f.endsWith(".json"))
       .sort()
       .reverse();
+    
+    const resultFiles = files
+      .filter((f) => f.startsWith("test-results-") && f.endsWith(".txt"))
+      .sort()
+      .reverse();
+    
+    // If no result files exist, return null
+    if (jsonFiles.length === 0 && resultFiles.length === 0) {
+      return null;
+    }
+    
+    // Get timestamp from the most recent result file
+    const timestampFile = jsonFiles[0] || resultFiles[0];
+    const timestamp = timestampFile.match(/test-results-(.+)\.(json|txt)/)?.[1] || "unknown";
+    
+    // Try to find error file with matching timestamp
+    const errorFiles = files
+      .filter((f) => f.startsWith("test-errors-") && f.endsWith(".txt") && f.includes(timestamp))
+      .sort()
+      .reverse();
+    
+    let latestErrorFile = null;
+    let errorContent = null;
+    if (errorFiles.length > 0) {
+      latestErrorFile = join(testLogsDir, errorFiles[0]);
+      errorContent = await readFile(latestErrorFile, "utf-8");
+    }
 
+    // Read JSON file to get test results and error classification
     let errorAnalysis = null;
     if (jsonFiles.length > 0) {
       try {
@@ -2565,23 +2475,20 @@ async function readLatestTestLog() {
       }
     }
 
-    const resultFiles = files
-      .filter((f) => f.startsWith("test-results-") && f.endsWith(".txt"))
-      .sort()
-      .reverse();
-
     let resultContent = null;
     if (resultFiles.length > 0) {
       const latestResultFile = join(testLogsDir, resultFiles[0]);
       resultContent = await readFile(latestResultFile, "utf-8");
     }
-
+    
     return {
       errorFile: latestErrorFile,
       errorContent,
       resultContent,
       errorAnalysis,
-      timestamp: errorFiles[0].match(/test-errors-(.+)\.txt/)?.[1] || "unknown",
+      timestamp,
+      jsonFile: jsonFiles.length > 0 ? join(testLogsDir, jsonFiles[0]) : null,
+      resultFile: resultFiles.length > 0 ? join(testLogsDir, resultFiles[0]) : null,
     };
   } catch (error) {
     console.error("⚠️  Failed to read latest test log:", error.message);
@@ -2609,120 +2516,80 @@ async function readLatestTestLog() {
 
     const latestLog = await readLatestTestLog();
     if (latestLog) {
-      console.log(`\n📄 Latest error log: ${latestLog.errorFile}`);
+      // Show test results file info
+      if (latestLog.jsonFile) {
+        console.log(`\n📄 Latest test results: ${latestLog.jsonFile}`);
+      }
+      if (latestLog.resultFile) {
+        console.log(`📄 Latest test output: ${latestLog.resultFile}`);
+      }
+      if (latestLog.errorFile) {
+        console.log(`📄 Latest error log: ${latestLog.errorFile}`);
+      }
       console.log(`   Timestamp: ${latestLog.timestamp}`);
-
-      // Display error source analysis if available
-      if (latestLog.errorAnalysis) {
-        console.log("\n" + "=".repeat(80));
-        console.log("📊 ERROR SOURCE ANALYSIS");
-        console.log("=".repeat(80));
-        console.log(`Total Failed Tests: ${latestLog.errorAnalysis.total}`);
-        console.log(
-          `   SDK Issues: ${latestLog.errorAnalysis.bySource.SDK} (fix in @smartsamurai/krapi-sdk)`
-        );
-        console.log(
-          `   Server Issues: ${latestLog.errorAnalysis.bySource.SERVER} (fix in backend/frontend)`
-        );
-        console.log(
-          `   Network Issues: ${latestLog.errorAnalysis.bySource.NETWORK} (check connectivity)`
-        );
-        console.log(
-          `   Unknown Issues: ${latestLog.errorAnalysis.bySource.UNKNOWN} (manual investigation)`
-        );
-
-        // Show categorized errors with fix location hints
-        if (latestLog.errorAnalysis.failedTests.length > 0) {
-          console.log("\n" + "-".repeat(80));
-          console.log("CATEGORIZED ERRORS WITH FIX LOCATIONS:");
-          console.log("-".repeat(80));
-
-          const bySource = {
-            SDK: latestLog.errorAnalysis.failedTests.filter(
-              (t) => t.source === "SDK"
-            ),
-            SERVER: latestLog.errorAnalysis.failedTests.filter(
-              (t) => t.source === "SERVER"
-            ),
-            NETWORK: latestLog.errorAnalysis.failedTests.filter(
-              (t) => t.source === "NETWORK"
-            ),
-            UNKNOWN: latestLog.errorAnalysis.failedTests.filter(
-              (t) => t.source === "UNKNOWN"
-            ),
-          };
-
-          if (bySource.SDK.length > 0) {
-            console.log("\n🔧 SDK ISSUES:");
-            bySource.SDK.slice(0, 10).forEach((err, idx) => {
-              console.log(`   ${idx + 1}. ${err.test}`);
-              console.log(
-                `      Category: ${err.category} | Fix Location: ${err.fixLocation}`
-              );
-              console.log(
-                `      Error: ${err.error.substring(0, 100)}${
-                  err.error.length > 100 ? "..." : ""
-                }`
-              );
-            });
-            if (bySource.SDK.length > 10) {
-              console.log(
-                `   ... and ${bySource.SDK.length - 10} more SDK issues`
-              );
-            }
+      
+      // Read and display simple test results summary
+      let jsonResults = null;
+      let failedTests = [];
+      
+      if (latestLog.jsonFile) {
+        try {
+          const jsonContent = await readFile(latestLog.jsonFile, "utf-8");
+          jsonResults = JSON.parse(jsonContent);
+          const summary = jsonResults.summary || {};
+          const failedCount = summary.failed || 0;
+          const passedCount = summary.passed || 0;
+          const totalCount = summary.totalTests || 0;
+          const duration = summary.duration || "0ms";
+          
+          // Get failed test names
+          if (jsonResults.testResults) {
+            failedTests = jsonResults.testResults
+              .filter((t) => t.status === "FAILED")
+              .map((t) => t.test || t.name || "Unknown test");
           }
-
-          if (bySource.SERVER.length > 0) {
-            console.log("\n🖥️  SERVER ISSUES:");
-            bySource.SERVER.slice(0, 10).forEach((err, idx) => {
-              console.log(`   ${idx + 1}. ${err.test}`);
-              console.log(
-                `      Category: ${err.category} | Fix Location: ${err.fixLocation}`
-              );
-              console.log(
-                `      Error: ${err.error.substring(0, 100)}${
-                  err.error.length > 100 ? "..." : ""
-                }`
-              );
-            });
-            if (bySource.SERVER.length > 10) {
-              console.log(
-                `   ... and ${bySource.SERVER.length - 10} more server issues`
-              );
-            }
-          }
-
-          if (bySource.NETWORK.length > 0) {
-            console.log("\n🌐 NETWORK ISSUES:");
-            bySource.NETWORK.slice(0, 10).forEach((err, idx) => {
-              console.log(`   ${idx + 1}. ${err.test}`);
-              console.log(
-                `      Error: ${err.error.substring(0, 100)}${
-                  err.error.length > 100 ? "..." : ""
-                }`
-              );
+          
+          // Simple summary output
+          console.log("\n" + "=".repeat(60));
+          console.log("TEST RESULTS SUMMARY");
+          console.log("=".repeat(60));
+          console.log(`Duration: ${duration}`);
+          console.log(`Tests Ran: ${totalCount}`);
+          console.log(`Passed: ${passedCount}`);
+          console.log(`Failed: ${failedCount}`);
+          
+          // Show failed test names
+          if (failedTests.length > 0) {
+            console.log("\nFailed Tests:");
+            failedTests.forEach((testName, index) => {
+              console.log(`  ${index + 1}. ${testName}`);
             });
           }
-
-          if (bySource.UNKNOWN.length > 0) {
-            console.log("\n❓ UNKNOWN ISSUES:");
-            bySource.UNKNOWN.slice(0, 5).forEach((err, idx) => {
-              console.log(`   ${idx + 1}. ${err.test}`);
-              console.log(
-                `      Error: ${err.error.substring(0, 100)}${
-                  err.error.length > 100 ? "..." : ""
-                }`
-              );
-            });
+          
+          // Show log file names
+          console.log("\nLog Files:");
+          if (latestLog.jsonFile) {
+            const jsonFileName = latestLog.jsonFile.split(/[/\\]/).pop();
+            console.log(`  - ${jsonFileName}`);
+          }
+          if (latestLog.errorFile) {
+            const errorFileName = latestLog.errorFile.split(/[/\\]/).pop();
+            console.log(`  - ${errorFileName}`);
+          }
+          if (latestLog.resultFile) {
+            const resultFileName = latestLog.resultFile.split(/[/\\]/).pop();
+            console.log(`  - ${resultFileName}`);
+          }
+          console.log("=".repeat(60));
+        } catch (error) {
+          // If we can't parse JSON, show basic failure
+          if (!success) {
+            console.log("\n❌ Test suite failed (could not parse results)");
           }
         }
+      } else if (!success) {
+        console.log("\n❌ Test suite failed (no results file available)");
       }
-
-      console.log("\n" + "-".repeat(80));
-      console.log("FULL ERROR LOG:");
-      console.log("-".repeat(80));
-      console.log(latestLog.errorContent);
-      console.log("-".repeat(80));
     } else {
       console.log("⚠️  No test log files found");
     }

@@ -3,9 +3,9 @@ import crypto from "crypto";
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
-import { ApiResponse, BackendSession } from "@/types";
 import { AuthService } from "@/services/auth.service";
 import { DatabaseService } from "@/services/database.service";
+import { ApiResponse, BackendSession } from "@/types";
 
 /**
  * Handler for refreshing session

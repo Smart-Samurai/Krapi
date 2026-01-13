@@ -372,7 +372,4 @@ export class StorageController {
     }
     await this.bulkUpdateFileMetadataHandler.handle(req, res);
   };
-
-  // TODO: Extract remaining folder operations to handlers as needed
-  // Folder operations can be extracted incrementally
 }

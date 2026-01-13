@@ -84,6 +84,7 @@ Desktop.ini
 *.tmp
 *.temp
 .cache/
+.sqlite-rebuild-cache.json
 
 # Debug files
 debug/

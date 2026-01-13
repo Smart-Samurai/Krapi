@@ -45,7 +45,7 @@ export async function runErrorHandlingUITests(testSuite, page) {
 
     // Wait for page content - should show error or redirect
     const errorAlert = page.locator('[data-testid="project-not-found-error"]').first();
-    const errorText = page.locator('text=/not found/i, text=/error/i, text=/invalid/i').first();
+    const errorText = page.locator('[data-testid="error-message"]').first();
     
     await Promise.race([
       errorAlert.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
@@ -133,7 +133,7 @@ export async function runErrorHandlingUITests(testSuite, page) {
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
     // Wait for projects page to load
-    const projectsPage = page.locator('[data-testid="projects-page"], text=/projects/i').first();
+    const projectsPage = page.locator('[data-testid="projects-container"]').first();
     await projectsPage.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }).catch(() => {});
 
     // Try to find and click create button (with timeout)
@@ -160,8 +160,8 @@ export async function runErrorHandlingUITests(testSuite, page) {
       return;
     }
 
-    // Try to submit empty form immediately (form validation should prevent or show error)
-    const submitButton = page.locator('button[type="submit"]').first();
+    // Try to submit empty form immediately (form validation should prevent or show error) - data-testid only
+    const submitButton = page.locator('[data-testid="create-project-dialog-submit"]').first();
     const submitButtonVisible = await submitButton.isVisible({ timeout: CONFIG.TEST_TIMEOUT / 4 }).catch(() => false);
 
     if (submitButtonVisible) {
@@ -169,10 +169,8 @@ export async function runErrorHandlingUITests(testSuite, page) {
       await submitButton.click();
       await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-      // Look for validation errors (check multiple possible locations)
-      const validationError = page.locator(
-        '[class*="error"], [role="alert"], text=/required/i, text=/invalid/i, [class*="destructive"]'
-      ).first();
+      // Look for validation errors (data-testid only)
+      const validationError = page.locator('[data-testid="validation-error"], [data-testid="form-error"]').first();
       const hasValidationError = await validationError.isVisible({ timeout: CONFIG.TEST_TIMEOUT / 4 }).catch(() => false);
 
       // Check if form is still open (validation prevented submission) or error is shown
@@ -208,11 +206,11 @@ export async function runErrorHandlingUITests(testSuite, page) {
     await page.goto(`${frontendUrl}/settings`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    const input = await page.locator('input[type="text"], textarea').first().isVisible().catch(() => false);
+    const input = await page.locator('[data-testid^="input-"], [data-testid^="form-field-"]').first().isVisible().catch(() => false);
 
     if (input) {
       const longText = "a".repeat(10000);
-      await page.locator('input[type="text"], textarea').first().fill(longText).catch(() => null);
+      await page.locator('[data-testid^="input-"], [data-testid^="form-field-"]').first().fill(longText).catch(() => null);
       await page.waitForTimeout(500);
 
       testSuite.assert(true, "Should handle very long input (test passed)");

@@ -5,25 +5,33 @@
  * IMPORTANT: The SDK is imported dynamically to prevent initialization during build.
  * The SDK should NEVER be imported in client components.
  *
- * SDK 0.3.3+: Uses singleton SDK which now supports reconnection automatically.
- * For concurrent operations, consider using createInstance() instead.
+ * @deprecated This module uses the singleton SDK pattern which can cause connection conflicts.
+ * For new code, use `backend-sdk-client.ts` instead which uses `createSDKInstance()`.
+ * This module is kept for backward compatibility and the `getAuthToken()` utility function.
+ *
+ * SDK 0.5.20+: Updated to use createSDKInstance() to avoid connection conflicts.
  */
 
+import { createSDKInstance, KrapiWrapper } from "@smartsamurai/krapi-sdk";
 import { NextRequest } from "next/server";
 
 import { config, SDK_RETRY_CONFIG } from "@/lib/config";
 
 // Store the SDK instance once loaded
-let krapiInstance: Awaited<ReturnType<typeof importSDK>> | null = null;
+let krapiInstance: KrapiWrapper | null = null;
 let connectionPromise: Promise<void> | null = null;
 
 /**
  * Dynamically import and connect the SDK
  * This function is only called at runtime, never during build
+ * 
+ * @deprecated Use backend-sdk-client.ts functions instead
  */
-async function importSDK() {
-  // Dynamic import - this only happens at runtime in API routes
-  const { krapi } = await import("@smartsamurai/krapi-sdk");
+async function importSDK(): Promise<KrapiWrapper> {
+  // Create SDK instance if not already created
+  if (!krapiInstance) {
+    krapiInstance = createSDKInstance();
+  }
 
   // Connect if not already connected
   if (!connectionPromise) {
@@ -34,13 +42,13 @@ async function importSDK() {
       endpoint: frontendUrl,
       apiKey: config.sdk.adminApiKey,
       retry: SDK_RETRY_CONFIG,
-    };
+    } as unknown as Parameters<typeof krapiInstance.connect>[0];
 
-    connectionPromise = krapi
+    connectionPromise = krapiInstance
       .connect(connectConfig)
       .then(async () => {
         try {
-          const krapiWithHealthCheck = krapi as typeof krapi & {
+          const krapiWithHealthCheck = krapiInstance as KrapiWrapper & {
             healthCheck?: () => Promise<boolean>;
           };
           if (typeof krapiWithHealthCheck.healthCheck === "function") {
@@ -60,19 +68,23 @@ async function importSDK() {
       })
       .catch((error: unknown) => {
         // eslint-disable-next-line no-console
-        console.error("❌ Failed to connect SDK to backend:", error);
+        console.error("❌ Failed to connect SDK to frontend:", error);
       });
   }
 
   await connectionPromise;
-  return krapi;
+  return krapiInstance;
 }
 
 /**
  * Get the SDK instance (lazy-loaded)
  * Use this in API routes instead of importing krapi directly
+ * 
+ * @deprecated Use backend-sdk-client.ts functions instead:
+ * - For proxy routes: use `getBackendSdkClient()` or `createAuthenticatedBackendSdk()`
+ * - For client routes: use `getClientSdkClient()` or `createAuthenticatedClientSdk()`
  */
-export async function getServerSdk() {
+export async function getServerSdk(): Promise<KrapiWrapper> {
   if (!krapiInstance) {
     krapiInstance = await importSDK();
   }
@@ -82,7 +94,9 @@ export async function getServerSdk() {
 // For backward compatibility with existing code that uses serverSdk synchronously
 // This creates a proxy that lazily loads the SDK when properties are accessed
 // Note: This only works for async operations - sync property access will return promises
-export const serverSdk = new Proxy({} as Awaited<ReturnType<typeof importSDK>>, {
+// 
+// @deprecated Use backend-sdk-client.ts functions instead
+export const serverSdk = new Proxy({} as KrapiWrapper, {
   get(_target, prop) {
     // Return a function that gets the SDK and accesses the property
     // For methods, return a bound function
@@ -96,12 +110,16 @@ export const serverSdk = new Proxy({} as Awaited<ReturnType<typeof importSDK>>, 
       return value;
     };
   },
-}) as unknown as Awaited<ReturnType<typeof importSDK>>;
+}) as unknown as KrapiWrapper;
 
-// Helper to create authenticated SDK instance
+/**
+ * Helper to create authenticated SDK instance
+ * 
+ * @deprecated Use `createAuthenticatedBackendSdk()` from backend-sdk-client.ts instead
+ */
 export async function createAuthenticatedSdk(
   _token: string
-): Promise<Awaited<ReturnType<typeof importSDK>>> {
+): Promise<KrapiWrapper> {
   const sdk = await getServerSdk();
   // SDK 0.3.3+: setSessionToken() is async and auto-initializes clients if needed
   await sdk.auth.setSessionToken(_token);

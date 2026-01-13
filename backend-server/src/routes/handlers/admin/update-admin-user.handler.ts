@@ -1,4 +1,5 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
+import bcrypt from "bcryptjs";
 import { Request, Response } from "express";
 
 /**
@@ -22,6 +23,14 @@ export class UpdateAdminUserHandler {
       }
 
       const updates = req.body;
+      
+      // If password is provided, hash it before passing to SDK
+      if (updates.password && !updates.password_hash) {
+        updates.password_hash = await bcrypt.hash(updates.password, 10);
+        // Remove password field - SDK should only receive password_hash
+        delete updates.password;
+      }
+      
       const user = await this.backendSDK.admin.updateUser(userId, updates);
 
       if (!user) {

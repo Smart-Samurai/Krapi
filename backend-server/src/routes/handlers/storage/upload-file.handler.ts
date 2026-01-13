@@ -1,6 +1,7 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
+import { StorageService } from "@/services/storage.service";
 import { AuthenticatedRequest } from "@/types";
 
 /**
@@ -8,7 +9,7 @@ import { AuthenticatedRequest } from "@/types";
  * POST /storage/upload
  */
 export class UploadFileHandler {
-  constructor(private backendSDK: BackendSDK) {}
+  constructor(_backendSDK: BackendSDK) {}
 
   async handle(req: Request, res: Response): Promise<void> {
     try {
@@ -25,38 +26,42 @@ export class UploadFileHandler {
         return;
       }
 
-      if (!this.backendSDK) {
-        res.status(500).json({ success: false, error: "BackendSDK not initialized" });
-        return;
-      }
-
       const { folder } = req.body;
       const authReq = req as AuthenticatedRequest;
 
-      // Backend SDK in server mode expects: uploadFile(projectId, fileData, fileBuffer)
-      // where fileData is metadata and fileBuffer is the actual file content
-      const uploadRequest = {
-        original_name: req.file.originalname,
-        file_size: req.file.size,
-        mime_type: req.file.mimetype || 'application/octet-stream',
-        metadata: {
-          originalName: req.file.originalname,
-          uploadedAt: new Date().toISOString(),
-        },
-        uploaded_by: authReq.user?.id || "system",
-        folder_id: folder || undefined,
+      const storageService = StorageService.getInstance();
+      const uploadedBy = authReq.user?.id || "system";
+
+      // Merge client-provided metadata if present
+      let clientMetadata: Record<string, unknown> | undefined;
+      if (req.body?.metadata) {
+        if (typeof req.body.metadata === "string") {
+          try {
+            clientMetadata = JSON.parse(req.body.metadata) as Record<string, unknown>;
+          } catch {
+            clientMetadata = undefined;
+          }
+        } else if (typeof req.body.metadata === "object") {
+          clientMetadata = req.body.metadata as Record<string, unknown>;
+        }
+      }
+
+      const metadata: Record<string, unknown> = {
+        projectId,
+        uploadedBy,
+        folderId: folder || undefined,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype || "application/octet-stream",
+        uploadedAt: new Date().toISOString(),
+        ...(clientMetadata || {}),
       };
 
-      // Use backend SDK storage service directly (server mode)
-      const storageService = this.backendSDK.storage as unknown as {
-        uploadFile: (projectId: string, fileData: unknown, fileBuffer: Buffer) => Promise<unknown>;
-      };
-
-      const fileInfo = await storageService.uploadFile(projectId, uploadRequest, req.file.buffer);
-
-      // CRITICAL: SDK inserts file_path but schema might require path
-      // The auto-fixer in database.service.ts will populate path from file_path
-      // For now, just return the fileInfo - the auto-fixer runs on database access
+      const fileInfo = await storageService.uploadFile(req.file.buffer, {
+        ...metadata,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype || "application/octet-stream",
+        fileSize: req.file.size,
+      });
 
       res.status(200).json({ success: true, data: fileInfo });
     } catch (error) {

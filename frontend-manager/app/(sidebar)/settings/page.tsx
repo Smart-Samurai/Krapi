@@ -10,8 +10,9 @@
  */
 "use client";
 
-import { Settings, Shield, Save, RefreshCw, Mail, Database, Trash2 } from "lucide-react";
-import React, { useState } from "react";
+import { Settings, Shield, Save, RefreshCw, Mail, Database } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 import { PageLayout, PageHeader, ActionButton } from "@/components/common";
 import { Form, FormField } from "@/components/forms";
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
 
 /**
  * Tab configuration
@@ -53,6 +55,9 @@ const tabs = [
  * @returns {JSX.Element} Settings page
  */
 export default function SettingsPage() {
+  const router = useRouter();
+  const { user } = useReduxAuth();
+  
   const {
     activeTab,
     setActiveTab,
@@ -69,6 +74,19 @@ export default function SettingsPage() {
     handleDatabaseSubmit,
     handleTestEmail,
   } = useSettings();
+
+  // Check if user is an admin - redirect project users
+  // Admin users have a "role" property, project users have "project_id" instead
+  useEffect(() => {
+    if (user) {
+      // Check if user is a project user (has project_id but no role) or if role is missing
+      const isProjectUser = "project_id" in user || !("role" in user);
+      if (isProjectUser) {
+        // Project user - redirect to dashboard
+        router.push("/dashboard");
+      }
+    }
+  }, [user, router]);
 
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -124,12 +142,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="mt-6">
+      <div className="mt-6 w-full">
         {/* General Settings */}
         {activeTab === "general" && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             <InfoBlock variant="info">
-              <p>
+              <p className="text-base">
                 General settings affect how your KRAPI instance appears and
                 behaves.
               </p>
@@ -196,7 +214,7 @@ export default function SettingsPage() {
 
         {/* Security Settings */}
         {activeTab === "security" && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             <InfoBlock variant="warning">
               <p>
                 Security settings help protect your KRAPI instance from
@@ -294,6 +312,13 @@ export default function SettingsPage() {
                       description="Network interface to listen on. Use 0.0.0.0 to allow network access (requires restart and proper security configuration)"
                     />
                     <FormField
+                      name="frontendPublicUrl"
+                      label="Frontend Public URL (Allowed Origin)"
+                      type="text"
+                      description="Public URL where this frontend is hosted. Automatically added to allowed origins."
+                      placeholder="https://your-frontend.example.com"
+                    />
+                    <FormField
                       name="allowedOrigins"
                       label="Allowed Origins (CORS)"
                       type="text"
@@ -315,7 +340,7 @@ export default function SettingsPage() {
 
         {/* Email Settings */}
         {activeTab === "email" && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             <InfoBlock variant="info">
               <p>
                 Configure email settings for system notifications and user
@@ -402,7 +427,7 @@ export default function SettingsPage() {
 
         {/* Database Settings */}
         {activeTab === "database" && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             <InfoBlock variant="warning">
               <p>
                 Database settings affect performance and data retention. Change
@@ -558,7 +583,7 @@ export default function SettingsPage() {
                     throw new Error("Authentication required");
                   }
 
-                  const response = await fetch("/api/krapi/k1/system/reset-database", {
+                  const response = await fetch("/api/client/krapi/k1/system/reset-database", {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
@@ -647,7 +672,7 @@ export default function SettingsPage() {
                     throw new Error("Authentication required");
                   }
 
-                  const response = await fetch("/api/krapi/k1/system/reset-database", {
+                  const response = await fetch("/api/client/krapi/k1/system/reset-database", {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",

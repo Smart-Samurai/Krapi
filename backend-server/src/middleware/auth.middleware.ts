@@ -840,6 +840,7 @@ export const requireScopes = (requirement: ScopeRequirement) => {
       res.status(403).json({
         success: false,
         error: "Insufficient permissions",
+        message: `This operation requires one of the following permissions: ${requirement.scopes.map((s) => s.toString()).join(", ")}. Your current permissions: ${userScopes.length > 0 ? userScopes.join(", ") : "none"}.`,
         required_scopes: requirement.scopes.map((s) => s.toString()),
         user_scopes: userScopes,
       });

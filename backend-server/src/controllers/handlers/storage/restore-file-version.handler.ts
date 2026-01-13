@@ -1,6 +1,7 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
 
+import { DatabaseService } from "@/services/database.service";
 import { ApiResponse } from "@/types";
 
 /**
@@ -30,8 +31,7 @@ export class RestoreFileVersionHandler {
         return;
       }
 
-      // SDK doesn't have restoreFileVersion method yet
-      // Get the version first to verify it exists
+      // Verify version exists using SDK
       const versions = await this.backendSDK.storage.getFileVersions(fileId);
       const version = versions.find((v) => v.id === versionId);
       
@@ -42,12 +42,15 @@ export class RestoreFileVersionHandler {
         } as ApiResponse);
         return;
       }
-      
-      // TODO: SDK needs to add restoreFileVersion method
-      // For now, return error indicating this feature needs SDK support
-      res.status(501).json({
-        success: false,
-        error: "File version restore not yet implemented in SDK. Please use SDK's restoreFileVersion method when available.",
+
+      // SDK doesn't have restoreFileVersion method, so use DatabaseService directly
+      const dbService = DatabaseService.getInstance();
+      const restoredFile = await dbService.restoreFileVersion(projectId, fileId, versionId);
+
+      res.json({
+        success: true,
+        data: restoredFile,
+        message: "File version restored successfully",
       } as ApiResponse);
     } catch (error) {
       console.error("Error restoring file version:", error);

@@ -183,11 +183,9 @@ const fieldTypeLabels: Record<FieldTypeType, string> = {
 
 export default function CollectionsPage() {
   const params = useParams();
-  if (!params || !params.projectId) {
-    throw new Error("Project ID is required");
-  }
   const router = useRouter();
-  const projectId = params.projectId as string;
+  // Get projectId with fallback - all hooks must be called unconditionally
+  const projectId = (params && params.projectId ? String(params.projectId) : null) || "";
   const dispatch = useAppDispatch();
   const collectionsBucket = useAppSelector(
     (s) => s.collections.byProjectId[projectId]
@@ -218,6 +216,17 @@ export default function CollectionsPage() {
   useEffect(() => {
     loadCollections();
   }, [loadCollections]);
+
+  // Early return after all hooks are called
+  if (!projectId || projectId === "") {
+    return (
+      <PageLayout>
+        <Alert variant="destructive">
+          <AlertDescription>Project ID is required</AlertDescription>
+        </Alert>
+      </PageLayout>
+    );
+  }
 
   const handleCreateCollection = async () => {
     try {
@@ -397,6 +406,70 @@ export default function CollectionsPage() {
     }));
   };
 
+  // Validation helpers
+  const isValidFieldName = (name: string): boolean => {
+    if (!name || name.trim() === "") return false;
+    return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name.trim());
+  };
+
+  const getCollectionNameError = (name: string): string | null => {
+    if (!name || name.trim() === "") {
+      return "Collection name is required";
+    }
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name.trim())) {
+      return "Collection name must start with a letter and contain only letters, numbers, and underscores";
+    }
+    return null;
+  };
+
+  const getFieldNameError = (name: string): string | null => {
+    if (!name || name.trim() === "") {
+      return "Field name is required";
+    }
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name.trim())) {
+      return "Field name must start with a letter or underscore and contain only letters, numbers, and underscores";
+    }
+    return null;
+  };
+
+  const isFormValid = (): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    // Validate collection name
+    const nameError = getCollectionNameError(formData.name);
+    if (nameError) {
+      errors.push(nameError);
+    }
+
+    // Validate fields
+    const validFields = formData.fields.filter((field) => {
+      if (!field.name || field.name.trim() === "") {
+        return false;
+      }
+      return isValidFieldName(field.name);
+    });
+
+    if (validFields.length === 0 && formData.fields.length > 0) {
+      errors.push("All fields must have valid names");
+    } else if (formData.fields.length === 0) {
+      errors.push("At least one field is required");
+    }
+
+    // Check for duplicate field names
+    const fieldNames = formData.fields
+      .map((f) => f.name.trim().toLowerCase())
+      .filter((n) => n !== "");
+    const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+    if (duplicates.length > 0) {
+      errors.push(`Duplicate field names: ${[...new Set(duplicates)].join(", ")}`);
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  };
+
   const openEditDialog = (collection: Collection) => {
     setEditingCollection(collection);
     // Add temp IDs to existing fields to prevent remounting issues
@@ -419,6 +492,8 @@ export default function CollectionsPage() {
         <PageHeader
           title="Collections"
           description="Manage collections for this project"
+          showBackButton
+          backButtonFallback={`/projects/${projectId}`}
           action={<Skeleton className="h-10 w-32" />}
         />
         <div className="grid gap-4" data-testid="collections-container">
@@ -446,11 +521,16 @@ export default function CollectionsPage() {
     );
   }
 
+  // Compute form validation
+  const formValidation = isFormValid();
+
   return (
     <PageLayout>
       <PageHeader
         title="Collections"
         description="Manage your project's data collections and their fields"
+        showBackButton
+        backButtonFallback={`/projects/${projectId}`}
         action={
           <div className="flex items-center gap-2">
             <CodeSnippet context="collections" projectId={projectId} />
@@ -481,7 +561,18 @@ export default function CollectionsPage() {
                     }
                     placeholder="e.g., users, posts, products"
                     data-testid="collection-form-name"
+                    className={getCollectionNameError(formData.name) ? "border-destructive" : ""}
                   />
+                  {getCollectionNameError(formData.name) && (
+                    <p className="text-sm text-destructive mt-1">
+                      {getCollectionNameError(formData.name)}
+                    </p>
+                  )}
+                  {!getCollectionNameError(formData.name) && formData.name ? (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Must start with a letter and contain only letters, numbers, and underscores
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <Label htmlFor="description">Description</Label>
@@ -499,7 +590,12 @@ export default function CollectionsPage() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Label>Fields</Label>
+                    <div>
+                      <Label>Fields</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Field names must start with a letter or underscore and contain only letters, numbers, and underscores
+                      </p>
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
@@ -518,49 +614,60 @@ export default function CollectionsPage() {
                       return (
                         <div
                           key={fieldKey}
-                          className="flex items-center gap-2 p-3 border "
+                          className={`flex flex-col gap-2 p-3 border rounded ${
+                            getFieldNameError(field.name) ? "border-destructive" : ""
+                          }`}
                         >
-                          <div className="flex-1 grid grid-cols-2 gap-2">
-                            <Input
-                              placeholder="Field name"
-                              value={field.name}
-                              onChange={(e) =>
-                                updateField(_index, { name: e.target.value })
-                              }
-                              onBlur={(e) => {
-                                // Prevent modal from refocusing when input loses focus
-                                e.stopPropagation();
-                              }}
-                            />
-                            <Select
-                              value={(field.type || (FieldType.string as string)) as string}
-                              onValueChange={(value: string) =>
-                                updateField(_index, { type: value as CollectionField["type"] })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(fieldTypeLabels).map(
-                                  ([value, label]) => {
-                                    const Icon =
-                                      fieldTypeIcons[value as FieldTypeType] ||
-                                      Type;
-                                    return (
-                                      <SelectItem key={value} value={value}>
-                                        <div className="flex items-center gap-2">
-                                          <Icon className="h-4 w-4" />
-                                          {label}
-                                        </div>
-                                      </SelectItem>
-                                    );
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 grid grid-cols-2 gap-2">
+                              <div>
+                                <Input
+                                  placeholder="Field name"
+                                  value={field.name}
+                                  onChange={(e) =>
+                                    updateField(_index, { name: e.target.value })
                                   }
+                                  onBlur={(e) => {
+                                    // Prevent modal from refocusing when input loses focus
+                                    e.stopPropagation();
+                                  }}
+                                  className={getFieldNameError(field.name) ? "border-destructive" : ""}
+                                />
+                                {getFieldNameError(field.name) && (
+                                  <p className="text-xs text-destructive mt-1">
+                                    {getFieldNameError(field.name)}
+                                  </p>
                                 )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex items-center gap-1">
+                              </div>
+                              <Select
+                                value={(field.type || (FieldType.string as string)) as string}
+                                onValueChange={(value: string) =>
+                                  updateField(_index, { type: value as CollectionField["type"] })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(fieldTypeLabels).map(
+                                    ([value, label]) => {
+                                      const Icon =
+                                        fieldTypeIcons[value as FieldTypeType] ||
+                                        Type;
+                                      return (
+                                        <SelectItem key={value} value={value}>
+                                          <div className="flex items-center gap-2">
+                                            <Icon className="h-4 w-4" />
+                                            {label}
+                                          </div>
+                                        </SelectItem>
+                                      );
+                                    }
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex items-center gap-1">
                             <Button
                               type="button"
                               variant={field.required ? "default" : "outline"}
@@ -616,24 +723,49 @@ export default function CollectionsPage() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+                  {formData.fields.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      At least one field is required
+                    </p>
+                  )}
                 </div>
               </div>
+              {formValidation.errors.length > 0 && (
+                <div className="px-6 py-3 bg-destructive/10 border border-destructive/20 rounded-md mb-4">
+                  <p className="text-sm font-medium text-destructive mb-1">
+                    Please fix the following errors:
+                  </p>
+                  <ul className="text-sm text-destructive list-disc list-inside space-y-1">
+                    {formValidation.errors.map((error) => (
+                      <li key={error}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <DialogFooter>
                 <ActionButton
                   variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
+                  data-testid="create-collection-dialog-cancel"
                 >
                   Cancel
                 </ActionButton>
                 <ActionButton
                   variant="add"
                   onClick={handleCreateCollection}
-                  disabled={!formData.name}
+                  disabled={!formValidation.valid}
+                  data-testid="create-collection-dialog-submit"
+                  title={
+                    !formValidation.valid
+                      ? formValidation.errors.join("; ")
+                      : "Create collection"
+                  }
                 >
                   Create Collection
                 </ActionButton>
@@ -661,11 +793,12 @@ export default function CollectionsPage() {
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
                   <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
-                      {`// Initialize KRAPI client (like Appwrite!)
-import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
+                      {`// Connect to KRAPI as a 3rd party application
+import { krapi } from '@smartsamurai/krapi-sdk';
 
-const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
+// Connect to FRONTEND URL (port 3498), not backend!
+await krapi.connect({
+  endpoint: 'https://your-krapi-instance.com', // Frontend URL
   apiKey: 'your-api-key'
 });
 
@@ -697,13 +830,13 @@ const newCollection = await krapi.collections.create(projectId, {
 });
 
 // Update a collection
-const updated = await krapi.collections.update(projectId, collectionId, {
+const updated = await krapi.collections.update(projectId, collectionName, {
   name: 'updated-name',
   fields: [...]
 });
 
 // Delete a collection
-await krapi.collections.delete(projectId, collectionId);`}
+await krapi.collections.delete(projectId, collectionName);`}
                     </pre>
                   </div>
                 </div>
@@ -717,8 +850,8 @@ await krapi.collections.delete(projectId, collectionId);`}
                       {`import requests
 import json
 
-# Base configuration
-BASE_URL = "http://localhost:3470"
+# Connect to KRAPI FRONTEND URL (port 3498), not backend!
+BASE_URL = "https://your-krapi-instance.com"  # Frontend URL
 API_KEY = "your-api-key"
 PROJECT_ID = "your-project-id"
 
@@ -729,7 +862,7 @@ headers = {
 
 # Get all collections
 response = requests.get(
-    f"{BASE_URL}/projects/{PROJECT_ID}/collections",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections",
     headers=headers
 )
 collections = response.json()
@@ -754,7 +887,7 @@ collection_data = {
 }
 
 response = requests.post(
-    f"{BASE_URL}/projects/{PROJECT_ID}/collections",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections",
     headers=headers,
     json=collection_data
 )
@@ -767,14 +900,14 @@ update_data = {
 }
 
 response = requests.put(
-    f"{BASE_URL}/projects/{PROJECT_ID}/collections/{collection_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{collection_name}",
     headers=headers,
     json=update_data
 )
 
 # Delete a collection
 response = requests.delete(
-    f"{BASE_URL}/projects/{PROJECT_ID}/collections/{collection_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{collection_name}",
     headers=headers
 )`}
                     </pre>
@@ -815,11 +948,9 @@ response = requests.delete(
       }
       />
 
-      {displayError && (
-        <Alert variant="destructive">
+      {displayError ? <Alert variant="destructive">
           <AlertDescription>{displayError}</AlertDescription>
-        </Alert>
-      )}
+        </Alert> : null}
 
       {!displayError && collections.length === 0 && !isLoading ? (
         <EmptyState
@@ -836,7 +967,7 @@ response = requests.delete(
       ) : !displayError && collections.length > 0 ? (
         <div className="grid gap-4" data-testid="collections-container">
           {collections.map((collection) => (
-            <Card key={collection.id}>
+            <Card key={collection.id} data-testid={`collection-row-${collection.name}`}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -851,6 +982,7 @@ response = requests.delete(
                             )
                           }
                           title="Click to view documents"
+                          data-testid={`collection-name-${collection.name}`}
                         >
                           {collection.name}
                         </CardTitle>
@@ -860,16 +992,15 @@ response = requests.delete(
                             size="sm"
                             icon={Edit}
                             onClick={() => openEditDialog(collection)}
+                            data-testid={`collection-edit-button-${collection.name}`}
                           >
                             Edit
                           </ActionButton>
                         </span>
                       </div>
-                      {collection.description && (
-                        <CardDescription className="mt-1">
+                      {collection.description ? <CardDescription className="mt-1">
                           {collection.description}
-                        </CardDescription>
-                      )}
+                        </CardDescription> : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -893,6 +1024,7 @@ response = requests.delete(
                       size="sm"
                       icon={Trash2}
                       onClick={() => handleDeleteCollection(collection.id)}
+                      data-testid={`collection-delete-button-${collection.name}`}
                     >
                       Delete
                     </ActionButton>
@@ -928,15 +1060,9 @@ response = requests.delete(
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              {field.required && (
-                                <Badge variant="secondary">Required</Badge>
-                              )}
-                              {field.unique && (
-                                <Badge variant="secondary">Unique</Badge>
-                              )}
-                              {field.indexed && (
-                                <Badge variant="secondary">Indexed</Badge>
-                              )}
+                              {field.required ? <Badge variant="secondary">Required</Badge> : null}
+                              {field.unique ? <Badge variant="secondary">Unique</Badge> : null}
+                              {field.indexed ? <Badge variant="secondary">Indexed</Badge> : null}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -952,7 +1078,7 @@ response = requests.delete(
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto" data-testid="edit-collection-dialog">
           <DialogHeader>
             <DialogTitle>Edit Collection</DialogTitle>
             <DialogDescription>
@@ -969,6 +1095,7 @@ response = requests.delete(
                   setFormData((prev) => ({ ...prev, name: e.target.value }))
                 }
                 placeholder="e.g., users, posts, products"
+                data-testid="collection-edit-form-name"
               />
             </div>
             <div>
@@ -983,6 +1110,7 @@ response = requests.delete(
                   }))
                 }
                 placeholder="Describe what this collection is for"
+                data-testid="collection-edit-form-description"
               />
             </div>
             <div>
@@ -1112,6 +1240,7 @@ response = requests.delete(
             <ActionButton
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
+              data-testid="edit-collection-dialog-cancel"
             >
               Cancel
             </ActionButton>
@@ -1119,6 +1248,7 @@ response = requests.delete(
               variant="edit"
               onClick={handleUpdateCollection}
               disabled={!formData.name}
+              data-testid="edit-collection-dialog-submit"
             >
               Update Collection
             </ActionButton>
@@ -1128,3 +1258,4 @@ response = requests.delete(
     </PageLayout>
   );
 }
+

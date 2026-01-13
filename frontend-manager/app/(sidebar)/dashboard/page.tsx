@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
 import type { Project } from "@/lib/krapi";
 import { Scope } from "@/lib/krapi-constants";
+import { fetchCollections } from "@/store/collectionsSlice";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchProjects } from "@/store/projectsSlice";
 
@@ -75,14 +76,45 @@ export default function DashboardPage() {
     }
   }, [loadProjects, scopes, hasScope]);
 
+  // Load collections for all projects to count them
   useEffect(() => {
+    if (!hasScope(Scope.PROJECTS_READ) || !hasScope(Scope.COLLECTIONS_READ)) {
+      return;
+    }
+
+    if (projects.length === 0) {
+      return;
+    }
+
+    // Fetch collections for each project
+    const collectionPromises = projects.map((project: Project) =>
+      dispatch(fetchCollections({ projectId: project.id }))
+    );
+    Promise.all(collectionPromises).catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load collections for dashboard:", error);
+    });
+  }, [dispatch, projects, hasScope]);
+
+  // Get collections from Redux state
+  const collectionsState = useAppSelector((s) => s.collections);
+  
+  useEffect(() => {
+    // Count total collections across all projects
+    let totalCollectionsCount = 0;
+    Object.values(collectionsState.byProjectId).forEach((bucket) => {
+      if (bucket.items && Array.isArray(bucket.items)) {
+        totalCollectionsCount += bucket.items.length;
+      }
+    });
+
     setStats({
       totalProjects: projects.length,
       activeProjects: projects.filter((p: Project) => p.is_active).length,
-      totalCollections: 0,
-      totalDocuments: 0,
+      totalCollections: totalCollectionsCount,
+      totalDocuments: 0, // Note: implement document counting if needed
     });
-  }, [projects]);
+  }, [projects, collectionsState]);
 
   if (loading) {
     return (
@@ -104,18 +136,21 @@ export default function DashboardPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title={`Welcome back, ${user?.username || "User"}!`}
-        description="Admin dashboard for managing your KRAPI instance"
-        action={
-          hasScope(Scope.PROJECTS_WRITE) ? (
-            <ActionButton variant="add" icon={Plus} asChild data-testid="quick-action-create-project">
-              <Link href="/projects">Create Project</Link>
-            </ActionButton>
-          ) : null
-        }
-        data-testid="dashboard-welcome"
-      />
+      <div data-testid="dashboard-content">
+        <PageHeader
+          title={`Welcome back, ${user?.username || "User"}!`}
+          description="Admin dashboard for managing your KRAPI instance"
+          action={
+            hasScope(Scope.PROJECTS_WRITE) ? (
+              <Link href="/projects">
+                <ActionButton variant="add" icon={Plus} data-testid="quick-action-create-project">
+                  Create Project
+                </ActionButton>
+              </Link>
+            ) : null
+          }
+          data-testid="dashboard-welcome"
+        />
 
       {/* System Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -290,9 +325,11 @@ export default function DashboardPage() {
                       >
                         {project.is_active ? "Active" : "Inactive"}
                       </Badge>
-                      <ActionButton variant="outline" size="sm" asChild>
-                        <Link href={`/projects/${project.id}`}>Manage</Link>
-                      </ActionButton>
+                      <Link href={`/projects/${project.id}`}>
+                        <ActionButton variant="outline" size="sm">
+                          Manage
+                        </ActionButton>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -311,54 +348,52 @@ export default function DashboardPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {hasScope(Scope.PROJECTS_WRITE) && (
-              <ActionButton
-                variant="outline"
-                icon={Plus}
-                className="h-auto p-4 flex-col items-start gap-2"
-                asChild
-                data-testid="quick-action-create-project"
-              >
-                <Link href="/projects" className="flex flex-col items-start gap-2">
+              <Link href="/projects" className="flex flex-col items-start gap-2">
+                <ActionButton
+                  variant="outline"
+                  icon={Plus}
+                  className="h-auto p-4 flex-col items-start gap-2 w-full"
+                  data-testid="quick-action-create-project"
+                >
                   <div className="font-medium">Create Project</div>
                   <p className="text-base text-muted-foreground">
                     Start a new project
                   </p>
-                </Link>
-              </ActionButton>
+                </ActionButton>
+              </Link>
             )}
 
             {hasScope(Scope.USERS_READ) && (
-              <ActionButton
-                variant="outline"
-                icon={Users}
-                className="h-auto p-4 flex-col items-start gap-2"
-                asChild
-              >
-                <Link href="/users" className="flex flex-col items-start gap-2">
+              <Link href="/users" className="flex flex-col items-start gap-2">
+                <ActionButton
+                  variant="outline"
+                  icon={Users}
+                  className="h-auto p-4 flex-col items-start gap-2 w-full"
+                >
                   <div className="font-medium">Manage Users</div>
                   <p className="text-base text-muted-foreground">
                     Admin user management
                   </p>
-                </Link>
-              </ActionButton>
+                </ActionButton>
+              </Link>
             )}
 
-            <ActionButton
-              variant="outline"
-              icon={TrendingUp}
-              className="h-auto p-4 flex-col items-start gap-2"
-              asChild
-            >
-              <Link href="/test-access" className="flex flex-col items-start gap-2">
+            <Link href="/test-access" className="flex flex-col items-start gap-2">
+              <ActionButton
+                variant="outline"
+                icon={TrendingUp}
+                className="h-auto p-4 flex-col items-start gap-2 w-full"
+              >
                 <div className="font-medium">Test Access</div>
                 <p className="text-base text-muted-foreground">
                   Test API endpoints
                 </p>
-              </Link>
-            </ActionButton>
+              </ActionButton>
+            </Link>
           </div>
         </CardContent>
       </Card>
+      </div>
     </PageLayout>
   );
 }

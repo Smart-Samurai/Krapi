@@ -102,10 +102,9 @@ const scopeLabels: Record<string, string> = {
  */
 export default function UsersPage() {
   const params = useParams();
-  if (!params || !params.projectId) {
-    throw new Error("Project ID is required");
-  }
-  const projectId = params.projectId as string;
+  // Get projectId with fallback - all hooks must be called unconditionally
+  const projectId = (params && params.projectId ? String(params.projectId) : null) || "";
+  
   const [searchQuery] = useState("");
 
   const dispatch = useAppDispatch();
@@ -138,6 +137,17 @@ export default function UsersPage() {
   useEffect(() => {
     loadUsersCb();
   }, [loadUsersCb]);
+
+  // Early return after all hooks are called
+  if (!projectId || projectId === "") {
+    return (
+      <PageLayout>
+        <Alert variant="destructive">
+          <AlertDescription>Project ID is required</AlertDescription>
+        </Alert>
+      </PageLayout>
+    );
+  }
 
   const handleCreateUser = async () => {
     try {
@@ -290,6 +300,8 @@ export default function UsersPage() {
       <PageHeader
         title="Users"
         description="Manage project users and their access permissions"
+        showBackButton
+        backButtonFallback={`/projects/${projectId}`}
         action={
           <div className="flex items-center gap-2">
             <CodeSnippet context="users" projectId={projectId} />
@@ -320,6 +332,7 @@ export default function UsersPage() {
                       }))
                     }
                     placeholder="Enter username"
+                    data-testid="user-form-username"
                   />
                 </div>
                 <div>
@@ -335,6 +348,7 @@ export default function UsersPage() {
                       }))
                     }
                     placeholder="Enter email"
+                    data-testid="user-form-email"
                   />
                 </div>
               </div>
@@ -380,8 +394,8 @@ export default function UsersPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="password">Password *</Label>
-                <div className="relative">
+                  <Label htmlFor="password">Password *</Label>
+                  <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -393,6 +407,7 @@ export default function UsersPage() {
                       }))
                     }
                     placeholder="Enter password"
+                    data-testid="user-form-password"
                   />
                   <Button
                     type="button"
@@ -431,6 +446,7 @@ export default function UsersPage() {
               <ActionButton
                 variant="outline"
                 onClick={() => setIsCreateDialogOpen(false)}
+                data-testid="create-user-dialog-cancel"
               >
                 Cancel
               </ActionButton>
@@ -440,6 +456,7 @@ export default function UsersPage() {
                 disabled={
                   !formData.username || !formData.email || !formData.password
                 }
+                data-testid="create-user-dialog-submit"
               >
                 Create User
               </ActionButton>
@@ -450,11 +467,9 @@ export default function UsersPage() {
         }
       />
 
-      {error && (
-        <Alert variant="destructive">
+      {error ? <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        </Alert> : null}
 
       {users.length === 0 ? (
         <EmptyState
@@ -489,7 +504,7 @@ export default function UsersPage() {
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user.id} data-testid={`user-row-${user.username}`}>
                     <TableCell>
                       <div>
                         <div className="font-medium">
@@ -508,12 +523,10 @@ export default function UsersPage() {
                           <Mail className="h-3 w-3" />
                           {user.email}
                         </div>
-                        {(user.metadata?.phone as string) && (
-                          <div className="flex items-center gap-1 text-base">
+                        {(user.metadata?.phone as string) ? <div className="flex items-center gap-1 text-base">
                             <Phone className="h-3 w-3" />
                             {user.metadata?.phone as string}
-                          </div>
-                        )}
+                          </div> : null}
                       </div>
                     </TableCell>
                     <TableCell>

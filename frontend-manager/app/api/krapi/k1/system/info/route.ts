@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest): Promise<Response> {
     // Frontend SDK uses SystemAdapter which has getInfo() that returns SystemInfo
     const systemInfo = await backendSdk.system.getInfo();
     // Cast through unknown first to avoid type error
-    let info = (systemInfo as unknown) as Record<string, unknown>;
+    const info = (systemInfo as unknown) as Record<string, unknown>;
 
     // Ensure version field exists - if not, add default
     // Note: Can't use require() in Next.js API routes at build time

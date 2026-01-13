@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // Force dynamic rendering
@@ -9,13 +10,10 @@ export const runtime = 'nodejs';
 /**
  * MCP Models API Route
  * 
- * Connects directly to OpenAI-compatible LLM endpoints (LM Studio, Ollama, OpenAI)
- * to fetch available models.
+ * List available models from LLM providers (openai, ollama, lmstudio)
  * POST /api/mcp/models
  * 
- * NOTE: This route calls EXTERNAL LLM endpoints (not KRAPI backend), so it's acceptable
- * to use fetch() directly. This is not a violation of SDK-first architecture since
- * we're not communicating with the KRAPI backend.
+ * SDK-FIRST ARCHITECTURE: Uses SDK mcp.models() method.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
@@ -31,101 +29,18 @@ export async function POST(request: NextRequest): Promise<Response> {
     const body = await request.json();
     const { provider, endpoint, apiKey } = body;
 
-    if (!endpoint) {
+    if (!provider || !endpoint) {
       return NextResponse.json(
-        { success: false, error: "Endpoint URL is required" },
+        { success: false, error: "Provider and endpoint are required" },
         { status: 400 }
       );
     }
 
-    // Build the models endpoint URL based on provider
-    let modelsUrl: string;
-    if (provider === "ollama") {
-      // Ollama uses /api/tags for model list
-      modelsUrl = `${endpoint}/api/tags`;
-    } else {
-      // OpenAI and LM Studio use OpenAI-compatible /v1/models endpoint
-      const baseUrl = endpoint.endsWith("/v1") ? endpoint : `${endpoint}/v1`;
-      modelsUrl = `${baseUrl}/models`;
-    }
+    // SDK-FIRST: Use SDK mcp.models() method
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await sdk.mcp.models(provider, endpoint, apiKey);
 
-    // Prepare headers
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-
-    // Add API key for OpenAI (LM Studio and Ollama typically don't need it)
-    if (provider === "openai" && apiKey) {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
-
-    // Fetch models from the LLM provider
-    let response: Response;
-    try {
-      response = await fetch(modelsUrl, {
-        method: "GET",
-        headers,
-      });
-    } catch (fetchError) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to connect to LLM endpoint:", fetchError);
-      return NextResponse.json(
-        { success: false, error: `Failed to connect to ${provider} endpoint: ${endpoint}` },
-        { status: 503 }
-      );
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      // eslint-disable-next-line no-console
-      console.error(`LLM endpoint returned ${response.status}:`, errorText);
-      return NextResponse.json(
-        { success: false, error: `LLM endpoint returned ${response.status}: ${errorText.substring(0, 200)}` },
-        { status: response.status }
-      );
-    }
-
-    interface ModelResponse {
-      models?: Array<{ name: string }>;
-      data?: Array<{ id: string }>;
-    }
-
-    interface Model {
-      id: string;
-      name?: string;
-    }
-
-    let data: ModelResponse;
-    try {
-      data = await response.json();
-    } catch (_parseError) {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON response from LLM endpoint" },
-        { status: 500 }
-      );
-    }
-
-    // Transform response to consistent format
-    let models: Model[] = [];
-    
-    if (provider === "ollama") {
-      // Ollama returns { models: [{ name, ... }] }
-      models = (data.models || []).map((m) => ({
-        id: m.name,
-        name: m.name,
-      }));
-    } else {
-      // OpenAI/LM Studio return { data: [{ id, ... }] }
-      models = (data.data || []).map((m) => ({
-        id: m.id,
-        name: m.id,
-      }));
-    }
-
-    return NextResponse.json({
-      success: true,
-      models,
-    });
+    return NextResponse.json(result);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("MCP models route error:", error);

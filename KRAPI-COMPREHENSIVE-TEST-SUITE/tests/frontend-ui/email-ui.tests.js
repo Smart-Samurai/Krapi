@@ -91,7 +91,7 @@ export async function runEmailUITests(testSuite, page) {
     // Wait for page content - email page can show form, empty state, or error
     const form = page.locator('[data-testid="email-config-form"], form').first();
     const emptyState = page.locator('[data-testid="email-empty-state"]').first();
-    const emptyStateText = page.locator('text=/no.*email/i').first();
+    const emptyStateText = page.locator('[data-testid="email-empty-state"]').first();
     
     await Promise.race([
       form.waitFor({ state: "attached", timeout: CONFIG.TEST_TIMEOUT / 2 }),
@@ -121,10 +121,8 @@ export async function runEmailUITests(testSuite, page) {
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT * 2);
 
-    // Look for email configuration fields
-    const hasForm = await page.locator(
-      'form, input[name*="smtp"], input[name*="email"], input[type="email"]'
-    ).first().isVisible().catch(() => false);
+    // Look for email configuration fields (data-testid only)
+    const hasForm = await page.locator('[data-testid="email-config-form"]').first().isVisible().catch(() => false);
 
     testSuite.assert(hasForm || true, "Email configuration form should display (test passed)");
   });
@@ -136,9 +134,7 @@ export async function runEmailUITests(testSuite, page) {
     await page.goto(page.url().replace(/\/$/, "") + "/email");
     await page.waitForTimeout(CONFIG.PAGE_WAIT_TIMEOUT);
 
-    const testButton = await page.locator(
-      '[data-testid="test-email-button"], button:has-text("Test"), button:has-text("Send Test")'
-    ).first().isVisible().catch(() => false);
+    const testButton = await page.locator('[data-testid="test-email-button"]').first().isVisible().catch(() => false);
 
     testSuite.assert(testButton || true, "Test Email button may be present (test passed)");
   });

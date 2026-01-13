@@ -13,9 +13,12 @@ import { Router } from "express";
 
 import SystemController from "../controllers/system.controller";
 import { authenticate, requireScopes } from "../middleware/auth.middleware";
+import { EncryptionKeyHandler } from "../routes/handlers/system/encryption-key.handler";
+import { Scope } from "../types";
 
 const router: Router = Router();
 const controller = SystemController;
+let encryptionKeyHandler: EncryptionKeyHandler | null = null;
 
 /**
  * Initialize BackendSDK for system routes
@@ -25,6 +28,7 @@ const controller = SystemController;
  */
 export const initializeSystemSDK = (sdk: BackendSDK) => {
   controller.setBackendSDK(sdk);
+  encryptionKeyHandler = new EncryptionKeyHandler(sdk);
 };
 
 // Apply authentication middleware to all system routes
@@ -104,5 +108,31 @@ router.get("/database-health", controller.getDatabaseHealth);
  * @returns {Object} Reset statistics
  */
 router.post("/reset-database", requireScopes({ scopes: ["MASTER", "admin:delete"] }), controller.resetDatabase);
+
+/**
+ * Get file encryption key
+ * 
+ * GET /krapi/k1/system/encryption-key
+ * 
+ * Retrieves the file encryption key. Only accessible to admins.
+ * Requires admin:read or MASTER scope.
+ * 
+ * @route GET /encryption-key
+ * @returns {Object} Encryption key information
+ */
+router.get(
+  "/encryption-key",
+  requireScopes({ scopes: [Scope.ADMIN_READ, "MASTER"] }),
+  async (req, res) => {
+    if (!encryptionKeyHandler) {
+      res.status(500).json({
+        success: false,
+        error: "Encryption key handler not initialized",
+      });
+      return;
+    }
+    await encryptionKeyHandler.handle(req, res);
+  }
+);
 
 export default router;

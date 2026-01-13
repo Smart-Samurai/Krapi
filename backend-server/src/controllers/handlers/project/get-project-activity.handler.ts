@@ -68,7 +68,7 @@ export class GetProjectActivityHandler {
       res.status(200).json({
         success: true,
         data: {
-          activities: activities,
+          activities,
           total: activities.length,
           limit: parseInt(limit as string) || 100,
           days: days ? parseInt(days as string) : undefined,

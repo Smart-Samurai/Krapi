@@ -36,6 +36,7 @@ class TestLogger {
     this.fullOutputLog = []; // Full output log from test runner (all stdout/stderr)
     this.filesSaved = false; // Track if files have already been saved to prevent duplicates
     this.totalExpectedTests = null; // Store expected total tests for accurate success rate calculation
+    this.logsDirectory = options.logsDirectory || "test-logs"; // Custom logs directory (default: test-logs)
   }
 
   /**
@@ -76,7 +77,7 @@ class TestLogger {
   /**
    * Log test result
    */
-  testResult(name, status, duration, error = null) {
+  testResult(name, status, duration, error = null, errorDetails = null) {
     const durationStr =
       duration < 1000 ? `${duration}ms` : `${(duration / 1000).toFixed(1)}s`;
 
@@ -95,13 +96,25 @@ class TestLogger {
     } else {
       this.testResults.failed++;
       if (error) {
-        this.testResults.errors.push({
+        const errorObj = {
           name,
+          test: name, // Also set test field for consistency
           error: error.message || "Unknown error",
           stack: error.stack,
-        });
+        };
+        
+        // Add structured error details if provided
+        if (errorDetails) {
+          errorObj.details = errorDetails;
+        }
+        
+        this.testResults.errors.push(errorObj);
       }
     }
+    
+    // CRITICAL: Also record the test result so it appears in JSON logs
+    // This was missing - tests were being counted but not saved to JSON!
+    this.recordTestResult(name, status, duration, error, errorDetails);
 
     if (status === "PASSED") {
       // In minimal mode, only show passed tests if verbose is enabled
@@ -265,52 +278,18 @@ class TestLogger {
   }
 
   /**
-   * Log summary
+   * Log summary - simplified format
    */
   summary(total, passed, failed, duration, totalExpected = null) {
-    const isQuickMode = process.env.STOP_ON_FIRST_FAILURE === "true";
-    // Always use totalExpected if provided, otherwise fall back to total
-    // totalExpected should always be 117 for the full test suite
-    const totalTests = totalExpected !== null && totalExpected > 0 ? totalExpected : (total || 117);
-    // Calculate success rate based on expected tests, not just tests that ran
-    // If totalExpected is provided, use it; otherwise fall back to actual total
-    const successRate = totalExpected && totalExpected > 0 
-      ? ((passed / totalExpected) * 100).toFixed(1) 
-      : (total > 0 ? ((passed / total) * 100).toFixed(1) : 0);
-    
-    if (this.minimal && !this.verbose) {
-      // Minimal: compact summary - always show total expected (117)
-      console.log("\n" + "=".repeat(60));
-      if (isQuickMode && totalExpected !== null) {
-        console.log(`Tests: ${passed}/${totalTests} (${total} executed before failure) | Duration: ${(duration / 1000).toFixed(2)}s`);
-      } else {
-        console.log(`Tests: ${passed}/${totalTests} passed (${successRate}%) | Duration: ${(duration / 1000).toFixed(2)}s`);
-      }
-      if (failed > 0) {
-        console.log(`Failed: ${failed} ❌`);
-      }
-      console.log("=".repeat(60));
-    } else {
-      console.log("\n" + "=".repeat(60));
-      
-      console.log("TEST SUMMARY");
-      console.log("=".repeat(60));
-      
-      if (isQuickMode && totalExpected !== null) {
-        console.log("⚠️  QUICK MODE: Test execution stopped on first failure");
-        console.log(`   • ${total} of ${totalExpected} tests executed before failure`);
-        console.log("   • Fix the error and run again to continue");
-        console.log("   • For full test suite results, use: pnpm run test:comprehensive");
-        console.log("=".repeat(60));
-      }
-      // Always show total expected (79) even if fewer tests ran
-      console.log(`Total: ${total}${totalExpected !== null && totalExpected > 0 ? ` of ${totalExpected} expected` : ""}`);
-      console.log(`Passed: ${passed} ✅`);
-      console.log(`Failed: ${failed} ${failed > 0 ? "❌" : ""}`);
-      console.log(`Success Rate: ${successRate}%`);
-      console.log(`Duration: ${(duration / 1000).toFixed(2)}s`);
-      console.log("=".repeat(60));
-    }
+    // Simple summary - always minimal format
+    console.log("\n" + "=".repeat(60));
+    console.log("TEST RESULTS SUMMARY");
+    console.log("=".repeat(60));
+    console.log(`Duration: ${(duration / 1000).toFixed(2)}s`);
+    console.log(`Tests Ran: ${total}`);
+    console.log(`Passed: ${passed}`);
+    console.log(`Failed: ${failed}`);
+    console.log("=".repeat(60));
   }
 
   /**
@@ -372,7 +351,7 @@ class TestLogger {
       result.responseData = error.response?.data || null;
 
       // Also add to errors array with enhanced details
-      this.testResults.errors.push({
+      const errorEntry = {
         test: name,
         error: result.error,
         errorCode: result.errorCode,
@@ -386,12 +365,14 @@ class TestLogger {
         status: error.response?.status || null,
         statusText: error.response?.statusText || null,
         responseData: error.response?.data || null,
-      });
-      // Update failed counter
-      this.testResults.failed++;
+      };
+      
+      // Note: errorDetails parameter is not used here - it's passed to testResult() method instead
+      
+      this.testResults.errors.push(errorEntry);
+      // Don't update counters here - testResult() already handles them to avoid double-counting
     } else if (status === "PASSED") {
-      // Update passed counter
-      this.testResults.passed++;
+      // Don't update counters here - testResult() already handles them to avoid double-counting
     }
 
     this.results.push(result);
@@ -418,32 +399,39 @@ class TestLogger {
   async saveResultsToFile() {
     // Prevent duplicate saves - if files were already saved, skip
     if (this.filesSaved) {
-      return { jsonFilename: null, txtFilename: null, errorsFilename: null };
+      return { jsonFilename: null, errorsFilename: null };
     }
 
-    // Calculate totals from results array (more reliable than counters)
-    const passedCount = this.results.filter(
-      (r) => r.status === "PASSED"
-    ).length;
-    const failedCount = this.results.filter(
-      (r) => r.status === "FAILED"
+    // Calculate totals from both passed results and failed errors
+    // EXCLUDE suite-level failures from individual test counts
+    const individualTestResults = this.results.filter(
+      (r) => r.test !== "Test Suite"
+    );
+    const passedCount = individualTestResults.length; // All results are PASSED tests
+    const failedCount = this.testResults.errors.filter(
+      (e) => !(e.name || e.test)?.includes("Test Suite") // Exclude suite-level errors
     ).length;
     const totalTests = passedCount + failedCount;
+
+    // Check for suite-level failures (separate from individual tests)
+    const suiteFailures = this.results.filter(
+      (r) => r.test === "Test Suite" && r.status === "FAILED"
+    );
 
     // Sync counters with actual results (in case they got out of sync)
     this.testResults.passed = passedCount;
     this.testResults.failed = failedCount;
 
     const duration = Date.now() - this.startTime;
-    // Calculate success rate based on expected tests, not just tests that ran
-    // If totalExpectedTests is set, use it; otherwise fall back to actual total
-    const expectedTotal = this.totalExpectedTests || totalTests;
+    // Calculate success rate based on actual tests that ran, not expected tests
+    // Success rate should never exceed 100% - use actual totalTests as denominator
     const successRate =
-      expectedTotal > 0 ? ((passedCount / expectedTotal) * 100).toFixed(1) : "0.0";
+      totalTests > 0 ? ((passedCount / totalTests) * 100).toFixed(1) : "0.0";
 
     const reportData = {
       summary: {
         totalTests,
+        totalExpected: this.totalExpectedTests || totalTests, // Include expected total
         passed: passedCount,
         failed: failedCount,
         successRate: `${successRate}%`,
@@ -451,9 +439,12 @@ class TestLogger {
         timestamp: new Date().toISOString(),
         startTime: new Date(this.startTime).toISOString(),
         endTime: new Date().toISOString(),
+        suiteFailed: suiteFailures.length > 0,
+        suiteFailureMessage: suiteFailures.length > 0 ? suiteFailures[0].error : null,
       },
       environment: this.environment,
-      testResults: this.results,
+      testResults: individualTestResults, // Only individual tests, not suite-level
+      suiteFailures: suiteFailures, // Suite-level failures separate
       failedTests: this.testResults.errors,
       testProject: this.testProject
         ? {
@@ -470,8 +461,18 @@ class TestLogger {
       serviceLogs: this.serviceLogs || { backend: [], frontend: [] },
     };
 
+    // Fix the failed count by counting actual failed tests (more reliable)
+    const actualFailedCount = reportData.failedTests.filter(
+      (e) => {
+        const fieldValue = e.name || e.test || "";
+        return !fieldValue.includes("Test Suite");
+      }
+    ).length;
+    reportData.summary.failed = actualFailedCount;
+    reportData.summary.totalTests = passedCount + actualFailedCount;
+
     // Create logs directory if it doesn't exist
-    const logsDir = join(process.cwd(), "test-logs");
+    const logsDir = join(process.cwd(), this.logsDirectory);
     if (!existsSync(logsDir)) {
       await mkdir(logsDir, { recursive: true });
     }
@@ -479,169 +480,21 @@ class TestLogger {
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const jsonFilename = join(logsDir, `test-results-${timestamp}.json`);
-    const txtFilename = join(logsDir, `test-results-${timestamp}.txt`);
-    const fullOutputFilename = join(logsDir, `test-full-output-${timestamp}.txt`);
 
-    // Save JSON report
+    // Save JSON report (only JSON, no duplicate TXT)
     await writeFile(jsonFilename, JSON.stringify(reportData, null, 2), "utf-8");
 
-    // Generate human-readable text report
-    let textReport = "=".repeat(80) + "\n";
-    textReport += "KRAPI COMPREHENSIVE TEST SUITE RESULTS\n";
-    textReport += "=".repeat(80) + "\n\n";
-
-    textReport += "SUMMARY\n";
-    textReport += "-".repeat(80) + "\n";
-    if (this.totalExpectedTests && this.totalExpectedTests !== totalTests) {
-      textReport += `Total Tests: ${totalTests} of ${this.totalExpectedTests} expected\n`;
-    } else {
-    textReport += `Total Tests: ${totalTests}\n`;
-    }
-    textReport += `Passed: ${passedCount}\n`;
-    textReport += `Failed: ${failedCount}\n`;
-    textReport += `Success Rate: ${successRate}%\n`;
-    textReport += `Duration: ${duration}ms\n`;
-    textReport += `Timestamp: ${new Date().toISOString()}\n\n`;
-
-    textReport += "ENVIRONMENT\n";
-    textReport += "-".repeat(80) + "\n";
-    
-    // Add service logs section if available (only error-level logs, not debug)
-    if (this.serviceLogs && (this.serviceLogs.backend.length > 0 || this.serviceLogs.frontend.length > 0)) {
-      textReport += "\nSERVICE LOGS (Error-level only)\n";
-      textReport += "-".repeat(80) + "\n";
-      
-      // Filter to only error-level logs
-      const backendErrors = this.serviceLogs.backend.filter(log => 
-        log.type === "error" || log.type === "ERROR" || 
-        (log.message && (log.message.includes("ERROR") || log.message.includes("error") || log.message.includes("❌")))
-      );
-      const frontendErrors = this.serviceLogs.frontend.filter(log => 
-        log.type === "error" || log.type === "ERROR" || 
-        (log.message && (log.message.includes("ERROR") || log.message.includes("error") || log.message.includes("❌")))
-      );
-      
-      if (backendErrors.length > 0) {
-        textReport += "\nBACKEND ERRORS:\n";
-        backendErrors.forEach((log) => {
-          textReport += `[${log.timestamp}] ${log.message}\n`;
-        });
-      }
-      
-      if (frontendErrors.length > 0) {
-        textReport += "\nFRONTEND ERRORS:\n";
-        frontendErrors.forEach((log) => {
-          textReport += `[${log.timestamp}] ${log.message}\n`;
-        });
-      }
-      
-      textReport += "\n";
-    }
-    textReport += `Node Version: ${this.environment.nodeVersion || "N/A"}\n`;
-    textReport += `Platform: ${this.environment.platform || "N/A"}\n`;
-    textReport += `Architecture: ${this.environment.arch || "N/A"}\n`;
-    textReport += `Frontend URL: ${this.environment.frontendUrl || "N/A"}\n`;
-    textReport += `Backend URL: ${this.environment.backendUrl || "N/A"}\n\n`;
-
-    if (this.testProject) {
-      textReport += "TEST PROJECT\n";
-      textReport += "-".repeat(80) + "\n";
-      textReport += `ID: ${this.testProject.id}\n`;
-      textReport += `Name: ${this.testProject.name}\n\n`;
-    }
-
-    if (this.testCollection) {
-      textReport += "TEST COLLECTION\n";
-      textReport += "-".repeat(80) + "\n";
-      textReport += `ID: ${this.testCollection.id}\n`;
-      textReport += `Name: ${this.testCollection.name}\n\n`;
-    }
-
-    textReport += "DETAILED TEST RESULTS\n";
-    textReport += "-".repeat(80) + "\n\n";
-
-    // Group tests by status
-    const passedTests = this.results.filter((r) => r.status === "PASSED");
-    const failedTests = this.results.filter((r) => r.status === "FAILED");
-
-    if (passedTests.length > 0) {
-      textReport += `PASSED TESTS (${passedTests.length})\n`;
-      textReport += "-".repeat(80) + "\n";
-      passedTests.forEach((result) => {
-        textReport += `✅ ${result.test} (${result.duration}ms)\n`;
-      });
-      textReport += "\n";
-    }
-
-    if (failedTests.length > 0) {
-      textReport += `FAILED TESTS (${failedTests.length})\n`;
-      textReport += "-".repeat(80) + "\n";
-      failedTests.forEach((result) => {
-        textReport += `❌ ${result.test} (${result.duration}ms)\n`;
-        textReport += `   Error: ${result.error}\n`;
-        if (result.httpStatus) {
-          textReport += `   HTTP Status: ${result.httpStatus} ${
-            result.httpStatusText || ""
-          }\n`;
-        }
-        if (result.code) {
-          textReport += `   Error Code: ${result.code}\n`;
-        }
-        if (result.responseData) {
-          textReport += `   Response Data: ${JSON.stringify(
-            result.responseData,
-            null,
-            2
-          )}\n`;
-        }
-        if (result.stack) {
-          textReport += `   Stack Trace:\n${result.stack
-            .split("\n")
-            .map((line) => `      ${line}`)
-            .join("\n")}\n`;
-        }
-        textReport += "\n";
-      });
-    }
-
-    textReport += "=".repeat(80) + "\n";
-    textReport += "END OF REPORT\n";
-    textReport += "=".repeat(80) + "\n";
-
-    // Save text report
-    await writeFile(txtFilename, textReport, "utf-8");
-
-    // Generate errors-only report (no debug logs, no passed tests)
+    // Generate errors-only report (no debug logs, no passed tests) - only if there are errors
     const errorsFilename = join(logsDir, `test-errors-${timestamp}.txt`);
-    await this.saveErrorsOnlyReport(errorsFilename, {
-      totalTests,
-      passedCount,
-      failedCount,
-      successRate,
-      duration,
-    });
-
-    // Save full output log (all stdout/stderr from services)
-    if (this.fullOutputLog && this.fullOutputLog.length > 0) {
-      let fullOutputReport = "=".repeat(80) + "\n";
-      fullOutputReport += "KRAPI TEST SUITE - FULL OUTPUT LOG\n";
-      fullOutputReport += "=".repeat(80) + "\n\n";
-      fullOutputReport += `Timestamp: ${new Date().toISOString()}\n`;
-      fullOutputReport += `Total Log Entries: ${this.fullOutputLog.length}\n\n`;
-      fullOutputReport += "FULL SERVICE OUTPUT\n";
-      fullOutputReport += "-".repeat(80) + "\n\n";
-      
-      this.fullOutputLog.forEach((log) => {
-        const serviceTag = log.service === "backend" ? "[Backend]" : "[Frontend]";
-        const typeTag = log.type === "stderr" ? "[ERROR]" : "[INFO]";
-        fullOutputReport += `[${log.timestamp}] ${serviceTag} ${typeTag} ${log.message}\n`;
+    if (failedCount > 0 || suiteFailures.length > 0) {
+      await this.saveErrorsOnlyReport(errorsFilename, {
+        totalTests,
+        passedCount,
+        failedCount,
+        successRate,
+        duration,
+        suiteFailures,
       });
-      
-      fullOutputReport += "\n" + "=".repeat(80) + "\n";
-      fullOutputReport += "END OF FULL OUTPUT LOG\n";
-      fullOutputReport += "=".repeat(80) + "\n";
-      
-      await writeFile(fullOutputFilename, fullOutputReport, "utf-8");
     }
 
     // Mark as saved to prevent duplicate saves
@@ -649,14 +502,14 @@ class TestLogger {
 
     console.log(`\n📄 Test results saved to:`);
     console.log(`   JSON: ${jsonFilename}`);
-    console.log(`   Text: ${txtFilename}`);
-    console.log(`   Errors Only: ${errorsFilename}`);
-    if (this.fullOutputLog && this.fullOutputLog.length > 0) {
-      console.log(`   Full Output: ${fullOutputFilename}`);
+    if (failedCount > 0 || suiteFailures.length > 0) {
+      console.log(`   Errors Only: ${errorsFilename}`);
     }
-    console.log(`\n💡 You can share these files to help diagnose issues.`);
 
-    return { jsonFilename, txtFilename, errorsFilename, fullOutputFilename };
+    return { 
+      jsonFilename, 
+      errorsFilename: (failedCount > 0 || suiteFailures.length > 0) ? errorsFilename : null 
+    };
   }
 
   /**
@@ -664,7 +517,11 @@ class TestLogger {
    */
   async saveErrorsOnlyReport(filename, summary) {
     let errorsReport = "=".repeat(80) + "\n";
-    errorsReport += "KRAPI TEST SUITE - ERRORS ONLY\n";
+    // Use different title based on logs directory
+    const errorsTitle = this.logsDirectory === "frontend-ui-test-logs"
+      ? "KRAPI FRONTEND UI TEST SUITE - ERRORS ONLY"
+      : "KRAPI TEST SUITE - ERRORS ONLY";
+    errorsReport += `${errorsTitle}\n`;
     errorsReport += "=".repeat(80) + "\n\n";
 
     errorsReport += "SUMMARY\n";
@@ -698,10 +555,60 @@ class TestLogger {
       errorsReport += `Name: ${this.testCollection.name}\n\n`;
     }
 
-    // Only include failed tests
-    const failedTests = this.results.filter((r) => r.status === "FAILED");
+    // Only include failed individual tests (exclude suite-level failures)
+    // Check both this.results (from recordTestResult) and this.testResults.errors (from testResult)
+    const failedResults = this.results.filter(
+      (r) => r.status === "FAILED" && r.test !== "Test Suite"
+    );
+    const failedErrors = this.testResults.errors.filter(
+      (e) => !(e.name || e.test)?.includes("Test Suite")
+    );
+    
+    // Combine both sources and deduplicate by test name
+    const failedTestsMap = new Map();
+    failedResults.forEach((r) => {
+      const key = r.test || r.name || "Unknown";
+      if (!failedTestsMap.has(key)) {
+        failedTestsMap.set(key, r);
+      }
+    });
+    failedErrors.forEach((e) => {
+      const key = e.test || e.name || "Unknown";
+      if (!failedTestsMap.has(key)) {
+        // Convert error object to result format
+        failedTestsMap.set(key, {
+          test: e.test || e.name,
+          name: e.name || e.test,
+          status: "FAILED",
+          error: e.error,
+          errorSource: e.errorSource,
+          errorCategory: e.errorCategory,
+          fixLocation: e.fixLocation,
+          duration: e.duration,
+          stack: e.stack,
+          details: e.details,
+        });
+      }
+    });
+    const failedTests = Array.from(failedTestsMap.values());
+    
+    // Handle suite-level failures separately
+    const suiteFailures = summary.suiteFailures || [];
 
-    if (failedTests.length > 0) {
+    if (failedTests.length > 0 || suiteFailures.length > 0) {
+      // Add suite failures section if they exist
+      if (suiteFailures.length > 0) {
+        errorsReport += "SUITE-LEVEL FAILURES\n";
+        errorsReport += "=".repeat(80) + "\n";
+        errorsReport += "These are failures at the test suite level, not individual test failures.\n\n";
+        suiteFailures.forEach((failure) => {
+          errorsReport += `Test Suite Error: ${failure.error || "Unknown error"}\n`;
+          if (failure.stack) {
+            errorsReport += `Stack Trace:\n${failure.stack}\n`;
+          }
+          errorsReport += "\n" + "-".repeat(80) + "\n\n";
+        });
+      }
       // Group errors by source
       const errorsBySource = {
         SDK: [],
@@ -712,6 +619,14 @@ class TestLogger {
       
       failedTests.forEach((result) => {
         const source = result.errorSource || "UNKNOWN";
+        // Find corresponding error entry for detailed error info
+        // Error entries use 'name', results use 'test' - check both
+        const errorEntry = this.testResults.errors.find(
+          e => (e.test || e.name) === (result.test || result.name)
+        );
+        if (errorEntry?.details) {
+          result.errorDetails = errorEntry.details;
+        }
         if (errorsBySource[source]) {
           errorsBySource[source].push(result);
         } else {
@@ -738,7 +653,8 @@ class TestLogger {
         errorsReport += "Fix Location: SDK team should address these.\n\n";
         
         errorsBySource.SDK.forEach((result) => {
-          errorsReport += `${testIndex++}. ❌ ${result.test} (${result.duration}ms)\n`;
+          const testName = result.test || result.name || "Unknown test";
+          errorsReport += `${testIndex++}. ❌ ${testName} (${result.duration}ms)\n`;
           errorsReport += `   Error: ${result.error || "Unknown error"}\n`;
           errorsReport += `   Category: ${result.errorCategory || "UNKNOWN"}\n`;
           errorsReport += `   Fix Location: ${result.fixLocation || "SDK"}\n`;
@@ -789,10 +705,50 @@ class TestLogger {
         errorsReport += "Fix Location: Check backend routes, handlers, and frontend API routes.\n\n";
         
         errorsBySource.SERVER.forEach((result) => {
-          errorsReport += `${testIndex++}. ❌ ${result.test} (${result.duration}ms)\n`;
+          const testName = result.test || result.name || "Unknown test";
+          errorsReport += `${testIndex++}. ❌ ${testName} (${result.duration}ms)\n`;
           errorsReport += `   Error: ${result.error || "Unknown error"}\n`;
           errorsReport += `   Category: ${result.errorCategory || "UNKNOWN"}\n`;
           errorsReport += `   Fix Location: ${result.fixLocation || "BACKEND"}\n`;
+          
+          // Include structured error details if available (from test-suite-factory)
+          const errorEntry = this.testResults.errors.find(e => e.test === result.test);
+          if (errorEntry?.details) {
+            const details = errorEntry.details;
+            if (details.browserConsoleErrors?.length > 0) {
+              errorsReport += `   Browser Console Errors (${details.browserConsoleErrors.length}):\n`;
+              details.browserConsoleErrors.forEach((err, i) => {
+                errorsReport += `     ${i + 1}. [${err.type}] ${err.text}\n`;
+              });
+            }
+            if (details.pageErrors?.length > 0) {
+              errorsReport += `   Page Errors (${details.pageErrors.length}):\n`;
+              details.pageErrors.forEach((err, i) => {
+                errorsReport += `     ${i + 1}. ${err.message}\n`;
+              });
+            }
+            if (details.failedHttpResponses?.length > 0) {
+              errorsReport += `   Failed HTTP Responses (${details.failedHttpResponses.length}):\n`;
+              details.failedHttpResponses.forEach((err, i) => {
+                errorsReport += `     ${i + 1}. ${err.status} ${err.statusText} - ${err.url}\n`;
+              });
+            }
+            if (details.directBackendCalls?.length > 0) {
+              errorsReport += `   Direct Backend Calls (Architecture Violation):\n`;
+              details.directBackendCalls.forEach((call, i) => {
+                errorsReport += `     ${i + 1}. ${call.method} ${call.url}\n`;
+              });
+            }
+            if (details.sdkRouteCalls?.length > 0) {
+              errorsReport += `   SDK Route Calls (${details.sdkRouteCalls.length}):\n`;
+              details.sdkRouteCalls.forEach((call, i) => {
+                errorsReport += `     ${i + 1}. ${call.method} ${call.url} (status: ${call.status || 'pending'})\n`;
+              });
+            }
+            if (details.pageInfo) {
+              errorsReport += `   Page Info: ${details.pageInfo.title} | ${details.pageInfo.url}\n`;
+            }
+          }
           
           if (result.httpStatus) {
             errorsReport += `   HTTP Status: ${result.httpStatus} ${
@@ -846,7 +802,8 @@ class TestLogger {
         errorsReport += "Fix Location: Check server availability, ports, and network configuration.\n\n";
         
         errorsBySource.NETWORK.forEach((result) => {
-          errorsReport += `${testIndex++}. ❌ ${result.test} (${result.duration}ms)\n`;
+          const testName = result.test || result.name || "Unknown test";
+          errorsReport += `${testIndex++}. ❌ ${testName} (${result.duration}ms)\n`;
           errorsReport += `   Error: ${result.error || "Unknown error"}\n`;
           errorsReport += `   Category: ${result.errorCategory || "UNKNOWN"}\n`;
           errorsReport += `   Fix Location: ${result.fixLocation || "NETWORK"}\n`;
@@ -866,7 +823,8 @@ class TestLogger {
         errorsReport += "These errors could not be classified. Manual investigation needed.\n\n";
         
         errorsBySource.UNKNOWN.forEach((result) => {
-          errorsReport += `${testIndex++}. ❌ ${result.test} (${result.duration}ms)\n`;
+          const testName = result.test || result.name || "Unknown test";
+          errorsReport += `${testIndex++}. ❌ ${testName} (${result.duration}ms)\n`;
           errorsReport += `   Error: ${result.error || "Unknown error"}\n`;
           
           if (result.httpStatus) {

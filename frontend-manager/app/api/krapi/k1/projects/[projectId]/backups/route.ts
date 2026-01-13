@@ -3,7 +3,6 @@
  * GET /api/krapi/k1/projects/[projectId]/backups
  */
 
-import type { BackupMetadata } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";

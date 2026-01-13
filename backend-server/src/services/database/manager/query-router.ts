@@ -108,7 +108,13 @@ export class QueryRouter {
       await executor.execute('COMMIT');
       return result;
     } catch (error) {
-      await executor.execute('ROLLBACK');
+      try {
+        await executor.execute('ROLLBACK');
+        console.error(`[TRANSACTION] Rollback executed due to error: ${error instanceof Error ? error.message : String(error)}`);
+      } catch (rollbackError) {
+        console.error(`[TRANSACTION] Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+        // Re-throw original error, not rollback error
+      }
       throw error;
     } finally {
       this.connectionPool.releaseConnection(this.mainDatabasePath);
@@ -132,7 +138,13 @@ export class QueryRouter {
       await executor.execute('COMMIT');
       return result;
     } catch (error) {
-      await executor.execute('ROLLBACK');
+      try {
+        await executor.execute('ROLLBACK');
+        console.error(`[TRANSACTION] Project ${projectId} rollback executed due to error: ${error instanceof Error ? error.message : String(error)}`);
+      } catch (rollbackError) {
+        console.error(`[TRANSACTION] Project ${projectId} rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
+        // Re-throw original error, not rollback error
+      }
       throw error;
     } finally {
       this.connectionPool.releaseConnection(dbPath);

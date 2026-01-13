@@ -28,6 +28,12 @@ Desktop.ini
 .logs/
 !.logs/.gitkeep
 
+# Test logs
+test-logs/
+frontend-ui-test-logs/
+test-results/
+*.test-results.*
+
 # Temporary files
 *.tmp
 *.temp

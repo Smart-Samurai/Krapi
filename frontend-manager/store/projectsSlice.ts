@@ -42,7 +42,7 @@ export const fetchProjects = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch("/api/projects", {
+      const response = await fetch("/api/client/projects", {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -79,7 +79,7 @@ export const fetchProjectById = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch(`/api/projects/${id}`, {
+      const response = await fetch(`/api/client/projects/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -124,7 +124,7 @@ export const createProject = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch("/api/projects", {
+      const response = await fetch("/api/client/krapi/k1/projects", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -166,7 +166,7 @@ export const updateProject = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch(`/api/projects/${id}`, {
+      const response = await fetch(`/api/client/krapi/k1/projects/${id}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,

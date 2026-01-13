@@ -18,6 +18,7 @@
  * @example
  * // Automatically rendered at /projects/[projectId]/documents route
  */
+/* eslint-disable import/order, @typescript-eslint/no-unused-vars */
 "use client";
 
 import {
@@ -34,7 +35,7 @@ import {
   Code2,
   BookOpen,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -46,7 +47,6 @@ import {
 } from "@/components/common";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -54,6 +54,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -89,8 +90,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Document, CollectionField } from "@/lib/krapi";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
+import type { Document, CollectionField } from "@/lib/krapi";
+import {
+  convertDocumentData,
+  validateDocumentData,
+  type ValidationError,
+} from "@/lib/document-utils";
+import { DocumentFieldInput } from "@/components/documents/DocumentFieldInput";
 import { fetchCollections } from "@/store/collectionsSlice";
 import {
   fetchDocuments,
@@ -111,10 +118,9 @@ import { beginBusy, endBusy } from "@/store/uiSlice";
  */
 export default function DocumentsPage() {
   const params = useParams();
-  if (!params || !params.projectId) {
-    throw new Error("Project ID is required");
-  }
-  const projectId = params.projectId as string;
+  const searchParams = useSearchParams();
+  // Get projectId with fallback - all hooks must be called unconditionally
+  const projectId = (params && params.projectId ? String(params.projectId) : null) || "";
   const dispatch = useAppDispatch();
   const { sessionToken } = useReduxAuth();
   const collectionsBucket = useAppSelector(
@@ -125,11 +131,20 @@ export default function DocumentsPage() {
     [collectionsBucket?.items]
   );
   const [selectedCollection, setSelectedCollection] = useState<string>("");
-  const documents = useAppSelector((s) =>
-    selectedCollection
-      ? s.documents.byKey[`${projectId}:${selectedCollection}`] || []
-      : []
+  // Get the collection name from the selected collection ID for Redux store lookup
+  // Redux store uses collectionName as the key, not collection ID
+  const selectedCollectionObj = useMemo(
+    () => collections.find((c) => c.id === selectedCollection),
+    [collections, selectedCollection]
   );
+  const collectionNameForStore = selectedCollectionObj?.name || "";
+  // Get documents from Redux store using collection name as key
+  // Redux store uses collectionName (not ID) as the key
+  const documents = useAppSelector((s) => {
+    if (!collectionNameForStore) return [];
+    const key = `${projectId}:${collectionNameForStore}`;
+    return s.documents.byKey[key] || [];
+  });
   const documentsLoading = useAppSelector((s) => s.documents.loading);
   const isLoading = collectionsBucket?.loading || false || documentsLoading;
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +178,7 @@ export default function DocumentsPage() {
     collection_id: "",
     data: {} as Record<string, unknown>,
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const loadCollections = useCallback(() => {
     dispatch(fetchCollections({ projectId }));
@@ -181,16 +197,35 @@ export default function DocumentsPage() {
     loadCollections();
   }, [loadCollections]);
 
+  // Read collection name from URL query params (for when coming from /collections/[collectionName]/documents route)
+  useEffect(() => {
+    const collectionNameFromUrl = searchParams.get("collection");
+    if (collectionNameFromUrl && collections.length > 0) {
+      // Find collection by name
+      const collection = collections.find((c) => c.name === collectionNameFromUrl);
+      if (collection && collection.id !== selectedCollection) {
+        setSelectedCollection(collection.id);
+      }
+    }
+  }, [collections, selectedCollection, searchParams]);
+
   useEffect(() => {
     if (collections.length > 0 && !selectedCollection && collections[0]) {
       setSelectedCollection(collections[0].id);
     }
   }, [collections, selectedCollection]);
 
+  // Load documents when collection is selected
+  useEffect(() => {
+    if (selectedCollection && collections.length > 0 && !searchQuery.trim()) {
+      loadDocuments();
+    }
+  }, [selectedCollection, collections.length, loadDocuments, searchQuery]);
+
   useEffect(() => {
     if (!searchQuery.trim()) {
       // If search is empty, load all documents
-    loadDocuments();
+      loadDocuments();
     }
   }, [loadDocuments, searchQuery]);
 
@@ -233,35 +268,87 @@ export default function DocumentsPage() {
     };
   }, [searchQuery, selectedCollection, projectId, collections, sessionToken, dispatch]);
 
+  // Early return after all hooks are called
+  if (!projectId || projectId === "") {
+    return (
+      <PageLayout>
+        <Alert variant="destructive">
+          <AlertDescription>Project ID is required</AlertDescription>
+        </Alert>
+      </PageLayout>
+    );
+  }
+
   const handleCreateDocument = async () => {
     if (!selectedCollection) return;
     try {
       dispatch(beginBusy());
+      setFieldErrors({});
+      setError(null);
+      
       const currentCollection = collections.find((c) => c.id === selectedCollection);
       if (!currentCollection) {
         setError("Collection not found");
         return;
       }
+
+      // Validate document data
+      const validationErrors = validateDocumentData(
+        formData.data,
+        selectedCollectionObj?.fields || []
+      );
+
+      if (validationErrors.length > 0) {
+        const errors: Record<string, string> = {};
+        validationErrors.forEach((err) => {
+          errors[err.field] = err.message;
+        });
+        setFieldErrors(errors);
+        setError("Please fix the validation errors");
+        dispatch(endBusy());
+        return;
+      }
+
+      // Convert field values to appropriate types
+      const convertedData = convertDocumentData(
+        formData.data,
+        selectedCollectionObj?.fields || []
+      );
+
+      if (!selectedCollectionObj) {
+        setError("Collection not found");
+        dispatch(endBusy());
+        return;
+      }
+
       const action = await dispatch(
         createDocument({
           projectId,
-          collectionName: currentCollection.name,
-          data: formData.data,
+          collectionName: selectedCollectionObj.name,
+          data: convertedData,
         })
       );
       if (createDocument.fulfilled.match(action)) {
         setIsCreateDialogOpen(false);
         setFormData({ collection_id: "", data: {} });
-        loadDocuments();
+        setFieldErrors({});
+        setError(null);
+        toast.success("Document created successfully");
+        // Redux store already adds the document immediately via createDocument.fulfilled reducer
+        // The document should appear in the table immediately
+        // Reload from server to ensure consistency and get any server-side computed fields
+        // Use a small delay to ensure Redux state update is processed first
+        setTimeout(() => {
+          loadDocuments();
+        }, 300);
       } else {
         const msg =
           (action as { payload?: string }).payload ||
           "Failed to create document";
         setError(String(msg));
       }
-    } catch {
-      setError("An error occurred while creating document");
-      // Error logged for debugging
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred while creating document");
     } finally {
       dispatch(endBusy());
     }
@@ -277,12 +364,37 @@ export default function DocumentsPage() {
 
     try {
       dispatch(beginBusy());
+      setFieldErrors({});
+      setError(null);
+
+      // Validate document data
+      const validationErrors = validateDocumentData(
+        formData.data,
+        currentCollection.fields || []
+      );
+
+      if (validationErrors.length > 0) {
+        const errors: Record<string, string> = {};
+        validationErrors.forEach((err) => {
+          errors[err.field] = err.message;
+        });
+        setFieldErrors(errors);
+        setError("Please fix the validation errors");
+        return;
+      }
+
+      // Convert field values to appropriate types
+      const convertedData = convertDocumentData(
+        formData.data,
+        currentCollection.fields || []
+      );
+
       const action = await dispatch(
         updateDocument({
           projectId,
           collectionName: currentCollection.name,
           id: editingDocument.id,
-          data: formData.data,
+          data: convertedData,
         })
       );
 
@@ -290,6 +402,9 @@ export default function DocumentsPage() {
         setIsEditDialogOpen(false);
         setEditingDocument(null);
         setFormData({ collection_id: "", data: {} });
+        setFieldErrors({});
+        setError(null);
+        toast.success("Document updated successfully");
         loadDocuments();
       } else {
         const msg =
@@ -297,9 +412,8 @@ export default function DocumentsPage() {
           "Failed to update document";
         setError(String(msg));
       }
-    } catch {
-      setError("An error occurred while updating document");
-      // Error logged for debugging
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred while updating document");
     } finally {
       dispatch(endBusy());
     }
@@ -350,6 +464,8 @@ export default function DocumentsPage() {
       collection_id: document.collection_id,
       data: { ...(document.data as Record<string, unknown>) },
     });
+    setFieldErrors({});
+    setError(null);
     setIsEditDialogOpen(true);
   };
 
@@ -422,7 +538,7 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleBulkUpdate = async (updateData: Record<string, unknown>) => {
+  const _handleBulkUpdate = async (_updateData: Record<string, unknown>) => {
     if (selectedDocuments.size === 0 || !selectedCollection) return;
 
     const currentCollection = collections.find((c) => c.id === selectedCollection);
@@ -440,7 +556,7 @@ export default function DocumentsPage() {
             projectId,
             collectionName: currentCollection.name,
             id,
-            data: updateData,
+            data: _updateData,
           })
         )
       );
@@ -542,6 +658,8 @@ export default function DocumentsPage() {
         <PageHeader
           title="Documents"
           description="Manage documents in your collections"
+          showBackButton
+          backButtonFallback={`/projects/${projectId}/collections`}
           action={<Skeleton className="h-10 w-32" />}
         />
         {collections.length === 0 ? (
@@ -592,6 +710,8 @@ export default function DocumentsPage() {
       <PageHeader
         title="Documents"
         description="Manage documents in your collections"
+        showBackButton
+        backButtonFallback={`/projects/${projectId}/collections`}
         action={
           <div className="flex items-center gap-2">
             <CodeSnippet
@@ -618,6 +738,11 @@ export default function DocumentsPage() {
                   icon={Plus}
                   disabled={!selectedCollection}
                   data-testid="create-document-button"
+                  onClick={() => {
+                    setFormData({ collection_id: "", data: {} });
+                    setFieldErrors({});
+                    setError(null);
+                  }}
                 >
                   Create Document
                 </ActionButton>
@@ -626,36 +751,30 @@ export default function DocumentsPage() {
               <DialogHeader>
                 <DialogTitle>Create New Document</DialogTitle>
                 <DialogDescription>
-                  Add a new document to the {currentCollection?.name} collection
+                  Add a new document to the {selectedCollectionObj?.name} collection
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                {currentCollection?.fields?.map((field: CollectionField) => (
+                {selectedCollectionObj?.fields?.map((field: CollectionField) => (
                   <div key={`create-doc-field-${field.name}`}>
                     <Label htmlFor={field.name}>
                       {field.name}
-                      {field.required && (
-                        <span className="text-destructive ml-1">*</span>
-                      )}
+                      {field.required ? <span className="text-destructive ml-1">*</span> : null}
                     </Label>
-                    <Input
-                      id={field.name}
-                      value={String(formData.data[field.name] || "")}
-                      onChange={(e) =>
+                    <DocumentFieldInput
+                      field={field}
+                      value={formData.data[field.name]}
+                      onChange={(value) =>
                         setFormData((prev) => ({
                           ...prev,
                           data: {
                             ...(prev.data as Record<string, unknown>),
-                            [field.name]: e.target.value as string,
+                            [field.name]: value,
                           },
                         }))
                       }
+                      error={fieldErrors[field.name]}
                       placeholder={`Enter ${field.name}`}
-                      required={field.required}
-                      onBlur={(e) => {
-                        // Prevent modal from refocusing when input loses focus
-                        e.stopPropagation();
-                      }}
                     />
                   </div>
                 ))}
@@ -664,12 +783,14 @@ export default function DocumentsPage() {
                 <ActionButton
                   variant="outline"
                   onClick={() => setIsCreateDialogOpen(false)}
+                  data-testid="create-document-dialog-cancel"
                 >
                   Cancel
                 </ActionButton>
                 <ActionButton
                   variant="add"
                   onClick={handleCreateDocument}
+                  data-testid="create-document-dialog-submit"
                 >
                   Create Document
                 </ActionButton>
@@ -697,16 +818,17 @@ export default function DocumentsPage() {
                   <h3 className="text-base font-semibold mb-3">TypeScript SDK</h3>
                   <div className="bg-muted p-4 ">
                     <pre className="text-base overflow-x-auto">
-                      {`// Initialize KRAPI client (like Appwrite!)
-import { KrapiClient } from '@smartsamurai/krapi-sdk/client';
+                      {`// Connect to KRAPI as a 3rd party application
+import { krapi } from '@smartsamurai/krapi-sdk';
 
-const krapi = new KrapiClient({
-  endpoint: 'http://localhost:3470',
+// Connect to FRONTEND URL (port 3498), not backend!
+await krapi.connect({
+  endpoint: 'https://your-krapi-instance.com', // Frontend URL
   apiKey: 'your-api-key'
 });
 
 // Get all documents in a collection
-const documents = await krapi.documents.getAll(collectionId, {
+const documents = await krapi.documents.getAll(projectId, collectionName, {
   page: 1,
   limit: 50,
   orderBy: 'created_at',
@@ -718,28 +840,32 @@ const documents = await krapi.documents.getAll(collectionId, {
 });
 
 // Create a new document
-const newDocument = await krapi.documents.create(collectionId, {
-  email: 'user@example.com',
-  name: 'John Doe',
-  age: 30,
-  isActive: true,
-  tags: ['customer', 'premium']
+const newDocument = await krapi.documents.create(projectId, collectionName, {
+  data: {
+    email: 'user@example.com',
+    name: 'John Doe',
+    age: 30,
+    isActive: true,
+    tags: ['customer', 'premium']
+  }
 });
 
 // Get a specific document
-const document = await krapi.documents.get(collectionId, documentId);
+const document = await krapi.documents.get(projectId, collectionName, documentId);
 
 // Update a document
-const updated = await krapi.documents.update(collectionId, documentId, {
-  name: 'Jane Doe',
-  age: 31
+const updated = await krapi.documents.update(projectId, collectionName, documentId, {
+  data: {
+    name: 'Jane Doe',
+    age: 31
+  }
 });
 
 // Delete a document
-await krapi.documents.delete(collectionId, documentId);
+await krapi.documents.delete(projectId, collectionName, documentId);
 
 // Search documents
-const searchResults = await krapi.documents.search(collectionId, {
+const searchResults = await krapi.documents.search(projectId, collectionName, {
   query: 'john',
   fields: ['name', 'email']
 });`}
@@ -756,10 +882,11 @@ const searchResults = await krapi.documents.search(collectionId, {
                       {`import requests
 import json
 
-# Base configuration
-BASE_URL = "http://localhost:3470"
+# Connect to KRAPI FRONTEND URL (port 3498), not backend!
+BASE_URL = "https://your-krapi-instance.com"  # Frontend URL
 API_KEY = "your-api-key"
-COLLECTION_ID = "your-collection-id"
+PROJECT_ID = "your-project-id"
+COLLECTION_NAME = "your-collection-name"
 
 headers = {
     "Authorization": f"Bearer {API_KEY}",
@@ -776,7 +903,7 @@ params = {
 }
 
 response = requests.get(
-    f"{BASE_URL}/collections/{COLLECTION_ID}/documents",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{COLLECTION_NAME}/documents",
     headers=headers,
     params=params
 )
@@ -784,15 +911,17 @@ documents = response.json()
 
 # Create a new document
 document_data = {
-    "email": "user@example.com",
-    "name": "John Doe",
-    "age": 30,
-    "isActive": True,
-    "tags": ["customer", "premium"]
+    "data": {
+        "email": "user@example.com",
+        "name": "John Doe",
+        "age": 30,
+        "isActive": True,
+        "tags": ["customer", "premium"]
+    }
 }
 
 response = requests.post(
-    f"{BASE_URL}/collections/{COLLECTION_ID}/documents",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{COLLECTION_NAME}/documents",
     headers=headers,
     json=document_data
 )
@@ -800,26 +929,28 @@ new_document = response.json()
 
 # Get a specific document
 response = requests.get(
-    f"{BASE_URL}/collections/{COLLECTION_ID}/documents/{document_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{COLLECTION_NAME}/documents/{document_id}",
     headers=headers
 )
 document = response.json()
 
 # Update a document
 update_data = {
-    "name": "Jane Doe",
-    "age": 31
+    "data": {
+        "name": "Jane Doe",
+        "age": 31
+    }
 }
 
 response = requests.put(
-    f"{BASE_URL}/collections/{COLLECTION_ID}/documents/{document_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{COLLECTION_NAME}/documents/{document_id}",
     headers=headers,
     json=update_data
 )
 
 # Delete a document
 response = requests.delete(
-    f"{BASE_URL}/collections/{COLLECTION_ID}/documents/{document_id}",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{COLLECTION_NAME}/documents/{document_id}",
     headers=headers
 )
 
@@ -830,7 +961,7 @@ search_data = {
 }
 
 response = requests.post(
-    f"{BASE_URL}/collections/{COLLECTION_ID}/documents/search",
+    f"{BASE_URL}/api/krapi/k1/projects/{PROJECT_ID}/collections/{COLLECTION_NAME}/documents/search",
     headers=headers,
     json=search_data
 )
@@ -896,12 +1027,12 @@ search_results = response.json()`}
                 value={selectedCollection}
                 onValueChange={setSelectedCollection}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="collection-select-trigger">
                   <SelectValue placeholder="Select collection" />
                 </SelectTrigger>
                 <SelectContent>
                   {collections.map((collection) => (
-                    <SelectItem key={collection.id} value={collection.id}>
+                    <SelectItem key={collection.id} value={collection.id} data-testid={`collection-select-item-${collection.id}`}>
                       {collection.name}
                     </SelectItem>
                   ))}
@@ -920,11 +1051,9 @@ search_results = response.json()`}
                   data-testid="document-search-input"
                   className="pl-10"
                 />
-                {isSearching && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                {isSearching ? <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              </div>
-                )}
+              </div> : null}
               </div>
               {searchQuery.trim() && (
                 <p className="text-base text-muted-foreground mt-1">
@@ -959,11 +1088,9 @@ search_results = response.json()`}
         </CardContent>
       </Card>
 
-      {error && (
-        <Alert variant="destructive">
+      {error ? <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        </Alert> : null}
 
       {!selectedCollection ? (
         <Card data-testid="documents-no-collection-state">
@@ -1113,7 +1240,7 @@ search_results = response.json()`}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(isSearching || isBulkOperationInProgress) && (
+                  {(isSearching || isBulkOperationInProgress) ? (
                     <TableRow>
                       <TableCell colSpan={100} className="text-center py-4">
                         <div className="flex items-center justify-center gap-2">
@@ -1124,73 +1251,80 @@ search_results = response.json()`}
                         </div>
                       </TableCell>
                     </TableRow>
-                  )}
-                  {documents.map((document) => (
-                    <TableRow key={document.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedDocuments.has(document.id)}
-                          onCheckedChange={(checked) =>
-                            handleSelectDocument(document.id, checked === true)
-                          }
-                          data-testid={`select-document-${document.id}`}
-                        />
-                      </TableCell>
-                      <TableCell className="font-mono text-base">
-                        {document.id.substring(0, 8)}...
-                      </TableCell>
-                      {currentCollection?.fields?.map((field: CollectionField) => (
-                        <TableCell key={field.name}>
-                          {renderFieldValue(
-                            document.data[field.name],
-                            field.type
-                          )}
+                  ) : documents && Array.isArray(documents) && documents.length > 0 ? (
+                    documents.map((document) => (
+                      <TableRow key={document.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedDocuments.has(document.id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectDocument(document.id, checked === true)
+                            }
+                            data-testid={`select-document-${document.id}`}
+                          />
                         </TableCell>
-                      ))}
-                      <TableCell>
-                        <div className="text-base text-muted-foreground">
-                          {new Date(document.created_at).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-base text-muted-foreground">
-                          {new Date(document.updated_at).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => openEditDialog(document)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openViewDialog(document)}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => handleDeleteDocument(document.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <TableCell className="font-mono text-base">
+                          {document.id.substring(0, 8)}...
+                        </TableCell>
+                        {currentCollection?.fields?.map((field: CollectionField) => (
+                          <TableCell key={field.name}>
+                            {renderFieldValue(
+                              document.data[field.name],
+                              field.type
+                            )}
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          <div className="text-base text-muted-foreground">
+                            {new Date(document.created_at).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-base text-muted-foreground">
+                            {new Date(document.updated_at).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => openEditDialog(document)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openViewDialog(document)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteDocument(document.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={100} className="text-center py-8 text-muted-foreground">
+                        No documents found. Create your first document to get started.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -1300,10 +1434,11 @@ search_results = response.json()`}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {aggregationResults.map((result: unknown, index: number) => {
+                      {aggregationResults.map((result: unknown) => {
                         const r = result as { _id?: unknown; count?: number; [key: string]: unknown };
+                        const resultKey = typeof r._id === "string" ? r._id : typeof r._id === "object" && r._id !== null ? JSON.stringify(r._id) : `result-${Date.now()}-${Math.random()}`;
                         return (
-                          <TableRow key={index}>
+                          <TableRow key={resultKey}>
                             <TableCell>
                               {typeof r._id === "object" && r._id !== null
                                 ? JSON.stringify(r._id)
@@ -1346,8 +1481,7 @@ search_results = response.json()`}
               View complete document information from the {currentCollection?.name} collection
             </DialogDescription>
           </DialogHeader>
-          {viewingDocument && (
-            <div className="space-y-4">
+          {viewingDocument ? <div className="space-y-4">
               <div>
                 <Label className="text-base font-semibold">Document ID</Label>
                 <div className="mt-1 p-2 bg-muted rounded-md font-mono text-base">
@@ -1382,8 +1516,7 @@ search_results = response.json()`}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            </div> : null}
           <DialogFooter>
             <ActionButton
               variant="outline"
@@ -1391,8 +1524,7 @@ search_results = response.json()`}
             >
               Close
             </ActionButton>
-            {viewingDocument && (
-              <ActionButton
+            {viewingDocument ? <ActionButton
                 variant="edit"
                 onClick={() => {
                   setIsViewDialogOpen(false);
@@ -1401,8 +1533,7 @@ search_results = response.json()`}
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Document
-              </ActionButton>
-            )}
+              </ActionButton> : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1421,31 +1552,22 @@ search_results = response.json()`}
               <div key={`edit-doc-field-${field.name}`}>
                 <Label htmlFor={`edit-${field.name}`}>
                   {field.name}
-                  {field.required && (
-                    <span className="text-destructive ml-1">*</span>
-                  )}
+                  {field.required ? <span className="text-destructive ml-1">*</span> : null}
                 </Label>
-                <Input
-                  id={`edit-${field.name}`}
-                  value={String(formData.data[field.name] || "")}
-                  onChange={(e) =>
+                <DocumentFieldInput
+                  field={field}
+                  value={formData.data[field.name]}
+                  onChange={(value) =>
                     setFormData((prev) => ({
                       ...prev,
                       data: {
-                        ...(prev.data as Record<
-                          string,
-                          string | number | boolean
-                        >),
-                        [field.name]: e.target.value as string,
+                        ...(prev.data as Record<string, unknown>),
+                        [field.name]: value,
                       },
                     }))
                   }
+                  error={fieldErrors[field.name]}
                   placeholder={`Enter ${field.name}`}
-                  required={field.required}
-                  onBlur={(e) => {
-                    // Prevent modal from refocusing when input loses focus
-                    e.stopPropagation();
-                  }}
                 />
               </div>
             ))}

@@ -64,10 +64,8 @@ import { fetchProjectById } from "@/store/projectsSlice";
  */
 export default function ProjectDetailPage() {
   const params = useParams();
-  if (!params || !params.projectId) {
-    throw new Error("Project ID is required");
-  }
-  const projectId = params.projectId as string;
+  // Get projectId with fallback - all hooks must be called unconditionally
+  const projectId = (params && params.projectId ? String(params.projectId) : null) || "";
   const dispatch = useAppDispatch();
 
   const projectsState = useAppSelector((s) => s.projects);
@@ -102,6 +100,17 @@ export default function ProjectDetailPage() {
     setStats((prev) => ({ ...prev, collections: collections.length }));
   }, [collections]);
 
+  // Early return after all hooks are called
+  if (!projectId || projectId === "") {
+    return (
+      <PageLayout>
+        <Alert variant="destructive">
+          <AlertDescription>Project ID is required</AlertDescription>
+        </Alert>
+      </PageLayout>
+    );
+  }
+
   // Show loading skeleton while project or collections are loading
   if (isLoading) {
     return (
@@ -109,6 +118,8 @@ export default function ProjectDetailPage() {
         <PageHeader
           title="Loading..."
           description="Loading project details..."
+          showBackButton
+          backButtonFallback="/projects"
         />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => (
@@ -152,12 +163,14 @@ export default function ProjectDetailPage() {
       <PageHeader
         title={project.name}
         description="Project overview and quick actions"
+        showBackButton
+        backButtonFallback="/projects"
         action={
-          <ActionButton variant="edit" icon={Edit} asChild>
-            <Link href={`/projects/${projectId}/settings`}>
+          <Link href={`/projects/${projectId}/settings`}>
+            <ActionButton variant="edit" icon={Edit}>
               Edit Settings
-            </Link>
-          </ActionButton>
+            </ActionButton>
+          </Link>
         }
       />
 
@@ -183,26 +196,26 @@ export default function ProjectDetailPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <ActionButton variant="outline" icon={Database} asChild>
-              <Link href={`/projects/${projectId}/collections`}>
+            <Link href={`/projects/${projectId}/collections`}>
+              <ActionButton variant="outline" icon={Database}>
                 Collections <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </ActionButton>
-            <ActionButton variant="outline" icon={Users} asChild>
-              <Link href={`/projects/${projectId}/users`}>
+              </ActionButton>
+            </Link>
+            <Link href={`/projects/${projectId}/users`}>
+              <ActionButton variant="outline" icon={Users}>
                 Users <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </ActionButton>
-            <ActionButton variant="outline" icon={Mail} asChild>
-              <Link href={`/projects/${projectId}/email`}>
+              </ActionButton>
+            </Link>
+            <Link href={`/projects/${projectId}/email`}>
+              <ActionButton variant="outline" icon={Mail}>
                 Email <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </ActionButton>
-            <ActionButton variant="outline" icon={Activity} asChild>
-              <Link href={`/projects/${projectId}/mcp`}>
+              </ActionButton>
+            </Link>
+            <Link href={`/projects/${projectId}/mcp`}>
+              <ActionButton variant="outline" icon={Activity}>
                 MCP <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </ActionButton>
+              </ActionButton>
+            </Link>
           </CardContent>
         </Card>
       </div>

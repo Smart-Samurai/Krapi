@@ -192,7 +192,4 @@ export class DatabaseAdapterService {
     const healthChecker = await this.getHealthChecker();
     return healthChecker.runHealthCheck();
   }
-
-  // TODO: Add remaining methods as they are extracted from the large file
-  // This adapter service now delegates to specialized components for better organization
 }

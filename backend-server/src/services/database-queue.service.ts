@@ -49,7 +49,7 @@ export interface QueueMetrics {
 export class DatabaseQueue {
   private static instance: DatabaseQueue;
   private queue: QueueItem<unknown>[] = [];
-  private processing = false;
+  private activeOperations = new Set<string>(); // Track active operations by ID
   private dbConnection: DatabaseConnection | null = null;
   private config: {
     maxConcurrent: number;
@@ -72,9 +72,13 @@ export class DatabaseQueue {
 
   private constructor() {
     this.config = {
-      maxConcurrent: parseInt(process.env.DB_QUEUE_MAX_CONCURRENT || "5"), // Max 5 concurrent operations
-      rateLimitPerSecond: parseInt(process.env.DB_QUEUE_RATE_LIMIT || "50"), // 50 operations per second
-      maxQueueSize: parseInt(process.env.DB_QUEUE_MAX_SIZE || "1000"), // Max 1000 queued items
+      // Optimized defaults for production:
+      // - maxConcurrent: 10 allows better database utilization
+      // - rateLimitPerSecond: 100 ops/sec is safe for SQLite with proper indexing
+      // - maxQueueSize: 5000 provides buffer for traffic spikes
+      maxConcurrent: parseInt(process.env.DB_QUEUE_MAX_CONCURRENT || "10"), // Max 10 concurrent operations (increased from 5)
+      rateLimitPerSecond: parseInt(process.env.DB_QUEUE_RATE_LIMIT || "100"), // 100 operations per second (increased from 50)
+      maxQueueSize: parseInt(process.env.DB_QUEUE_MAX_SIZE || "5000"), // Max 5000 queued items (increased from 1000)
       enablePriority: process.env.DB_QUEUE_ENABLE_PRIORITY !== "false",
     };
 
@@ -230,6 +234,7 @@ export class DatabaseQueue {
 
   /**
    * Process items from the queue
+   * Now supports true concurrent operations up to maxConcurrent
    */
   private async processQueue(): Promise<void> {
     if (!this.dbConnection || this.queue.length === 0) {
@@ -239,32 +244,39 @@ export class DatabaseQueue {
     // Refill rate limiter tokens
     this.refillRateLimiterTokens();
 
-    // Check if we can process more items
-    const currentlyProcessing = this.processing ? 1 : 0;
-    if (currentlyProcessing >= this.config.maxConcurrent) {
-      return;
+    // Process multiple items concurrently up to maxConcurrent
+    while (this.activeOperations.size < this.config.maxConcurrent && this.queue.length > 0) {
+      // Check rate limit
+      if (this.rateLimiter.tokens <= 0) {
+        break; // Wait for tokens to refill
+      }
+
+      // Get next item from queue (highest priority first, or FIFO)
+      const item = this.queue.shift();
+      if (!item) {
+        break;
+      }
+
+      // Consume a token
+      this.rateLimiter.tokens--;
+
+      // Start processing the item (non-blocking)
+      this.processItem(item).catch((error) => {
+        console.error("Error processing queue item:", error);
+      });
     }
+  }
 
-    // Check rate limit
-    if (this.rateLimiter.tokens <= 0) {
-      return; // Wait for tokens to refill
-    }
-
-    // Get next item from queue (highest priority first, or FIFO)
-    const item = this.queue.shift();
-    if (!item) {
-      return;
-    }
-
-    // Consume a token
-    this.rateLimiter.tokens--;
-
-    // Process the item
-    this.processing = true;
+  /**
+   * Process a single queue item
+   */
+  private async processItem(item: QueueItem<unknown>): Promise<void> {
+    // Mark as active
+    this.activeOperations.add(item.id);
     const processStartTime = Date.now();
 
     try {
-      const result = await item.operation(this.dbConnection);
+      const result = await item.operation(this.dbConnection!);
       const processTime = Date.now() - processStartTime;
       this.metrics.processTimes.push(processTime);
       // Keep only last 1000 process times
@@ -278,7 +290,17 @@ export class DatabaseQueue {
       this.metrics.totalErrors++;
       item.reject(error);
     } finally {
-      this.processing = false;
+      // Remove from active operations
+      this.activeOperations.delete(item.id);
+      // Trigger processing of next items if queue has items
+      if (this.queue.length > 0) {
+        // Use setImmediate to avoid blocking
+        setImmediate(() => {
+          this.processQueue().catch((error) => {
+            console.error("Queue processor error:", error);
+          });
+        });
+      }
     }
   }
 
@@ -330,7 +352,7 @@ export class DatabaseQueue {
 
     return {
       queueSize: this.queue.length,
-      processingCount: this.processing ? 1 : 0,
+      processingCount: this.activeOperations.size,
       totalProcessed: this.metrics.totalProcessed,
       totalErrors: this.metrics.totalErrors,
       averageWaitTime: Math.round(averageWaitTime),
@@ -367,7 +389,7 @@ export class DatabaseQueue {
    * Check if queue is processing
    */
   isProcessing(): boolean {
-    return this.processing;
+    return this.activeOperations.size > 0;
   }
 
   /**
@@ -376,8 +398,8 @@ export class DatabaseQueue {
   async shutdown(): Promise<void> {
     this.stopProcessor();
 
-    // Wait for current operation to complete
-    while (this.processing) {
+    // Wait for all active operations to complete
+    while (this.activeOperations.size > 0) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 

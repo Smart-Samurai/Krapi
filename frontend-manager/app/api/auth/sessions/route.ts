@@ -1,9 +1,12 @@
-import { krapi } from "@smartsamurai/krapi-sdk";
 import { NextRequest, NextResponse } from "next/server";
+
+import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
 
 /**
  * Create a new session from an API key
  * POST /api/auth/sessions
+ *
+ * PROXY ROUTE: Connects to backend URL to create session from API key
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,8 +20,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the SDK to create a session from the API key
-    const session = await krapi.auth.createSession(api_key);
+    // Use backend SDK client to create a session from the API key
+    const backendSdk = await getBackendSdkClient();
+    const session = await backendSdk.auth.createSession(api_key);
 
     return NextResponse.json(session);
   } catch (error) {

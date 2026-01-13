@@ -8,12 +8,13 @@
  * // Automatically rendered at /login route
  */
 "use client";
+/* eslint-disable no-console */
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Shield } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -38,6 +39,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { clearError } from "@/store/authSlice";
+import { useAppDispatch } from "@/store/hooks";
 
 /**
  * Login Form Schema
@@ -69,6 +72,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const _router = useRouter();
   const { login, loading, error } = useReduxAuth();
+  const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormData>({
@@ -80,17 +84,34 @@ export default function LoginPage() {
     },
   });
 
+  // Clear error when user starts typing
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name && error) {
+        // Clear error when user starts editing the form
+        dispatch(clearError());
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, error, dispatch]);
+
   const handleLogin = async (data: LoginFormData) => {
     try {
+      // Clear any previous errors before attempting login
+      dispatch(clearError());
+      
       // Store remember me preference before login
       if (data.rememberMe) {
         localStorage.setItem("rememberMe", "true");
       }
 
       // The login function handles redirect internally
+      // Errors are handled by Redux and will be displayed via the error state
       await login(data.username, data.password);
-    } catch {
-      // Error handling is now managed by Redux
+    } catch (err) {
+      // Error handling is managed by Redux - error will be set in state
+      // This catch is just to prevent unhandled promise rejection
+      console.error("Login error:", err);
     }
   };
 
@@ -115,11 +136,11 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {error && (
+            {error ? (
               <Alert variant="destructive" className="mb-6" data-testid="login-error">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{String(error)}</AlertDescription>
               </Alert>
-            )}
+            ) : null}
 
             <Form {...form}>
               <form

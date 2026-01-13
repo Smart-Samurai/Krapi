@@ -1,15 +1,15 @@
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
-import * as fs from "fs/promises";
-import * as path from "path";
 
+import { StorageService } from "@/services/storage.service";
 import { ApiResponse } from "@/types";
 
 /**
  * Handler for downloading a file
  * GET /krapi/k1/projects/:projectId/storage/files/:fileId/download
  * 
- * Uses SDK storage.getFileById() and storage.getFileUrl() methods for file retrieval.
+ * Downloads a file and automatically decrypts it if encrypted.
+ * Uses StorageService which handles decryption automatically.
  */
 export class DownloadFileHandler {
   constructor(private backendSDK: BackendSDK) {}
@@ -26,10 +26,7 @@ export class DownloadFileHandler {
       }
 
       if (!this.backendSDK) {
-        res.status(500).json({
-          success: false,
-          error: "BackendSDK not initialized",
-        } as ApiResponse);
+        res.status(500).json({ success: false, error: "BackendSDK not initialized" });
         return;
       }
 
@@ -39,35 +36,33 @@ export class DownloadFileHandler {
         res.status(404).json({
           success: false,
           error: "File not found",
-        } as ApiResponse);
+        });
         return;
       }
 
-      // Get file path/URL using SDK
-      const filePath = await this.backendSDK.storage.getFileUrl(projectId, fileId);
-      
-      // Read file from storage
-      const fullPath = path.isAbsolute(filePath) 
-        ? filePath 
-        : path.join(process.cwd(), filePath);
-      
-      const fileBuffer = await fs.readFile(fullPath);
+      // Use StorageService to download the file (which handles decryption)
+      const storageService = StorageService.getInstance();
+      const fileData = await storageService.downloadFile(fileId);
 
       // Set headers for file download
-      res.setHeader("Content-Type", file.mime_type || "application/octet-stream");
+      res.setHeader("Content-Type", fileData.mime_type || "application/octet-stream");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${file.original_name}"`
+        `attachment; filename="${fileData.filename}"`
       );
-      res.setHeader("Content-Length", file.file_size);
+      res.setHeader("Content-Length", fileData.buffer.length);
 
-      // Send file
-      res.send(fileBuffer);
+      // Send decrypted file
+      res.send(fileData.buffer);
     } catch (error) {
       console.error("Download file error:", error);
       res.status(500).json({
         success: false,
         error: "Failed to download file",
+        details:
+          process.env.NODE_ENV === "development" && error instanceof Error
+            ? error.message
+            : undefined,
       } as ApiResponse);
     }
   }

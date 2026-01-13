@@ -49,7 +49,7 @@ export const fetchDocuments = createAsyncThunk(
       }
 
       const response = await fetch(
-        `/api/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`,
+        `/api/client/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -100,7 +100,7 @@ export const createDocument = createAsyncThunk(
       }
 
       const response = await fetch(
-        `/api/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`,
+        `/api/client/krapi/k1/projects/${projectId}/collections/${collectionName}/documents`,
         {
           method: "POST",
           headers: {
@@ -118,11 +118,9 @@ export const createDocument = createAsyncThunk(
       }
 
       const result = await response.json();
-      // API returns { success: true, ...document } - document fields are spread at top level
-      // Extract document by removing success field
-      if (result.success) {
-        const { success, ...document } = result;
-        return { projectId, collectionId: collectionName, document: document as Document };
+      // API returns { success: true, data: document }
+      if (result.success && result.data) {
+        return { projectId, collectionId: collectionName, document: result.data as Document };
       }
       return rejectWithValue("Failed to create document: Invalid response");
     } catch (error: unknown) {
@@ -159,7 +157,7 @@ export const updateDocument = createAsyncThunk(
       }
 
       const response = await fetch(
-        `/api/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${id}`,
+        `/api/client/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${id}`,
         {
           method: "PUT",
           headers: {
@@ -208,7 +206,7 @@ export const deleteDocument = createAsyncThunk(
       }
 
       const response = await fetch(
-        `/api/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${id}`,
+        `/api/client/krapi/k1/projects/${projectId}/collections/${collectionName}/documents/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -365,6 +363,7 @@ const documentsSlice = createSlice({
           const payload = action.payload as { projectId: string; collectionId: string; documents: Document[] };
           const { projectId, collectionId, documents } = payload;
           const key = getDocumentsKey(projectId, collectionId);
+          // Replace the array - server response is authoritative
           state.byKey[key] = documents;
           state.loading = false;
           state.error = null;

@@ -149,8 +149,12 @@ HEADLESS=false npm run test:ui
 The frontend UI tests can be integrated into CI/CD pipelines:
 
 ```bash
-# Install dependencies and browsers
-npm install
+# Install dependencies (from project root - syncs SDK version automatically)
+cd ..
+npm run install:all
+cd KRAPI-COMPREHENSIVE-TEST-SUITE
+
+# Install Playwright browsers
 npx playwright install --with-deps chromium
 
 # Run tests

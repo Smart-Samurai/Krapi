@@ -308,9 +308,6 @@ export class ProjectController {
     await this.getProjectActivityHandler.handle(req, res);
   };
 
-  // TODO: Extract remaining methods to handlers as needed
-  // Additional project methods can be extracted incrementally
-
   /**
    * Create a new API key for a project
    */
@@ -376,16 +373,25 @@ export class ProjectController {
         return;
       }
 
-      const apiKeys = await this._backendSDK.projects.getProjectApiKeys(projectId);
+      // Use apiKeys.getAll() instead of projects.getProjectApiKeys() which may not exist
+      const apiKeys = await this._backendSDK.apiKeys.getAll(projectId);
 
       res.json({
         success: true,
         data: apiKeys,
       } as ApiResponse);
     } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === "string" 
+          ? error 
+          : "Failed to get API keys";
+      
+      console.error("[ProjectController] Error getting API keys:", errorMessage, error);
+      
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get API keys",
+        error: String(errorMessage),
       } as ApiResponse);
     }
   };

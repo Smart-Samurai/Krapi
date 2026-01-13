@@ -411,8 +411,7 @@ export default function ProjectBackupPage() {
               overwrite current project data.
             </DialogDescription>
           </DialogHeader>
-          {selectedBackup && (
-            <div className="space-y-4">
+          {selectedBackup ? <div className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Warning</AlertTitle>
@@ -452,8 +451,7 @@ export default function ProjectBackupPage() {
                   Overwrite existing data (recommended)
                 </Label>
               </div>
-            </div>
-          )}
+            </div> : null}
           <DialogFooter>
             <Button
               variant="outline"

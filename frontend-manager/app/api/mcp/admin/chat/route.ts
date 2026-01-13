@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
 // Force dynamic rendering
@@ -9,15 +10,10 @@ export const runtime = 'nodejs';
 /**
  * MCP Admin Chat API Route
  * 
- * Proxies requests to the backend MCP admin chat endpoint with authentication
+ * Admin-level LLM chat with tool calling against the main database
  * POST /api/mcp/admin/chat
  * 
- * NOTE: MCP (Model Context Protocol) routes are special LLM tool calling endpoints.
- * These routes handle LLM interactions and tool calling, which is a specialized use case.
- * The comprehensive test suite does not test MCP via SDK methods - it only tests the MCP server package structure.
- * 
- * TODO: If SDK adds MCP methods (e.g., sdk.mcp.admin.chat()), replace fetch with SDK method.
- * For now, these routes remain as proxy routes since MCP is a special LLM tool calling interface.
+ * SDK-FIRST ARCHITECTURE: Uses SDK mcp.admin.chat() method.
  */
 export async function POST(request: NextRequest): Promise<Response> {
   try {
@@ -31,51 +27,20 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     const body = await request.json();
-    // MCP routes are special LLM tool calling endpoints - proxy to backend
-    // TODO: Replace with SDK method when sdk.mcp.admin.chat() is available
-    const { config } = await import("@/lib/config");
-    const backendApiUrl = config.backend.getApiUrl('/mcp/admin/chat');
+    const { messages, options } = body;
 
-    const response = await fetch(backendApiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      let errorData: { error?: string; message?: string };
-      try {
-        const errorText = await response.text();
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || `Backend returned ${response.status}` };
-        }
-      } catch {
-        errorData = { error: `Backend returned ${response.status}` };
-      }
-      // eslint-disable-next-line no-console
-      console.error("Backend error for admin chat:", errorData);
+    if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
-        { success: false, error: errorData.error || errorData.message || "Chat request failed" },
-        { status: response.status }
+        { success: false, error: "Messages array is required" },
+        { status: 400 }
       );
     }
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (_error) {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON response from backend" },
-        { status: 500 }
-      );
-    }
+    // SDK-FIRST: Use SDK mcp.admin.chat() method
+    const sdk = await createAuthenticatedBackendSdk(authToken);
+    const result = await sdk.mcp.admin.chat(messages, options);
 
-    return NextResponse.json(data);
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       {

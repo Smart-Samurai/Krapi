@@ -275,7 +275,4 @@ export class McpToolsService {
   ): Promise<unknown> {
     return this.userTools.deleteProjectUser(ctx, args);
   }
-
-  // TODO: Add remaining tool methods as they are extracted from the large file
-  // This service now delegates to specialized tool classes for better organization
 }

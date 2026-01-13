@@ -20,26 +20,40 @@ import { runUIComponentsUITests } from "../tests/frontend-ui/ui-components-ui.te
 import { runDataLogicUITests } from "../tests/frontend-ui/data-logic-ui.tests.js";
 import { runErrorHandlingUITests } from "../tests/frontend-ui/error-handling-ui.tests.js";
 import { runPerformanceUITests } from "../tests/frontend-ui/performance-ui.tests.js";
+import { runSDKUsageUITests } from "../tests/frontend-ui/sdk-usage-ui.tests.js";
+import { runAdminUITests } from "../tests/frontend-ui/admin-ui.tests.js";
+import { runTransactionUITests } from "../tests/frontend-ui/transactions-ui.tests.js";
+import { runConcurrencyUITests } from "../tests/frontend-ui/concurrency-ui.tests.js";
+import { runEdgeCasesUITests } from "../tests/frontend-ui/edge-cases-ui.tests.js";
+import { runSDKIntegrationUITests } from "../tests/frontend-ui/sdk-integration-ui.tests.js";
+import { runHealthUITests } from "../tests/frontend-ui/health-ui.tests.js";
 
 export async function runAllPhases(testSuite, page, log, shouldExitEarly, exitEarly, ensureBrowserOnline) {
   const phases = [
+    { name: "Phase 0: SDK Usage Verification", fn: runSDKUsageUITests },
+    { name: "Phase 0.1: SDK Integration", fn: runSDKIntegrationUITests },
     { name: "Phase 1: Authentication & Access Control", fn: runAuthUITests },
-    { name: "Phase 2: Dashboard & Overview", fn: runDashboardUITests },
-    { name: "Phase 3: Project Management", fn: runProjectsUITests },
-    { name: "Phase 4: Collections Management", fn: runCollectionsUITests },
-    { name: "Phase 5: Documents Management", fn: runDocumentsUITests },
-    { name: "Phase 6: Storage & Files", fn: runStorageUITests },
-    { name: "Phase 7: Users Management", fn: runUsersUITests },
-    { name: "Phase 8: API Keys Management", fn: runAPIKeysUITests },
-    { name: "Phase 9: Email Configuration", fn: runEmailUITests },
-    { name: "Phase 10: Backup & Restore", fn: runBackupUITests },
-    { name: "Phase 11: Settings & Configuration", fn: runSettingsUITests },
-    { name: "Phase 12: MCP Integration", fn: runMCPUITests },
-    { name: "Phase 13: Activity & Logs", fn: runActivityUITests },
-    { name: "Phase 14: Visual Elements & UI Components", fn: runUIComponentsUITests },
-    { name: "Phase 15: Data Loading & Display Logic", fn: runDataLogicUITests },
-    { name: "Phase 16: Error Handling & Edge Cases", fn: runErrorHandlingUITests },
-    { name: "Phase 17: Performance & Optimization", fn: runPerformanceUITests },
+    { name: "Phase 2: Admin Management", fn: runAdminUITests },
+    { name: "Phase 3: Dashboard & Overview", fn: runDashboardUITests },
+    { name: "Phase 4: Project Management", fn: runProjectsUITests },
+    { name: "Phase 5: Collections Management", fn: runCollectionsUITests },
+    { name: "Phase 6: Documents Management", fn: runDocumentsUITests },
+    { name: "Phase 7: Storage & Files", fn: runStorageUITests },
+    { name: "Phase 8: Users Management", fn: runUsersUITests },
+    { name: "Phase 9: API Keys Management", fn: runAPIKeysUITests },
+    { name: "Phase 10: Email Configuration", fn: runEmailUITests },
+    { name: "Phase 11: Backup & Restore", fn: runBackupUITests },
+    { name: "Phase 12: Settings & Configuration", fn: runSettingsUITests },
+    { name: "Phase 13: MCP Integration", fn: runMCPUITests },
+    { name: "Phase 14: Activity & Logs", fn: runActivityUITests },
+    { name: "Phase 15: Transaction Integrity", fn: runTransactionUITests },
+    { name: "Phase 16: Concurrency & Race Conditions", fn: runConcurrencyUITests },
+    { name: "Phase 17: Edge Cases & Boundary Conditions", fn: runEdgeCasesUITests },
+    { name: "Phase 18: Health Management", fn: runHealthUITests },
+    { name: "Phase 19: Visual Elements & UI Components", fn: runUIComponentsUITests },
+    { name: "Phase 20: Data Loading & Display Logic", fn: runDataLogicUITests },
+    { name: "Phase 21: Error Handling", fn: runErrorHandlingUITests },
+    { name: "Phase 22: Performance & Optimization", fn: runPerformanceUITests },
   ];
 
   for (const phase of phases) {

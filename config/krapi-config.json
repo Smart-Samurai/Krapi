@@ -22,6 +22,7 @@
     ],
     "behindProxy": true,
     "enableCors": true,
+    "proxySecret": "e1dc8deaac90a04ce96460c3301c98e6ce357d7cd22a15adacdfb825aab691fd",
     "rateLimit": {
       "enabled": false,
       "windowMs": 900000,

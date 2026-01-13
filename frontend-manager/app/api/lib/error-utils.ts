@@ -9,6 +9,8 @@
 
 import { NextResponse } from "next/server";
 
+/* eslint-disable no-console */
+
 /**
  * Error details extracted from any error type
  */

@@ -28,6 +28,12 @@ import { runChangelogTests } from "./tests/changelog.tests.js";
 import { runBackupTests } from "./tests/backup.tests.js";
 import { runCMSIntegrationTests } from "./tests/cms-integration.tests.js";
 import { runCorsTests } from "./tests/cors.tests.js";
+import { runTransactionTests } from "./tests/transactions.tests.js";
+import { runConcurrencyTests } from "./tests/concurrency.tests.js";
+import { runEdgeCaseTests } from "./tests/edge-cases.tests.js";
+import { runStressQueueTests } from "./tests/stress-queue.tests.js";
+import { runStorageEncryptionTests } from "./tests/storage-encryption.tests.js";
+import { runBackupRestoreTests } from "./tests/backup-restore.tests.js";
 
 /**
  * Test Registry
@@ -215,6 +221,54 @@ export const TEST_REGISTRY = {
     function: runCorsTests,
     dependencies: ["auth"], // Needs auth to test authenticated endpoints
     requiresProject: false,
+    requiresCollection: false,
+  },
+  transactions: {
+    name: "transactions",
+    displayName: "Transaction Integrity Tests",
+    function: runTransactionTests,
+    dependencies: ["auth", "projects"], // Needs auth and project for transaction tests
+    requiresProject: true,
+    requiresCollection: false,
+  },
+  concurrency: {
+    name: "concurrency",
+    displayName: "Concurrency Tests",
+    function: runConcurrencyTests,
+    dependencies: ["auth", "projects"], // Needs auth and project for concurrency tests
+    requiresProject: true,
+    requiresCollection: false,
+  },
+  "edge-cases": {
+    name: "edge-cases",
+    displayName: "Edge Case Tests",
+    function: runEdgeCaseTests,
+    dependencies: ["auth", "projects"], // Needs auth and project for edge case tests
+    requiresProject: true,
+    requiresCollection: false,
+  },
+  "stress-queue": {
+    name: "stress-queue",
+    displayName: "Queue Stress Tests",
+    function: runStressQueueTests,
+    dependencies: ["auth", "projects", "queue"], // Needs auth, project, and queue tests
+    requiresProject: true,
+    requiresCollection: false,
+  },
+  "storage-encryption": {
+    name: "storage-encryption",
+    displayName: "File Upload and Encryption Tests",
+    function: runStorageEncryptionTests,
+    dependencies: ["auth", "projects", "storage"], // Needs auth, project, and storage
+    requiresProject: true,
+    requiresCollection: false,
+  },
+  "backup-restore": {
+    name: "backup-restore",
+    displayName: "Backup Restore Tests",
+    function: runBackupRestoreTests,
+    dependencies: ["auth", "projects", "backup"], // Needs auth, project, and backup
+    requiresProject: true,
     requiresCollection: false,
   },
 };

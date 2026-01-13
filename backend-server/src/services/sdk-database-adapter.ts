@@ -85,7 +85,7 @@ export class SdkDatabaseAdapter implements DatabaseConnection {
     const sqlLower = sql.toLowerCase();
     
     // Pattern 1: WHERE project_id = $X or WHERE project_id = ?
-    const projectIdMatches = sqlLower.matchAll(/project_id\s*=\s*[\$?](\d+)/gi);
+    const projectIdMatches = sqlLower.matchAll(/project_id\s*=\s*[$?](\d+)/gi);
     
     for (const match of projectIdMatches) {
       if (!match[1]) continue;
@@ -224,7 +224,7 @@ export class SdkDatabaseAdapter implements DatabaseConnection {
     params?: unknown[]
   ): Promise<{ rows: unknown[]; rowCount: number }> {
     const dbType = this.determineDatabase(sql, params);
-    let projectId = this.extractProjectIdFromParams(sql, params);
+    const projectId = this.extractProjectIdFromParams(sql, params);
     
     // If we found a project ID, remember it for subsequent queries
     if (projectId) {
@@ -242,6 +242,21 @@ export class SdkDatabaseAdapter implements DatabaseConnection {
       console.log(`  - Last Known Project ID: ${this.lastProjectId}`);
       console.log(`  - SQL: ${sql.substring(0, 150)}...`);
       console.log(`  - Params (first 3): ${JSON.stringify(params?.slice(0, 3))}`);
+      // For INSERT statements, log password_hash param if present
+      if (sqlLower.includes("insert") && params && params.length > 0) {
+        // Find password_hash column index in INSERT statement
+        const insertMatch = sql.match(/INSERT\s+INTO\s+project_users\s*\(([^)]+)\)/i);
+        if (insertMatch && insertMatch[1] && params) {
+          const columns = insertMatch[1].split(',').map(c => c.trim().toLowerCase());
+          const passwordHashIndex = columns.indexOf('password_hash');
+          if (passwordHashIndex >= 0 && passwordHashIndex < params.length && params[passwordHashIndex] !== undefined) {
+            const passwordHashValue = params[passwordHashIndex];
+            console.log(`  - password_hash param[${passwordHashIndex}]: ${passwordHashValue ? (typeof passwordHashValue === 'string' ? `[${passwordHashValue.length} chars]` : JSON.stringify(passwordHashValue)) : 'NULL/UNDEFINED'}`);
+          } else if (passwordHashIndex >= 0) {
+            console.log(`  - password_hash param[${passwordHashIndex}]: NOT PRESENT (index out of bounds or undefined)`);
+          }
+        }
+      }
     }
 
     if (dbType === "project") {

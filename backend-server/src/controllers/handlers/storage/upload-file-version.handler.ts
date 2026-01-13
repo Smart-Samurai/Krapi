@@ -1,6 +1,7 @@
+import * as path from "path";
+
 import { BackendSDK } from "@smartsamurai/krapi-sdk";
 import { Request, Response } from "express";
-import * as path from "path";
 
 import { ApiResponse, AuthenticatedRequest } from "@/types";
 

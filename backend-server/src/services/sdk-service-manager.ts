@@ -74,68 +74,90 @@ export class SDKServiceManager {
     try {
       console.log("🔧 Creating database schema...");
 
-      // Always try to create essential tables first - this is more reliable
+      // Ensure baseline tables exist before running SDK auto-fix
       try {
-        console.log("📋 Creating essential tables directly...");
         const { DatabaseService } = await import("@/services/database.service");
         const dbService = DatabaseService.getInstance();
         await dbService.createEssentialTables();
-        console.log("✅ Essential tables created successfully");
-
-        // CRITICAL: Fix missing columns after table creation
-        // This ensures columns like last_used_at are added even if tables already existed
-        console.log("🔧 Fixing missing columns in existing tables...");
-        await dbService.fixMissingColumns();
-        console.log("✅ Missing columns fixed");
-
-        // The backend service already creates the default admin user
-        // No need to call the SDK method
+      } catch (preInitError) {
         console.log(
-          "✅ Default admin user should already exist from backend initialization"
+          `⚠️ Pre-initialize essential tables had issues (non-fatal): ${
+            preInitError instanceof Error ? preInitError.message : String(preInitError)
+          }`
         );
+      }
 
-        return {
-          success: true,
-          message:
-            "Database initialized successfully via direct table creation",
-          tablesCreated: ["Essential tables created directly"],
-          defaultDataInserted: true,
-        };
-      } catch (directError) {
-        console.log("⚠️ Direct table creation failed, trying SDK auto-fix...");
+      // Use SDK auto-fix as the primary method - it's more reliable and handles all cases
+      try {
+        console.log("📋 Initializing database via SDK auto-fix...");
+        const autoFixResult = await this.backendSDK.database.autoFix();
 
-        // Fallback to SDK auto-fix
-        try {
-          const autoFixResult = await this.backendSDK.database.autoFix();
+        if (autoFixResult.success) {
+          console.log(
+            `✅ Database schema created/verified via SDK. Applied ${autoFixResult.fixesApplied} fixes.`
+          );
 
-          if (autoFixResult.success) {
-            console.log(
-              `✅ Database schema created/verified via SDK. Applied ${autoFixResult.fixesApplied} fixes.`
-            );
-
-            // The backend service already creates the default admin user
-            // No need to call the SDK method
-            console.log(
-              "✅ Default admin user should already exist from backend initialization"
-            );
-
-            return {
-              success: true,
-              message: "Database initialized successfully via SDK",
-              tablesCreated: autoFixResult.appliedFixes || [
-                "All tables created via SDK",
-              ],
-              defaultDataInserted: true,
-            };
-          } else {
-            throw new Error("SDK auto-fix failed");
+          // CRITICAL: Fix missing columns after SDK auto-fix
+          // This ensures columns like last_used_at are added even if tables already existed
+          try {
+            console.log("🔧 Fixing missing columns in existing tables...");
+            const { DatabaseService } = await import("@/services/database.service");
+            const dbService = DatabaseService.getInstance();
+            await dbService.fixMissingColumns();
+            console.log("✅ Missing columns fixed");
+          } catch (fixError) {
+            // Non-critical - log but don't fail
+            console.log(`⚠️ Column fix step had issues (non-critical): ${fixError instanceof Error ? fixError.message : String(fixError)}`);
           }
-        } catch (sdkError) {
+
+          // The backend service already creates the default admin user
+          // No need to call the SDK method
+          console.log(
+            "✅ Default admin user should already exist from backend initialization"
+          );
+
+          return {
+            success: true,
+            message: "Database initialized successfully via SDK",
+            tablesCreated: autoFixResult.appliedFixes || [
+              "All tables created via SDK",
+            ],
+            defaultDataInserted: true,
+          };
+        } else {
+          throw new Error("SDK auto-fix failed");
+        }
+      } catch (sdkError) {
+        // If SDK auto-fix fails, try direct table creation as fallback
+        console.log("⚠️ SDK auto-fix had issues, trying direct table creation as fallback...");
+        
+        try {
+          const { DatabaseService } = await import("@/services/database.service");
+          const dbService = DatabaseService.getInstance();
+          await dbService.createEssentialTables();
+          console.log("✅ Essential tables created successfully via direct method");
+
+          // Fix missing columns
+          await dbService.fixMissingColumns();
+          console.log("✅ Missing columns fixed");
+
+          console.log(
+            "✅ Default admin user should already exist from backend initialization"
+          );
+
+          return {
+            success: true,
+            message:
+              "Database initialized successfully via direct table creation (fallback)",
+            tablesCreated: ["Essential tables created directly"],
+            defaultDataInserted: true,
+          };
+        } catch (directError) {
           console.error(
-            "❌ Both direct table creation and SDK auto-fix failed"
+            "❌ Both SDK auto-fix and direct table creation failed"
           );
           throw new Error(
-            `Database initialization failed: Direct error: ${directError instanceof Error ? directError.message : String(directError)}, SDK error: ${sdkError instanceof Error ? sdkError.message : String(sdkError)}`
+            `Database initialization failed: SDK error: ${sdkError instanceof Error ? sdkError.message : String(sdkError)}, Direct error: ${directError instanceof Error ? directError.message : String(directError)}`
           );
         }
       }

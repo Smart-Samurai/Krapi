@@ -106,6 +106,12 @@ const eslintConfig = [
         "error",
         { props: "never", children: "never" },
       ],
+      // Prevent rendering objects as children
+      "react/no-danger": "warn",
+      "react/jsx-no-leaked-render": [
+        "error",
+        { validStrategies: ["ternary", "coerce"] },
+      ],
 
       // Import rules
       "import/no-unresolved": [

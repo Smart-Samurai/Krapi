@@ -563,7 +563,6 @@ export class UsersController {
       }
 
       // Verify password - SDK users service should handle this, but for now we'll use auth service
-      // TODO: Check if SDK has password verification method
       const { AuthService } = await import("@/services/auth.service");
       const authService = AuthService.getInstance();
       const isValid = await authService.verifyPassword(password, (user as { password_hash?: string }).password_hash || "");

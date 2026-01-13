@@ -13,6 +13,8 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { themeScript } from "@/lib/theme-script";
 
+/* eslint-disable react/no-danger */
+
 const inter = Inter({ subsets: ["latin"] });
 
 /**

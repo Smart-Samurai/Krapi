@@ -73,6 +73,24 @@ const loginLimiter = rateLimit({
   skip: () => RATE_LIMIT_DISABLED, // Skip rate limiting if disabled
 });
 
+// ===== Unified Login (Admin or Project User) =====
+/**
+ * Unified login with username/password
+ *
+ * POST /krapi/k1/auth/login
+ *
+ * Authenticates either an admin user or project user with username and password.
+ * Tries admin authentication first, then project user authentication.
+ * Rate limited to prevent brute force attacks.
+ *
+ * @route POST /login
+ * @body {string} username - Username (admin or project user)
+ * @body {string} password - Password
+ * @body {boolean} [remember_me] - Optional remember me flag
+ * @returns {Object} Authentication result with user, token, session_token, expires_at, scopes
+ */
+router.post("/login", loginLimiter, controller.login);
+
 // ===== Admin Authentication =====
 /**
  * Admin login with username/password

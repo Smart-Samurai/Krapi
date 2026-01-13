@@ -3,9 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBackendSdkClient } from "@/app/api/lib/backend-sdk-client";
 
 /**
- * Admin Login API Route (SDK-compatible path)
+ * PROXY ROUTE: Admin Login
  *
  * POST /api/krapi/k1/auth/admin/login - Admin user login
+ *
+ * ARCHITECTURE: Proxy route that connects directly to backend
+ * - Called by client routes (via SDK) or external apps
+ * - Connects to BACKEND URL (port 3470) directly
+ * - Proxies requests to backend server
  *
  * SDK-FIRST ARCHITECTURE: Uses backend SDK client to communicate with backend.
  * NO direct fetch calls allowed - all communication goes through SDK.

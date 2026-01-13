@@ -72,9 +72,6 @@ export class DiagnosticsService {
     await this.runTestWithTimeout(
       "Database Connectivity",
       async () => {
-        // TODO: Replace with SDK's database health check method
-        // Example: const health = await this.backendSDK.database.checkHealth();
-        // For now, use a simple query check
         const health = await this.checkDatabaseHealth();
         if (!health.healthy) {
           throw new Error(health.message || "Database health check failed");
@@ -126,8 +123,6 @@ export class DiagnosticsService {
     await this.runTestWithTimeout(
       "Database Schema",
       async () => {
-        // TODO: Replace with SDK's database schema check method
-        // Example: const health = await this.backendSDK.database.checkHealth();
         const health = await this.checkDatabaseHealth();
         if (health.details?.missingTables && health.details.missingTables.length > 0) {
           throw new Error(`Missing critical tables: ${health.details.missingTables.join(", ")}`);
@@ -197,9 +192,6 @@ export class DiagnosticsService {
   /**
    * Check database health
    * 
-   * TODO: Replace with SDK's database health check method
-   * This is a placeholder that should be replaced with actual SDK method.
-   * 
    * @private
    * @returns {Promise<{healthy: boolean; message: string; details?: {missingTables?: string[]}}>}
    */
@@ -210,16 +202,41 @@ export class DiagnosticsService {
       missingTables?: string[];
     };
   }> {
-    // TODO: Implement using SDK's database service
-    // Example:
-    // const dbService = this.backendSDK.database;
-    // return await dbService.checkHealth();
-    
-    // Placeholder implementation
-    return {
-      healthy: true,
-      message: "Database is healthy",
-    };
+    if (!this.backendSDK) {
+      return {
+        healthy: false,
+        message: "BackendSDK not initialized",
+      };
+    }
+
+    try {
+      const healthCheck = await this.backendSDK.database.healthCheck();
+      const isHealthy = healthCheck.isHealthy ?? (healthCheck as { healthy?: boolean }).healthy ?? false;
+      
+      const result: {
+        healthy: boolean;
+        message: string;
+        details?: {
+          missingTables?: string[];
+        };
+      } = {
+        healthy: isHealthy,
+        message: "Database health check completed",
+      };
+      
+      // Only add details if they exist and are not undefined
+      const healthDetails = (healthCheck as { details?: { missingTables?: string[] } }).details;
+      if (healthDetails !== undefined) {
+        result.details = healthDetails;
+      }
+      
+      return result;
+    } catch (error) {
+      return {
+        healthy: false,
+        message: error instanceof Error ? error.message : "Database health check failed",
+      };
+    }
   }
 }
 

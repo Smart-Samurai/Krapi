@@ -341,6 +341,7 @@ export class MultiDatabaseManager {
         filename TEXT,
         original_name TEXT,
         path TEXT,
+        url TEXT,
         file_path TEXT,
         mime_type TEXT,
         size INTEGER DEFAULT 0,
@@ -559,6 +560,7 @@ export class MultiDatabaseManager {
         filename TEXT,
         original_name TEXT,
         path TEXT NOT NULL,
+        url TEXT,
         file_path TEXT,
         size INTEGER DEFAULT 0,
         file_size INTEGER,
@@ -574,7 +576,11 @@ export class MultiDatabaseManager {
         created_by TEXT,
         uploaded_by TEXT,
         created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
+        updated_at TEXT DEFAULT (datetime('now')),
+        last_accessed TEXT,
+        access_count INTEGER DEFAULT 0,
+        deleted_at TEXT,
+        deleted_by TEXT
       )
     `);
 
@@ -754,7 +760,7 @@ export class MultiDatabaseManager {
     // Build a map of placeholder positions to parameter indices
     const placeholderMap = new Map<number, number>();
     let placeholderIndex = 0;
-    let convertedSql = sql.replace(placeholderPattern, (_match, numStr) => {
+    const convertedSql = sql.replace(placeholderPattern, (_match, numStr) => {
       const paramIndex = parseInt(numStr, 10) - 1; // Convert $1 -> index 0
       placeholderMap.set(placeholderIndex++, paramIndex);
       return '?';
@@ -855,7 +861,7 @@ export class MultiDatabaseManager {
         : 0;
       
       // Convert $1, $2, etc. to ?
-      let convertedSql = sql.replace(placeholderPattern, '?');
+      const convertedSql = sql.replace(placeholderPattern, '?');
       
       // If we have placeholders but params don't match, that's an error
       if (maxPlaceholder > 0 && (!serializedParams || serializedParams.length !== maxPlaceholder)) {

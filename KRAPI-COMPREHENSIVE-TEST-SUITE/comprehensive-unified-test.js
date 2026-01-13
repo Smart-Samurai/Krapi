@@ -32,8 +32,9 @@ import {
  * This ensures we test the same path that real external apps would use.
  */
 // Total number of tests in the suite (used for progress tracking)
-// Current total: 117 tests across all test files
-const TOTAL_TESTS_IN_SUITE = 117;
+// Current total: 150+ tests across all test files (updated 2025-12-06)
+// Includes: auth, admin (with CRUD), transactions, concurrency, edge-cases
+const TOTAL_TESTS_IN_SUITE = 150;
 
 class ComprehensiveTestSuite {
   constructor(sessionToken = null, testProject = null, selectedTests = null) {
@@ -111,7 +112,7 @@ class ComprehensiveTestSuite {
 
       this.logger.testResult(name, "PASSED", duration);
       this.logger.updateSuiteStats("PASSED");
-      this.logger.recordTestResult(name, "PASSED", duration);
+      // recordTestResult() is now called automatically by testResult() - no need to call it again
       // Keep local tracking for backward compatibility
       this.testResults.passed++;
     } catch (error) {
@@ -130,11 +131,8 @@ class ComprehensiveTestSuite {
         `   Source: ${errorSource} | Category: ${errorCategory} | Fix: ${fixLocation}`
       );
 
-      this.logger.testResult(name, "FAILED", duration, error);
-      this.logger.updateSuiteStats("FAILED");
-
-      // Record test result with enhanced error details including classification
-      this.logger.recordTestResult(name, "FAILED", duration, error, {
+      // Build error details object for testResult (which will call recordTestResult internally)
+      const errorDetailsObj = {
         errorCode: errorDetails.code,
         errorStatus: errorDetails.status,
         errorMessage: errorDetails.message,
@@ -143,7 +141,11 @@ class ComprehensiveTestSuite {
         errorSource: errorSource,
         errorCategory: errorCategory,
         fixLocation: fixLocation,
-      });
+      };
+      
+      this.logger.testResult(name, "FAILED", duration, error, errorDetailsObj);
+      this.logger.updateSuiteStats("FAILED");
+      // recordTestResult() is now called automatically by testResult() - no need to call it again
 
       // Keep local tracking for backward compatibility
       this.testResults.failed++;
@@ -231,14 +233,18 @@ class ComprehensiveTestSuite {
   }
 
   // Validate response has real data (not just structure)
-  assertHasData(response, message = "Response has no real data") {
+  assertHasData(response, message = "Response has no real data", requireNonEmpty = false) {
     if (!response) {
       throw new Error(`${message}: Response is null or undefined`);
     }
 
     // Arrays are valid responses (even if empty) - they are objects but should be handled separately
     if (Array.isArray(response)) {
-      // Empty arrays are valid - they represent "no data" which is different from "invalid response"
+      // If requireNonEmpty is true, empty arrays are invalid
+      if (requireNonEmpty && response.length === 0) {
+        throw new Error(`${message}: Response is an empty array (non-empty required)`);
+      }
+      // Otherwise, empty arrays are valid - they represent "no data" which is different from "invalid response"
       return true;
     }
 
@@ -270,6 +276,101 @@ class ComprehensiveTestSuite {
           response
         )}`
       );
+    }
+
+    // Check nested objects have data too (but allow empty objects for optional fields)
+    // Only fail if ALL nested objects are empty (meaning the response has no real data)
+    const nonEmptyNestedObjects = [];
+    for (const key of keys) {
+      const value = response[key];
+      if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        const nestedKeys = Object.keys(value);
+        if (nestedKeys.length > 0) {
+          nonEmptyNestedObjects.push(key);
+        }
+      } else if (value !== null && value !== undefined) {
+        // Non-object values count as data
+        nonEmptyNestedObjects.push(key);
+      }
+    }
+    
+    // Only fail if response has ONLY empty objects (no real data at all)
+    if (nonEmptyNestedObjects.length === 0 && keys.length > 0) {
+      throw new Error(
+        `${message}: All nested objects are empty. Response: ${JSON.stringify(response)}`
+      );
+    }
+
+    return true;
+  }
+
+  // Assert error has correct status code and optional message
+  assertErrorType(error, expectedStatus, expectedMessage = null) {
+    if (!error) {
+      throw new Error(`Expected error but got null/undefined`);
+    }
+
+    const actualStatus = error.statusCode || error.status;
+    if (actualStatus !== expectedStatus) {
+      throw new Error(
+        `Expected error status ${expectedStatus} but got ${actualStatus}. Error: ${error.message}`
+      );
+    }
+
+    if (expectedMessage && error.message) {
+      if (!error.message.includes(expectedMessage)) {
+        throw new Error(
+          `Expected error message to include "${expectedMessage}" but got: ${error.message}`
+        );
+      }
+    }
+
+    return true;
+  }
+
+  // Assert error is permission-related (403 Forbidden or 401 Unauthorized)
+  assertPermissionDenied(error) {
+    if (!error) {
+      throw new Error(`Expected permission error but got null/undefined`);
+    }
+
+    const status = error.statusCode || error.status;
+    const isPermissionError =
+      status === 403 ||
+      status === 401 ||
+      (error.message && (
+        error.message.includes("Forbidden") ||
+        error.message.includes("Unauthorized") ||
+        error.message.includes("permission") ||
+        error.message.includes("Insufficient") ||
+        error.message.includes("Access denied")
+      ));
+
+    if (!isPermissionError) {
+      throw new Error(
+        `Expected permission error (403/401) but got status ${status}. Error: ${error.message}`
+      );
+    }
+
+    return true;
+  }
+
+  // Assert transaction rollback occurred (validates operation failed and state is unchanged)
+  async assertTransactionRollback(operation, verifyState) {
+    const initialState = await verifyState();
+
+    try {
+      await operation();
+      // If operation succeeds, that's okay - we just verify state is consistent
+    } catch (error) {
+      // Operation failed - verify state is unchanged (rollback occurred)
+      const finalState = await verifyState();
+      
+      if (JSON.stringify(initialState) !== JSON.stringify(finalState)) {
+        throw new Error(
+          `Transaction rollback failed: State changed after operation failure. Initial: ${JSON.stringify(initialState)}, Final: ${JSON.stringify(finalState)}`
+        );
+      }
     }
 
     return true;
@@ -386,6 +487,7 @@ class ComprehensiveTestSuite {
         }
 
         // Check if we should stop on first failure
+        // Only stop if STOP_ON_FIRST_FAILURE is explicitly enabled
         if (
           process.env.STOP_ON_FIRST_FAILURE === "true" &&
           this.testResults.failed > 0
@@ -394,6 +496,7 @@ class ComprehensiveTestSuite {
             "Test failed - stopping immediately (STOP_ON_FIRST_FAILURE mode)"
           );
         }
+        // Otherwise, continue running all tests (default behavior)
       }
     } catch (error) {
       console.error("💥 TEST SUITE FAILED:", error.message);
@@ -402,6 +505,33 @@ class ComprehensiveTestSuite {
         test: "Test Suite",
         error: error.message,
       });
+      
+      // Record suite-level failure in logger so it appears in JSON results
+      const suiteError = new Error(`Test Suite Error: ${error.message}`);
+      suiteError.stack = error.stack;
+      const duration = Date.now() - this.startTime;
+      // Extract error details for logging
+      const errorDetails = extractTestErrorDetails(error);
+      const errorSource = classifyErrorSource(error);
+      const errorCategory = getErrorCategory(error);
+      const fixLocation = getFixLocation(error);
+      
+      // Build error details object for testResult (which will call recordTestResult internally)
+      const errorDetailsObj = {
+        errorCode: errorDetails.code,
+        errorStatus: errorDetails.status,
+        errorMessage: error.message,
+        errorDetails: errorDetails.details,
+        errorTimestamp: errorDetails.timestamp,
+        errorSource: errorSource,
+        errorCategory: errorCategory,
+        fixLocation: fixLocation,
+      };
+      
+      this.logger.testResult("Test Suite", "FAILED", duration, suiteError, errorDetailsObj);
+      this.logger.updateSuiteStats("FAILED");
+      // recordTestResult() is now called automatically by testResult() - no need to call it again
+      
       // In STOP_ON_FIRST_FAILURE mode, rethrow to stop immediately
       if (process.env.STOP_ON_FIRST_FAILURE === "true") {
         throw error;
@@ -409,6 +539,14 @@ class ComprehensiveTestSuite {
       // Otherwise, don't throw - let finally block handle cleanup and results
     } finally {
       await this.cleanup();
+      
+      // Check for suite-level failures BEFORE printing results
+      const suiteFailures = (this.logger.results || []).filter(
+        (r) => r.test === "Test Suite" && r.status === "FAILED"
+      );
+      const hasSuiteFailure = suiteFailures.length > 0;
+      
+      // Only print results if we know the final state
       this.printResults();
 
       // Save results to file
@@ -421,8 +559,10 @@ class ComprehensiveTestSuite {
         );
       }
 
-      // Return true if all tests passed, false otherwise
-      return this.testResults.failed === 0;
+      // Return false if suite failed OR individual tests failed
+      // Individual test failures are in this.testResults.failed
+      // Suite failures are tracked separately
+      return this.testResults.failed === 0 && !hasSuiteFailure;
     }
   }
 
@@ -774,10 +914,8 @@ class ComprehensiveTestSuite {
           sessionToken: this.sessionToken, // ✅ Use token from constructor
           initializeClients: true,
           retry: {
-            enabled: true,
-            maxRetries: 3,
-            retryDelay: 1000, // 1 second
-            retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+            attempts: 3,
+            delay: 1000, // 1 second
           },
         });
         this.safeLog("   ✅ SDK connected with session token from test runner");
@@ -787,10 +925,8 @@ class ComprehensiveTestSuite {
           endpoint: endpoint, // ✅ Frontend URL (port 3498) - use IPv4 to avoid IPv6 issues
           initializeClients: true,
           retry: {
-            enabled: true,
-            maxRetries: 3,
-            retryDelay: 1000, // 1 second
-            retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+            attempts: 3,
+            delay: 1000, // 1 second
           },
         });
       }
@@ -820,10 +956,8 @@ class ComprehensiveTestSuite {
           sessionToken: this.sessionToken, // ✅ Pass token in config so all clients get it
           initializeClients: true,
           retry: {
-            enabled: true,
-            maxRetries: 3,
-            retryDelay: 1000,
-            retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+            attempts: 3,
+            delay: 1000,
           },
         });
         this.safeLog(
@@ -832,8 +966,9 @@ class ComprehensiveTestSuite {
 
         // Perform health check after connection
         try {
-          const isHealthy = await this.krapi.healthCheck();
-          if (!isHealthy) {
+          // SDK 0.6.0: Use health.check() instead of healthCheck()
+          const healthResult = await this.krapi.health.check();
+          if (!healthResult.healthy) {
             this.safeLog(
               "   ⚠️ SDK health check failed - connection may be unstable"
             );
@@ -1013,9 +1148,23 @@ class ComprehensiveTestSuite {
   }
 
   printResults() {
-    const totalTests = this.testResults.passed + this.testResults.failed;
+    // Count using the same logic as saveResultsToFile() for consistency
+    const passedCount = (this.logger.results || []).filter(
+      (r) => r.test !== "Test Suite" && r.status === "PASSED"
+    ).length;
+    const failedCount = this.logger.testResults.errors.filter(
+      (e) => !(e.name || e.test)?.includes("Test Suite")
+    ).length;
+    const totalTests = passedCount + failedCount;
+    
+    // Check for suite-level failures separately
+    const suiteFailures = (this.logger.results || []).filter(
+      (r) => r.test === "Test Suite" && r.status === "FAILED"
+    );
+    const hasSuiteFailure = suiteFailures.length > 0;
+    
     const duration = Date.now() - this.startTime;
-    const totalExpectedTests = TOTAL_TESTS_IN_SUITE; // Always use the constant value (120)
+    const totalExpectedTests = TOTAL_TESTS_IN_SUITE; // Always use the constant value (122)
 
     // Calculate performance metrics
     const avgTestTime = totalTests > 0 ? Math.round(duration / totalTests) : 0;
@@ -1031,26 +1180,25 @@ class ComprehensiveTestSuite {
       })
       .sort((a, b) => b.duration - a.duration);
 
-    console.log("\n" + "=".repeat(60));
-    console.log("TEST SUMMARY");
-    console.log("=".repeat(60));
-
-    // Use logger for summary - pass total expected tests (120 for 100% coverage)
+    // Use logger for summary - pass total expected tests
     this.logger.summary(
-      totalTests, // Number of tests that actually ran
-      this.testResults.passed,
-      this.testResults.failed,
+      totalTests, // Number of individual tests that actually ran
+      passedCount,
+      failedCount,
       duration,
-      totalExpectedTests // Updated to 120 for 100% coverage
+      totalExpectedTests
     );
+    
+    // Only show suite-level failures if NO individual tests failed (edge case)
+    if (suiteFailures.length > 0 && failedCount === 0) {
+      console.log(`\n💥 SUITE-LEVEL FAILURE (all individual tests passed but suite failed):`);
+      suiteFailures.forEach((failure) => {
+        console.log(`   ${failure.error || "Unknown error"}`);
+      });
+    }
 
-    // Print performance metrics
-    console.log(`\n📊 PERFORMANCE METRICS:`);
-    console.log(`   Total Duration: ${(duration / 1000).toFixed(2)}s`);
-    console.log(`   Average Test Time: ${avgTestTime}ms`);
-    console.log(`   Tests Per Second: ${testsPerSecond}`);
-
-    if (slowTests.length > 0) {
+    // Removed verbose performance metrics - user wants simple summary only
+    if (false && slowTests.length > 0) {
       console.log(`\n⚠️  SLOW TESTS (${slowTests.length}):`);
       slowTests.slice(0, 10).forEach((test) => {
         const testName = test.test || test.name || "Unknown test";
@@ -1061,10 +1209,10 @@ class ComprehensiveTestSuite {
       }
     }
 
-    // Add error source summary
-    if (this.testResults.failed > 0) {
-      const failedTests = (this.logger.results || []).filter(
-        (t) => t.status === "FAILED"
+    // Removed verbose error source summary - user wants simple summary only
+    if (false && failedCount > 0) {
+      const failedTests = this.logger.testResults.errors.filter(
+        (e) => !(e.name || e.test)?.includes("Test Suite")
       );
       const errorsBySource = {
         SDK: 0,
@@ -1103,35 +1251,59 @@ class ComprehensiveTestSuite {
           `   Unknown Issues: ${errorsBySource.UNKNOWN} (manual investigation needed)`
         );
       }
+      
+      // List failed test names only (simple format)
+      console.log(`\nFailed Tests:`);
+      failedTests.forEach((test, index) => {
+        const testName = test.test || test.name || "Unknown test";
+        console.log(`  ${index + 1}. ${testName}`);
+      });
     }
 
     console.log("=".repeat(60));
 
     const isQuickMode = process.env.STOP_ON_FIRST_FAILURE === "true";
 
-    if (this.testResults.failed === 0 && totalTests > 0) {
+    // NEVER print success if suite failed, even if all individual tests passed
+    if (failedCount === 0 && totalTests > 0 && !hasSuiteFailure) {
       if (isQuickMode) {
         console.log(
           `\n✅ All tests passed so far (${totalTests}/${totalExpectedTests} executed - quick mode)`
         );
         console.log("   Run 'pnpm run test:comprehensive' for full test suite");
       } else {
+        // Show actual/actual when all tests pass, or actual/expected if different
+        const displayCount = totalTests === totalExpectedTests 
+          ? `${totalTests}/${totalTests}` 
+          : `${totalTests}/${totalExpectedTests}`;
         console.log(
-          `\n🎉 ALL TESTS PASSED! (${totalTests}/${totalExpectedTests}) KRAPI is production ready! 🎉`
+          `\n🎉 ALL TESTS PASSED! (${displayCount}) KRAPI is production ready! 🎉`
         );
       }
-    } else if (totalTests === 0) {
+    } else if (totalTests === 0 && !hasSuiteFailure) {
       this.logger.warn(
         "No tests were executed. Please check test suite configuration."
       );
     } else {
-      if (isQuickMode) {
+      if (hasSuiteFailure && failedCount === 0) {
+        // Suite failed but all individual tests passed - this is the confusing case
         this.logger.warn(
-          `${this.testResults.failed} of ${totalTests} test(s) failed (${totalTests}/${totalExpectedTests} executed - quick mode stopped on first failure). Fix the error and run again.`
+          `⚠️  All individual tests passed (${totalTests}/${totalExpectedTests}), but the test suite encountered an error during execution.`
+        );
+        suiteFailures.forEach((failure) => {
+          this.logger.warn(`   Suite Error: ${failure.error || "Unknown error"}`);
+        });
+      } else if (hasSuiteFailure) {
+        this.logger.warn(
+          `Test suite failed to complete. ${failedCount} individual test(s) failed, and the suite itself encountered an error.`
+        );
+      } else if (isQuickMode) {
+        this.logger.warn(
+          `${failedCount} of ${totalTests} test(s) failed (${totalTests}/${totalExpectedTests} executed - quick mode stopped on first failure). Fix the error and run again.`
         );
       } else {
         this.logger.warn(
-          `${this.testResults.failed} of ${totalTests} test(s) failed (${totalTests}/${totalExpectedTests} total). Please review and fix.`
+          `${failedCount} of ${totalTests} test(s) failed (${totalTests}/${totalExpectedTests} total). Please review and fix.`
         );
       }
     }

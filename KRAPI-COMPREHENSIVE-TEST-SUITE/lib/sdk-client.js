@@ -28,6 +28,10 @@ export async function initializeSDK() {
     endpoint,
     timeout: 5000,
     initializeClients: true,
+    retry: {
+      attempts: 3,
+      delay: 1000,
+    },
   });
 
   isConnected = true;
@@ -57,6 +61,10 @@ export async function loginAsAdmin() {
     sessionToken,
     initializeClients: true,
     timeout: 5000,
+    retry: {
+      attempts: 3,
+      delay: 1000,
+    },
   });
 
   return sessionToken;

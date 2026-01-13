@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedBackendSdk } from "@/app/api/lib/backend-sdk-client";
 import { getAuthToken } from "@/app/api/lib/sdk-client";
 
+/* eslint-disable no-console */
+
 /**
  * Create Project Handler
  *

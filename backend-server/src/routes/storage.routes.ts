@@ -110,6 +110,32 @@ router.get(
   }
 );
 
+// File download endpoint (SDK path compatibility)
+router.get(
+  "/files/:fileId/download",
+  authenticate,
+  requireScopes({
+    scopes: [Scope.STORAGE_READ],
+    projectSpecific: false,
+  }),
+  async (req, res) => {
+    await downloadFileHandler.handle(req, res);
+  }
+);
+
+// File download endpoint (SDK path without /download for legacy compatibility)
+router.get(
+  "/files/:fileId",
+  authenticate,
+  requireScopes({
+    scopes: [Scope.STORAGE_READ],
+    projectSpecific: false,
+  }),
+  async (req, res) => {
+    await downloadFileHandler.handle(req, res);
+  }
+);
+
 // File metadata endpoint
 router.get(
   "/metadata/:fileId",

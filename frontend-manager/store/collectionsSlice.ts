@@ -50,7 +50,7 @@ export const fetchCollections = createAsyncThunk(
       // eslint-disable-next-line no-console
       console.log("[CollectionsSlice] Fetching collections for project:", projectId, "Token exists:", !!token);
 
-      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections`, {
+      const response = await fetch(`/api/client/krapi/k1/projects/${projectId}/collections`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -127,7 +127,7 @@ export const createCollection = createAsyncThunk(
         })),
       };
 
-      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections`, {
+      const response = await fetch(`/api/client/krapi/k1/projects/${projectId}/collections`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -219,7 +219,7 @@ export const updateCollection = createAsyncThunk(
         }));
       }
 
-      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections/${collectionId}`, {
+      const response = await fetch(`/api/client/krapi/k1/projects/${projectId}/collections/${collectionId}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -260,7 +260,7 @@ export const deleteCollection = createAsyncThunk(
         return rejectWithValue("Authentication required");
       }
 
-      const response = await fetch(`/api/krapi/k1/projects/${projectId}/collections/${collectionId}`, {
+      const response = await fetch(`/api/client/krapi/k1/projects/${projectId}/collections/${collectionId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

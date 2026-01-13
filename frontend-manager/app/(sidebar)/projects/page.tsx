@@ -464,6 +464,7 @@ export default function ProjectsPage() {
         isSubmitting={isCreating}
         disabled={isCreating}
         data-testid="create-project-dialog"
+        onCancel={() => setIsCreateDialogOpen(false)}
       >
         <Form {...createForm}>
           <FormField
@@ -517,6 +518,7 @@ export default function ProjectsPage() {
         isSubmitting={isUpdating}
         submitClassName="btn-edit"
         disabled={isUpdating}
+        data-testid="edit-project-dialog"
       >
         <Form {...editForm}>
           <FormField
@@ -526,7 +528,7 @@ export default function ProjectsPage() {
               <FormItem>
                 <FormLabel>Project Name</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input {...field} data-testid="project-edit-form-name" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -539,7 +541,7 @@ export default function ProjectsPage() {
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea {...field} />
+                  <Textarea {...field} data-testid="project-edit-form-description" />
                 </FormControl>
                 <FormMessage />
               </FormItem>

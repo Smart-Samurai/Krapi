@@ -124,7 +124,8 @@ export interface BackendProjectUser {
   phone?: string;
   is_verified?: boolean;
   scopes?: string[];
-  password?: string;
+  password?: string; // Legacy field (users collection)
+  password_hash?: string; // SDK standard field (project_users table)
   permissions?: string[];
   created_at: string;
   updated_at: string;
@@ -413,6 +414,11 @@ export interface SystemSettings {
     passwordRequireUppercase: boolean;
     passwordRequireNumbers: boolean;
     passwordRequireSymbols: boolean;
+    file_encryption?: {
+      enabled: boolean;
+      key_configured: boolean;
+      key_source: "env" | "database" | "auto-generated";
+    };
   };
   email: {
     smtpHost: string;

@@ -50,8 +50,8 @@ export class RegisterHandler {
         username: registerData.username,
         email: registerData.email,
         password: registerData.password,
-        role: role,
-        access_level: access_level,
+        role,
+        access_level,
         permissions: registerData.permissions,
       });
 

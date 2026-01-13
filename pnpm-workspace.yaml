@@ -2,5 +2,4 @@ packages:
   - 'backend-server'
   - 'frontend-manager'
   - 'backend-server/packages/*'
-  - 'mcp-server'
   - 'KRAPI-COMPREHENSIVE-TEST-SUITE'

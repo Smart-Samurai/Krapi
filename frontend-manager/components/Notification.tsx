@@ -107,20 +107,16 @@ export function NotificationContainer({
 }: NotificationContainerProps) {
   return (
     <div className="space-y-2">
-      {error && (
-        <Notification
+      {error ? <Notification
           type="error"
           message={error}
           onClose={onClearError || (() => {})}
-        />
-      )}
-      {success && (
-        <Notification
+        /> : null}
+      {success ? <Notification
           type="success"
           message={success}
           onClose={onClearSuccess || (() => {})}
-        />
-      )}
+        /> : null}
     </div>
   );
 }

@@ -11,7 +11,8 @@
 "use client";
 
 import { Plus, Search, AlertCircle } from "lucide-react";
-import React from "react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -34,7 +35,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { StreamlinedUserDialog } from "@/components/users/StreamlinedUserDialog";
-import { AdminRole, AccessLevel, Scope } from "@/lib/krapi-constants";
+import { useReduxAuth } from "@/contexts/redux-auth-context";
+import { Scope } from "@/lib/krapi-constants";
 import { ExtendedAdminUser } from "@/lib/types/extended";
 
 /**
@@ -45,6 +47,11 @@ import { ExtendedAdminUser } from "@/lib/types/extended";
  * @returns {JSX.Element} Admin users page
  */
 export default function ServerAdministrationPage() {
+  const router = useRouter();
+  const { user, hasScope: _authHasScope } = useReduxAuth();
+  const [userToDelete, setUserToDelete] = useState<ExtendedAdminUser | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
   const {
     hasScope,
     adminUsers,
@@ -64,6 +71,37 @@ export default function ServerAdministrationPage() {
     handleToggleStatus,
     filteredUsers,
   } = useAdminUsers();
+
+  const handleDeleteClick = (user: ExtendedAdminUser) => {
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (userToDelete) {
+      await handleDeleteAdmin(userToDelete);
+      await loadUsers();
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+      toast.success("Admin user deleted successfully");
+    }
+  };
+
+  // Check if user is an admin - redirect project users
+  // Admin users have a "role" property, project users have "project_id" instead
+  useEffect(() => {
+    if (user) {
+      // Check if user is a project user (has project_id but no role) or if role is missing
+      const isProjectUser = "project_id" in user || !("role" in user);
+      if (isProjectUser) {
+        // Project user - redirect to dashboard
+        router.push("/dashboard");
+        return;
+      }
+      // Admin user - load users
+      loadUsers();
+    }
+  }, [user, router, loadUsers]);
 
   // Error state
   if (error) {
@@ -136,7 +174,7 @@ export default function ServerAdministrationPage() {
             setIsEditDialogOpen(true);
           }}
           onToggleStatus={handleToggleStatus}
-          onDeleteUser={handleDeleteAdmin}
+          onDeleteUser={handleDeleteClick}
         />
       </div>
 
@@ -149,76 +187,48 @@ export default function ServerAdministrationPage() {
               Modify administrative user permissions and settings
             </DialogDescription>
           </DialogHeader>
-          {selectedUser && (
-            <Form
+          {selectedUser ? <Form
               schema={adminUserSchema}
-              onSubmit={handleEditAdmin}
+              onSubmit={async () => {
+                if (selectedUser) {
+                  await handleEditAdmin(selectedUser);
+                }
+              }}
               defaultValues={{
-                email: selectedUser.email,
-                firstName: selectedUser.firstName,
-                lastName: selectedUser.lastName,
-                role: selectedUser.role,
-                accessLevel: "full",
-                permissions: selectedUser.permissions,
-                password: "",
-                confirmPassword: "",
+                username: selectedUser.username,
+                email: selectedUser.email || "",
+                role: selectedUser.role as "master_admin" | "admin" | "developer",
+                access_level: selectedUser.access_level as "full" | "read_write" | "read_only",
+                active: selectedUser.active,
               }}
               className="space-y-4"
             >
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="firstName"
-                  label="First Name"
-                  type="text"
-                  placeholder="Enter first name"
-                  required
-                />
-                <FormField
-                  name="lastName"
-                  label="Last Name"
-                  type="text"
-                  placeholder="Enter last name"
-                  required
-                />
-              </div>
+              <FormField
+                name="username"
+                label="Username"
+                type="text"
+                placeholder="Enter username"
+              />
               <FormField
                 name="email"
                 label="Email Address"
                 type="email"
                 placeholder="Enter email address"
-                required
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  name="password"
-                  label="New Password (leave blank to keep current)"
-                  type="password"
-                  placeholder="Enter new password"
-                />
-                <FormField
-                  name="confirmPassword"
-                  label="Confirm New Password"
-                  type="password"
-                  placeholder="Confirm new password"
-                />
-              </div>
               <FormField
                 name="role"
                 label="Role"
                 type="select"
-                required
                 options={[
                   { value: "master_admin", label: "Master Administrator" },
                   { value: "admin", label: "System Administrator" },
-                  { value: "project_admin", label: "Project Administrator" },
-                  { value: "limited_admin", label: "Limited Administrator" },
+                  { value: "developer", label: "Developer" },
                 ]}
               />
               <FormField
-                name="accessLevel"
+                name="access_level"
                 label="Access Level"
                 type="select"
-                required
                 options={[
                   { value: "full", label: "Full Access" },
                   { value: "read_write", label: "Read & Write" },
@@ -340,8 +350,7 @@ export default function ServerAdministrationPage() {
                 </ActionButton>
                 <ActionButton variant="edit">Update Admin User</ActionButton>
               </DialogFooter>
-            </Form>
-          )}
+            </Form> : null}
         </DialogContent>
       </Dialog>
 
@@ -388,40 +397,72 @@ export default function ServerAdministrationPage() {
       <StreamlinedUserDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onSuccess={() => {
-          loadUsers();
+        data-testid="create-admin-user-dialog"
+        onSuccess={async () => {
+          await loadUsers();
           toast.success("Admin user created successfully");
         }}
       />
 
       {/* Edit Dialog using StreamlinedUserDialog */}
       <StreamlinedUserDialog
-        open={isEditDialogOpen && !!selectedUser}
-        onOpenChange={(open) => {
+        open={Boolean(isEditDialogOpen && selectedUser)}
+        onOpenChange={(open: boolean) => {
           setIsEditDialogOpen(open);
           if (!open) setSelectedUser(null);
         }}
+        data-testid="admin-user-details"
         editUser={
           selectedUser
             ? ({
                 id: selectedUser.id,
-                email: selectedUser.email,
-                username: `${selectedUser.firstName} ${selectedUser.lastName}`,
-                role: selectedUser.role as AdminRole,
-                access_level: "full" as AccessLevel,
-                permissions: [],
-                active: selectedUser.status === "active",
-                created_at: selectedUser.createdAt,
-                updated_at: selectedUser.lastActive,
-                last_login: selectedUser.lastLogin,
+                email: selectedUser.email || "",
+                username: selectedUser.username,
+                role: selectedUser.role,
+                access_level: selectedUser.access_level,
+                permissions: selectedUser.permissions || [],
+                active: selectedUser.active ?? true,
+                created_at: selectedUser.created_at || "",
+                updated_at: selectedUser.updated_at || "",
+                last_login: selectedUser.last_login,
               } as ExtendedAdminUser)
             : undefined
         }
-        onSuccess={() => {
-          loadUsers();
+        onSuccess={async () => {
+          await loadUsers();
           toast.success("Admin user updated successfully");
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Admin User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {userToDelete?.username}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setUserToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              data-testid="admin-user-delete-confirm"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 }

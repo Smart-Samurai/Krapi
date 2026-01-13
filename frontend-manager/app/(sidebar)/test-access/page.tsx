@@ -119,19 +119,19 @@ export default function TestAccessPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span>Status</span>
-                      {getHealthBadge(healthStatus.healthy)}
+                      {getHealthBadge(typeof healthStatus?.healthy === "boolean" ? healthStatus.healthy : false)}
                     </div>
                     <div>
                       <span className="text-base font-medium">Message</span>
                       <p className="text-base text-muted-foreground">
-                        {healthStatus.message}
+                        {typeof healthStatus?.message === "string" ? healthStatus.message : String(healthStatus?.message || "")}
                       </p>
                     </div>
-                    {healthStatus.version && (
+                    {(healthStatus?.version !== undefined && healthStatus?.version !== null) && (
                       <div>
                         <span className="text-base font-medium">Version</span>
                         <p className="text-base text-muted-foreground">
-                          {healthStatus.version}
+                          {typeof healthStatus.version === "string" || typeof healthStatus.version === "number" ? String(healthStatus.version) : ""}
                         </p>
                       </div>
                     )}
@@ -178,17 +178,17 @@ export default function TestAccessPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span>Status</span>
-                      {getHealthBadge(dbHealthStatus.healthy)}
+                      {getHealthBadge(typeof dbHealthStatus?.healthy === "boolean" ? dbHealthStatus.healthy : false)}
                     </div>
                     <div>
                       <span className="text-base font-medium">Message</span>
                       <p className="text-base text-muted-foreground">
-                        {dbHealthStatus.message}
+                        {typeof dbHealthStatus?.message === "string" ? dbHealthStatus.message : String(dbHealthStatus?.message || "")}
                       </p>
                     </div>
                     {(() => {
-                      const details = dbHealthStatus.details;
-                      if (!details) return null;
+                      const details = dbHealthStatus?.details;
+                      if (!details || typeof details !== "object") return null;
                       return (
                         <div>
                           <span className="text-base font-medium">Details</span>
@@ -281,7 +281,7 @@ export default function TestAccessPage() {
         {/* Diagnostics Tab */}
         <TabsContent value="diagnostics" className="space-y-4">
           <DiagnosticsCard
-            diagnosticResults={diagnosticResults}
+            diagnosticResults={diagnosticResults || undefined}
             running={running.diagnostics}
             onRunDiagnostics={runDiagnostics}
           />
@@ -290,7 +290,7 @@ export default function TestAccessPage() {
         {/* Integration Tests Tab */}
         <TabsContent value="testing" className="space-y-4">
           <IntegrationTestsCard
-            testResults={testResults}
+            testResults={testResults || undefined}
             running={running.integration}
             onRunTests={runIntegrationTests}
           />

@@ -272,11 +272,9 @@ export default function ProjectChangelogPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {entry.document_id && (
-                          <span className="text-base text-muted-foreground">
+                        {entry.document_id ? <span className="text-base text-muted-foreground">
                             Doc: {entry.document_id.substring(0, 8)}...
-                          </span>
-                        )}
+                          </span> : null}
                       </TableCell>
                     </TableRow>
                   ))}

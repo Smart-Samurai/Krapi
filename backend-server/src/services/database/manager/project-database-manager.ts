@@ -120,7 +120,11 @@ export class ProjectDatabaseManager {
         created_by TEXT,
         uploaded_by TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        last_accessed TEXT,
+        access_count INTEGER DEFAULT 0,
+        deleted_at TEXT,
+        deleted_by TEXT
       )
     `);
 

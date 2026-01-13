@@ -243,8 +243,7 @@ export default function StoragePage() {
       </div>
 
       {/* Storage Usage Progress */}
-      {storageStats && (
-        <Card>
+      {storageStats ? <Card>
           <CardHeader>
             <CardTitle>Storage Usage</CardTitle>
             <CardDescription>
@@ -272,8 +271,7 @@ export default function StoragePage() {
               <span>100%</span>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card> : null}
 
       {/* Quick Actions */}
       <Card>

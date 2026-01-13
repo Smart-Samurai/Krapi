@@ -14,11 +14,13 @@
  * @module services/restic-backup.service
  */
 
-import type { BackupBackend, BackupSnapshot, BackupStats } from '@smartsamurai/krapi-sdk';
 import { execFile } from 'child_process';
-import { promisify } from 'util';
-import * as path from 'path';
+import { existsSync } from 'fs';
 import * as fs from 'fs/promises';
+import * as path from 'path';
+import { promisify } from 'util';
+
+import type { BackupBackend, BackupSnapshot, BackupStats } from '@smartsamurai/krapi-sdk';
 
 const execFileAsync = promisify(execFile);
 
@@ -145,7 +147,7 @@ export class ResticBackupService implements BackupBackend {
         id: snapshotId,
         short_id: snapshotId.substring(0, 8),
         time: timestamp,
-        tags: tags,
+        tags,
       };
     }
 
@@ -176,7 +178,7 @@ export class ResticBackupService implements BackupBackend {
       encrypted: true,
       version: '3.0.0', // Restic-based backup version
       ...(options.description ? { description: options.description } : {}),
-      tags: tags,
+      tags,
       file_count: stats.file_count,
     };
   }
@@ -295,7 +297,7 @@ export class ResticBackupService implements BackupBackend {
         id: snapshotId,
         short_id: snapshotId.substring(0, 8),
         time: timestamp,
-        tags: tags,
+        tags,
       };
     }
 
@@ -333,7 +335,7 @@ export class ResticBackupService implements BackupBackend {
       encrypted: true,
       version: '3.0.0',
       ...(options.description ? { description: options.description } : {}),
-      tags: tags,
+      tags,
       file_count: fileCount,
     };
     
@@ -428,7 +430,7 @@ export class ResticBackupService implements BackupBackend {
         unique_size: stats.unique_size,
         encrypted: true,
         version: '3.0.0',
-        tags: tags,
+        tags,
         file_count: stats.file_count,
       });
     }
@@ -664,7 +666,7 @@ export class ResticBackupService implements BackupBackend {
   private async runRestic(
     args: string[],
     password: string,
-    timeout: number = 300000 // 5 minutes default timeout
+    timeout = 300000 // 5 minutes default timeout
   ): Promise<{ stdout: string; stderr: string }> {
     // Set password via environment variable (more secure than command line)
     const env = {
@@ -688,7 +690,7 @@ export class ResticBackupService implements BackupBackend {
       const result = await Promise.race([
         execFileAsync(this.resticPath, args, {
           maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-          env: env,
+          env,
         }),
         timeoutPromise,
       ]);
@@ -761,8 +763,7 @@ export class ResticBackupService implements BackupBackend {
 
     // Check if bundled binary exists (synchronous check)
     try {
-      const fs = require('fs');
-      if (fs.existsSync(bundledPath)) {
+      if (existsSync(bundledPath)) {
         console.log(`✅ Using bundled Restic binary: ${bundledPath}`);
         return bundledPath;
       } else {

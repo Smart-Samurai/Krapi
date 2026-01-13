@@ -215,7 +215,7 @@ function ProjectSidebar() {
   ];
 
   return (
-    <Sidebar>
+    <Sidebar data-testid="app-sidebar">
       <SidebarHeader>
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col gap-1">

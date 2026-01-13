@@ -11,6 +11,7 @@
 "use client";
 
 import { MessageSquare, Send, Bot, User, Wrench, Plug, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 
 import {
@@ -61,7 +62,21 @@ interface ChatMessage {
  * @returns {JSX.Element} Admin MCP page
  */
 export default function AdminMcpPage() {
-  const { sessionToken } = useReduxAuth();
+  const router = useRouter();
+  const { user, sessionToken } = useReduxAuth();
+  
+  // Check if user is an admin - redirect project users
+  // Admin users have a "role" property, project users have "project_id" instead
+  useEffect(() => {
+    if (user) {
+      // Check if user is a project user (has project_id but no role) or if role is missing
+      const isProjectUser = "project_id" in user || !("role" in user);
+      if (isProjectUser) {
+        // Project user - redirect to dashboard
+        router.push("/dashboard");
+      }
+    }
+  }, [user, router]);
   const [provider, setProvider] = useState<"openai" | "lmstudio" | "ollama">("openai");
   const [endpoint, setEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -253,9 +268,7 @@ export default function AdminMcpPage() {
           <div className="flex items-center gap-2 mb-1">
             <Wrench className="h-4 w-4 text-blue-500" />
             <span className="font-semibold text-sm text-blue-600">Tool Result</span>
-            {msg.name && (
-              <span className="text-xs text-muted-foreground">({msg.name})</span>
-            )}
+            {msg.name ? <span className="text-xs text-muted-foreground">({msg.name})</span> : null}
           </div>
           <pre className="text-base whitespace-pre-wrap break-words font-mono">
             {msg.content}
@@ -272,11 +285,9 @@ export default function AdminMcpPage() {
             <span className="font-semibold text-purple-600">Assistant</span>
           </div>
           <div className="p-3 bg-muted rounded-lg">
-            {msg.content && (
-              <p className="text-base mb-3 whitespace-pre-wrap break-words">
+            {msg.content ? <p className="text-base mb-3 whitespace-pre-wrap break-words">
                 {msg.content}
-              </p>
-            )}
+              </p> : null}
             <div className="space-y-2">
               {msg.tool_calls.map((tc) => (
                 <div
@@ -475,8 +486,7 @@ export default function AdminMcpPage() {
                   }
                 />
               )}
-              {modelCapabilities && (
-                <div className="mt-2 flex items-center gap-2 text-sm">
+              {modelCapabilities ? <div className="mt-2 flex items-center gap-2 text-sm">
                   {modelCapabilities.supportsToolCalling ? (
                     <>
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -488,23 +498,18 @@ export default function AdminMcpPage() {
                       <span className="text-yellow-600">Tool calling may not be supported</span>
                     </>
                   )}
-                  {checkingCapabilities && (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-              )}
+                  {checkingCapabilities ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+                </div> : null}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {error && (
-        <Card className="border-destructive">
+      {error ? <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive text-base">{error}</p>
           </CardContent>
-        </Card>
-      )}
+        </Card> : null}
 
       <Card>
         <CardHeader>
@@ -529,12 +534,10 @@ export default function AdminMcpPage() {
             ) : (
               messages.map((msg, index) => renderMessage(msg, index))
             )}
-            {loading && (
-              <div className="flex items-center gap-2 text-muted-foreground">
+            {loading ? <div className="flex items-center gap-2 text-muted-foreground">
                 <Bot className="h-4 w-4 animate-pulse" />
                 <span className="text-base">Thinking...</span>
-              </div>
-            )}
+              </div> : null}
           </div>
           <div className="flex gap-2">
             <Input

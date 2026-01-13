@@ -18,6 +18,57 @@ const readline = require("readline");
 const rootDir = __dirname;
 let rl = null;
 
+/**
+ * Cleanup function to restore terminal state
+ */
+function cleanupTerminal() {
+  // Restore terminal to normal mode
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(false);
+  }
+  process.stdin.pause();
+  
+  // Close readline interface if it exists
+  if (rl) {
+    rl.close();
+    rl = null;
+  }
+  
+  // Restore cursor and echo
+  process.stdout.write('\x1b[?25h'); // Show cursor
+  process.stdout.write('\x1b[?1000l'); // Disable mouse tracking
+}
+
+// Set up signal handlers to restore terminal on exit
+// The exit handler always runs cleanup as a safety net
+process.on('exit', () => {
+  cleanupTerminal();
+});
+
+// SIGTERM handler
+process.on('SIGTERM', () => {
+  cleanupTerminal();
+  process.exit(143); // 143 is the standard exit code for SIGTERM
+});
+
+// SIGINT handler - will be overridden by specific handlers when needed
+// This is a fallback for interactive mode
+process.on('SIGINT', () => {
+  cleanupTerminal();
+  console.log('\n');
+  process.exit(130); // 130 is the standard exit code for SIGINT
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  cleanupTerminal();
+  error(`Fatal error: ${err.message}`);
+  if (err.stack) {
+    console.error(err.stack);
+  }
+  process.exit(1);
+});
+
 // Colors
 const colors = {
   reset: "\x1b[0m",
@@ -194,24 +245,30 @@ async function firstTimeSetup() {
   }
   
   try {
-    // Step 1: Install dependencies
-    title("Step 1/4: Installing Dependencies");
+    // Step 1: Sync SDK version across monorepo
+    title("Step 1/5: Syncing SDK Version");
+    info("Ensuring all packages use the same SDK version...");
+    await execCommand("npm run sync-sdk");
+    success("SDK version synced!");
+    
+    // Step 2: Install dependencies
+    title("Step 2/5: Installing Dependencies");
     info("This may take a few minutes...");
-    await execCommand("npm install");
+    await execCommand("npm run install:all");
     success("Dependencies installed!");
     
-    // Step 2: Initialize environment
-    title("Step 2/4: Initializing Environment");
+    // Step 3: Initialize environment
+    title("Step 3/5: Initializing Environment");
     await execCommand("npm run init-env");
     success("Environment initialized!");
     
-    // Step 3: Build packages
-    title("Step 3/4: Building Packages");
+    // Step 4: Build packages
+    title("Step 4/5: Building Packages");
     await execCommand("npm run build:packages");
     success("Packages built!");
     
-    // Step 4: Show next steps
-    title("Step 4/4: Setup Complete!");
+    // Step 5: Show next steps
+    title("Step 5/5: Setup Complete!");
     success("KRAPI is ready to use!");
     info("\nDefault login credentials:");
     info("  Username: admin");
@@ -234,27 +291,61 @@ async function firstTimeSetup() {
 }
 
 /**
- * Show main menu
+ * Check if this is first-time setup
+ */
+function isFirstTime() {
+  const hasNodeModules = fs.existsSync(path.join(rootDir, "node_modules"));
+  const hasBuilds = areServicesBuilt() && arePackagesBuilt();
+  const hasDatabase = fs.existsSync(path.join(rootDir, "backend-server", "data", "krapi.db"));
+  return !hasNodeModules || !hasBuilds || !hasDatabase;
+}
+
+/**
+ * Get system status for display
+ */
+function getSystemStatus() {
+  const status = {
+    dependencies: isInstalled(),
+    packages: arePackagesBuilt(),
+    services: areServicesBuilt(),
+    firstTime: isFirstTime(),
+  };
+  return status;
+}
+
+/**
+ * Show main menu with smart detection
  */
 function showMainMenu() {
   console.clear();
   title("🎯 KRAPI Management");
   
-  console.log(`
-  ${colors.bright}Main Menu:${colors.reset}
+  const status = getSystemStatus();
   
-  ${colors.green}1.${colors.reset} Start KRAPI
-  ${colors.green}2.${colors.reset} Stop KRAPI
-  ${colors.green}3.${colors.reset} Restart KRAPI
-  ${colors.green}4.${colors.reset} Check Status
-  ${colors.green}5.${colors.reset} View Logs
-  ${colors.green}6.${colors.reset} Configuration
-  ${colors.green}7.${colors.reset} Advanced Options
-  ${colors.green}8.${colors.reset} Reset App State ${colors.dim}(Delete all data & rebuild)${colors.reset}
-  ${colors.green}9.${colors.reset} Clean Test Projects ${colors.dim}(Remove test data only)${colors.reset}
-  ${colors.green}0.${colors.reset} Exit
+  // Show status indicators
+  console.log(`${colors.dim}Status:${colors.reset}`);
+  console.log(`  Dependencies: ${status.dependencies ? colors.green + "✓ Installed" : colors.yellow + "⚠ Missing"}${colors.reset}`);
+  console.log(`  Packages: ${status.packages ? colors.green + "✓ Built" : colors.yellow + "⚠ Not Built"}${colors.reset}`);
+  console.log(`  Services: ${status.services ? colors.green + "✓ Built" : colors.yellow + "⚠ Not Built"}${colors.reset}`);
+  if (status.firstTime) {
+    console.log(`  ${colors.cyan}🆕 First-time setup detected${colors.reset}`);
+  }
+  console.log("");
   
-  `);
+  console.log(`${colors.bright}Main Menu:${colors.reset}`);
+  console.log("");
+  console.log(`${colors.green}1.${colors.reset} Start KRAPI ${colors.dim}${status.firstTime ? "(will auto-setup)" : ""}${colors.reset}`);
+  console.log(`${colors.green}2.${colors.reset} Stop KRAPI`);
+  console.log(`${colors.green}3.${colors.reset} Restart KRAPI`);
+  console.log(`${colors.green}4.${colors.reset} Check Status`);
+  console.log(`${colors.green}5.${colors.reset} View Logs`);
+  console.log(`${colors.green}6.${colors.reset} Configuration`);
+  console.log("");
+  console.log(`${colors.dim}--- Advanced Options ---${colors.reset}`);
+  console.log(`${colors.green}7.${colors.reset} Advanced Developer Menu`);
+  console.log("");
+  console.log(`${colors.green}0.${colors.reset} Exit`);
+  console.log("");
 }
 
 /**
@@ -308,7 +399,11 @@ async function smartStartup(nonInteractive = false) {
     title("🚀 Smart Startup");
   }
   
-  // 1. Check dependencies - always install root first
+  // 1. Sync SDK version first (ensures consistency)
+  if (!nonInteractive) info("Syncing SDK version across monorepo...");
+  await execCommand("npm run sync-sdk", rootDir, nonInteractive, true);
+  
+  // 2. Check dependencies - always install root first
   if (!isInstalled()) {
     if (!nonInteractive) info("Dependencies not found, installing...");
     await execCommand("npm install", rootDir, nonInteractive, false);
@@ -318,7 +413,7 @@ async function smartStartup(nonInteractive = false) {
   }
   
   // Install subdirectory dependencies
-  const subdirs = ["backend-server", "frontend-manager"];
+  const subdirs = ["backend-server", "frontend-manager", "KRAPI-COMPREHENSIVE-TEST-SUITE"];
   for (const dir of subdirs) {
     const subdirPath = path.join(rootDir, dir);
     const subdirNodeModules = path.join(subdirPath, "node_modules");
@@ -464,24 +559,42 @@ async function startServices(mode = "prod", nonInteractive = false) {
     }
   }, 5000); // Check every 5 seconds
   
-  // Handle Ctrl+C
-  process.on("SIGINT", () => {
-    info("\nStopping services...");
-    child.kill();
-    process.exit(0);
-  });
+  // Handle Ctrl+C - cleanup and stop services
+  // Store original handlers if any, then add our specific handler
+  const originalSigintHandlers = process.listeners("SIGINT").slice();
+  process.removeAllListeners("SIGINT");
   
-  // Handle Ctrl+C
-  process.on("SIGINT", () => {
+  const sigintHandler = () => {
     clearInterval(checkInterval);
+    cleanupTerminal();
     info("\nStopping services...");
-    child.kill();
-    process.exit(0);
-  });
+    child.kill("SIGTERM");
+    // Give child process a moment to clean up
+    setTimeout(() => {
+      process.exit(130);
+    }, 1000);
+  };
+  
+  process.on("SIGINT", sigintHandler);
   
   child.on("exit", (code) => {
     clearInterval(checkInterval);
-    if (code !== 0) {
+    // Restore original SIGINT handlers if any
+    process.removeAllListeners("SIGINT");
+    if (originalSigintHandlers.length > 0) {
+      originalSigintHandlers.forEach(handler => {
+        process.on("SIGINT", handler);
+      });
+    } else {
+      // Restore default cleanup handler
+      process.on("SIGINT", () => {
+        cleanupTerminal();
+        console.log('\n');
+        process.exit(130);
+      });
+    }
+    
+    if (code !== 0 && code !== null) {
       error("Services stopped with error");
     } else {
       success("Services stopped");
@@ -632,9 +745,10 @@ async function quickSettingsMenu() {
   ${colors.green}8.${colors.reset} CORS Enabled
   ${colors.green}9.${colors.reset} Behind Proxy
   ${colors.green}10.${colors.reset} Rate Limiting
+  ${colors.green}11.${colors.reset} Proxy Shared Secret (frontend -> backend)
   
   ${colors.bright}Environment:${colors.reset}
-  ${colors.green}11.${colors.reset} Node Environment (dev/prod)
+  ${colors.green}12.${colors.reset} Node Environment (dev/prod)
   
   ${colors.green}0.${colors.reset} Back to config menu
     `);
@@ -747,6 +861,16 @@ async function quickSettingsMenu() {
         break;
       }
       case "11": {
+        const current = await getConfigValue("security.proxySecret");
+        info(`Current: ${current ? "[set]" : "[not set]"}`);
+        const value = await askQuestion("Proxy shared secret (leave blank to keep current): ");
+        if (value.trim()) {
+          await execCommand(`node scripts/krapi-manager.js config set security.proxySecret ${value.trim()}`);
+        }
+        await askQuestion("\nPress Enter to continue...");
+        break;
+      }
+      case "12": {
         const current = await getConfigValue("app.nodeEnv");
         info(`Current: ${current}`);
         console.log("Options: development or production");
@@ -952,22 +1076,108 @@ async function resetAppState() {
         success("Deleted main database");
       }
       
-      if (fs.existsSync(projectsDir)) {
-        const projectFiles = fs.readdirSync(projectsDir);
-        projectFiles.forEach((file) => {
-          if (file.endsWith(".db")) {
-            fs.unlinkSync(path.join(projectsDir, file));
-            deletedProjectsCount++;
-          }
-        });
+      // Also delete WAL and SHM files if they exist (with error handling)
+      try {
+        if (fs.existsSync(mainDb + "-wal")) {
+          fs.unlinkSync(mainDb + "-wal");
+        }
+      } catch (err) {
+        warn(`Could not delete main DB WAL: ${err.message}`);
+      }
+      try {
+        if (fs.existsSync(mainDb + "-shm")) {
+          fs.unlinkSync(mainDb + "-shm");
+        }
+      } catch (err) {
+        warn(`Could not delete main DB SHM: ${err.message}`);
       }
       
-      // Also delete WAL and SHM files if they exist
-      if (fs.existsSync(mainDb + "-wal")) {
-        fs.unlinkSync(mainDb + "-wal");
+      // Delete all project databases and related files
+      if (fs.existsSync(projectsDir)) {
+        // Projects are stored as .db files directly in projects directory
+        // Each project has: {projectId}.db, {projectId}.db-wal, {projectId}.db-shm
+        // Also check for project folders (legacy or new structure)
+        const projectItems = fs.readdirSync(projectsDir, { withFileTypes: true });
+        
+        projectItems.forEach((item) => {
+          const itemPath = path.join(projectsDir, item.name);
+          try {
+            if (item.isDirectory()) {
+              // Delete entire project folder recursively (if folders exist)
+              fs.rmSync(itemPath, { recursive: true, force: true });
+              deletedProjectsCount++;
+            } else if (item.isFile()) {
+              // Delete all database-related files
+              if (item.name.endsWith(".db") || item.name.endsWith(".db-wal") || item.name.endsWith(".db-shm")) {
+                fs.unlinkSync(itemPath);
+                // Only count .db files to avoid double counting
+                if (item.name.endsWith(".db")) {
+                  deletedProjectsCount++;
+                }
+              }
+            }
+          } catch (err) {
+            // Log but continue - some files might be locked
+            warn(`Could not delete ${item.name}: ${err.message}`);
+          }
+        });
+        
+        // Also do a comprehensive cleanup: find all .db-wal and .db-shm files
+        // This catches any that might have been missed
+        try {
+          const allFiles = fs.readdirSync(projectsDir);
+          allFiles.forEach((fileName) => {
+            if (fileName.endsWith(".db-wal") || fileName.endsWith(".db-shm")) {
+              const filePath = path.join(projectsDir, fileName);
+              try {
+                if (fs.existsSync(filePath)) {
+                  fs.unlinkSync(filePath);
+                }
+              } catch (err) {
+                // Ignore errors for WAL/SHM files
+              }
+            }
+          });
+        } catch (err) {
+          // Ignore errors in cleanup pass
+        }
       }
-      if (fs.existsSync(mainDb + "-shm")) {
-        fs.unlinkSync(mainDb + "-shm");
+      
+      // Delete backup files and restic repository
+      const backupsDir = path.join(backendDataDir, "backups");
+      if (fs.existsSync(backupsDir)) {
+        let deletedBackups = 0;
+        try {
+          // Delete all JSON backup files
+          const backupFiles = fs.readdirSync(backupsDir);
+          backupFiles.forEach((fileName) => {
+            if (fileName.endsWith(".json")) {
+              try {
+                fs.unlinkSync(path.join(backupsDir, fileName));
+                deletedBackups++;
+              } catch (err) {
+                warn(`Could not delete backup file ${fileName}: ${err.message}`);
+              }
+            }
+          });
+          
+          // Delete restic-repo directory recursively
+          const resticRepoPath = path.join(backupsDir, "restic-repo");
+          if (fs.existsSync(resticRepoPath)) {
+            try {
+              fs.rmSync(resticRepoPath, { recursive: true, force: true });
+              success("Deleted Restic repository");
+            } catch (err) {
+              warn(`Could not delete Restic repository: ${err.message}`);
+            }
+          }
+          
+          if (deletedBackups > 0) {
+            success(`Deleted ${deletedBackups} backup file(s)`);
+          }
+        } catch (err) {
+          warn(`Could not clean backups directory: ${err.message}`);
+        }
       }
     }
     
@@ -1003,6 +1213,175 @@ async function resetAppState() {
     }
   } catch (err) {
     error(`Reset failed: ${err.message}`);
+    if (err.stdout) console.log(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    await askQuestion("\nPress Enter to continue...");
+  }
+}
+
+/**
+ * Clear database - deletes all database files without rebuilding
+ */
+async function clearDatabase() {
+  console.clear();
+  title("🗑️  Clear Database");
+  
+  warn("This will delete ALL database data (main DB + all project folders)!");
+  warn("Your configuration (.env files) will be preserved.");
+  warn("NO rebuilds will be performed - just database cleanup.");
+  
+  const confirmText = await askQuestion("\nType 'CLEAR' to confirm: ");
+  
+  if (confirmText.trim() !== "CLEAR") {
+    info("Database clear cancelled.");
+    await askQuestion("\nPress Enter to continue...");
+    return;
+  }
+  
+  try {
+    // Delete database files
+    title("Deleting databases...");
+    
+    // Databases are now always stored in backend-server/data (not root/data)
+    const backendDataDir = path.join(rootDir, "backend-server", "data");
+    
+    let deletedMainDb = false;
+    let deletedProjectsCount = 0;
+    
+    if (fs.existsSync(backendDataDir)) {
+      const mainDb = path.join(backendDataDir, "krapi.db");
+      const projectsDir = path.join(backendDataDir, "projects");
+      
+      // Delete main database
+      if (fs.existsSync(mainDb)) {
+        fs.unlinkSync(mainDb);
+        deletedMainDb = true;
+        success("Deleted main database");
+      }
+      
+      // Also delete WAL and SHM files if they exist (with error handling)
+      try {
+        if (fs.existsSync(mainDb + "-wal")) {
+          fs.unlinkSync(mainDb + "-wal");
+          success("Deleted main database WAL file");
+        }
+      } catch (err) {
+        warn(`Could not delete main DB WAL: ${err.message}`);
+      }
+      try {
+        if (fs.existsSync(mainDb + "-shm")) {
+          fs.unlinkSync(mainDb + "-shm");
+          success("Deleted main database SHM file");
+        }
+      } catch (err) {
+        warn(`Could not delete main DB SHM: ${err.message}`);
+      }
+      
+      // Delete all project databases and related files
+      if (fs.existsSync(projectsDir)) {
+        // Projects are stored as .db files directly in projects directory
+        // Each project has: {projectId}.db, {projectId}.db-wal, {projectId}.db-shm
+        // Also check for project folders (legacy or new structure)
+        const projectItems = fs.readdirSync(projectsDir, { withFileTypes: true });
+        
+        projectItems.forEach((item) => {
+          const itemPath = path.join(projectsDir, item.name);
+          try {
+            if (item.isDirectory()) {
+              // Delete entire project folder recursively (if folders exist)
+              fs.rmSync(itemPath, { recursive: true, force: true });
+              deletedProjectsCount++;
+            } else if (item.isFile()) {
+              // Delete all database-related files
+              if (item.name.endsWith(".db") || item.name.endsWith(".db-wal") || item.name.endsWith(".db-shm")) {
+                fs.unlinkSync(itemPath);
+                // Only count .db files to avoid double counting
+                if (item.name.endsWith(".db")) {
+                  deletedProjectsCount++;
+                }
+              }
+            }
+          } catch (err) {
+            // Log but continue - some files might be locked
+            warn(`Could not delete ${item.name}: ${err.message}`);
+          }
+        });
+        
+        // Also do a comprehensive cleanup: find all .db-wal and .db-shm files
+        // This catches any that might have been missed
+        try {
+          const allFiles = fs.readdirSync(projectsDir);
+          allFiles.forEach((fileName) => {
+            if (fileName.endsWith(".db-wal") || fileName.endsWith(".db-shm")) {
+              const filePath = path.join(projectsDir, fileName);
+              try {
+                if (fs.existsSync(filePath)) {
+                  fs.unlinkSync(filePath);
+                }
+              } catch (err) {
+                // Ignore errors for WAL/SHM files
+              }
+            }
+          });
+        } catch (err) {
+          // Ignore errors in cleanup pass
+        }
+      }
+      
+      // Delete backup files and restic repository
+      const backupsDir = path.join(backendDataDir, "backups");
+      if (fs.existsSync(backupsDir)) {
+        let deletedBackups = 0;
+        try {
+          // Delete all JSON backup files
+          const backupFiles = fs.readdirSync(backupsDir);
+          backupFiles.forEach((fileName) => {
+            if (fileName.endsWith(".json")) {
+              try {
+                fs.unlinkSync(path.join(backupsDir, fileName));
+                deletedBackups++;
+              } catch (err) {
+                warn(`Could not delete backup file ${fileName}: ${err.message}`);
+              }
+            }
+          });
+          
+          // Delete restic-repo directory recursively
+          const resticRepoPath = path.join(backupsDir, "restic-repo");
+          if (fs.existsSync(resticRepoPath)) {
+            try {
+              fs.rmSync(resticRepoPath, { recursive: true, force: true });
+              success("Deleted Restic repository");
+            } catch (err) {
+              warn(`Could not delete Restic repository: ${err.message}`);
+            }
+          }
+          
+          if (deletedBackups > 0) {
+            success(`Deleted ${deletedBackups} backup file(s)`);
+          }
+        } catch (err) {
+          warn(`Could not clean backups directory: ${err.message}`);
+        }
+      }
+    }
+    
+    if (deletedProjectsCount > 0) {
+      success(`Deleted ${deletedProjectsCount} project folder(s)/database(s)`);
+    }
+    
+    if (!deletedMainDb && deletedProjectsCount === 0) {
+      warn("No database files found to delete");
+    }
+    
+    title("✅ Database Cleared!");
+    success("All database files, backups, and repositories have been deleted.");
+    info("Database is now in a fresh state.");
+    info("Configuration files (.env) were preserved.");
+    
+    await askQuestion("\nPress Enter to continue...");
+  } catch (err) {
+    error(`Database clear failed: ${err.message}`);
     if (err.stdout) console.log(err.stdout);
     if (err.stderr) console.error(err.stderr);
     await askQuestion("\nPress Enter to continue...");
@@ -1260,6 +1639,20 @@ async function interactiveMode() {
     
     switch (choice.trim()) {
       case "1":
+        // Smart startup with first-time detection
+        const isFirst = isFirstTime();
+        if (isFirst) {
+          info("First-time setup detected. This will:");
+          info("  1. Install all dependencies");
+          info("  2. Build packages and services");
+          info("  3. Initialize the database");
+          info("  4. Start KRAPI");
+          console.log("");
+          const proceed = await confirm("Continue with setup and start?");
+          if (!proceed) {
+            break;
+          }
+        }
         await smartStartup(false);
         break;
       case "2":
@@ -1282,13 +1675,7 @@ async function interactiveMode() {
         await configMenu();
         break;
       case "7":
-        await advancedMenu();
-        break;
-      case "8":
-        await resetAppState();
-        break;
-      case "9":
-        await cleanTestProjects();
+        await advancedDeveloperMenu();
         break;
       case "0":
         console.log("\n👋 Goodbye!");
@@ -1303,27 +1690,72 @@ async function interactiveMode() {
 }
 
 /**
- * Advanced options menu
+ * Advanced Developer Menu
  */
-async function advancedMenu() {
+async function advancedDeveloperMenu() {
   while (true) {
     console.clear();
-    title("Advanced Options");
+    title("⚙️  Advanced Developer Menu");
+    
+    const status = getSystemStatus();
     
     console.log(`
-  ${colors.green}1.${colors.reset} Development Mode
-  ${colors.green}2.${colors.reset} Run Setup Again (full install/build)
-  ${colors.green}0.${colors.reset} Back to main menu
-    `);
+  ${colors.bright}Development Options:${colors.reset}
+  
+  ${colors.green}1.${colors.reset} Rebuild & Start (Production)
+  ${colors.green}2.${colors.reset} Rebuild & Start (Development Mode)
+  ${colors.green}3.${colors.reset} Rebuild, Clear DB & Start (Production)
+  ${colors.green}4.${colors.reset} Rebuild, Clear DB & Start (Development)
+  ${colors.green}5.${colors.reset} Start in Development Mode ${colors.dim}(Hot reload)${colors.reset}
+  ${colors.green}6.${colors.reset} Start in Production Mode
+  ${colors.green}7.${colors.reset} Rebuild Packages Only
+  ${colors.green}8.${colors.reset} Rebuild Services Only
+  ${colors.green}9.${colors.reset} Rebuild Everything
+  ${colors.green}10.${colors.reset} Clear Database ${colors.dim}(Fresh DB, no rebuilds)${colors.reset}
+  ${colors.green}11.${colors.reset} Reset App State ${colors.dim}(Delete all data & rebuild)${colors.reset}
+  ${colors.green}12.${colors.reset} Clean Test Projects
+  ${colors.green}0.${colors.reset} Back to Main Menu
+  
+  `);
     
     const choice = await askQuestion("Select option: ");
     
     switch (choice.trim()) {
       case "1":
-        await developmentMenu();
+        await rebuildAndStart("prod");
         break;
       case "2":
-        await firstTimeSetup();
+        await rebuildAndStart("dev");
+        break;
+      case "3":
+        await rebuildClearDbAndStart("prod");
+        break;
+      case "4":
+        await rebuildClearDbAndStart("dev");
+        break;
+      case "5":
+        await startServices("dev", false);
+        break;
+      case "6":
+        await startServices("prod", false);
+        break;
+      case "7":
+        await rebuildPackagesOnly();
+        break;
+      case "8":
+        await rebuildServicesOnly();
+        break;
+      case "9":
+        await rebuildEverything();
+        break;
+      case "10":
+        await clearDatabase();
+        break;
+      case "11":
+        await resetAppState();
+        break;
+      case "12":
+        await cleanTestProjects();
         break;
       case "0":
         return;
@@ -1332,6 +1764,248 @@ async function advancedMenu() {
         await askQuestion("\nPress Enter to continue...");
     }
   }
+}
+
+/**
+ * Rebuild and start services
+ */
+async function rebuildAndStart(mode = "prod") {
+  console.clear();
+  title(`🔨 Rebuild & Start (${mode} mode)`);
+  
+  try {
+    // Stop services if running
+    const status = await checkStatus(true);
+    if (status.frontendRunning || status.backendRunning) {
+      info("Stopping running services...");
+      await stopServices();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    
+    // Rebuild packages
+    title("Rebuilding packages...");
+    await execCommand("npm run build:packages", rootDir, false, false);
+    success("Packages rebuilt!");
+    
+    // Rebuild services
+    title("Rebuilding services...");
+    await execCommand("npm run build:backend", rootDir, false, false);
+    await execCommand("npm run build:frontend", rootDir, false, false);
+    success("Services rebuilt!");
+    
+    // Start services
+    await startServices(mode, false);
+  } catch (err) {
+    error(`Rebuild and start failed: ${err.message}`);
+    if (err.stdout) console.log(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    await askQuestion("\nPress Enter to continue...");
+  }
+}
+
+/**
+ * Rebuild, clear database, and start
+ */
+async function rebuildClearDbAndStart(mode = "prod") {
+  console.clear();
+  title(`🔨 Rebuild, Clear DB & Start (${mode} mode)`);
+  
+  warn("This will delete all database data!");
+  const confirmText = await askQuestion("\nType 'CLEAR' to confirm: ");
+  
+  if (confirmText.trim() !== "CLEAR") {
+    info("Operation cancelled.");
+    await askQuestion("\nPress Enter to continue...");
+    return;
+  }
+  
+  try {
+    // Stop services if running
+    const status = await checkStatus(true);
+    if (status.frontendRunning || status.backendRunning) {
+      info("Stopping running services...");
+      await stopServices();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    
+    // Clear database (without rebuilding)
+    await clearDatabaseInternal();
+    
+    // Rebuild packages
+    title("Rebuilding packages...");
+    await execCommand("npm run build:packages", rootDir, false, false);
+    success("Packages rebuilt!");
+    
+    // Rebuild services
+    title("Rebuilding services...");
+    await execCommand("npm run build:backend", rootDir, false, false);
+    await execCommand("npm run build:frontend", rootDir, false, false);
+    success("Services rebuilt!");
+    
+    // Start services
+    await startServices(mode, false);
+  } catch (err) {
+    error(`Operation failed: ${err.message}`);
+    if (err.stdout) console.log(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    await askQuestion("\nPress Enter to continue...");
+  }
+}
+
+/**
+ * Rebuild packages only
+ */
+async function rebuildPackagesOnly() {
+  console.clear();
+  title("🔨 Rebuild Packages");
+  
+  try {
+    await execCommand("npm run build:packages", rootDir, false, false);
+    success("Packages rebuilt!");
+    await askQuestion("\nPress Enter to continue...");
+  } catch (err) {
+    error(`Rebuild failed: ${err.message}`);
+    if (err.stdout) console.log(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    await askQuestion("\nPress Enter to continue...");
+  }
+}
+
+/**
+ * Rebuild services only
+ */
+async function rebuildServicesOnly() {
+  console.clear();
+  title("🔨 Rebuild Services");
+  
+  try {
+    await execCommand("npm run build:backend", rootDir, false, false);
+    await execCommand("npm run build:frontend", rootDir, false, false);
+    success("Services rebuilt!");
+    await askQuestion("\nPress Enter to continue...");
+  } catch (err) {
+    error(`Rebuild failed: ${err.message}`);
+    if (err.stdout) console.log(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    await askQuestion("\nPress Enter to continue...");
+  }
+}
+
+/**
+ * Rebuild everything
+ */
+async function rebuildEverything() {
+  console.clear();
+  title("🔨 Rebuild Everything");
+  
+  try {
+    // Rebuild packages
+    title("Rebuilding packages...");
+    await execCommand("npm run build:packages", rootDir, false, false);
+    success("Packages rebuilt!");
+    
+    // Rebuild services
+    title("Rebuilding services...");
+    await execCommand("npm run build:backend", rootDir, false, false);
+    await execCommand("npm run build:frontend", rootDir, false, false);
+    success("Services rebuilt!");
+    
+    title("✅ Rebuild Complete!");
+    success("Everything has been rebuilt.");
+    await askQuestion("\nPress Enter to continue...");
+  } catch (err) {
+    error(`Rebuild failed: ${err.message}`);
+    if (err.stdout) console.log(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    await askQuestion("\nPress Enter to continue...");
+  }
+}
+
+/**
+ * Internal function to clear database (used by other functions)
+ */
+async function clearDatabaseInternal() {
+  title("Deleting databases...");
+  
+  const backendDataDir = path.join(rootDir, "backend-server", "data");
+  
+  if (fs.existsSync(backendDataDir)) {
+    const mainDb = path.join(backendDataDir, "krapi.db");
+    const projectsDir = path.join(backendDataDir, "projects");
+    
+    // Delete main database
+    if (fs.existsSync(mainDb)) {
+      fs.unlinkSync(mainDb);
+    }
+    
+    // Delete WAL and SHM files
+    try {
+      if (fs.existsSync(mainDb + "-wal")) fs.unlinkSync(mainDb + "-wal");
+    } catch {}
+    try {
+      if (fs.existsSync(mainDb + "-shm")) fs.unlinkSync(mainDb + "-shm");
+    } catch {}
+    
+    // Delete all project databases
+    if (fs.existsSync(projectsDir)) {
+      const projectItems = fs.readdirSync(projectsDir, { withFileTypes: true });
+      projectItems.forEach((item) => {
+        const itemPath = path.join(projectsDir, item.name);
+        try {
+          if (item.isDirectory()) {
+            fs.rmSync(itemPath, { recursive: true, force: true });
+          } else if (item.isFile()) {
+            if (item.name.endsWith(".db") || item.name.endsWith(".db-wal") || item.name.endsWith(".db-shm")) {
+              fs.unlinkSync(itemPath);
+            }
+          }
+        } catch (err) {
+          // Ignore errors
+        }
+      });
+      
+      // Cleanup pass for WAL/SHM files
+      try {
+        const allFiles = fs.readdirSync(projectsDir);
+        allFiles.forEach((fileName) => {
+          if (fileName.endsWith(".db-wal") || fileName.endsWith(".db-shm")) {
+            try {
+              fs.unlinkSync(path.join(projectsDir, fileName));
+            } catch {}
+          }
+        });
+      } catch {}
+    }
+    
+    // Delete backups
+    const backupsDir = path.join(backendDataDir, "backups");
+    if (fs.existsSync(backupsDir)) {
+      try {
+        const backupFiles = fs.readdirSync(backupsDir);
+        backupFiles.forEach((fileName) => {
+          if (fileName.endsWith(".json")) {
+            try {
+              fs.unlinkSync(path.join(backupsDir, fileName));
+            } catch {}
+          }
+        });
+        
+        const resticRepoPath = path.join(backupsDir, "restic-repo");
+        if (fs.existsSync(resticRepoPath)) {
+          fs.rmSync(resticRepoPath, { recursive: true, force: true });
+        }
+      } catch {}
+    }
+  }
+  
+  success("Database cleared!");
+}
+
+/**
+ * Advanced options menu (legacy - redirects to developer menu)
+ */
+async function advancedMenu() {
+  await advancedDeveloperMenu();
 }
 
 /**

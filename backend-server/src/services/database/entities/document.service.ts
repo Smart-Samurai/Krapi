@@ -1,3 +1,4 @@
+import KrapiLogger from "@krapi/logger";
 import { v4 as uuidv4 } from "uuid";
 
 import { MultiDatabaseManager } from "../../multi-database-manager.service";
@@ -5,6 +6,8 @@ import { DatabaseCoreService } from "../core/database-core.service";
 import { DatabaseMappersService } from "../database-mappers.service";
 
 import { Document } from "@/types";
+
+const logger = KrapiLogger.getInstance();
 
 /**
  * Document Service
@@ -50,52 +53,29 @@ export class DocumentService {
     // Trim whitespace
     normalizedCollectionName = normalizedCollectionName.trim();
 
-    // First, get ALL collections to verify the database connection and see what's available
-    const allCollectionsCheck = await this.dbManager.queryProject(
-      projectId,
-      "SELECT id, name, project_id FROM collections WHERE project_id = $1",
-      [projectId]
-    );
-    console.log(`[DOCUMENT SERVICE] Total collections in project ${projectId}: ${allCollectionsCheck.rows.length}`);
-    if (allCollectionsCheck.rows.length > 0) {
-      console.log(`[DOCUMENT SERVICE] Available collections:`, allCollectionsCheck.rows.map(r => ({ id: r.id, name: r.name })));
-    }
-
     // First, get the collection_id using project_id and collection_name (from project DB)
     // Note: collections table stores project_id, but we query by project_id AND name
     // Support both collection names and UUID collection IDs
-    console.log(`[DOCUMENT SERVICE] Querying for collection '${normalizedCollectionName}' in project '${projectId}'`);
-    console.log(`[DOCUMENT SERVICE] Original collection name: '${collectionName}'`);
-    console.log(`[DOCUMENT SERVICE] Normalized collection name: '${normalizedCollectionName}' (length: ${normalizedCollectionName.length}, isUUID: ${isUUID})`);
     
     // Try exact match first - if it's a UUID, query by ID; otherwise query by name
     let collectionResult;
     if (isUUID) {
-      console.log(`[DOCUMENT SERVICE] Query: SELECT id, name, project_id FROM collections WHERE id = $1 AND project_id = $2`);
-      console.log(`[DOCUMENT SERVICE] Params: [${normalizedCollectionName}, ${projectId}]`);
       collectionResult = await this.dbManager.queryProject(
         projectId,
         "SELECT id, name, project_id FROM collections WHERE id = $1 AND project_id = $2",
         [normalizedCollectionName, projectId]
       );
     } else {
-      console.log(`[DOCUMENT SERVICE] Query: SELECT id, name, project_id FROM collections WHERE project_id = $1 AND name = $2`);
-      console.log(`[DOCUMENT SERVICE] Params: [${projectId}, ${normalizedCollectionName}]`);
       collectionResult = await this.dbManager.queryProject(
         projectId,
         "SELECT id, name, project_id FROM collections WHERE project_id = $1 AND name = $2",
         [projectId, normalizedCollectionName]
       );
     }
-    
-    console.log(`[DOCUMENT SERVICE] Collection query result (exact match):`, {
-      rowCount: collectionResult.rows.length,
-      rows: collectionResult.rows.map(r => ({ id: r.id, name: r.name, nameLength: r.name?.toString().length })),
-    });
 
     // If exact match fails, try case-insensitive match BEFORE throwing error
     if (collectionResult.rows.length === 0) {
-      console.log(`[DOCUMENT SERVICE] Exact match failed, trying case-insensitive match...`);
+      logger.debug("database", `Exact match failed for collection '${normalizedCollectionName}', trying case-insensitive match`);
       const allCollectionsResult = await this.dbManager.queryProject(
         projectId,
         "SELECT id, name, project_id FROM collections WHERE project_id = $1",
@@ -113,19 +93,13 @@ export class DocumentService {
       );
       
       if (caseInsensitiveMatch) {
-        console.warn(
-          `[DOCUMENT SERVICE] Found case-insensitive match: '${caseInsensitiveMatch.name}' matches '${normalizedCollectionName}'`
-        );
+        logger.warn("database", `Found case-insensitive match: '${caseInsensitiveMatch.name}' matches '${normalizedCollectionName}'`);
         // Re-query with the actual collection name from database
         collectionResult = await this.dbManager.queryProject(
           projectId,
           "SELECT id, name, project_id FROM collections WHERE project_id = $1 AND name = $2",
           [projectId, caseInsensitiveMatch.name]
         );
-        console.log(`[DOCUMENT SERVICE] Case-insensitive match query result:`, {
-          rowCount: collectionResult.rows.length,
-          rows: collectionResult.rows.map(r => ({ id: r.id, name: r.name })),
-        });
       }
     }
 
@@ -139,18 +113,12 @@ export class DocumentService {
       const availableCollections = allCollectionsResult.rows.map(
         (row) => ({ id: row.id, name: row.name, project_id: row.project_id })
       );
-      console.error(
-        `[DOCUMENT SERVICE] Collection '${normalizedCollectionName}' not found in project '${projectId}'`
-      );
-      console.error(
-        `[DOCUMENT SERVICE] Original collection name: '${collectionName}'`
-      );
-      console.error(
-        `[DOCUMENT SERVICE] Available collections in project: ${JSON.stringify(availableCollections, null, 2)}`
-      );
-      console.error(
-        `[DOCUMENT SERVICE] Searching for collection name: '${normalizedCollectionName}' (length: ${normalizedCollectionName.length}, type: ${typeof normalizedCollectionName})`
-      );
+      
+      logger.error("database", `Collection '${normalizedCollectionName}' not found in project '${projectId}'`, {
+        originalName: collectionName,
+        normalizedName: normalizedCollectionName,
+        availableCollections: availableCollections.map(c => c.name),
+      });
       
       // Try case-insensitive match as fallback
       if (availableCollections.length > 0) {
@@ -161,9 +129,7 @@ export class DocumentService {
           }
         );
         if (caseInsensitiveMatch) {
-          console.warn(
-            `[DOCUMENT SERVICE] Found case-insensitive match: '${caseInsensitiveMatch.name}' matches '${normalizedCollectionName}'`
-          );
+          logger.warn("database", `Found case-insensitive match: '${caseInsensitiveMatch.name}' matches '${normalizedCollectionName}'`);
           // Re-query with the actual collection name from database
           const retryResult = await this.dbManager.queryProject(
             projectId,

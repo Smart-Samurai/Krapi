@@ -454,11 +454,7 @@ export class FileService {
 
     // Note: size and mime_type updates would require direct SQL or extending updateFile
     // For now, we just mark the version as restored without updating size/mime_type
-    // TODO: Extend updateFile to support size and mime_type if needed for version restoration
 
     return { success: true, restoredVersion: versionNumber };
   }
-
-  // TODO: Add remaining methods as they are extracted from the large file
-  // This service now delegates to specialized sub-services for better organization
 }

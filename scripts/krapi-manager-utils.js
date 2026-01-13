@@ -6,6 +6,7 @@
  * and cross-platform process management.
  */
 
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
@@ -37,6 +38,7 @@ const DEFAULT_CONFIG = {
     allowedOrigins: ["http://localhost:3498"],
     behindProxy: true,
     enableCors: true,
+    proxySecret: "",
     rateLimit: {
       enabled: true,
       windowMs: 900000,
@@ -69,7 +71,22 @@ function loadConfig() {
     const content = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(content);
     // Merge with defaults to ensure all keys exist
-    return mergeConfig(DEFAULT_CONFIG, config);
+    const merged = mergeConfig(DEFAULT_CONFIG, config);
+    const withEnv = applyEnvOverrides(merged);
+
+    // Ensure localhost and frontend URL are always present
+    const allowedWithFrontend = ensureLocalhostInOrigins(
+      addFrontendUrlToOrigins(withEnv)
+    );
+    withEnv.security.allowedOrigins = allowedWithFrontend;
+
+    // Auto-generate and persist proxy secret if missing everywhere
+    if (!withEnv.security.proxySecret) {
+      withEnv.security.proxySecret = crypto.randomBytes(32).toString("hex");
+      saveConfig(withEnv);
+    }
+
+    return withEnv;
   } catch (error) {
     console.error(`Error loading config: ${error.message}`);
     return { ...DEFAULT_CONFIG };
@@ -269,6 +286,8 @@ function syncConfigToEnv(config) {
     updateEnvFile(rootEnvPath, "NODE_ENV", config.app.nodeEnv);
     updateEnvFile(rootEnvPath, "BEHIND_PROXY", config.security.behindProxy.toString());
     updateEnvFile(rootEnvPath, "ENABLE_CORS", config.security.enableCors.toString());
+    updateEnvFile(rootEnvPath, "KRAPI_PROXY_SECRET", config.security.proxySecret || "");
+    updateEnvFile(rootEnvPath, "KRAPI_FRONTEND_PUBLIC_URL", config.frontend.url);
     // Always set ALLOWED_ORIGINS (includes localhost)
     updateEnvFile(rootEnvPath, "ALLOWED_ORIGINS", allowedOrigins.join(","));
   }
@@ -283,6 +302,8 @@ function syncConfigToEnv(config) {
     updateEnvFile(frontendEnvPath, "NEXT_PUBLIC_LISTEN_HOST", config.frontend.host);
     updateEnvFile(frontendEnvPath, "KRAPI_BACKEND_URL", config.backend.url);
     updateEnvFile(frontendEnvPath, "NEXT_PUBLIC_API_URL", config.backend.url);
+    updateEnvFile(frontendEnvPath, "KRAPI_PROXY_SECRET", config.security.proxySecret || "");
+    updateEnvFile(frontendEnvPath, "KRAPI_FRONTEND_PUBLIC_URL", config.frontend.url);
     // Always set ALLOWED_ORIGINS (includes localhost)
     updateEnvFile(frontendEnvPath, "ALLOWED_ORIGINS", allowedOrigins.join(","));
   }
@@ -299,6 +320,8 @@ function syncConfigToEnv(config) {
     updateEnvFile(backendEnvPath, "FRONTEND_URL", config.frontend.url);
     updateEnvFile(backendEnvPath, "KRAPI_FRONTEND_URL", config.frontend.url);
     updateEnvFile(backendEnvPath, "ENABLE_CORS", config.security.enableCors.toString());
+    updateEnvFile(backendEnvPath, "KRAPI_PROXY_SECRET", config.security.proxySecret || "");
+    updateEnvFile(backendEnvPath, "KRAPI_FRONTEND_PUBLIC_URL", config.frontend.url);
     // Always set ALLOWED_ORIGINS (includes localhost)
     updateEnvFile(backendEnvPath, "ALLOWED_ORIGINS", allowedOrigins.join(","));
     
@@ -372,4 +395,59 @@ module.exports = {
   configPath,
   rootDir,
 };
+
+function parseCommaList(value) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+function addFrontendUrlToOrigins(config) {
+  const origins = config.security.allowedOrigins || [];
+  if (config.frontend?.url && !origins.includes(config.frontend.url)) {
+    origins.push(config.frontend.url);
+  }
+  return origins;
+}
+
+function applyEnvOverrides(config) {
+  const updated = mergeConfig(config, {});
+
+  const frontendUrl =
+    process.env.KRAPI_FRONTEND_PUBLIC_URL ||
+    process.env.KRAPI_FRONTEND_URL ||
+    process.env.FRONTEND_URL;
+  if (frontendUrl) {
+    updated.frontend.url = frontendUrl;
+  }
+
+  const backendUrl = process.env.KRAPI_BACKEND_URL || process.env.BACKEND_URL;
+  if (backendUrl) {
+    updated.backend.url = backendUrl;
+  }
+
+  const allowedOriginsEnv =
+    process.env.KRAPI_ALLOWED_ORIGINS || process.env.ALLOWED_ORIGINS;
+  if (allowedOriginsEnv) {
+    updated.security.allowedOrigins = parseCommaList(allowedOriginsEnv);
+  }
+
+  if (process.env.BEHIND_PROXY) {
+    updated.security.behindProxy = process.env.BEHIND_PROXY !== "false";
+  }
+
+  if (process.env.ENABLE_CORS) {
+    updated.security.enableCors = process.env.ENABLE_CORS === "true";
+  }
+
+  const proxySecret =
+    process.env.KRAPI_PROXY_SECRET || process.env.PROXY_SECRET || "";
+  if (proxySecret) {
+    updated.security.proxySecret = proxySecret;
+  }
+
+  return updated;
+}
 
